@@ -40,7 +40,6 @@ Usage:
 
 Options:
     -h, --help      Display this message
-    --git SLUG      Get the crate from "https://github/$SLUG"
     -f, --force     Force overwriting an existing binary
     --crate NAME    Name of the crate to install (default <repository name>)
     --tag TAG       Tag (version) of the crate to install (default <latest release>)
@@ -75,16 +74,8 @@ need() {
 force=false
 while test $# -gt 0; do
     case $1 in
-        --crate)
-            crate=$2
-            shift
-            ;;
         --force | -f)
             force=true
-            ;;
-        --git)
-            git=$2
-            shift
             ;;
         --help | -h)
             help
@@ -134,7 +125,8 @@ if [ -z $git ]; then
     err 'must specify a git repository using `--git`. Example: `install.sh --git japaric/cross`'
 fi
 
-url="https://github.com/$git"
+url="https://github.com/bitsy-ai/print-nanny-cli"
+crate="printnanny"
 say_err "GitHub repository: $url"
 
 if [ -z $crate ]; then
