@@ -97,9 +97,6 @@ jobs:
     needs: install-cross
     steps:
       - uses: actions/checkout@v2
-        with:
-          depth: 50
-
       - name: Download Cross
         uses: actions/download-artifact@v1
         with:
