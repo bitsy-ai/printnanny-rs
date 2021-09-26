@@ -33,7 +33,7 @@ set -e
 
 help() {
     cat <<'EOF'
-Install a binary release of a Rust crate hosted on GitHub
+Install Print Nanny Command-line Interface
 
 Usage:
     install.sh [options]
@@ -41,7 +41,6 @@ Usage:
 Options:
     -h, --help      Display this message
     -f, --force     Force overwriting an existing binary
-    --crate NAME    Name of the crate to install (default <repository name>)
     --tag TAG       Tag (version) of the crate to install (default <latest release>)
     --target TARGET Install the release compiled for $TARGET (default <`rustc` host>)
     --to LOCATION   Where to install the binary (default ~/.cargo/bin)
@@ -172,4 +171,4 @@ for f in $(ls $td); do
     fi
 done
 
-rm -rf $td
+trap "rm -rf $td" EXIT
