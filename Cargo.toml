@@ -13,5 +13,6 @@ panic = "abort"
 [dependencies]
 anyhow = "1.0"
 clap = "2.33"
+dirs = "4.0.0"
 log = "0.4"
 simple_logger = "1.13"
