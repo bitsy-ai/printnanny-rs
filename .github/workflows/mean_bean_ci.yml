@@ -46,19 +46,19 @@ jobs:
   #     - run: ci/test.bash cargo ${{ matrix.target }}
   #       shell: bash
 
-    strategy:
-      fail-fast: true
-      matrix:
-        channel: [stable, beta, nightly]
-        target:
-          # MSVC
-          - i686-pc-windows-msvc
-          - x86_64-pc-windows-msvc
-          # GNU: You typically only need to test Windows GNU if you're
-          # specifically targetting it, and it can cause issues with some
-          # dependencies if you're not so it's disabled by self.
-          # - i686-pc-windows-gnu
-          # - x86_64-pc-windows-gnu
+    # strategy:
+    #   fail-fast: true
+    #   matrix:
+    #     channel: [stable, beta, nightly]
+    #     target:
+    #       # MSVC
+    #       - i686-pc-windows-msvc
+    #       - x86_64-pc-windows-msvc
+    #       # GNU: You typically only need to test Windows GNU if you're
+    #       # specifically targetting it, and it can cause issues with some
+    #       # dependencies if you're not so it's disabled by self.
+    #       # - i686-pc-windows-gnu
+    #       # - x86_64-pc-windows-gnu
 
   # macos:
   #   runs-on: macos-latest
@@ -81,16 +81,16 @@ jobs:
   #     - run: ci/test.bash cross ${{ matrix.target }}
   #       if: matrix.target == 'x86_64-apple-darwin'
 
-    strategy:
-      fail-fast: true
-      matrix:
-        channel: [stable, beta, nightly]
-        target:
-          # macOS
-          - x86_64-apple-darwin
-          # iOS
-          - aarch64-apple-ios
-          - x86_64-apple-ios
+    # strategy:
+    #   fail-fast: true
+    #   matrix:
+    #     channel: [stable, beta, nightly]
+    #     target:
+    #       # macOS
+    #       - x86_64-apple-darwin
+    #       # iOS
+    #       - aarch64-apple-ios
+    #       - x86_64-apple-ios
 
   linux:
     runs-on: ubuntu-latest
