@@ -34,18 +34,18 @@ jobs:
       matrix:
         platform: [linux-musl, apple-darwin]
 
-  windows:
-    runs-on: windows-latest
-    needs: install-cross
-    strategy:
-      matrix:
-        target:
-          # MSVC
-          - i686-pc-windows-msvc
-          - x86_64-pc-windows-msvc
-          # GNU
-          # - i686-pc-windows-gnu
-          # - x86_64-pc-windows-gnu
+  # windows:
+  #   runs-on: windows-latest
+  #   needs: install-cross
+  #   strategy:
+  #     matrix:
+  #       target:
+  #         # MSVC
+  #         - i686-pc-windows-msvc
+  #         - x86_64-pc-windows-msvc
+  #         # GNU
+  #         # - i686-pc-windows-gnu
+  #         # - x86_64-pc-windows-gnu
     steps:
       - uses: actions/checkout@v2
       - run: bash ci/set_rust_version.bash stable ${{ matrix.target }}

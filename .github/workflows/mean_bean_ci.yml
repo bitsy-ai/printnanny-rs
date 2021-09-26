@@ -28,23 +28,23 @@ jobs:
       matrix:
         platform: [linux-musl, apple-darwin]
 
-  windows:
-    runs-on: windows-latest
-    # Windows technically doesn't need this, but if we don't block windows on it
-    # some of the windows jobs could fill up the concurrent job queue before
-    # one of the install-cross jobs has started, so this makes sure all
-    # artifacts are downloaded first.
-    needs: install-cross
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          depth: 50
-      - run: ci/set_rust_version.bash ${{ matrix.channel }} ${{ matrix.target }}
-        shell: bash
-      - run: ci/build.bash cargo ${{ matrix.target }}
-        shell: bash
-      - run: ci/test.bash cargo ${{ matrix.target }}
-        shell: bash
+  # windows:
+  #   runs-on: windows-latest
+  #   # Windows technically doesn't need this, but if we don't block windows on it
+  #   # some of the windows jobs could fill up the concurrent job queue before
+  #   # one of the install-cross jobs has started, so this makes sure all
+  #   # artifacts are downloaded first.
+  #   needs: install-cross
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #       with:
+  #         depth: 50
+  #     - run: ci/set_rust_version.bash ${{ matrix.channel }} ${{ matrix.target }}
+  #       shell: bash
+  #     - run: ci/build.bash cargo ${{ matrix.target }}
+  #       shell: bash
+  #     - run: ci/test.bash cargo ${{ matrix.target }}
+  #       shell: bash
 
     strategy:
       fail-fast: true
