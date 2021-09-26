@@ -1,4 +1,4 @@
-# 🦀 Print Nanny Installer & Command-line Interface
+# 🦀 Print Nanny Command-line Interface
 
 ## Badges
 
