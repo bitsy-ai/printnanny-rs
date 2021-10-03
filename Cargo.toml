@@ -11,3 +11,9 @@ panic = "abort"
 panic = "abort"
 
 [dependencies]
+clap = "2.33.3"
+anyhow = "1.0.44"
+confy = "0.4.0"
+tokio = { version = "1.12.0", features = ["full"] }
+log = "0.4.14"
+print-nanny-client = "0.8.6-dev3"
