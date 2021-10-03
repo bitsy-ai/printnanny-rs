@@ -47,15 +47,15 @@ async fn main() -> Result<()> {
         3 | _ => builder.filter_level(LevelFilter::Trace).init(),
     };
     
-    let mut config = load_config(&app_name, &config_name)?;
-    if let Some(api_url) = app_m.value_of("api-url") {
-        config.api_url = api_url.to_string();
-        info!("Using api-url {}", config.api_url);
-    }
+    // let mut config = load_config(&app_name, &config_name)?;
+    // if let Some(api_url) = app_m.value_of("api-url") {
+    //     config.api_url = api_url.to_string();
+    //     info!("Using api-url {}", config.api_url);
+    // }
 
     match app_m.subcommand() {
         ("auth", Some(_sub_m)) => {
-            if let Err(err) = auth(&mut config, app_name, config_name).await {
+            if let Err(err) = auth().await {
                 if verbosity > 0 {
                     eprintln!("Error: {:#?}", err);
                 } else {
@@ -63,7 +63,8 @@ async fn main() -> Result<()> {
                 }
                 std::process::exit(1);
             };
-        }
+        },
+        _ => {}
     }
     Ok(())
 }
