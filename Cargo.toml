@@ -12,12 +12,12 @@ panic = "abort"
 
 [dependencies]
 anyhow = "1.0.44"
-dialoguer = "0.8.0"
-env_logger = "0.9.0"
 clap = "2.33.3"
 confy = "0.4.0"
+dialoguer = "0.8.0"
+env_logger = "0.9.0"
 log = "0.4.14"
-print-nanny-client = "0.8.6-dev3"
+print-nanny-client = "0.8.22"
 serde = "1.0.130"
 thiserror = "1.0.29"
 tokio = { version = "1.12.0", features = ["full"] }
