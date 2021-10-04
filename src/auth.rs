@@ -11,11 +11,11 @@ use print_nanny_client::models::{
 use print_nanny_client::apis::auth_api::{ auth_email_create, auth_token_create };
 use print_nanny_client::apis::configuration::{ Configuration as PrintNannyAPIConfig };
 
-use crate::config::{ PrintNannyConfig };
+use crate::config::{ LocalConfig };
 // use crate::device::{ device_identity_update_or_create };
 use crate::prompt::{ prompt_token_input, prompt_email };
 
-https://github.com/dtolnay/thiserror
+// https://github.com/dtolnay/thiserror
 #[derive(Error, Debug)]
 pub enum AuthError {
     #[error("🔴 Device not registered. Please run `printnanny auth` to get started")]
@@ -50,10 +50,10 @@ pub async fn verify_2fa_auth(api_config: &PrintNannyAPIConfig, email: &str) -> R
     Ok(api_token)
 }
 
-pub async fn auth(api_url: &str, config: &mut PrintNannyConfig) -> Result<()> {
+pub async fn auth(api_url: &str, config: &mut LocalConfig) -> Result<()> {
     let email = prompt_email();
     let api_config = print_nanny_client::apis::configuration::Configuration{
-        base_path:api_url.to_string(), ..Default::default() s
+        base_path:api_url.to_string(), ..Default::default()
     };
     let token_res = verify_2fa_auth(&api_config, &email).await?;
     config.api_token = Some(token_res.token);
