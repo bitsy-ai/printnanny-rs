@@ -14,26 +14,30 @@ pub struct LocalConfig {
     #[serde(default)]
     pub app_name: String,
     #[serde(default)]
-    pub config_name: Option<String>,
+    pub config_name: String,
 
     pub appliance: Option<Appliance>,
     pub user: Option<User>
 }
 
 impl LocalConfig {
-        fn print(self){
-        println!("💜 Print Nanny config:");
-        println!("{:#?}", self);
+
+    pub fn print_spacer() {
+        let (w, _) = term_size::dimensions().unwrap_or((24,24));
+        let spacer = (0..w).map(|_| "=").collect::<String>();
+        println!("{}", spacer);
     }
 
-    // fn load_config(self -> Result<LocalConfig, confy::ConfyError> {
-    //     match self.config_name {
-    //         Some(config_name) => {
-    //             confy::load(&config_name)
-    //         }
-    //         _ => confy::load();
-    //     }
-    // }
+    pub fn print(&self) {
+        LocalConfig::print_spacer();
+        println!("💜 Print Nanny config:");
+        println!("💜 {:#?}", self);
+        LocalConfig::print_spacer();
+    }
+
+    pub fn load(app_name: &str) -> Result<LocalConfig, confy::ConfyError> {
+        confy::load(app_name)
+    }
 }
 
 impl ::std::default::Default for LocalConfig {
@@ -42,7 +46,7 @@ impl ::std::default::Default for LocalConfig {
         api_token: None,
         app_name: "printnanny".to_string(),
         appliance: None,
-        config_name: None,
+        config_name: "default".to_string(),
         user: None
     }}
 }

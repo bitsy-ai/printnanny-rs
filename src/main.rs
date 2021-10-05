@@ -4,6 +4,19 @@ use env_logger::Builder;
 use log::LevelFilter;
 use clap::{ Arg, App, SubCommand };
 use printnanny::auth::{ auth };
+use printnanny::config:: { LocalConfig };
+
+
+async fn handle_auth(config: LocalConfig) -> Result<LocalConfig>{
+    if config.api_token.is_none() {
+        let updated_config = auth(config).await?;
+        updated_config.print();
+        Ok(updated_config)
+    } else {
+        config.print();
+        Ok(config)
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -33,7 +46,7 @@ async fn main() -> Result<()> {
         
     let app_m = app.get_matches();
 
-    let default_config_name = "default-config";
+    let default_config_name = "default";
     let config_name = app_m.value_of("config").unwrap_or(default_config_name);
     info!("Using config file: {}", config_name);
 
@@ -47,22 +60,11 @@ async fn main() -> Result<()> {
         3 | _ => builder.filter_level(LevelFilter::Trace).init(),
     };
     
-    // let mut config = load_config(&app_name, &config_name)?;
-    // if let Some(api_url) = app_m.value_of("api-url") {
-    //     config.api_url = api_url.to_string();
-    //     info!("Using api-url {}", config.api_url);
-    // }
+    let config = LocalConfig::load(app_name)?;
 
     match app_m.subcommand() {
         ("auth", Some(_sub_m)) => {
-            if let Err(err) = auth().await {
-                if verbosity > 0 {
-                    eprintln!("Error: {:#?}", err);
-                } else {
-                    eprintln!("Error: {:?}", err);    
-                }
-                std::process::exit(1);
-            };
+            handle_auth(config).await?;
         },
         _ => {}
     }

@@ -50,17 +50,18 @@ pub async fn verify_2fa_auth(api_config: &PrintNannyAPIConfig, email: &str) -> R
     Ok(api_token)
 }
 
-pub async fn auth(api_url: &str, config: &mut LocalConfig) -> Result<()> {
+pub async fn auth(config: LocalConfig) -> Result<LocalConfig> {
+    let mut newconfig = config.clone();
     let email = prompt_email();
     let api_config = print_nanny_client::apis::configuration::Configuration{
-        base_path:api_url.to_string(), ..Default::default()
+        base_path:config.api_url.to_string(), 
+        ..Default::default()
     };
     let token_res = verify_2fa_auth(&api_config, &email).await?;
-    config.api_token = Some(token_res.token);
+    newconfig.api_token = Some(token_res.token);
     // let pki_res = device_identity_update_or_create(config, &device_name).await?;
     // println!("✅ Success! Registered device fingerprint {:?}", pki_res.fingerprint);
     // config.device_identity = Some(pki_res);
-    // confy::store(app_name, config_name, config)?;
-
-    Ok(())
+    confy::store(&newconfig.app_name, &newconfig);
+    Ok(newconfig)
 }
