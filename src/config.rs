@@ -1,7 +1,7 @@
 use log::{ info };
 use thiserror::Error;
 use anyhow::{ Context, Result };
-use dialoguer::{ Input, MultiSelect, Select };
+use dialoguer::{ Input };
 use serde::{ Serialize, Deserialize };
 
 use print_nanny_client::apis::auth_api::{ auth_email_create, auth_token_create };
@@ -62,7 +62,7 @@ impl LocalConfig {
         confy::load(app_name)
     }
 
-    pub fn save(&self) {
+    pub fn save(&self) -> Result<LocalConfig, confy::ConfyError> {
         confy::store(&self.app_name, self);
     }
 
@@ -88,7 +88,7 @@ impl LocalConfig {
     
     async fn verify_2fa_code(&self, token: String) -> Result<TokenResponse> {
         let api_config = LocalConfig::api_config(self);
-        let req = CallbackTokenAuthRequest{mobile: None, token: token, email:Some(self.email.to_string())};
+        let req = CallbackTokenAuthRequest{mobile: None, token, email:Some(self.email.to_string())};
         let res = auth_token_create(&api_config, req).await
             .context("🔴 Verification failed. Please try again or contact leigh@print-nanny.com for help.")?;
         info!("SUCCESS auth_verify_create detail {:?}", serde_json::to_string(&res));
@@ -111,7 +111,7 @@ impl LocalConfig {
             .interact_text()
             .unwrap();
         info!("Received input code {}", input);
-        return input;
+        input
     }
 }
 

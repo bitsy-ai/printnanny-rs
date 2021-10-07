@@ -2,8 +2,8 @@
 use log::{ info };
 // use sysinfo::{ SystemExt };
 use thiserror::Error;
-use anyhow::{ Context, Result };
-use dialoguer::{ Input, MultiSelect, Select };
+
+use dialoguer::{ Input };
 // use print_nanny_client::models::{ 
 //     PrinterProfileRequest,
 //     CameraSourceTypeEnum,
@@ -33,5 +33,5 @@ pub fn prompt_token_input(email: &str) -> String {
         .interact_text()
         .unwrap();
     info!("Received input code {}", input);
-    return input;
+    input
 }

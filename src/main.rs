@@ -3,7 +3,6 @@ use log::{ info };
 use env_logger::Builder;
 use log::LevelFilter;
 use clap::{ Arg, App, SubCommand };
-use printnanny::auth::{ auth };
 use printnanny::config:: { LocalConfig };
 
 
