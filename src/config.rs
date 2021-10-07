@@ -62,8 +62,8 @@ impl LocalConfig {
         confy::load(app_name)
     }
 
-    pub fn save(&self) -> Result<LocalConfig, confy::ConfyError> {
-        confy::store(&self.app_name, self);
+    pub fn save(&self) -> Result<(), confy::ConfyError> {
+        confy::store(&self.app_name, self)
     }
 
     pub async fn prompt_2fa(mut self) -> Result<LocalConfig> {
@@ -72,7 +72,7 @@ impl LocalConfig {
         let otp_token = LocalConfig::prompt_token_input(&self);
         let res: TokenResponse = LocalConfig::verify_2fa_code(&self, otp_token).await?;
         self.api_token = Some(res.token);
-        LocalConfig::save(&self);
+        LocalConfig::save(&self)?;
         Ok(self)
     }
 

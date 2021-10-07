@@ -40,8 +40,9 @@ async fn main() -> Result<()> {
         .multiple(true)
         .help("Sets the level of verbosity"))
         .subcommand(SubCommand::with_name("auth")
-            .about("Connect your Print Nanny account"));
-        
+            .about("Connect your Print Nanny account"))
+        .subcommand(SubCommand::with_name("update")
+        .about("Update Print Nanny system"));    
     let app_m = app.get_matches();
 
     let default_config_name = "default";
@@ -55,7 +56,7 @@ async fn main() -> Result<()> {
         0 => builder.filter_level(LevelFilter::Warn).init(),
         1 => builder.filter_level(LevelFilter::Info).init(),
         2 => builder.filter_level(LevelFilter::Debug).init(),
-        3 | _ => builder.filter_level(LevelFilter::Trace).init(),
+        _ => builder.filter_level(LevelFilter::Trace).init(),
     };
     
     let config = LocalConfig::load(app_name)?;
@@ -63,6 +64,9 @@ async fn main() -> Result<()> {
     match app_m.subcommand() {
         ("auth", Some(_sub_m)) => {
             handle_auth(config).await?;
+        },
+        ("update", Some(_sub_m)) => {
+            unimplemented!();
         },
         _ => {}
     }
