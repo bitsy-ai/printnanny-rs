@@ -40,9 +40,17 @@ pub struct LocalConfig {
 impl LocalConfig {
 
     pub fn api_config(&self) -> print_nanny_client::apis::configuration::Configuration {
-        print_nanny_client::apis::configuration::Configuration{
-            base_path:self.api_url.to_string(), 
-            ..Default::default()
+        if self.api_token.is_none(){
+            print_nanny_client::apis::configuration::Configuration{
+                base_path:self.api_url.to_string(), 
+                ..Default::default()
+            }
+        } else {
+            print_nanny_client::apis::configuration::Configuration{
+                base_path:self.api_url.to_string(),
+                bearer_access_token:self.api_token.clone(),
+                ..Default::default()
+            }
         }
     }
     pub fn print_spacer() {
