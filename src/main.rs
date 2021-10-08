@@ -8,7 +8,7 @@ use printnanny::config:: { LocalConfig };
 
 async fn handle_auth(config: LocalConfig) -> Result<LocalConfig>{
     if config.api_token.is_none() {
-        let result = config.prompt_2fa().await?;
+        let result = config.auth().await?;
         Ok(result)
     } else {
         config.print();

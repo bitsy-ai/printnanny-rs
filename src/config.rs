@@ -37,6 +37,8 @@ pub struct LocalConfig {
     pub user: Option<User>
 }
 
+
+
 impl LocalConfig {
 
     pub fn api_config(&self) -> print_nanny_client::apis::configuration::Configuration {
@@ -74,12 +76,21 @@ impl LocalConfig {
         confy::store(&self.app_name, self)
     }
 
-    pub async fn prompt_2fa(mut self) -> Result<LocalConfig> {
+    pub async fn get_user(&self) -> Result<User>{
+        let api_config = LocalConfig::api_config(self)
+        let res = print_nanny_client::apis::users_api::users_me_retrieve(
+            &api_config
+        ).await.context(format!("🔴 Failed to retreive user {:#?}", self.email))?;
+        Ok(res)
+    }
+
+    pub async fn auth(mut self) -> Result<LocalConfig> {
         self.email = LocalConfig::prompt_email();
         LocalConfig::verify_2fa_send_email(&self).await?;
         let otp_token = LocalConfig::prompt_token_input(&self);
         let res: TokenResponse = LocalConfig::verify_2fa_code(&self, otp_token).await?;
         self.api_token = Some(res.token);
+        self.user = Some(LocalConfig::get_user(&self).await?);
         LocalConfig::save(&self)?;
         Ok(self)
     }
