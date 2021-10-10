@@ -13,7 +13,7 @@ panic = "abort"
 [dependencies]
 anyhow = "1.0.44"
 clap = "2.33.3"
-confy = "0.4.0"
+config = "0.11.0"
 dialoguer = "0.8.0"
 dirs = "4.0.0"
 env_logger = "0.9.0"
