@@ -37,18 +37,51 @@ pub struct LocalConfig {
     pub user: Option<User>
 }
 
+
+
 impl LocalConfig {
+    pub fn new() -> Self {
+        Default::default()
+    }
+    pub fn reset() -> Self {
+        let defaults = LocalConfig::new();
+        defaults.save();
+        print_reset();
+        Ok(defaults)
+    }
 
     pub fn api_config(&self) -> print_nanny_client::apis::configuration::Configuration {
-        print_nanny_client::apis::configuration::Configuration{
-            base_path:self.api_url.to_string(), 
-            ..Default::default()
+        if self.api_token.is_none(){
+            print_nanny_client::apis::configuration::Configuration{
+                base_path:self.api_url.to_string(), 
+                ..Default::default()
+            }
+        } else {
+            print_nanny_client::apis::configuration::Configuration{
+                base_path:self.api_url.to_string(),
+                bearer_access_token:self.api_token.clone(),
+                ..Default::default()
+            }
         }
     }
+    pub fn print_reset(&self) {
+        LocalConfig::print_spacer();
+        info!("💜 Config was reset!");
+        info!("💜 Run");      
+        LocalConfig::print_spacer();
+    }
+    
     pub fn print_spacer() {
         let (w, _) = term_size::dimensions().unwrap_or((24,24));
         let spacer = (0..w/2).map(|_| "-").collect::<String>();
         info!("{}", spacer);
+    }
+
+    pub fn print_user(&self) {
+        LocalConfig::print_spacer();
+        info!("💜 Logged in as user:");
+        info!("💜 {:#?}", self.user);        
+        LocalConfig::print_spacer();
     }
 
     pub fn print(&self) {
@@ -66,12 +99,21 @@ impl LocalConfig {
         confy::store(&self.app_name, self)
     }
 
-    pub async fn prompt_2fa(mut self) -> Result<LocalConfig> {
+    pub async fn get_user(&self) -> Result<User>{
+        let api_config = LocalConfig::api_config(self);
+        let res = print_nanny_client::apis::users_api::users_me_retrieve(
+            &api_config
+        ).await.context(format!("🔴 Failed to retreive user {:#?}", self.email))?;
+        Ok(res)
+    }
+
+    pub async fn auth(mut self) -> Result<LocalConfig> {
         self.email = LocalConfig::prompt_email();
         LocalConfig::verify_2fa_send_email(&self).await?;
         let otp_token = LocalConfig::prompt_token_input(&self);
         let res: TokenResponse = LocalConfig::verify_2fa_code(&self, otp_token).await?;
         self.api_token = Some(res.token);
+        self.user = Some(LocalConfig::get_user(&self).await?);
         LocalConfig::save(&self)?;
         Ok(self)
     }
