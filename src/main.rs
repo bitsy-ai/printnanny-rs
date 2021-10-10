@@ -6,15 +6,25 @@ use clap::{ Arg, App, SubCommand };
 use printnanny::config:: { LocalConfig };
 
 
-async fn handle_auth(config: LocalConfig) -> Result<LocalConfig>{
+// Basic flow goess
+// if <field> not exist -> prompt for config
+// if <field> exist, print config -> prompt to use Y/n -> prompt for config OR proceed
+async fn handle_setup(config: LocalConfig) -> Result<()>{
     if config.api_token.is_none() {
-        let result = config.auth().await?;
-        Ok(result)
+        config.auth();
     } else {
-        config.print();
-        Ok(config)
+        config.print_user();
     }
+    Ok(())
 }
+
+// resets config back to default values
+async fn handle_reset(config: LocalConfig) -> Result<LocalConfig>{
+    let defaults = LocalConfig::new();
+    defaults.save();
+    Ok(defaults)
+}
+
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -39,8 +49,10 @@ async fn main() -> Result<()> {
         .short("v")
         .multiple(true)
         .help("Sets the level of verbosity"))
-        .subcommand(SubCommand::with_name("auth")
+        .subcommand(SubCommand::with_name("setup")
             .about("Connect your Print Nanny account"))
+        .subcommand(SubCommand::with_name("reset")
+        .about("Reset your Print Nanny setup"))
         .subcommand(SubCommand::with_name("update")
         .about("Update Print Nanny system"));    
     let app_m = app.get_matches();
@@ -62,8 +74,11 @@ async fn main() -> Result<()> {
     let config = LocalConfig::load(app_name)?;
 
     match app_m.subcommand() {
-        ("auth", Some(_sub_m)) => {
-            handle_auth(config).await?;
+        ("setup", Some(_sub_m)) => {
+            handle_setup(config).await?;
+        },
+        ("reset", Some(_sub_m)) => {
+            handle_reset(config).await?;
         },
         ("update", Some(_sub_m)) => {
             unimplemented!();

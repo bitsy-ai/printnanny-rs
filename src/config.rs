@@ -40,6 +40,15 @@ pub struct LocalConfig {
 
 
 impl LocalConfig {
+    pub fn new() -> Self {
+        Default::default()
+    }
+    pub fn reset() -> Self {
+        let defaults = LocalConfig::new();
+        defaults.save();
+        print_reset();
+        Ok(defaults)
+    }
 
     pub fn api_config(&self) -> print_nanny_client::apis::configuration::Configuration {
         if self.api_token.is_none(){
@@ -55,10 +64,24 @@ impl LocalConfig {
             }
         }
     }
+    pub fn print_reset(&self) {
+        LocalConfig::print_spacer();
+        info!("💜 Config was reset!");
+        info!("💜 Run");      
+        LocalConfig::print_spacer();
+    }
+    
     pub fn print_spacer() {
         let (w, _) = term_size::dimensions().unwrap_or((24,24));
         let spacer = (0..w/2).map(|_| "-").collect::<String>();
         info!("{}", spacer);
+    }
+
+    pub fn print_user(&self) {
+        LocalConfig::print_spacer();
+        info!("💜 Logged in as user:");
+        info!("💜 {:#?}", self.user);        
+        LocalConfig::print_spacer();
     }
 
     pub fn print(&self) {
@@ -77,7 +100,7 @@ impl LocalConfig {
     }
 
     pub async fn get_user(&self) -> Result<User>{
-        let api_config = LocalConfig::api_config(self)
+        let api_config = LocalConfig::api_config(self);
         let res = print_nanny_client::apis::users_api::users_me_retrieve(
             &api_config
         ).await.context(format!("🔴 Failed to retreive user {:#?}", self.email))?;
