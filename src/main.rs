@@ -11,7 +11,7 @@ use printnanny::config:: { LocalConfig };
 // if <field> exist, print config -> prompt to use Y/n -> prompt for config OR proceed
 async fn handle_setup(config_name: &str) -> Result<()>{
     let config = LocalConfig::new(config_name)?;
-    if config.api_config.bearer_access_token.is_none() {
+    if config.api_token.is_none() {
         config.prompt_2fa().await?;
     } else {
         config.print();
@@ -37,11 +37,6 @@ async fn main() -> Result<()> {
         .version("0.1.0")
         .author("Leigh Johnson <leigh@bitsy.ai>")
         .about("Official Print Nanny CLI https://print-nanny.com")
-        .arg(Arg::with_name("api-url")
-            .long("api-url")
-            .help("Specify api_url")
-            .value_name("API_URL")
-            .takes_value(true))
         .arg(Arg::with_name("config")
             .short("c")
             .long("config")
@@ -60,7 +55,7 @@ async fn main() -> Result<()> {
         .about("Update Print Nanny system"));    
     let app_m = app.get_matches();
 
-    let default_config_name = "local";
+    let default_config_name = "settings";
     let config_name = app_m.value_of("config").unwrap_or(default_config_name);
 
     // Vary the output based on how many times the user used the "verbose" flag
