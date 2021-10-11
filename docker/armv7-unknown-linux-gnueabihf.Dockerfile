@@ -2,4 +2,4 @@ FROM rustembedded/cross:armv7-unknown-linux-gnueabihf-0.2.1
 
 RUN dpkg --add-architecture armhf && \
     apt-get update && \
-    apt-get install -y libssl-dev:armhf
+    apt-get install -y pkg-config libssl-dev
