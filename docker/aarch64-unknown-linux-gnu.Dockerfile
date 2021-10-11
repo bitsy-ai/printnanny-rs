@@ -1,4 +1,5 @@
 FROM rustembedded/cross:aarch64-unknown-linux-gnu-0.2.1
+ENV OPENSSL_STATIC=1
 
 RUN dpkg --add-architecture arm64 && \
     apt-get update && \
