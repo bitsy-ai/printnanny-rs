@@ -154,21 +154,12 @@ impl LocalConfig {
         LocalConfig::print_spacer();
     }
 
-    // pub fn load(app_name: &str) -> Result<LocalConfig, confy::ConfyError> {
-    //     confy::load(app_name)
-    // }
-
-    // pub fn save(&self) -> Result<(), confy::ConfyError> {
-    //     confy::store(&self.app_name, self)
-    // }
-
-    // pub async fn get_user(&self) -> Result<User>{
-    //     let api_config = LocalConfig::api_config(self);
-    //     let res = print_nanny_client::apis::users_api::users_me_retrieve(
-    //         &api_config
-    //     ).await.context(format!("🔴 Failed to retreive user {:#?}", self.email))?;
-    //     Ok(res)
-    // }
+    pub async fn get_user(&self) -> Result<User>{
+        let res = print_nanny_client::apis::users_api::users_me_retrieve(
+            &self.api_config()
+        ).await.context(format!("🔴 Failed to retreive user {:#?}", self.email))?;
+        Ok(res)
+    }
     
     pub fn write_settings(&self, filename: &str) -> Result<()>{
         let path = LocalConfig::settings_base_path(&self.config_name);

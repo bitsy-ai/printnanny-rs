@@ -10,12 +10,16 @@ use printnanny::config:: { LocalConfig };
 // if <field> not exist -> prompt for config
 // if <field> exist, print config -> prompt to use Y/n -> prompt for config OR proceed
 async fn handle_setup(config_name: &str) -> Result<()>{
-    let config = LocalConfig::new(config_name)?;
+    let mut config = LocalConfig::new(config_name)?;
     if config.api_token.is_none() {
-        config.prompt_2fa().await?;
-    } else {
-        config.print();
-    }
+        config = config.prompt_2fa().await?;
+    };
+    if config.user.is_none(){
+        let user = config.get_user().await?;
+        config.user = Some(user);
+        config.write_settings("user.json")?;
+    };
+    config.print();
     Ok(())
 }
 
