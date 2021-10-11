@@ -4,4 +4,4 @@ ENV PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig
 
 RUN dpkg --add-architecture arm64 && \
     apt-get update && \
-    apt-get install -y pkg-config libssl-dev
+    DEBIAN_FRONTEND=noninteractive apt-get install -y pkg-config libssl-dev
