@@ -1,6 +1,8 @@
 use std::path::{ PathBuf };
 use std::{ env }; 
 use log::{ info };
+use glob::glob;
+
 use thiserror::Error;
 use anyhow::{ Context, Result };
 use dialoguer::{ Input };
@@ -32,16 +34,18 @@ pub struct ApiConfig {
     pub bearer_access_token: Option<String>,
 }
 
+impl ::std::default::Default for ApiConfig {
+    fn default() -> Self { Self { 
+        base_path: "https://print-nanny.com/".to_string(),
+        bearer_access_token: None
+    }}
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LocalConfig {
 
     #[serde(default)]
-    pub api_config: Option<ApiConfig>,
-
-    #[serde(default)]
-    pub settings_base: PathBuf,
-    #[serde(default)]
-    pub settings_local: PathBuf,
+    pub api_config: ApiConfig,
 
     #[serde(default)]
     pub email: String,
@@ -53,10 +57,8 @@ pub struct LocalConfig {
 
 impl ::std::default::Default for LocalConfig {
     fn default() -> Self { Self { 
-        api_config: None,
+        api_config: ApiConfig::default(),
         appliance: None,
-        settings_base: dirs::home_dir().unwrap_or(PathBuf::from(".config")).join(".printnanny/settings"),
-        settings_local: dirs::home_dir().unwrap_or(PathBuf::from(".config")).join(".printnanny/settings/local"),
         email: "".to_string(),
         user: None
     }}
@@ -68,21 +70,23 @@ impl LocalConfig {
 
         // https://github.com/mehcode/config-rs/blob/master/examples/hierarchical-env/src/settings.rs
         // Start off by merging in the "default" configuration file
-        let base_path = dirs::home_dir().unwrap().join(".printnanny/settings");
 
-        // Add in the current environment file
-        // Default to 'development' env
-        // Note that this file is _optional_
-        let mode = env::var("RUN_MODE").unwrap_or_else(|_| "sandbox".into());
-        let mode_pathbuf = base_path.join(&mode);
-        let mode_filename = mode_pathbuf.to_str().unwrap_or("sandbox");
-        s.merge(File::with_name(mode_filename).required(false))?;
+        // glob all files in base directory
+        // Default to "settings" but allows for variants like:
+        // RUN_MODE="sandbox" RUN_MODE="prod-account-A"
+        
+        let mode = env::var("RUN_MODE").unwrap_or_else(|_| "settings".into());
+        let mode_dir = format!(".printnanny/{}", &mode);
+        let base_path = dirs::home_dir().unwrap_or(PathBuf::from(".")).join(mode_dir);
+        let glob_pattern = format!("{}/*", base_path.to_str().unwrap());
 
-        // Add in a local configuration file
-        // This file shouldn't be checked in to git
-        let local_pathbuf = base_path.join(config_name);
-        let local_filename = local_pathbuf.to_str().unwrap_or("local");
-        s.merge(File::with_name(local_filename).required(false))?;
+        // Glob all configuration files in base directory
+        s
+        .merge(glob(&glob_pattern)
+                   .unwrap()
+                   .map(|path| File::from(path.unwrap()))
+                   .collect::<Vec<_>>())
+        .unwrap();
 
         // Add in settings from the environment (with a prefix of APP)
         // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
@@ -162,28 +166,32 @@ impl LocalConfig {
     //     Ok(res)
     // }
 
-    pub async fn prompt_api_config(mut self) -> Result<Self> {
+    pub async fn prompt_2fa(mut self) -> Result<Self> {
         self.email = LocalConfig::prompt_email();
         // LocalConfig::verify_2fa_send_email(&self).await?;
         // let otp_token = LocalConfig::prompt_token_input(&self);
         // let res: TokenResponse = LocalConfig::verify_2fa_code(&self, otp_token).await?;
         
-        // self.set("api_config", "postgres://")?;
+        // self.set("api_config.bearer_access_token", res.token)?;
         // api_token = Some(res.token);
         // self.user = Some(LocalConfig::get_user(&self).await?);
         // LocalConfig::save(&self)?;
         Ok(self)
     }
 
-    // async fn verify_2fa_send_email(&self) -> Result<DetailResponse> {
-    //     let api_config = LocalConfig::api_config(self);
-    //     // Sends an email containing an expiring one-time password (6 digits)
-    //     let req =  EmailAuthRequest{email: self.email.clone()};
-    //     let res = auth_email_create(&api_config, req).await
-    //         .context(format!("🔴 Failed to send verification email to {}", self.email))?;
-    //     info!("SUCCESS auth_email_create detail {:?}", serde_json::to_string(&res));
-    //     Ok(res)
-    // }
+    async fn verify_2fa_send_email(&self) -> Result<DetailResponse> {
+        let req_config = print_nanny_client::apis::configuration::Configuration{
+            base_path: self.api_config.base_path.clone(), 
+            ..Default::default()
+        };
+
+        // Sends an email containing an expiring one-time password (6 digits)
+        let req =  EmailAuthRequest{email: self.email.clone()};
+        let res = auth_email_create(&req_config, req).await
+            .context(format!("🔴 Failed to send verification email to {}", self.email))?;
+        info!("SUCCESS auth_email_create detail {:?}", serde_json::to_string(&res));
+        Ok(res)
+    }
     
     // async fn verify_2fa_code(&self, token: String) -> Result<TokenResponse> {
     //     let api_config = LocalConfig::api_config(self);
@@ -203,14 +211,14 @@ impl LocalConfig {
             .unwrap()
     }
 
-    // pub fn prompt_token_input(&self) -> String {
-    //     let prompt = format!("⚪ Enter the 6-digit code emailed to {}", self.email);
-    //     let input : String = Input::new()
-    //         .with_prompt(prompt)
-    //         .interact_text()
-    //         .unwrap();
-    //     info!("Received input code {}", input);
-    //     input
-    // }
+    pub fn prompt_token_input(&self) -> String {
+        let prompt = format!("⚪ Enter the 6-digit code emailed to {}", self.email);
+        let input : String = Input::new()
+            .with_prompt(prompt)
+            .interact_text()
+            .unwrap();
+        info!("Received input code {}", input);
+        input
+    }
 }
 

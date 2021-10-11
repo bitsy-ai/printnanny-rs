@@ -11,8 +11,8 @@ use printnanny::config:: { LocalConfig };
 // if <field> exist, print config -> prompt to use Y/n -> prompt for config OR proceed
 async fn handle_setup(config_name: &str) -> Result<()>{
     let config = LocalConfig::new(config_name)?;
-    if config.api_config.is_none() {
-        config.prompt_api_config().await?;
+    if config.api_config.bearer_access_token.is_none() {
+        config.prompt_2fa().await?;
     } else {
         config.print();
     }
