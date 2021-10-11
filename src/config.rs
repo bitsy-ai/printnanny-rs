@@ -69,8 +69,8 @@ impl LocalConfig {
     pub fn settings_base_path(config_name: &str) -> PathBuf {
         let mode = env::var("RUN_MODE").unwrap_or_else(|_| config_name.to_string());
         let mode_dir = format!(".printnanny/{}", &mode);
-        let path = dirs::home_dir().unwrap_or(PathBuf::from(".")).join(mode_dir);
-        path
+        
+        dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")).join(mode_dir)
     }
     pub fn new(config_name: &str) -> Result<Self, ConfigError> {
         let mut s = Config::default();
