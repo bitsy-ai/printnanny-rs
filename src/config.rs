@@ -113,20 +113,20 @@ impl LocalConfig {
     //     Ok(defaults)
     // }
 
-    // pub fn api_config(&self) -> print_nanny_client::apis::configuration::Configuration {
-    //     if self.api_token.is_none(){
-    //         print_nanny_client::apis::configuration::Configuration{
-    //             base_path:self.api_url.to_string(), 
-    //             ..Default::default()
-    //         }
-    //     } else {
-    //         print_nanny_client::apis::configuration::Configuration{
-    //             base_path:self.api_url.to_string(),
-    //             bearer_access_token:self.api_token.clone(),
-    //             ..Default::default()
-    //         }
-    //     }
-    // }
+    pub fn api_config(&self) -> print_nanny_client::apis::configuration::Configuration {
+        if self.api_token.is_none(){
+            print_nanny_client::apis::configuration::Configuration{
+                base_path:self.api_base_path.to_string(), 
+                ..Default::default()
+            }
+        } else {
+            print_nanny_client::apis::configuration::Configuration{
+                base_path:self.api_base_path.to_string(),
+                bearer_access_token:self.api_token.clone(),
+                ..Default::default()
+            }
+        }
+    }
     pub fn print_reset(&self) {
         LocalConfig::print_spacer();
         info!("💜 Config was reset!");
@@ -191,26 +191,17 @@ impl LocalConfig {
     }
 
     async fn verify_2fa_send_email(&self) -> Result<DetailResponse> {
-        let api_config = print_nanny_client::apis::configuration::Configuration{
-            base_path: self.api_base_path.clone(), 
-            ..Default::default()
-        };
-
         // Sends an email containing an expiring one-time password (6 digits)
         let req =  EmailAuthRequest{email: self.email.clone()};
-        let res = auth_email_create(&api_config, req).await
+        let res = auth_email_create(&self.api_config(), req).await
             .context(format!("🔴 Failed to send verification email to {}", self.email))?;
         info!("SUCCESS auth_email_create detail {:?}", serde_json::to_string(&res));
         Ok(res)
     }
     
     async fn verify_2fa_code(&self, token: String) -> Result<TokenResponse> {
-        let api_config = print_nanny_client::apis::configuration::Configuration{
-            base_path: self.api_base_path.clone(), 
-            ..Default::default()
-        };
         let req = CallbackTokenAuthRequest{mobile: None, token, email:Some(self.email.to_string())};
-        let res = auth_token_create(&api_config, req).await
+        let res = auth_token_create(&self.api_config(), req).await
             .context("🔴 Verification failed. Please try again or contact leigh@print-nanny.com for help.")?;
         info!("SUCCESS auth_verify_create detail {:?}", serde_json::to_string(&res));
         Ok(res)
