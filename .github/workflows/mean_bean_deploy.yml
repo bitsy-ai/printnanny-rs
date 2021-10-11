@@ -166,7 +166,7 @@ jobs:
           # - thumbv7em-none-eabihf
           # - thumbv7m-none-eabi
     steps:
-      - run: sudo apt-get update && apt-get install -y libssl-dev
+      - run: sudo apt-get update && sudo apt-get install -y libssl-dev
       - uses: actions/checkout@v2
       - uses: actions/download-artifact@v1
         with:
