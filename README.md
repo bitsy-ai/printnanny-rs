@@ -16,6 +16,15 @@ There are two main CI files in this template.
 You can customise the build and testing in [`ci/build.bash`](./ci/build.bash) and [`ci/test.bash`](./ci/test.bash)
 respectively.
 
+### Customizing Cross Docker Images
+
+[cross provides default Docker images for some targets](https://github.com/rust-embedded/cross/blob/master/README.md#custom-docker-images). Images derived from `embeddedrust/cross` are in the `docker/` directory.
+
+Build/push all images:
+```
+make images
+```
+
 ### Known Issues
 
 - Currently you cannot rebuild a deployed release if you have already built that target, without manually deleting the release first. This will be fixed soon.
