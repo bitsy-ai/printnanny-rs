@@ -9,21 +9,24 @@ use printnanny::config:: { LocalConfig };
 // Basic flow goess
 // if <field> not exist -> prompt for config
 // if <field> exist, print config -> prompt to use Y/n -> prompt for config OR proceed
-async fn handle_setup(config: LocalConfig) -> Result<()>{
-    if config.api_token.is_none() {
-        config.auth();
+async fn handle_setup(config_name: &str) -> Result<()>{
+    let config = LocalConfig::new(config_name)?;
+    if config.api_config.is_none() {
+        config.prompt_api_config().await?;
     } else {
-        config.print_user();
+        config.print();
     }
     Ok(())
 }
 
 // resets config back to default values
-async fn handle_reset(config: LocalConfig) -> Result<LocalConfig>{
-    let defaults = LocalConfig::new();
-    defaults.save();
-    Ok(defaults)
-}
+// async fn handle_reset(config_name: &str) -> Result<LocalConfig>{
+//     // let config = LocalConfig::load(app_name)?;
+
+//     let defaults = LocalConfig::new();
+//     defaults.save();
+//     Ok(defaults)
+// }
 
 
 #[tokio::main]
@@ -57,9 +60,8 @@ async fn main() -> Result<()> {
         .about("Update Print Nanny system"));    
     let app_m = app.get_matches();
 
-    let default_config_name = "default";
+    let default_config_name = "local";
     let config_name = app_m.value_of("config").unwrap_or(default_config_name);
-    info!("Using config file: {}", config_name);
 
     // Vary the output based on how many times the user used the "verbose" flag
     // (i.e. 'printnanny -v -v -v' or 'printnanny -vvv' vs 'printnanny -v'
@@ -71,15 +73,13 @@ async fn main() -> Result<()> {
         _ => builder.filter_level(LevelFilter::Trace).init(),
     };
     
-    let config = LocalConfig::load(app_name)?;
-
     match app_m.subcommand() {
         ("setup", Some(_sub_m)) => {
-            handle_setup(config).await?;
+            handle_setup(config_name).await?;
         },
-        ("reset", Some(_sub_m)) => {
-            handle_reset(config).await?;
-        },
+        // ("reset", Some(_sub_m)) => {
+        //     handle_reset(config_name).await?;
+        // },
         ("update", Some(_sub_m)) => {
             unimplemented!();
         },
