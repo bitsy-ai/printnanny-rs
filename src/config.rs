@@ -3,6 +3,8 @@ use thiserror::Error;
 use anyhow::{ Context, Result };
 use dialoguer::{ Input };
 use serde::{ Serialize, Deserialize };
+use config::{ConfigError, Config, File, Environment};
+
 
 use print_nanny_client::apis::auth_api::{ auth_email_create, auth_token_create };
 use print_nanny_client::models::{ 
@@ -45,7 +47,6 @@ impl ::std::default::Default for LocalConfig {
         appliance: None,
         email: "".to_string(),
         user: None
-        file: dirs::home_dir().join('.printnanny/settings.yaml')
     }}
 }
 
@@ -55,7 +56,7 @@ impl LocalConfig {
 
         // https://github.com/mehcode/config-rs/blob/master/examples/hierarchical-env/src/settings.rs
         // Start off by merging in the "default" configuration file
-        s.merge(File::with_name(dirs::home_dir().join('.printnanny/settings/default.yaml')))?;
+        s.merge(File::with_name(dirs::home_dir().join('.printnanny/settings/default')))?;
 
         // Add in the current environment file
         // Default to 'development' env
@@ -71,13 +72,15 @@ impl LocalConfig {
         // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
         s.merge(Environment::with_prefix("PRINTNANNY"))?;
 
+        // Add in data models
+        s.merge(File::with_name(dirs::home_dir().join('.printnanny/data/appliance')))?;
+        s.merge(File::with_name(dirs::home_dir().join('.printnanny/data/user')))?;
+
         // You may also programmatically change settings
         // s.set("database.url", "postgres://")?;
 
         // Now that we're done, let's access our configuration
-        println!("debug: {:?}", s.get_bool("debug"));
-        println!("database: {:?}", s.get::<String>("database.url"));
-
+        LocalConfig::print(&s);
         // You can deserialize (and thus freeze) the entire configuration as
         s.try_into()
     }
