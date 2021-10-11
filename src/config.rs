@@ -187,8 +187,6 @@ impl LocalConfig {
         
         self.api_token = Some(res.token);
         self.write_settings("api.json")?;
-        // self.user = Some(LocalConfig::get_user(&self).await?);
-        // LocalConfig::save(&self)?;
         Ok(self)
     }
 
