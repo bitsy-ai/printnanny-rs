@@ -13,10 +13,11 @@ panic = "abort"
 [dependencies]
 anyhow = "1.0.44"
 clap = "2.33.3"
-confy = "0.4.0"
+config = "0.11.0"
 dialoguer = "0.8.0"
 dirs = "4.0.0"
 env_logger = "0.9.0"
+glob = "0.3.0"
 log = "0.4.14"
 print-nanny-client = "0.8.26"
 serde = { version = "1.0.130", features = ["derive"] }
@@ -24,3 +25,12 @@ serde_json = "1.0.68"
 thiserror = "1.0.29"
 term_size = "0.3.2"
 tokio = { version = "1.12.0", features = ["full"] }
+
+[target.aarch64-unknown-linux-gnu]
+image = "bitsyai/cross:aarch64-unknown-linux-gnu-0.2.1"
+
+[target.armv7-unknown-linux-gnueabihf]
+image = "bitsyai/cross:armv7-unknown-linux-gnueabihf-0.2.1"
+
+[target.x86_64-unknown-linux-gnueabihf]
+image = "bitsyai/cross:x86_64-unknown-linux-gnu-0.2.1"
