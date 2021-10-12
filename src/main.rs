@@ -1,27 +1,9 @@
+use std::path::{ PathBuf };
 use anyhow::{ Result };
-
 use env_logger::Builder;
 use log::LevelFilter;
 use clap::{ Arg, App, SubCommand };
-use printnanny::config:: { LocalConfig };
-
-
-// Basic flow goess
-// if <field> not exist -> prompt for config
-// if <field> exist, print config -> prompt to use Y/n -> prompt for config OR proceed
-async fn handle_setup(config_name: &str) -> Result<()>{
-    let mut config = LocalConfig::new(config_name)?;
-    if config.api_token.is_none() {
-        config = config.prompt_2fa().await?;
-    };
-    if config.user.is_none(){
-        let user = config.get_user().await?;
-        config.user = Some(user);
-        config.write_settings("user.json")?;
-    };
-    config.print();
-    Ok(())
-}
+use printnanny::config:: { LocalConfig, handle_setup };
 
 // resets config back to default values
 // async fn handle_reset(config_name: &str) -> Result<LocalConfig>{
@@ -32,11 +14,27 @@ async fn handle_setup(config_name: &str) -> Result<()>{
 //     Ok(defaults)
 // }
 
+// #[test]
+// fn test_print_help() -> Result<()>{
+//     let mut cmd = Command::cargo_bin("printnanny")?;
+//     cmd.args(&["--help"]);
+
+//     cmd.assert()
+//         .success()
+//         .stdout(predicate::str::contains("Official Print Nanny CLI https://print-nanny.com"));
+//     Ok(())
+// }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let mut builder = Builder::new();
     let app_name = "printnanny";
+    
+    let default_path = dirs::home_dir()
+    .unwrap_or_else(|| PathBuf::from("."))
+    .join(".printnanny/settings");
+    let default_config = default_path.into_os_string().into_string().unwrap();
+
     let app = App::new(app_name)
         .version("0.1.0")
         .author("Leigh Johnson <leigh@bitsy.ai>")
@@ -46,7 +44,9 @@ async fn main() -> Result<()> {
             .long("config")
             .help("Load custom config file")
             .value_name("FILE")
-            .takes_value(true))
+            .takes_value(true)
+            .default_value(&default_config)
+        )
         .arg(Arg::with_name("v")
         .short("v")
         .multiple(true)
@@ -59,9 +59,8 @@ async fn main() -> Result<()> {
         .about("Update Print Nanny system"));    
     let app_m = app.get_matches();
 
-    let default_config_name = "settings";
-    let config_name = app_m.value_of("config").unwrap_or(default_config_name);
-
+    let config = app_m.value_of("config").unwrap_or(&default_config);
+    let config_path = PathBuf::from(config);
     // Vary the output based on how many times the user used the "verbose" flag
     // (i.e. 'printnanny -v -v -v' or 'printnanny -vvv' vs 'printnanny -v'
     let verbosity = app_m.occurrences_of("v");
@@ -74,7 +73,7 @@ async fn main() -> Result<()> {
     
     match app_m.subcommand() {
         ("setup", Some(_sub_m)) => {
-            handle_setup(config_name).await?;
+            handle_setup(&config_path, &config).await?;
         },
         // ("reset", Some(_sub_m)) => {
         //     handle_reset(config_name).await?;

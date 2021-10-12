@@ -31,13 +31,14 @@ pub enum PromptError {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LocalConfig {
+    
     #[serde(default)]
     pub api_base_path: String,
 
     #[serde(default, skip_serializing_if="Option::is_none")]
     pub api_token: Option<String>,
     #[serde(default)]
-    pub config_name: String,
+    pub config_path: PathBuf,
 
     #[serde(default)]
     pub email: String,
@@ -52,28 +53,52 @@ impl ::std::default::Default for LocalConfig {
     fn default() -> Self { Self { 
         api_base_path: "https://print-nanny.com".to_string(),
         api_token: None,
-        config_name: "settings".to_string(),
+        config_path: PathBuf::from("."),
         appliance: None,
         email: "".to_string(),
         user: None
     }}
 }
 
+#[cfg(test)]
+use mockall::{automock, mock, predicate::*};
+#[cfg_attr(test, automock)]
+pub trait ConfigPrompter {
+    fn prompt_email() -> String;
+    fn prompt_token_input(email: &str) -> String;
+}
+struct SetupPrompt {}
+
+#[cfg(test)]
+use mockall::{automock, mock, predicate::*};
+#[cfg_attr(test, automock)]
+impl ConfigPrompter for SetupPrompt {
+    fn prompt_email() -> String {
+        LocalConfig::print_spacer();
+        let prompt = "⚪ Enter your email address";
+        Input::new()
+            .with_prompt(prompt)
+            .interact_text()
+            .unwrap()
+    }
+    fn prompt_token_input(email: &str) -> String {
+        let prompt = format!("⚪ Enter the 6-digit code emailed to {}", email);
+        let input : String = Input::new()
+            .with_prompt(prompt)
+            .interact_text()
+            .unwrap();
+        info!("Received input code {}", input);
+        input
+    }
+}
+
 impl LocalConfig {
 
-    pub fn settings_base_string(config_name: &str) -> String {
-        let base_path = LocalConfig::settings_base_path(config_name);
-        base_path.into_os_string().into_string().unwrap()
-    }
-
-    pub fn settings_base_path(config_name: &str) -> PathBuf {
-        let mode = env::var("RUN_MODE").unwrap_or_else(|_| config_name.to_string());
-        let mode_dir = format!(".printnanny/{}", &mode);
-        
-        dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")).join(mode_dir)
-    }
-    pub fn new(config_name: &str) -> Result<Self, ConfigError> {
+    pub fn new(config_path: &PathBuf, config_name: &str) -> Result<Self, ConfigError> {
         let mut s = Config::default();
+        // select Config::default from LocalConfig::default()
+        
+        s.set("config_path", config_name)?;
 
         // https://github.com/mehcode/config-rs/blob/master/examples/hierarchical-env/src/settings.rs
         // Start off by merging in the "default" configuration file
@@ -81,8 +106,7 @@ impl LocalConfig {
         // glob all files in base directory
         // Default to "settings" but allows for variants like:
         // RUN_MODE="sandbox" RUN_MODE="prod-account-A"
-        let base_path = LocalConfig::settings_base_string(config_name);
-        let glob_pattern = format!("{}/*", &base_path);
+        let glob_pattern = format!("{}/*", config_name);
 
         // Glob all configuration files in base directory
         s
@@ -97,7 +121,7 @@ impl LocalConfig {
         s.merge(Environment::with_prefix("PRINTNANNY"))?;
 
         // You may also programmatically change settings
-        s.set("config_name", config_name)?;
+        // s.set("config_path", config_path)?;
 
         // Now that we're done, let's access our configuration
 
@@ -162,18 +186,18 @@ impl LocalConfig {
     }
     
     pub fn write_settings(&self, filename: &str) -> Result<()>{
-        let path = LocalConfig::settings_base_path(&self.config_name);
-        let target = path.join(filename).into_os_string().into_string().unwrap();
-        let file = &File::create(&target)
-        .context(format!("🔴 Failed to create file handle {:#?}", &target))?;
+        let filepath = PathBuf::from(&self.config_path).join(filename);
+        let file = &File::create(filepath)
+            .context(format!("🔴 Failed to create file handle {:#?}",&self.config_path))?;
         serde_json::to_writer(file, self)?;
         Ok(())
     }
 
     pub async fn prompt_2fa(mut self) -> Result<Self> {
-        self.email = LocalConfig::prompt_email();
+        // let prompt = SetupPrompt {};
+        self.email = SetupPrompt::prompt_email();
         self.verify_2fa_send_email().await?;
-        let otp_token = self.prompt_token_input();
+        let otp_token = prompt.prompt_token_input(&self.email);
         let res: TokenResponse = self.verify_2fa_code(otp_token).await?;
         
         self.api_token = Some(res.token);
@@ -185,7 +209,7 @@ impl LocalConfig {
         // Sends an email containing an expiring one-time password (6 digits)
         let req =  EmailAuthRequest{email: self.email.clone()};
         let res = auth_email_create(&self.api_config(), req).await
-            .context(format!("🔴 Failed to send verification email to {}", self.email))?;
+            .context(format!("🔴 Failed to send verification email to {:?} {:?}", self, self.email))?;
         info!("SUCCESS auth_email_create detail {:?}", serde_json::to_string(&res));
         Ok(res)
     }
@@ -198,23 +222,48 @@ impl LocalConfig {
         Ok(res)
     }
 
-    pub fn prompt_email() -> String {
-        LocalConfig::print_spacer();
-        let prompt = "⚪ Enter your email address";
-        Input::new()
-            .with_prompt(prompt)
-            .interact_text()
-            .unwrap()
-    }
-
-    pub fn prompt_token_input(&self) -> String {
-        let prompt = format!("⚪ Enter the 6-digit code emailed to {}", self.email);
-        let input : String = Input::new()
-            .with_prompt(prompt)
-            .interact_text()
-            .unwrap();
-        info!("Received input code {}", input);
-        input
-    }
 }
 
+// Basic flow goess
+// if <field> not exist -> prompt for config
+// if <field> exist, print config -> prompt to use Y/n -> prompt for config OR proceed
+pub async fn handle_setup(config_path: &PathBuf, config_name: &str) -> Result<()>{
+    let mut config = LocalConfig::new(&config_path, config_name)?;
+    if config.api_token.is_none() {
+        config = config.prompt_2fa().await?;
+    };
+    if config.user.is_none(){
+        let user = config.get_user().await?;
+        config.user = Some(user);
+        config.write_settings("user.json")?;
+    };
+    config.print();
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env::temp_dir;
+    use assert_cmd::Command;
+    use predicates::prelude::*; // https://docs.rs/predicates/2.0.3/predicates/
+    use anyhow::{ Result, };
+    use tempdir::TempDir;
+
+    #[cfg(test)]
+    #[tokio::test]
+    async fn test_empty_config_prompts_all() -> Result<()>{
+        let dir = TempDir::new("test_empty_config_prompts_all")?;
+        let mut mock = MockConfigPrompter::new();
+        mock.expect_prompt_email()
+            .times(1)
+            .return_const("test@print-nanny.com");
+
+        let pathbuf = PathBuf::from(&dir.path());
+        let pathname = dir.path().to_str().unwrap();
+        handle_setup(&pathbuf,  pathname).await?;
+
+
+        Ok(())
+    }
+}
