@@ -5,7 +5,7 @@ use log::{ info };
 use glob::glob;
 
 use thiserror::Error;
-use anyhow::{ Context, Result };
+use anyhow::{ anyhow, Context, Result };
 use dialoguer::{ Input };
 use serde::{ Serialize, Deserialize };
 use config::{ConfigError, Config, File as ConfigFile, Environment};
@@ -41,7 +41,7 @@ pub struct LocalConfig {
     pub config_path: PathBuf,
 
     #[serde(default)]
-    pub email: String,
+    pub email: Option<String>,
 
     #[serde(default, skip_serializing_if="Option::is_none")]
     pub appliance: Option<Appliance>,
@@ -55,33 +55,68 @@ impl ::std::default::Default for LocalConfig {
         api_token: None,
         config_path: PathBuf::from("."),
         appliance: None,
-        email: "".to_string(),
+        email: None,
         user: None
     }}
 }
 
-#[cfg(test)]
-use mockall::{automock, mock, predicate::*};
-#[cfg_attr(test, automock)]
-pub trait ConfigPrompter {
-    fn prompt_email() -> String;
-    fn prompt_token_input(email: &str) -> String;
+#[derive(Debug, Clone)]
+struct SetupPrompter {
+    pub config: LocalConfig
 }
-struct SetupPrompt {}
 
-#[cfg(test)]
-use mockall::{automock, mock, predicate::*};
-#[cfg_attr(test, automock)]
-impl ConfigPrompter for SetupPrompt {
-    fn prompt_email() -> String {
+impl SetupPrompter{
+    fn new(self, 
+        config_name: &str
+    ) -> Result<SetupPrompter> {
+        let config = LocalConfig::from(config_name)?;
+        Ok(SetupPrompter { config })
+    }
+
+
+    // Basic flow goess
+    // if <field> not exist -> prompt for config
+    // if <field> exist, print config -> prompt to use Y/n -> prompt for config OR proceed
+    pub async fn setup(mut self) -> Result<()>{
+        if self.config.email.is_none() {
+            self.config.email = Some(self.prompt_email());
+        };
+        if self.config.api_token.is_none() {
+            LocalConfig::verify_2fa_send_email(&self.config).await?;
+            let opt_token = self.prompt_token_input();
+            let token_res = LocalConfig::verify_2fa_code(&self.config, opt_token).await?;
+            self.config.api_token = Some(token_res.token);
+        };
+        if self.config.user.is_none(){
+            let user = LocalConfig::get_user(&self.config).await?;
+            self.config.user = Some(user);
+            // self.config.write_settings("user.json")?;
+        };
+        if self.config.user.is_none(){
+            let user = LocalConfig::get_user(&self.config).await?;
+            self.config.user = Some(user);
+            // self.config.write_settings("user.json")?;
+        };
+        // if self.config.appliance.is_none(){
+        //     let appliance = LocalConfig::get_appliance(&self.config).await?;
+        //     self.config.appliance = Some(appliance);
+        // };
         LocalConfig::print_spacer();
-        let prompt = "⚪ Enter your email address";
+        self.config.write_settings("settings.json");
+        info!("💜 Saved config to {:?}", self.config.config_path);
+        Ok(())
+    }
+
+    fn prompt_email(&self) -> String {
+        LocalConfig::print_spacer();
+        let prompt = "📨 Enter your email address";
         Input::new()
             .with_prompt(prompt)
             .interact_text()
             .unwrap()
     }
-    fn prompt_token_input(email: &str) -> String {
+    fn prompt_token_input(&self) -> String {
+        let email = self.config.email.unwrap();
         let prompt = format!("⚪ Enter the 6-digit code emailed to {}", email);
         let input : String = Input::new()
             .with_prompt(prompt)
@@ -93,8 +128,31 @@ impl ConfigPrompter for SetupPrompt {
 }
 
 impl LocalConfig {
+    /// Serializes settings stored in ~/.printnanny/settings/*json
 
-    pub fn new(config_path: &PathBuf, config_name: &str) -> Result<Self, ConfigError> {
+    async fn verify_2fa_send_email(&self) -> Result<DetailResponse> {
+        // Sends an email containing an expiring one-time password (6 digits)
+        match &self.email {
+            Some(email) => {
+                let req =  EmailAuthRequest{email: email.to_string()};
+                let res = auth_email_create(&self.api_config(), req).await
+                    .context(format!("🔴 Failed to send verification email to {:?}", self))?;
+                info!("SUCCESS auth_email_create detail {:?}", serde_json::to_string(&res));
+                Ok(res)
+            }
+            None => Err(anyhow!("LocalConfig.verify_2fa_send_email requires email to be set"))
+        }
+
+    }
+
+    async fn verify_2fa_code(&self, token: String) -> Result<TokenResponse> {
+        let req = CallbackTokenAuthRequest{mobile: None, token, email:Some(self.email.to_string())};
+        let res = auth_token_create(&self.api_config(), req).await
+            .context("🔴 Verification failed. Please try again or contact leigh@print-nanny.com for help.")?;
+        info!("SUCCESS auth_verify_create detail {:?}", serde_json::to_string(&res));
+        Ok(res)
+    }
+    pub fn from(config_name: &str) -> Result<Self, ConfigError> {
         let mut s = Config::default();
         // select Config::default from LocalConfig::default()
         
@@ -177,6 +235,12 @@ impl LocalConfig {
         info!("💜 {:#?}", self);
         LocalConfig::print_spacer();
     }
+    pub async fn get_appliance(&self) -> Result<Appliance>{
+        let res = print_nanny_client::apis::users_api::users_me_retrieve(
+            &self.api_config()
+        ).await.context(format!("🔴 Failed to retreive user {:#?}", self.email))?;
+        Ok(res)
+    }
 
     pub async fn get_user(&self) -> Result<User>{
         let res = print_nanny_client::apis::users_api::users_me_retrieve(
@@ -193,77 +257,4 @@ impl LocalConfig {
         Ok(())
     }
 
-    pub async fn prompt_2fa(mut self) -> Result<Self> {
-        // let prompt = SetupPrompt {};
-        self.email = SetupPrompt::prompt_email();
-        self.verify_2fa_send_email().await?;
-        let otp_token = prompt.prompt_token_input(&self.email);
-        let res: TokenResponse = self.verify_2fa_code(otp_token).await?;
-        
-        self.api_token = Some(res.token);
-        self.write_settings("api.json")?;
-        Ok(self)
-    }
-
-    async fn verify_2fa_send_email(&self) -> Result<DetailResponse> {
-        // Sends an email containing an expiring one-time password (6 digits)
-        let req =  EmailAuthRequest{email: self.email.clone()};
-        let res = auth_email_create(&self.api_config(), req).await
-            .context(format!("🔴 Failed to send verification email to {:?} {:?}", self, self.email))?;
-        info!("SUCCESS auth_email_create detail {:?}", serde_json::to_string(&res));
-        Ok(res)
-    }
-    
-    async fn verify_2fa_code(&self, token: String) -> Result<TokenResponse> {
-        let req = CallbackTokenAuthRequest{mobile: None, token, email:Some(self.email.to_string())};
-        let res = auth_token_create(&self.api_config(), req).await
-            .context("🔴 Verification failed. Please try again or contact leigh@print-nanny.com for help.")?;
-        info!("SUCCESS auth_verify_create detail {:?}", serde_json::to_string(&res));
-        Ok(res)
-    }
-
-}
-
-// Basic flow goess
-// if <field> not exist -> prompt for config
-// if <field> exist, print config -> prompt to use Y/n -> prompt for config OR proceed
-pub async fn handle_setup(config_path: &PathBuf, config_name: &str) -> Result<()>{
-    let mut config = LocalConfig::new(&config_path, config_name)?;
-    if config.api_token.is_none() {
-        config = config.prompt_2fa().await?;
-    };
-    if config.user.is_none(){
-        let user = config.get_user().await?;
-        config.user = Some(user);
-        config.write_settings("user.json")?;
-    };
-    config.print();
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::env::temp_dir;
-    use assert_cmd::Command;
-    use predicates::prelude::*; // https://docs.rs/predicates/2.0.3/predicates/
-    use anyhow::{ Result, };
-    use tempdir::TempDir;
-
-    #[cfg(test)]
-    #[tokio::test]
-    async fn test_empty_config_prompts_all() -> Result<()>{
-        let dir = TempDir::new("test_empty_config_prompts_all")?;
-        let mut mock = MockConfigPrompter::new();
-        mock.expect_prompt_email()
-            .times(1)
-            .return_const("test@print-nanny.com");
-
-        let pathbuf = PathBuf::from(&dir.path());
-        let pathname = dir.path().to_str().unwrap();
-        handle_setup(&pathbuf,  pathname).await?;
-
-
-        Ok(())
-    }
 }
