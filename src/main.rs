@@ -3,7 +3,7 @@ use anyhow::{ Result };
 use env_logger::Builder;
 use log::LevelFilter;
 use clap::{ Arg, App, SubCommand };
-use printnanny::config:: { LocalConfig, handle_setup };
+use printnanny::config:: { LocalConfig, SetupPrompter };
 
 // resets config back to default values
 // async fn handle_reset(config_name: &str) -> Result<LocalConfig>{
@@ -59,8 +59,7 @@ async fn main() -> Result<()> {
         .about("Update Print Nanny system"));    
     let app_m = app.get_matches();
 
-    let config = app_m.value_of("config").unwrap_or(&default_config);
-    let config_path = PathBuf::from(config);
+    let config_file = app_m.value_of("config").unwrap_or(&default_config);
     // Vary the output based on how many times the user used the "verbose" flag
     // (i.e. 'printnanny -v -v -v' or 'printnanny -vvv' vs 'printnanny -v'
     let verbosity = app_m.occurrences_of("v");
@@ -73,7 +72,8 @@ async fn main() -> Result<()> {
     
     match app_m.subcommand() {
         ("setup", Some(_sub_m)) => {
-            handle_setup(&config_path, &config).await?;
+            let prompter = SetupPrompter::new(config_file);
+            prompter.setup().await?;
         },
         // ("reset", Some(_sub_m)) => {
         //     handle_reset(config_name).await?;
