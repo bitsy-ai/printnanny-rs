@@ -33,7 +33,7 @@ async fn main() -> Result<()> {
     let home_path = dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."));
     let default_path = home_path
-        .join(".printnanny/settings");
+        .join(".printnanny/settings.json");
     let default_key_path = home_path.join(".ssh");
     let default_key_string =  default_key_path.into_os_string().into_string().unwrap();
     let default_config_string = default_path.into_os_string().into_string().unwrap();

@@ -49,7 +49,7 @@ impl ::std::default::Default for LocalConfig {
     fn default() -> Self { Self { 
         api_base_path: "https://print-nanny.com".to_string(),
         api_token: None,
-        config_path: PathBuf::from("/home/users/printnanny/.printnanny/settings"),
+        config_path: PathBuf::from("/home/users/printnanny/.printnanny/settings.json"),
         hostname: None,
         key_path: PathBuf::from("/home/users/printnanny/.ssh"),
         appliance: None,
@@ -350,8 +350,7 @@ impl LocalConfig {
     }
     
     pub fn save_settings(&self) -> Result<()>{
-        let filepath = PathBuf::from(&self.config_path).join("settings.json");
-        let file = &File::create(filepath)
+        let file = &File::create(&self.config_path)
             .context(format!("🔴 Failed to create file handle {:#?}",&self.config_path))?;
         serde_json::to_writer(file, self)?;
         Ok(())
