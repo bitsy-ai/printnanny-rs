@@ -2,7 +2,7 @@ use std::path::{ PathBuf };
 use std::{ env }; 
 use std::fs;
 use std::fs::File;
-use log::{ info };
+use log::{ info, error };
 use glob::glob;
 
 use thiserror::Error;
@@ -15,8 +15,8 @@ use print_nanny_client::apis::appliances_api::{ appliances_create };
 use print_nanny_client::apis::auth_api::{ auth_email_create, auth_token_create };
 
 #[derive(Error, Debug)]
-pub enum PromptError {
-    #[error("🔴 Please enter required field: {0}")]
+pub enum AlreadyExistsError {
+    #[error("🔴 Resource already exists {0}")]
     Required(String),
 }
 
@@ -78,6 +78,8 @@ impl SetupPrompter {
     // Basic flow goess
     // if <field> not exist -> prompt for config
     // if <field> exist, print config -> prompt to use Y/n -> prompt for config OR proceed
+
+
     pub async fn setup(mut self) -> Result<()>{
         if self.config.email.is_none() {
             self.config.email = Some(self.prompt_email());
@@ -91,13 +93,16 @@ impl SetupPrompter {
         if self.config.user.is_none(){
             let user = self.config.get_user().await?;
             self.config.user = Some(user);
-            // self.config.write_settings("user.json")?;
+            info!("✅ Sucess! Verified identity {:?}", self.config.email);
+            self.config.save_settings()?;
+            info!("💜 Saved API config to {:?}", self.config.config_path);
+            info!("💜 Proceeding to device setup");
         };
         if self.config.appliance.is_none(){
             self.config.hostname = Some(self.prompt_hostname()?);
             let key_path = self.prompt_key_path();
             let appliance_res = LocalConfig::appliances_create(&self.config).await?;
-            // self.config.appliance = Some(appliance);
+
         };   
         LocalConfig::print_spacer();
         info!("✅ Sucess! Verified identity {:?}", self.config.email);
@@ -173,10 +178,45 @@ impl SetupPrompter {
 impl LocalConfig {
     /// Serializes settings stored in ~/.printnanny/settings/*json
     
-    // fn create_ansible_facts_request(&self) -> Result<print_nanny_client::models::AnsibleFactsRequest> {
-    //     let req = print_nanny_client::models::AnsibleFactsRequest{};
-    //     Ok(req)
-    // }
+    pub fn from(config_path: PathBuf, key_path: PathBuf) -> Result<Self, ConfigError> {
+        let mut s = Config::default();
+        // call Config::set_default for default in from LocalConfig::default()
+        let defaults = LocalConfig::default();
+        s.set_default("api_base_path", defaults.api_base_path)?;
+        
+        s.set("config_path", format!("{:?}", config_path))?;
+        s.set("key_path", format!("{:?}", key_path))?;
+
+        // https://github.com/mehcode/config-rs/blob/master/examples/hierarchical-env/src/settings.rs
+        // Start off by merging in the "default" configuration file
+
+        // glob all files in base directory
+        // Default to "settings" but allows for variants like:
+        // RUN_MODE="sandbox" RUN_MODE="prod-account-A"
+        let glob_pattern = format!("{}/*", format!("{:?}", config_path));
+
+        // Glob all configuration files in base directory
+        s
+        .merge(glob(&glob_pattern)
+                   .unwrap()
+                   .map(|path| ConfigFile::from(path.unwrap()))
+                   .collect::<Vec<_>>())
+        .unwrap();
+
+        // Add in settings from the environment (with a prefix of APP)
+        // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
+        s.merge(Environment::with_prefix("PRINTNANNY"))?;
+
+        // You may also programmatically change settings
+        // s.set("config_path", config_path)?;
+
+        // Now that we're done, let's access our configuration
+
+        // You can deserialize (and thus freeze) the entire configuration as
+        s.try_into()
+
+    }
+
 
     fn create_appliance_pki_request(&self) -> Result<print_nanny_client::models::AppliancePkiRequest>{
         let public_key_path = self.key_path.join("id_dsa.pub");
@@ -210,9 +250,8 @@ impl LocalConfig {
         match &self.hostname {
             Some(hostname) => {
                 let req = print_nanny_client::models::ApplianceRequest{hostname: hostname.to_string()};
-                let res = print_nanny_client::apis::appliances_api::appliances_create(&self.api_config(), req).await
-                    .context(format!("🔴 Failed to send verification email to {:?}", self))?;
-                info!("SUCCESS auth_email_create detail {:?}", serde_json::to_string(&res));
+                let res = print_nanny_client::apis::appliances_api::appliances_create(&self.api_config(), req.clone()).await
+                    .context(format!("🔴 Failed to create appliance from request {:?}", req))?;
                 Ok(res)
             }
             None => Err(anyhow!("Could not detect hostname. Please try running `printnanny setup` again."))
@@ -246,42 +285,6 @@ impl LocalConfig {
             None => Err(anyhow!("LocalConfig.verify_2fa_code requires email to be set"))
 
         }
-
-    }
-    pub fn from(config_path: PathBuf, key_path: PathBuf) -> Result<Self, ConfigError> {
-        let mut s = Config::default();
-        // select Config::default from LocalConfig::default()
-        
-        s.set("config_path", format!("{:?}", config_path))?;
-        s.set("key_path", format!("{:?}", key_path));
-
-        // https://github.com/mehcode/config-rs/blob/master/examples/hierarchical-env/src/settings.rs
-        // Start off by merging in the "default" configuration file
-
-        // glob all files in base directory
-        // Default to "settings" but allows for variants like:
-        // RUN_MODE="sandbox" RUN_MODE="prod-account-A"
-        let glob_pattern = format!("{}/*", format!("{:?}", config_path));
-
-        // Glob all configuration files in base directory
-        s
-        .merge(glob(&glob_pattern)
-                   .unwrap()
-                   .map(|path| ConfigFile::from(path.unwrap()))
-                   .collect::<Vec<_>>())
-        .unwrap();
-
-        // Add in settings from the environment (with a prefix of APP)
-        // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
-        s.merge(Environment::with_prefix("PRINTNANNY"))?;
-
-        // You may also programmatically change settings
-        // s.set("config_path", config_path)?;
-
-        // Now that we're done, let's access our configuration
-
-        // You can deserialize (and thus freeze) the entire configuration as
-        s.try_into()
 
     }
 
