@@ -1,0 +1,13 @@
+{
+    "api_base_path": "http://localhost:8000",
+    "api_token": "1234abcd",
+    "config_path": ".tmp",
+    "email": "test@bitsy.ai",
+    "key_path": ".tmp",
+    "hostname": null,
+    "user": {
+        "email": "test@bitsy.ai",
+        "url": "http://localhost:8000/api/users/1/",
+        "id": 1
+    }
+}
