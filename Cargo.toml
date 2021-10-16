@@ -20,9 +20,11 @@ dirs = "4.0.0"
 env_logger = "0.9.0"
 glob = "0.3.0"
 log = "0.4.14"
-print-nanny-client = "0.8.26"
+print-nanny-client = "0.8.37"
+procfs = "0.11.0"
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.68"
+sys-info = "0.9"
 thiserror = "1.0.29"
 term_size = "0.3.2"
 tokio = { version = "1.12.0", features = ["full"] }
