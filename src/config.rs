@@ -1,5 +1,6 @@
 use std::path::{ PathBuf };
 use std::{ env }; 
+use std::fs;
 use std::fs::File;
 use log::{ info };
 use glob::glob;
@@ -10,18 +11,8 @@ use dialoguer::{ Input };
 use serde::{ Serialize, Deserialize };
 use config::{ConfigError, Config, File as ConfigFile, Environment};
 
-
+use print_nanny_client::apis::appliances_api::{ appliances_create };
 use print_nanny_client::apis::auth_api::{ auth_email_create, auth_token_create };
-use print_nanny_client::models::{ 
-    CallbackTokenAuthRequest,
-    DetailResponse,
-    EmailAuthRequest,
-    TokenResponse,
-};
-use print_nanny_client::models::{ 
-    Appliance,
-    User
-};
 
 #[derive(Error, Debug)]
 pub enum PromptError {
@@ -42,18 +33,25 @@ pub struct LocalConfig {
 
     #[serde(default)]
     pub email: Option<String>,
+    #[serde(default)]
+    pub key_path: PathBuf,
+
+    #[serde(default)]
+    pub hostname: Option<String>,
 
     #[serde(default, skip_serializing_if="Option::is_none")]
-    pub appliance: Option<Appliance>,
+    pub appliance: Option<print_nanny_client::models::Appliance>,
     #[serde(default, skip_serializing_if="Option::is_none")]
-    pub user: Option<User>
+    pub user: Option<print_nanny_client::models::User>
 }
 
 impl ::std::default::Default for LocalConfig {
     fn default() -> Self { Self { 
         api_base_path: "https://print-nanny.com".to_string(),
         api_token: None,
-        config_path: PathBuf::from("."),
+        config_path: PathBuf::from("/home/users/printnanny/.printnanny/settings"),
+        hostname: None,
+        key_path: PathBuf::from("/home/users/printnanny/.ssh"),
         appliance: None,
         email: None,
         user: None
@@ -61,15 +59,18 @@ impl ::std::default::Default for LocalConfig {
 }
 
 #[derive(Debug, Clone)]
-struct SetupPrompter {
+pub struct SetupPrompter {
     pub config: LocalConfig
 }
 
-impl SetupPrompter{
-    fn new(self, 
-        config_name: &str
+impl SetupPrompter {
+    pub fn new(config_path: PathBuf,
+        key_path: PathBuf
     ) -> Result<SetupPrompter> {
-        let config = LocalConfig::from(config_name)?;
+        let config = LocalConfig::from(
+            config_path,
+            key_path
+        )?;
         Ok(SetupPrompter { config })
     }
 
@@ -83,29 +84,67 @@ impl SetupPrompter{
         };
         if self.config.api_token.is_none() {
             LocalConfig::verify_2fa_send_email(&self.config).await?;
-            let opt_token = self.prompt_token_input();
+            let opt_token = self.prompt_token_input()?;
             let token_res = LocalConfig::verify_2fa_code(&self.config, opt_token).await?;
             self.config.api_token = Some(token_res.token);
         };
         if self.config.user.is_none(){
-            let user = LocalConfig::get_user(&self.config).await?;
+            let user = self.config.get_user().await?;
             self.config.user = Some(user);
             // self.config.write_settings("user.json")?;
         };
-        if self.config.user.is_none(){
-            let user = LocalConfig::get_user(&self.config).await?;
-            self.config.user = Some(user);
-            // self.config.write_settings("user.json")?;
-        };
-        // if self.config.appliance.is_none(){
-        //     let appliance = LocalConfig::get_appliance(&self.config).await?;
-        //     self.config.appliance = Some(appliance);
-        // };
+        if self.config.appliance.is_none(){
+            self.config.hostname = Some(self.prompt_hostname()?);
+            let key_path = self.prompt_key_path();
+            let appliance_res = LocalConfig::appliances_create(&self.config).await?;
+            // self.config.appliance = Some(appliance);
+        };   
         LocalConfig::print_spacer();
-        self.config.write_settings("settings.json");
-        info!("💜 Saved config to {:?}", self.config.config_path);
+        info!("✅ Sucess! Verified identity {:?}", self.config.email);
+        self.config.save_settings();
+        info!("💜 Saved API config to {:?}", self.config.config_path);
+        LocalConfig::print_spacer();
+        info!("💜 Proceeding to device setup");
         Ok(())
     }
+
+
+    fn prompt_hostname(&self) -> Result<String> {
+        let hostname = sys_info::hostname()?;
+        let prompt = "Please enter a name for this device";
+        let input : String = Input::new()
+            .default(hostname)
+            .with_prompt(prompt)
+            .interact_text()
+            .unwrap();
+        info!("Received input code {}", input);
+        Ok(input)
+    }
+
+    fn prompt_key_path(&self) -> PathBuf {
+        let prompt = "Enter path to ssh keypair. Keypair will be generated if this file does not exist";
+        let default = self.config.key_path.join("id_rsa.pub");
+        let input : String = Input::new()
+            .default(format!("{:?}",default))
+            .with_prompt(prompt)
+            .interact_text()
+            .unwrap();
+        info!("Received input code {}", input);
+        PathBuf::from(input)
+    }
+
+    fn prompt_public_key_path(&self) -> String {
+        let prompt = "Enter path to public ssh key. Keypair will be generated if this file does not exist";
+        let default = self.config.config_path.join("id_rsa.pub");
+        let input : String = Input::new()
+            .default(format!("{:?}",default))
+            .with_prompt(prompt)
+            .interact_text()
+            .unwrap();
+        info!("Received input code {}", input);
+        input
+    }
+
 
     fn prompt_email(&self) -> String {
         LocalConfig::print_spacer();
@@ -115,26 +154,76 @@ impl SetupPrompter{
             .interact_text()
             .unwrap()
     }
-    fn prompt_token_input(&self) -> String {
-        let email = self.config.email.unwrap();
-        let prompt = format!("⚪ Enter the 6-digit code emailed to {}", email);
-        let input : String = Input::new()
-            .with_prompt(prompt)
-            .interact_text()
-            .unwrap();
-        info!("Received input code {}", input);
-        input
+    fn prompt_token_input(&self) -> Result<String> {
+        match &self.config.email {
+            Some(email) => {
+                let prompt = format!("⚪ Enter the 6-digit code emailed to {}", email);
+                let input : String = Input::new()
+                    .with_prompt(prompt)
+                    .interact_text()
+                    .unwrap();
+                info!("Received input code {}", input);
+                Ok(input)
+            }
+            None => Err(anyhow!("SetupPrompter.prompt_token_input requires email to be set"))
+        }
     }
 }
 
 impl LocalConfig {
     /// Serializes settings stored in ~/.printnanny/settings/*json
+    
+    // fn create_ansible_facts_request(&self) -> Result<print_nanny_client::models::AnsibleFactsRequest> {
+    //     let req = print_nanny_client::models::AnsibleFactsRequest{};
+    //     Ok(req)
+    // }
 
-    async fn verify_2fa_send_email(&self) -> Result<DetailResponse> {
+    fn create_appliance_pki_request(&self) -> Result<print_nanny_client::models::AppliancePkiRequest>{
+        let public_key_path = self.key_path.join("id_dsa.pub");
+        let private_key_path = self.key_path.join("id_dsa");
+        let public_key = fs::read_to_string(&public_key_path)?;
+        let fingerprint_cmd = std::process::Command::new("ssh-keygen")
+            .arg("-lf")
+            .arg(&public_key_path)
+            .output()
+            .expect(&format!("ssh-keygen failed to generate fingerprint for {:?}", &public_key_path));
+        let fingerprint = String::from_utf8(fingerprint_cmd.stdout)?;
+        let checksum_cmd = std::process::Command::new(
+            "md5sum")
+            .arg(&public_key_path)
+            .output()
+            .expect(&format!("md5sum failed for file {:?}", &public_key_path));
+        let checksum = String::from_utf8(checksum_cmd.stdout)?;
+        let req = print_nanny_client::models::AppliancePkiRequest{
+            public_key_path: format!("{:?}", public_key_path),
+            private_key_path: format!("{:?}", private_key_path),
+            public_key: public_key,
+            public_key_checksum: checksum,
+            fingerprint: fingerprint
+
+        };
+
+        Ok(req)
+    }
+    
+    async fn appliances_create(&self) -> Result<print_nanny_client::models::Appliance> {
+        match &self.hostname {
+            Some(hostname) => {
+                let req = print_nanny_client::models::ApplianceRequest{hostname: hostname.to_string()};
+                let res = print_nanny_client::apis::appliances_api::appliances_create(&self.api_config(), req).await
+                    .context(format!("🔴 Failed to send verification email to {:?}", self))?;
+                info!("SUCCESS auth_email_create detail {:?}", serde_json::to_string(&res));
+                Ok(res)
+            }
+            None => Err(anyhow!("Could not detect hostname. Please try running `printnanny setup` again."))
+        }
+    }
+
+    async fn verify_2fa_send_email(&self) -> Result<print_nanny_client::models::DetailResponse> {
         // Sends an email containing an expiring one-time password (6 digits)
         match &self.email {
             Some(email) => {
-                let req =  EmailAuthRequest{email: email.to_string()};
+                let req =  print_nanny_client::models::EmailAuthRequest{email: email.to_string()};
                 let res = auth_email_create(&self.api_config(), req).await
                     .context(format!("🔴 Failed to send verification email to {:?}", self))?;
                 info!("SUCCESS auth_email_create detail {:?}", serde_json::to_string(&res));
@@ -145,18 +234,26 @@ impl LocalConfig {
 
     }
 
-    async fn verify_2fa_code(&self, token: String) -> Result<TokenResponse> {
-        let req = CallbackTokenAuthRequest{mobile: None, token, email:Some(self.email.to_string())};
-        let res = auth_token_create(&self.api_config(), req).await
-            .context("🔴 Verification failed. Please try again or contact leigh@print-nanny.com for help.")?;
-        info!("SUCCESS auth_verify_create detail {:?}", serde_json::to_string(&res));
-        Ok(res)
+    async fn verify_2fa_code(&self, token: String) -> Result<print_nanny_client::models::TokenResponse> {
+        match &self.email {
+            Some(email) => {
+                let req = print_nanny_client::models::CallbackTokenAuthRequest{mobile: None, token, email:Some(email.to_string())};
+                let res = auth_token_create(&self.api_config(), req).await
+                    .context("🔴 Verification failed. Please try again or contact leigh@print-nanny.com for help.")?;
+                info!("SUCCESS auth_verify_create detail {:?}", serde_json::to_string(&res));
+                Ok(res)
+            }
+            None => Err(anyhow!("LocalConfig.verify_2fa_code requires email to be set"))
+
+        }
+
     }
-    pub fn from(config_name: &str) -> Result<Self, ConfigError> {
+    pub fn from(config_path: PathBuf, key_path: PathBuf) -> Result<Self, ConfigError> {
         let mut s = Config::default();
         // select Config::default from LocalConfig::default()
         
-        s.set("config_path", config_name)?;
+        s.set("config_path", format!("{:?}", config_path))?;
+        s.set("key_path", format!("{:?}", key_path));
 
         // https://github.com/mehcode/config-rs/blob/master/examples/hierarchical-env/src/settings.rs
         // Start off by merging in the "default" configuration file
@@ -164,7 +261,7 @@ impl LocalConfig {
         // glob all files in base directory
         // Default to "settings" but allows for variants like:
         // RUN_MODE="sandbox" RUN_MODE="prod-account-A"
-        let glob_pattern = format!("{}/*", config_name);
+        let glob_pattern = format!("{}/*", format!("{:?}", config_path));
 
         // Glob all configuration files in base directory
         s
@@ -235,22 +332,22 @@ impl LocalConfig {
         info!("💜 {:#?}", self);
         LocalConfig::print_spacer();
     }
-    pub async fn get_appliance(&self) -> Result<Appliance>{
-        let res = print_nanny_client::apis::users_api::users_me_retrieve(
-            &self.api_config()
-        ).await.context(format!("🔴 Failed to retreive user {:#?}", self.email))?;
-        Ok(res)
-    }
+    // pub async fn update_or_create_appliance(&self) -> Result<Appliance>{
+    //     let res = print_nanny_client::apis::users_api::users_me_retrieve(
+    //         &self.api_config()
+    //     ).await.context(format!("🔴 Failed to retreive user {:#?}", self.email))?;
+    //     Ok(res)
+    // }
 
-    pub async fn get_user(&self) -> Result<User>{
+    pub async fn get_user(&self) -> Result<print_nanny_client::models::User> {
         let res = print_nanny_client::apis::users_api::users_me_retrieve(
             &self.api_config()
         ).await.context(format!("🔴 Failed to retreive user {:#?}", self.email))?;
         Ok(res)
     }
     
-    pub fn write_settings(&self, filename: &str) -> Result<()>{
-        let filepath = PathBuf::from(&self.config_path).join(filename);
+    pub fn save_settings(&self) -> Result<()>{
+        let filepath = PathBuf::from(&self.config_path).join("settings.json");
         let file = &File::create(filepath)
             .context(format!("🔴 Failed to create file handle {:#?}",&self.config_path))?;
         serde_json::to_writer(file, self)?;
