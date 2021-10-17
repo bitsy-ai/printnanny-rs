@@ -2,7 +2,7 @@ use std::path::{ PathBuf };
 use std::{ env }; 
 use std::fs;
 use std::fs::File;
-use log::{ info, error };
+use log::{ info, error, debug };
 use glob::glob;
 
 use thiserror::Error;
@@ -66,6 +66,7 @@ pub struct SetupPrompter {
 impl SetupPrompter {
     pub fn new() -> Result<SetupPrompter> {
         let config = LocalConfig::from()?;
+        info!("Read config {:?}", &config);
         Ok(SetupPrompter { config })
     }
 
@@ -177,9 +178,9 @@ impl LocalConfig {
         let mut s = Config::default();
         // call Config::set_default for default in from LocalConfig::default()
         let defaults = LocalConfig::default();
-        s.set_default("api_base_path", defaults.api_base_path)?;
-        s.set_default("config_path", defaults.config_path)?;
-        s.set_default("key_path", defaults.key_path)?;
+        s.set_default("api_base_path", defaults.api_base_path.clone())?;
+        s.set_default("config_path", defaults.config_path.clone())?;
+        s.set_default("key_path", defaults.key_path.clone())?;
 
         // https://github.com/mehcode/config-rs/blob/master/examples/hierarchical-env/src/settings.rs
         // Start off by merging in the "default" configuration file
@@ -187,10 +188,9 @@ impl LocalConfig {
         // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
         s.merge(Environment::with_prefix("PRINTNANNY"))?;
 
-        // glob all files in base directory
-        // Default to "settings" but allows for variants like:
-        // RUN_MODE="sandbox" RUN_MODE="prod-account-A"
-        let glob_pattern = format!("{}/*", format!("{:?}", s.get_str("config_path")));
+        // glob all files in config directory
+        let glob_pattern = format!("{}/*", &defaults.config_path);
+        info!("Loading config from {}", &glob_pattern);
 
         // Glob all configuration files in base directory
         s
