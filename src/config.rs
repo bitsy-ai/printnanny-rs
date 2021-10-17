@@ -29,12 +29,12 @@ pub struct LocalConfig {
     #[serde(default, skip_serializing_if="Option::is_none")]
     pub api_token: Option<String>,
     #[serde(default)]
-    pub config_path: PathBuf,
+    pub config_path: String,
 
     #[serde(default)]
     pub email: Option<String>,
     #[serde(default)]
-    pub key_path: PathBuf,
+    pub key_path: String,
 
     #[serde(default)]
     pub hostname: Option<String>,
@@ -49,9 +49,9 @@ impl ::std::default::Default for LocalConfig {
     fn default() -> Self { Self { 
         api_base_path: "https://print-nanny.com".to_string(),
         api_token: None,
-        config_path: PathBuf::from("/home/users/printnanny/.printnanny/settings.json"),
+        config_path: ".tmp".to_string(),
         hostname: None,
-        key_path: PathBuf::from("/home/users/printnanny/.ssh"),
+        key_path: ".tmp".to_string(),
         appliance: None,
         email: None,
         user: None
@@ -64,13 +64,8 @@ pub struct SetupPrompter {
 }
 
 impl SetupPrompter {
-    pub fn new(config_path: PathBuf,
-        key_path: PathBuf
-    ) -> Result<SetupPrompter> {
-        let config = LocalConfig::from(
-            config_path,
-            key_path
-        )?;
+    pub fn new() -> Result<SetupPrompter> {
+        let config = LocalConfig::from()?;
         Ok(SetupPrompter { config })
     }
 
@@ -94,7 +89,7 @@ impl SetupPrompter {
             let user = self.config.get_user().await?;
             self.config.user = Some(user);
             info!("✅ Sucess! Verified identity {:?}", self.config.email);
-            self.config.save_settings()?;
+            self.config.save_settings("local.json")?;
             info!("💜 Saved API config to {:?}", self.config.config_path);
             info!("💜 Proceeding to device setup");
         };
@@ -104,12 +99,12 @@ impl SetupPrompter {
             let appliance_res = LocalConfig::appliances_create(&self.config).await?;
 
         };   
-        LocalConfig::print_spacer();
-        info!("✅ Sucess! Verified identity {:?}", self.config.email);
-        self.config.save_settings();
-        info!("💜 Saved API config to {:?}", self.config.config_path);
-        LocalConfig::print_spacer();
-        info!("💜 Proceeding to device setup");
+        // LocalConfig::print_spacer();
+        // info!("✅ Sucess! Verified identity {:?}", self.config.email);
+        // self.config.save_settings("local.json");
+        // info!("💜 Saved API config to {:?}", self.config.config_path);
+        // LocalConfig::print_spacer();
+        // info!("💜 Proceeding to device setup");
         Ok(())
     }
 
@@ -128,7 +123,7 @@ impl SetupPrompter {
 
     fn prompt_key_path(&self) -> PathBuf {
         let prompt = "Enter path to ssh keypair. Keypair will be generated if this file does not exist";
-        let default = self.config.key_path.join("id_rsa.pub");
+        let default = PathBuf::from(&self.config.key_path).join("id_rsa.pub");
         let input : String = Input::new()
             .default(format!("{:?}",default))
             .with_prompt(prompt)
@@ -140,7 +135,7 @@ impl SetupPrompter {
 
     fn prompt_public_key_path(&self) -> String {
         let prompt = "Enter path to public ssh key. Keypair will be generated if this file does not exist";
-        let default = self.config.config_path.join("id_rsa.pub");
+        let default = PathBuf::from(&self.config.key_path).join("id_rsa.pub");
         let input : String = Input::new()
             .default(format!("{:?}",default))
             .with_prompt(prompt)
@@ -178,22 +173,24 @@ impl SetupPrompter {
 impl LocalConfig {
     /// Serializes settings stored in ~/.printnanny/settings/*json
     
-    pub fn from(config_path: PathBuf, key_path: PathBuf) -> Result<Self, ConfigError> {
+    pub fn from() -> Result<Self, ConfigError> {
         let mut s = Config::default();
         // call Config::set_default for default in from LocalConfig::default()
         let defaults = LocalConfig::default();
         s.set_default("api_base_path", defaults.api_base_path)?;
-        
-        s.set("config_path", format!("{:?}", config_path))?;
-        s.set("key_path", format!("{:?}", key_path))?;
+        s.set_default("config_path", defaults.config_path)?;
+        s.set_default("key_path", defaults.key_path)?;
 
         // https://github.com/mehcode/config-rs/blob/master/examples/hierarchical-env/src/settings.rs
         // Start off by merging in the "default" configuration file
+        // Add in settings from the environment (with a prefix of APP)
+        // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
+        s.merge(Environment::with_prefix("PRINTNANNY"))?;
 
         // glob all files in base directory
         // Default to "settings" but allows for variants like:
         // RUN_MODE="sandbox" RUN_MODE="prod-account-A"
-        let glob_pattern = format!("{}/*", format!("{:?}", config_path));
+        let glob_pattern = format!("{}/*", format!("{:?}", s.get_str("config_path")));
 
         // Glob all configuration files in base directory
         s
@@ -219,8 +216,8 @@ impl LocalConfig {
 
 
     fn create_appliance_pki_request(&self) -> Result<print_nanny_client::models::AppliancePkiRequest>{
-        let public_key_path = self.key_path.join("id_dsa.pub");
-        let private_key_path = self.key_path.join("id_dsa");
+        let public_key_path = PathBuf::from(&self.key_path).join("id_dsa.pub");
+        let private_key_path = PathBuf::from(&self.key_path).join("id_dsa");
         let public_key = fs::read_to_string(&public_key_path)?;
         let fingerprint_cmd = std::process::Command::new("ssh-keygen")
             .arg("-lf")
@@ -349,9 +346,16 @@ impl LocalConfig {
         Ok(res)
     }
     
-    pub fn save_settings(&self) -> Result<()>{
-        let file = &File::create(&self.config_path)
-            .context(format!("🔴 Failed to create file handle {:#?}",&self.config_path))?;
+    pub fn save_settings(&self, filename: &str) -> Result<()>{
+        let save_path = PathBuf::from(&self.config_path).join(filename);
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(&save_path)
+            .context(format!("🔴 Failed to create file handle {:?}", save_path))?;
+        // File::create("/home/leigh/.printnanny/settings.json")
+        //     .context(format!("🔴 Failed to create file handle {:#?}",&self.config_path))?;
         serde_json::to_writer(file, self)?;
         Ok(())
     }
