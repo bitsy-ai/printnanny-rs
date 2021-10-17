@@ -97,7 +97,15 @@ impl SetupPrompter {
         if self.config.appliance.is_none(){
             self.config.hostname = Some(self.prompt_hostname()?);
             let key_path = self.prompt_key_path();
-            let appliance_res = LocalConfig::appliances_create(&self.config).await?;
+            let appliance_res = LocalConfig::appliances_create(&self.config).await;
+            match appliance_res {
+                Ok(appliance) => info!("Created appliance {:?}", appliance),
+                Err(e) => {
+                    for cause in e.chain() {
+                        println!("error: {}", cause)
+                    }
+                }
+            }
 
         };   
         // LocalConfig::print_spacer();
@@ -215,7 +223,7 @@ impl LocalConfig {
     }
 
 
-    fn create_appliance_pki_request(&self) -> Result<print_nanny_client::models::AppliancePkiRequest>{
+    fn create_appliance_pki_request(&self) -> Result<print_nanny_client::models::AppliancePublicKeyRequest>{
         let public_key_path = PathBuf::from(&self.key_path).join("id_dsa.pub");
         let private_key_path = PathBuf::from(&self.key_path).join("id_dsa");
         let public_key = fs::read_to_string(&public_key_path)?;
@@ -231,9 +239,7 @@ impl LocalConfig {
             .output()
             .expect(&format!("md5sum failed for file {:?}", &public_key_path));
         let checksum = String::from_utf8(checksum_cmd.stdout)?;
-        let req = print_nanny_client::models::AppliancePkiRequest{
-            public_key_path: format!("{:?}", public_key_path),
-            private_key_path: format!("{:?}", private_key_path),
+        let req = print_nanny_client::models::AppliancePublicKeyRequest{
             public_key: public_key,
             public_key_checksum: checksum,
             fingerprint: fingerprint
