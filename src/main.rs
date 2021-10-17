@@ -30,34 +30,10 @@ async fn main() -> Result<()> {
     let mut builder = Builder::new();
     let app_name = "printnanny";
     
-    let home_path = dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."));
-    let default_path = home_path
-        .join(".printnanny/settings.json");
-    let default_key_path = home_path.join(".ssh");
-    let default_key_string =  default_key_path.into_os_string().into_string().unwrap();
-    let default_config_string = default_path.into_os_string().into_string().unwrap();
-
     let app = App::new(app_name)
         .version("0.1.0")
         .author("Leigh Johnson <leigh@bitsy.ai>")
         .about("Official Print Nanny CLI https://print-nanny.com")
-        .arg(Arg::with_name("config")
-            .short("c")
-            .long("config")
-            .help("Load custom config file")
-            .value_name("FILE")
-            .takes_value(true)
-            .default_value(&default_config_string)
-        )
-        .arg(Arg::with_name("keys")
-            .short("k")
-            .long("keys")
-            .help("Load id_dsa and id_dsa.pub from path")
-            .value_name("PATH")
-            .takes_value(true)
-            .default_value(&default_config_string)
-        )
         .arg(Arg::with_name("v")
         .short("v")
         .multiple(true)
@@ -70,8 +46,6 @@ async fn main() -> Result<()> {
         .about("Update Print Nanny system"));    
     let app_m = app.get_matches();
 
-    let config_path = PathBuf::from(app_m.value_of("config").unwrap_or(&default_config_string));
-    let key_path = PathBuf::from(app_m.value_of("keys").unwrap_or(&default_key_string));
     // Vary the output based on how many times the user used the "verbose" flag
     // (i.e. 'printnanny -v -v -v' or 'printnanny -vvv' vs 'printnanny -v'
     let verbosity = app_m.occurrences_of("v");
@@ -84,7 +58,7 @@ async fn main() -> Result<()> {
     
     match app_m.subcommand() {
         ("setup", Some(_sub_m)) => {
-            let prompter = SetupPrompter::new(config_path, key_path)?;
+            let prompter = SetupPrompter::new()?;
             prompter.setup().await?;
         },
         // ("reset", Some(_sub_m)) => {

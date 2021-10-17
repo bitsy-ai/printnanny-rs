@@ -16,3 +16,9 @@ images:
 		-t bitsyai/cross:x86_64-unknown-linux-gnu-$(VERSION) \
 		docker
 	docker push bitsyai/cross:x86_64-unknown-linux-gnu-$(VERSION)
+
+run-local:
+	PRINTNANNY_API_BASE_PATH=http://localhost:8000 \
+	PRINTNANNY_CONFIG_PATH=$(PWD)/.tmp \
+	PRINTNANNY_KEY_PATH=$(PWD)/.tmp \
+	cargo run -- -vv $(ARGS)
