@@ -2,12 +2,12 @@ use std::path::{ PathBuf };
 use std::{ env }; 
 use std::fs;
 use std::fs::File;
-use log::{ info, error, debug };
+use log::{ info, error, debug, warn };
 use glob::glob;
 
 use thiserror::Error;
 use anyhow::{ anyhow, Context, Result };
-use dialoguer::{ Input };
+use dialoguer::{ Input, Confirm };
 use serde::{ Serialize, Deserialize };
 use config::{ConfigError, Config, File as ConfigFile, Environment};
 
@@ -75,6 +75,40 @@ impl SetupPrompter {
     // if <field> not exist -> prompt for config
     // if <field> exist, print config -> prompt to use Y/n -> prompt for config OR proceed
 
+    async fn setup_appliance(&self) -> Result<()> {
+        let hostname = self.config.hostname.as_ref().unwrap();
+        let api_config = self.config.api_config();
+        let req = print_nanny_client::models::ApplianceRequest{hostname: hostname.to_string()};
+        let res = print_nanny_client::apis::appliances_api::appliances_create(&api_config, req.clone()).await;
+        // let res = LocalConfig::appliances_create(&self.config).await;
+        match res {
+            Ok(appliance) => Ok(()),
+            Err(wrapped_e) => {
+                if let print_nanny_client::apis::Error::ResponseError(t) = wrapped_e {
+                    match t.status {
+                        http::status::StatusCode::CONFLICT => {
+                            let warn_msg = format!("Found existing settings for {}", hostname);
+                            self.prompt_overwrite(&warn_msg);
+                        }
+                        e => ()
+                    }
+                    println!("print_nanny_client::apis::Error with t={:?}",&t);
+                    println!("print_nanny_client::apis::Error with t={:?}",t.status);
+                }
+                Ok(())
+            }
+        }
+    }
+
+    fn prompt_overwrite(&self, warn_msg: &str) -> Result<bool> {
+        warn!("{}",warn_msg);
+        let prompt = "Do you want to overrite? Settings will be backed up";
+        let proceed = Confirm::new()
+            .with_prompt(prompt)
+            .default(true)
+            .interact()?;
+        Ok(proceed)
+    }
 
     pub async fn setup(mut self) -> Result<()>{
         if self.config.email.is_none() {
@@ -96,16 +130,20 @@ impl SetupPrompter {
         };
         if self.config.appliance.is_none(){
             self.config.hostname = Some(self.prompt_hostname()?);
-            let key_path = self.prompt_key_path();
-            let appliance_res = LocalConfig::appliances_create(&self.config).await;
-            match appliance_res {
-                Ok(appliance) => info!("Created appliance {:?}", appliance),
-                Err(e) => {
-                    for cause in e.chain() {
-                        println!("error: {}", cause)
-                    }
-                }
-            }
+            self.setup_appliance().await?;
+            // let appliance_res = LocalConfig::appliances_create(&self.config).await;
+            // match appliance_res {
+            //     Ok(appliance) => info!("Created appliance {:?}", appliance),
+            //     Err(wrapped_e) => {
+            //         match wrapped_e.root_cause() {
+            //             print_nanny_client::apis::Error::Reqwest(e) => e,
+            //             Error::Serde(e) => e,
+            //             Error::Io(e) => e,
+            //             Error::ResponseError(_) => return None,
+            //         }
+
+            //     }
+            // }
 
         };   
         // LocalConfig::print_spacer();
