@@ -3,27 +3,7 @@ use anyhow::{ Result };
 use env_logger::Builder;
 use log::LevelFilter;
 use clap::{ Arg, App, SubCommand };
-use printnanny::config:: { LocalConfig, SetupPrompter };
-
-// resets config back to default values
-// async fn handle_reset(config_name: &str) -> Result<LocalConfig>{
-//     // let config = LocalConfig::load(app_name)?;
-
-//     let defaults = LocalConfig::new();
-//     defaults.save();
-//     Ok(defaults)
-// }
-
-// #[test]
-// fn test_print_help() -> Result<()>{
-//     let mut cmd = Command::cargo_bin("printnanny")?;
-//     cmd.args(&["--help"]);
-
-//     cmd.assert()
-//         .success()
-//         .stdout(predicate::str::contains("Official Print Nanny CLI https://print-nanny.com"));
-//     Ok(())
-// }
+use printnanny::config:: { SetupPrompter };
 
 #[tokio::main]
 async fn main() -> Result<()> {

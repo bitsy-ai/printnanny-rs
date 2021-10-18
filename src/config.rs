@@ -1,7 +1,5 @@
 use std::path::{ PathBuf };
-use std::{ env }; 
 use std::fs;
-use std::fs::File;
 use log::{ info, error, debug, warn };
 use glob::glob;
 
@@ -11,7 +9,6 @@ use dialoguer::{ Input, Confirm };
 use serde::{ Serialize, Deserialize };
 use config::{ConfigError, Config, File as ConfigFile, Environment};
 
-use print_nanny_client::apis::appliances_api::{ appliances_create };
 use print_nanny_client::apis::auth_api::{ auth_email_create, auth_token_create };
 
 #[derive(Error, Debug)]
