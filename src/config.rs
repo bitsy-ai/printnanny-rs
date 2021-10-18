@@ -75,29 +75,37 @@ impl SetupPrompter {
     // if <field> not exist -> prompt for config
     // if <field> exist, print config -> prompt to use Y/n -> prompt for config OR proceed
 
-    async fn setup_appliance(&self) -> Result<()> {
+    async fn get_or_create_appliance(&self) -> Result<print_nanny_client::models::Appliance> {
         let hostname = self.config.hostname.as_ref().unwrap();
         let api_config = self.config.api_config();
         let req = print_nanny_client::models::ApplianceRequest{hostname: hostname.to_string()};
-        let res = print_nanny_client::apis::appliances_api::appliances_create(&api_config, req.clone()).await;
-        // let res = LocalConfig::appliances_create(&self.config).await;
-        match res {
-            Ok(appliance) => Ok(()),
-            Err(wrapped_e) => {
-                if let print_nanny_client::apis::Error::ResponseError(t) = wrapped_e {
+        match print_nanny_client::apis::appliances_api::appliances_create(&api_config, req.clone()).await {
+            Ok(appliance) => return Ok(appliance),
+
+            Err(e) => {
+                let context = format!("appliances_create returned error for request {:?}", &req);
+                if let print_nanny_client::apis::Error::ResponseError(t) = &e {      
                     match t.status {
                         http::status::StatusCode::CONFLICT => {
                             let warn_msg = format!("Found existing settings for {}", hostname);
-                            self.prompt_overwrite(&warn_msg);
+                            let overwrite = self.prompt_overwrite(&warn_msg).unwrap();
+                            match overwrite {
+                                true => {
+                                    info!("New host key will be generated for {}", &hostname);
+                                    let appliance = print_nanny_client::apis::appliances_api::appliances_retrieve_hostname(&api_config, hostname).await?;
+                                    return Ok(appliance);
+                                },
+                                false => {
+                                    error!("{:?}", &t.entity);
+                                }
+                            }
                         }
-                        e => ()
-                    }
-                    println!("print_nanny_client::apis::Error with t={:?}",&t);
-                    println!("print_nanny_client::apis::Error with t={:?}",t.status);
+                        _ => ()
+                    }    
                 }
-                Ok(())
+                return Err(anyhow::Error::from(e).context(context));
             }
-        }
+        };
     }
 
     fn prompt_overwrite(&self, warn_msg: &str) -> Result<bool> {
@@ -107,6 +115,7 @@ impl SetupPrompter {
             .with_prompt(prompt)
             .default(true)
             .interact()?;
+        debug!("prompt_overwrite received input {}", proceed);
         Ok(proceed)
     }
 
@@ -130,21 +139,7 @@ impl SetupPrompter {
         };
         if self.config.appliance.is_none(){
             self.config.hostname = Some(self.prompt_hostname()?);
-            self.setup_appliance().await?;
-            // let appliance_res = LocalConfig::appliances_create(&self.config).await;
-            // match appliance_res {
-            //     Ok(appliance) => info!("Created appliance {:?}", appliance),
-            //     Err(wrapped_e) => {
-            //         match wrapped_e.root_cause() {
-            //             print_nanny_client::apis::Error::Reqwest(e) => e,
-            //             Error::Serde(e) => e,
-            //             Error::Io(e) => e,
-            //             Error::ResponseError(_) => return None,
-            //         }
-
-            //     }
-            // }
-
+            self.config.appliance = Some(self.get_or_create_appliance().await?);
         };   
         // LocalConfig::print_spacer();
         // info!("✅ Sucess! Verified identity {:?}", self.config.email);
