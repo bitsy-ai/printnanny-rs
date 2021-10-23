@@ -6,6 +6,7 @@ use glob::glob;
 use thiserror::Error;
 use anyhow::{ anyhow, Context, Result };
 use dialoguer::{ Input, Confirm };
+use dialoguer::theme::{ ColorfulTheme };
 use serde::{ Serialize, Deserialize };
 use config::{ConfigError, Config, File as ConfigFile, Environment};
 
@@ -71,6 +72,10 @@ impl SetupPrompter {
     // Basic flow goess
     // if <field> not exist -> prompt for config
     // if <field> exist, print config -> prompt to use Y/n -> prompt for config OR proceed
+    
+    // async fn get_or_create_camera(&self) -> Result<print_nanny_client::models::Camera> {
+    //     let
+    // }
 
     async fn get_or_create_appliance(&self) -> Result<print_nanny_client::models::Appliance> {
         let hostname = self.config.hostname.as_ref().unwrap();
@@ -108,12 +113,36 @@ impl SetupPrompter {
     fn prompt_overwrite(&self, warn_msg: &str) -> Result<bool> {
         warn!("{}",warn_msg);
         let prompt = "Do you want to overrite? Settings will be backed up";
-        let proceed = Confirm::new()
+        let proceed = Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt(prompt)
             .default(true)
             .interact()?;
         debug!("prompt_overwrite received input {}", proceed);
         Ok(proceed)
+    }
+
+    fn prompt_camera_name(&self) -> Result<String> {
+        let hostname = sys_info::hostname()?;
+        LocalConfig::print_spacer();
+        let prompt = "📷 Enter a name for this camera";
+        let default = format!("{}-camera-0", hostname);
+        let input = Input::new()
+            .default(default)
+            .with_prompt(prompt)
+            .interact_text()
+            .unwrap();
+        Ok(input)
+    }
+
+    fn prompt_camera_source(&self) -> String {
+        LocalConfig::print_spacer();
+        let prompt = "📷 Enter camera source";
+        let default = "/dev/video0";
+        Input::with_theme(&ColorfulTheme::default())
+            .default(default)
+            .with_prompt(prompt)
+            .interact_text()
+            .unwrap()
     }
 
     pub async fn setup(mut self) -> Result<()>{
@@ -137,7 +166,12 @@ impl SetupPrompter {
         if self.config.appliance.is_none(){
             self.config.hostname = Some(self.prompt_hostname()?);
             self.config.appliance = Some(self.get_or_create_appliance().await?);
-        };   
+        };
+        if self.config.appliance.is_none(){
+            let camera_name = self.prompt_camera_name();
+            let camera_source = self.prompt_camera_source();
+
+        }
         // LocalConfig::print_spacer();
         // info!("✅ Sucess! Verified identity {:?}", self.config.email);
         // self.config.save_settings("local.json");
@@ -151,7 +185,7 @@ impl SetupPrompter {
     fn prompt_hostname(&self) -> Result<String> {
         let hostname = sys_info::hostname()?;
         let prompt = "Please enter a name for this device";
-        let input : String = Input::new()
+        let input : String = Input::with_theme(&ColorfulTheme::default())
             .default(hostname)
             .with_prompt(prompt)
             .interact_text()
@@ -163,7 +197,7 @@ impl SetupPrompter {
     fn prompt_key_path(&self) -> PathBuf {
         let prompt = "Enter path to ssh keypair. Keypair will be generated if this file does not exist";
         let default = PathBuf::from(&self.config.key_path).join("id_rsa.pub");
-        let input : String = Input::new()
+        let input : String = Input:::with_theme(&ColorfulTheme::default())
             .default(format!("{:?}",default))
             .with_prompt(prompt)
             .interact_text()
@@ -175,7 +209,7 @@ impl SetupPrompter {
     fn prompt_public_key_path(&self) -> String {
         let prompt = "Enter path to public ssh key. Keypair will be generated if this file does not exist";
         let default = PathBuf::from(&self.config.key_path).join("id_rsa.pub");
-        let input : String = Input::new()
+        let input : String = Input::with_theme(&ColorfulTheme::default())
             .default(format!("{:?}",default))
             .with_prompt(prompt)
             .interact_text()
@@ -188,7 +222,7 @@ impl SetupPrompter {
     fn prompt_email(&self) -> String {
         LocalConfig::print_spacer();
         let prompt = "📨 Enter your email address";
-        Input::new()
+        Input::with_theme(&ColorfulTheme::default())
             .with_prompt(prompt)
             .interact_text()
             .unwrap()
@@ -197,7 +231,7 @@ impl SetupPrompter {
         match &self.config.email {
             Some(email) => {
                 let prompt = format!("⚪ Enter the 6-digit code emailed to {}", email);
-                let input : String = Input::new()
+                let input : String = Input::with_theme(&ColorfulTheme::default())
                     .with_prompt(prompt)
                     .interact_text()
                     .unwrap();
