@@ -164,21 +164,6 @@ impl SetupPrompter {
 
 
         };
-        // if self.config.appliance.is_some(){
-        //     let add_camera = if self.config.appliance.cameras.is_some(){
-        //         self.prompt_add_camera();
-        //     } else { true };
-        //     let camera_name = self.prompt_camera_name();
-        //     let camera_source = self.prompt_camera_source();
-
-        // }
-
-        // LocalConfig::print_spacer();
-        // info!("✅ Sucess! Verified identity {:?}", self.config.email);
-        // self.config.save_settings("local.json");
-        // info!("💜 Saved API config to {:?}", self.config.config_path);
-        // LocalConfig::print_spacer();
-        // info!("💜 Proceeding to device setup");
         Ok(())
     }
     
