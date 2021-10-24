@@ -7,8 +7,8 @@ use serde::{ Serialize, Deserialize };
 use log::{ debug};
 
 use print_nanny_client::apis::configuration::Configuration;
-use print_nanny_client::apis::appliances_api::{
-    appliances_keypairs_create
+use print_nanny_client::apis::devices_api::{
+    devices_keypairs_create
 };
 
 
@@ -37,8 +37,8 @@ impl KeyPair {
         assert_eq!(format!("{:x}", buf), checksum);
         Ok(())
     }
-    pub async fn create(path: PathBuf, api_config: &Configuration, appliance_id: &i32) -> Result<Self> {
-        let res = appliances_keypairs_create(&api_config, *appliance_id).await?;
+    pub async fn create(path: PathBuf, api_config: &Configuration, device_id: &i32) -> Result<Self> {
+        let res = devices_keypairs_create(&api_config, *device_id).await?;
         let public_key_path = path.join("id_dsa.pub");
         let public_key_checksum = res.public_key_checksum.unwrap();
         let private_key_path = path.join("id_dsa");
