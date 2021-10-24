@@ -1,7 +1,8 @@
 use std::path::{ PathBuf };
-use std::fs;
 use log::{ info, error, debug, warn };
 use glob::glob;
+
+use  print_nanny_client::apis::configuration::Configuration;
 
 use thiserror::Error;
 use anyhow::{ anyhow, Context, Result };
@@ -125,31 +126,6 @@ impl SetupPrompter {
         Ok(proceed)
     }
 
-    fn prompt_camera_name(&self) -> Result<String> {
-        let hostname = sys_info::hostname()?;
-        LocalConfig::print_spacer();
-        let prompt = "📷 Enter a name for this camera";
-        let default = format!("{}-camera-0", hostname);
-        let input = Input::new()
-            .default(default)
-            .with_prompt(prompt)
-            .interact_text()
-            .unwrap();
-        Ok(input)
-    }
-
-    fn prompt_camera_source(&self) -> String {
-        LocalConfig::print_spacer();
-        let prompt = "📷 Enter camera source";
-        let default = "/dev/video0";
-        let result: String = Input::with_theme(&ColorfulTheme::default())
-            // .default(default)
-            .with_prompt(prompt)
-            .interact_text()
-            .unwrap();
-        return result
-    }
-
     pub async fn setup(mut self) -> Result<()>{
         if self.config.email.is_none() {
             self.config.email = Some(self.prompt_email());
@@ -170,14 +146,18 @@ impl SetupPrompter {
         };
         if self.config.appliance.is_none(){
             self.config.hostname = Some(self.prompt_hostname()?);
-            self.config.appliance = Some(self.get_or_create_appliance().await?);
-            let appliance_id = self.config.appliance.as_ref().unwrap().id.unwrap();
+            let appliance = self.get_or_create_appliance().await?;
+            let appliance_id = appliance.id.unwrap();
             let keypair = KeyPair::create(
                 PathBuf::from(&self.config.data_path),
                 &self.config.api_config(),
                 &appliance_id
             ).await?;
             self.config.keypair = Some(keypair);
+            self.config.appliance = Some(print_nanny_client::apis::appliances_api::appliances_retrieve(
+                &self.config.api_config(),
+                appliance_id
+            ).await?);
             info!("✅ Sucess! Registered your device {:?}", &self.config.appliance);
             self.config.save_settings("local.json")?;
             info!("💜 Saved config to {:?}", self.config.config_path);
@@ -201,16 +181,7 @@ impl SetupPrompter {
         // info!("💜 Proceeding to device setup");
         Ok(())
     }
-
-    fn prompt_add_camera(&self) -> Result<bool> {
-        let prompt = "Do you want to add another camera?";
-        let proceed = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt(prompt)
-            .default(true)
-            .interact()?;
-        debug!("prompt_overwrite received input {}", proceed);
-        Ok(proceed)
-    }
+    
     fn prompt_hostname(&self) -> Result<String> {
         let hostname = sys_info::hostname()?;
         let prompt = "Please enter a name for this device";
@@ -289,18 +260,6 @@ impl LocalConfig {
         s.try_into()
 
     }
-    
-    async fn appliances_create(&self) -> Result<print_nanny_client::models::Appliance> {
-        match &self.hostname {
-            Some(hostname) => {
-                let req = print_nanny_client::models::ApplianceRequest{hostname: hostname.to_string()};
-                let res = print_nanny_client::apis::appliances_api::appliances_create(&self.api_config(), req.clone()).await
-                    .context(format!("🔴 Failed to create appliance from request {:?}", req))?;
-                Ok(res)
-            }
-            None => Err(anyhow!("Could not detect hostname. Please try running `printnanny setup` again."))
-        }
-    }
 
     async fn verify_2fa_send_email(&self) -> Result<print_nanny_client::models::DetailResponse> {
         // Sends an email containing an expiring one-time password (6 digits)
@@ -339,14 +298,14 @@ impl LocalConfig {
     //     Ok(defaults)
     // }
 
-    pub fn api_config(&self) -> print_nanny_client::apis::configuration::Configuration {
+    pub fn api_config(&self) -> Configuration {
         if self.api_token.is_none(){
-            print_nanny_client::apis::configuration::Configuration{
+            Configuration{
                 base_path:self.api_base_path.to_string(), 
                 ..Default::default()
             }
         } else {
-            print_nanny_client::apis::configuration::Configuration{
+            Configuration{
                 base_path:self.api_base_path.to_string(),
                 bearer_access_token:self.api_token.clone(),
                 ..Default::default()

@@ -1,10 +1,9 @@
 use std::path::{ PathBuf };
 use std::fs::File;
 use std::io::prelude::*;
-use sha2::{Sha256, Sha512, Digest};
-use anyhow::{ anyhow, Context, Result };
+use sha2::{Sha256, Digest};
+use anyhow::{ Context, Result };
 use serde::{ Serialize, Deserialize };
-use print_nanny_client::models::Appliance;
 use  print_nanny_client::apis::configuration::Configuration;
 use print_nanny_client::apis::appliances_api::{
     appliances_keypairs_create
