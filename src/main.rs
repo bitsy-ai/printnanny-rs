@@ -20,9 +20,14 @@ async fn main() -> Result<()> {
         .subcommand(SubCommand::with_name("setup")
             .about("Connect your Print Nanny account"))
         .subcommand(SubCommand::with_name("reset")
-        .about("Reset your Print Nanny setup"))
+            .about("Reset your Print Nanny setup"))
         .subcommand(SubCommand::with_name("update")
-        .about("Update Print Nanny system"));    
+            .about("Update Print Nanny system"))  
+        .subcommand(SubCommand::with_name("mqtt")
+            .about("Publish or subscribe to MQTT messages")
+            .subcommand(SubCommand::with_name("publish")
+            .subcommand(SubCommand::with_name("subscribe"))
+        ));  
     let app_m = app.get_matches();
 
     // Vary the output based on how many times the user used the "verbose" flag
