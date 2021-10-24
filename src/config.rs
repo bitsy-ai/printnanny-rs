@@ -117,7 +117,7 @@ impl SetupPrompter {
 
     fn prompt_overwrite(&self, warn_msg: &str) -> Result<bool> {
         warn!("{}",warn_msg);
-        let prompt = "Do you want to overrite? Settings will be backed up";
+        let prompt = "Do you want to overwrite?";
         let proceed = Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt(prompt)
             .default(true)
@@ -227,7 +227,7 @@ impl LocalConfig {
         let defaults = LocalConfig::default();
         s.set_default("api_base_path", defaults.api_base_path.clone())?;
         s.set_default("config_path", defaults.config_path.clone())?;
-        s.set_default("key_path", defaults.data_path.clone())?;
+        s.set_default("data_path", defaults.data_path.clone())?;
 
         // https://github.com/mehcode/config-rs/blob/master/examples/hierarchical-env/src/settings.rs
         // Start off by merging in the "default" configuration file
@@ -236,7 +236,7 @@ impl LocalConfig {
         s.merge(Environment::with_prefix("PRINTNANNY"))?;
 
         // glob all files in config directory
-        let glob_pattern = format!("{}/*", &defaults.config_path);
+        let glob_pattern = format!("{}/*", s.get_str("config_path")?);
         info!("Loading config from {}", &glob_pattern);
 
         // Glob all configuration files in base directory

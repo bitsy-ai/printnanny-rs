@@ -4,7 +4,9 @@ use std::io::prelude::*;
 use sha2::{Sha256, Digest};
 use anyhow::{ Context, Result };
 use serde::{ Serialize, Deserialize };
-use  print_nanny_client::apis::configuration::Configuration;
+use log::{ info, error, debug, warn };
+
+use print_nanny_client::apis::configuration::Configuration;
 use print_nanny_client::apis::appliances_api::{
     appliances_keypairs_create
 };
@@ -24,6 +26,7 @@ impl KeyPair {
         let mut file_w = File::create(filepath)
             .context(format!("Failed to create file {:#?}", filepath))?;
         file_w.write_all(content.as_bytes())?;
+        debug!("Wrote key to {:?}", filepath);
         let contents = std::fs::read_to_string(filepath)?;
         // create a Sha256 object
         let mut hasher = Sha256::new();
@@ -31,8 +34,7 @@ impl KeyPair {
         hasher.update(contents);
         // read hash digest and consume hasher
         let buf = hasher.finalize();
-        let s = std::str::from_utf8(&buf)?;
-        assert!(s == checksum);
+        assert_eq!(format!("{:x}", buf), checksum);
         Ok(())
     }
     pub async fn create(path: PathBuf, api_config: &Configuration, appliance_id: &i32) -> Result<Self> {
