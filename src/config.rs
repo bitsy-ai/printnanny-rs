@@ -1,15 +1,18 @@
 use std::path::{ PathBuf };
-use std::fs;
 use log::{ info, error, debug, warn };
 use glob::glob;
+
+use  print_nanny_client::apis::configuration::Configuration;
 
 use thiserror::Error;
 use anyhow::{ anyhow, Context, Result };
 use dialoguer::{ Input, Confirm };
+use dialoguer::theme::{ ColorfulTheme };
 use serde::{ Serialize, Deserialize };
 use config::{ConfigError, Config, File as ConfigFile, Environment};
 
 use print_nanny_client::apis::auth_api::{ auth_email_create, auth_token_create };
+use crate::keypair::KeyPair;
 
 #[derive(Error, Debug)]
 pub enum AlreadyExistsError {
@@ -31,7 +34,7 @@ pub struct LocalConfig {
     #[serde(default)]
     pub email: Option<String>,
     #[serde(default)]
-    pub key_path: String,
+    pub data_path: String,
 
     #[serde(default)]
     pub hostname: Option<String>,
@@ -39,7 +42,9 @@ pub struct LocalConfig {
     #[serde(default, skip_serializing_if="Option::is_none")]
     pub appliance: Option<print_nanny_client::models::Appliance>,
     #[serde(default, skip_serializing_if="Option::is_none")]
-    pub user: Option<print_nanny_client::models::User>
+    pub user: Option<print_nanny_client::models::User>,
+    #[serde(default, skip_serializing_if="Option::is_none")]
+    pub keypair: Option<KeyPair>,
 }
 
 impl ::std::default::Default for LocalConfig {
@@ -48,10 +53,11 @@ impl ::std::default::Default for LocalConfig {
         api_token: None,
         config_path: ".tmp".to_string(),
         hostname: None,
-        key_path: ".tmp".to_string(),
+        data_path: ".tmp".to_string(),
         appliance: None,
         email: None,
-        user: None
+        user: None,
+        keypair: None,
     }}
 }
 
@@ -71,6 +77,10 @@ impl SetupPrompter {
     // Basic flow goess
     // if <field> not exist -> prompt for config
     // if <field> exist, print config -> prompt to use Y/n -> prompt for config OR proceed
+    
+    // async fn get_or_create_camera(&self) -> Result<print_nanny_client::models::Camera> {
+    //     let
+    // }
 
     async fn get_or_create_appliance(&self) -> Result<print_nanny_client::models::Appliance> {
         let hostname = self.config.hostname.as_ref().unwrap();
@@ -107,8 +117,8 @@ impl SetupPrompter {
 
     fn prompt_overwrite(&self, warn_msg: &str) -> Result<bool> {
         warn!("{}",warn_msg);
-        let prompt = "Do you want to overrite? Settings will be backed up";
-        let proceed = Confirm::new()
+        let prompt = "Do you want to overwrite?";
+        let proceed = Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt(prompt)
             .default(true)
             .interact()?;
@@ -136,22 +146,31 @@ impl SetupPrompter {
         };
         if self.config.appliance.is_none(){
             self.config.hostname = Some(self.prompt_hostname()?);
-            self.config.appliance = Some(self.get_or_create_appliance().await?);
-        };   
-        // LocalConfig::print_spacer();
-        // info!("✅ Sucess! Verified identity {:?}", self.config.email);
-        // self.config.save_settings("local.json");
-        // info!("💜 Saved API config to {:?}", self.config.config_path);
-        // LocalConfig::print_spacer();
-        // info!("💜 Proceeding to device setup");
+            let appliance = self.get_or_create_appliance().await?;
+            let appliance_id = appliance.id.unwrap();
+            let keypair = KeyPair::create(
+                PathBuf::from(&self.config.data_path),
+                &self.config.api_config(),
+                &appliance_id
+            ).await?;
+            self.config.keypair = Some(keypair);
+            self.config.appliance = Some(print_nanny_client::apis::appliances_api::appliances_retrieve(
+                &self.config.api_config(),
+                appliance_id
+            ).await?);
+            info!("✅ Sucess! Registered your device {:?}", &self.config.appliance);
+            self.config.save_settings("local.json")?;
+            info!("💜 Saved config to {:?}", self.config.config_path);
+
+
+        };
         Ok(())
     }
-
-
+    
     fn prompt_hostname(&self) -> Result<String> {
         let hostname = sys_info::hostname()?;
         let prompt = "Please enter a name for this device";
-        let input : String = Input::new()
+        let input : String = Input::with_theme(&ColorfulTheme::default())
             .default(hostname)
             .with_prompt(prompt)
             .interact_text()
@@ -160,35 +179,10 @@ impl SetupPrompter {
         Ok(input)
     }
 
-    fn prompt_key_path(&self) -> PathBuf {
-        let prompt = "Enter path to ssh keypair. Keypair will be generated if this file does not exist";
-        let default = PathBuf::from(&self.config.key_path).join("id_rsa.pub");
-        let input : String = Input::new()
-            .default(format!("{:?}",default))
-            .with_prompt(prompt)
-            .interact_text()
-            .unwrap();
-        info!("Received input code {}", input);
-        PathBuf::from(input)
-    }
-
-    fn prompt_public_key_path(&self) -> String {
-        let prompt = "Enter path to public ssh key. Keypair will be generated if this file does not exist";
-        let default = PathBuf::from(&self.config.key_path).join("id_rsa.pub");
-        let input : String = Input::new()
-            .default(format!("{:?}",default))
-            .with_prompt(prompt)
-            .interact_text()
-            .unwrap();
-        info!("Received input code {}", input);
-        input
-    }
-
-
     fn prompt_email(&self) -> String {
         LocalConfig::print_spacer();
         let prompt = "📨 Enter your email address";
-        Input::new()
+        Input::with_theme(&ColorfulTheme::default())
             .with_prompt(prompt)
             .interact_text()
             .unwrap()
@@ -197,7 +191,7 @@ impl SetupPrompter {
         match &self.config.email {
             Some(email) => {
                 let prompt = format!("⚪ Enter the 6-digit code emailed to {}", email);
-                let input : String = Input::new()
+                let input : String = Input::with_theme(&ColorfulTheme::default())
                     .with_prompt(prompt)
                     .interact_text()
                     .unwrap();
@@ -218,7 +212,7 @@ impl LocalConfig {
         let defaults = LocalConfig::default();
         s.set_default("api_base_path", defaults.api_base_path.clone())?;
         s.set_default("config_path", defaults.config_path.clone())?;
-        s.set_default("key_path", defaults.key_path.clone())?;
+        s.set_default("data_path", defaults.data_path.clone())?;
 
         // https://github.com/mehcode/config-rs/blob/master/examples/hierarchical-env/src/settings.rs
         // Start off by merging in the "default" configuration file
@@ -227,7 +221,7 @@ impl LocalConfig {
         s.merge(Environment::with_prefix("PRINTNANNY"))?;
 
         // glob all files in config directory
-        let glob_pattern = format!("{}/*", &defaults.config_path);
+        let glob_pattern = format!("{}/*", s.get_str("config_path")?);
         info!("Loading config from {}", &glob_pattern);
 
         // Glob all configuration files in base directory
@@ -250,45 +244,6 @@ impl LocalConfig {
         // You can deserialize (and thus freeze) the entire configuration as
         s.try_into()
 
-    }
-
-
-    fn create_appliance_pki_request(&self) -> Result<print_nanny_client::models::AppliancePublicKeyRequest>{
-        let public_key_path = PathBuf::from(&self.key_path).join("id_dsa.pub");
-        let private_key_path = PathBuf::from(&self.key_path).join("id_dsa");
-        let public_key = fs::read_to_string(&public_key_path)?;
-        let fingerprint_cmd = std::process::Command::new("ssh-keygen")
-            .arg("-lf")
-            .arg(&public_key_path)
-            .output()
-            .expect(&format!("ssh-keygen failed to generate fingerprint for {:?}", &public_key_path));
-        let fingerprint = String::from_utf8(fingerprint_cmd.stdout)?;
-        let checksum_cmd = std::process::Command::new(
-            "md5sum")
-            .arg(&public_key_path)
-            .output()
-            .expect(&format!("md5sum failed for file {:?}", &public_key_path));
-        let checksum = String::from_utf8(checksum_cmd.stdout)?;
-        let req = print_nanny_client::models::AppliancePublicKeyRequest{
-            public_key: public_key,
-            public_key_checksum: checksum,
-            fingerprint: fingerprint
-
-        };
-
-        Ok(req)
-    }
-    
-    async fn appliances_create(&self) -> Result<print_nanny_client::models::Appliance> {
-        match &self.hostname {
-            Some(hostname) => {
-                let req = print_nanny_client::models::ApplianceRequest{hostname: hostname.to_string()};
-                let res = print_nanny_client::apis::appliances_api::appliances_create(&self.api_config(), req.clone()).await
-                    .context(format!("🔴 Failed to create appliance from request {:?}", req))?;
-                Ok(res)
-            }
-            None => Err(anyhow!("Could not detect hostname. Please try running `printnanny setup` again."))
-        }
     }
 
     async fn verify_2fa_send_email(&self) -> Result<print_nanny_client::models::DetailResponse> {
@@ -328,14 +283,14 @@ impl LocalConfig {
     //     Ok(defaults)
     // }
 
-    pub fn api_config(&self) -> print_nanny_client::apis::configuration::Configuration {
+    pub fn api_config(&self) -> Configuration {
         if self.api_token.is_none(){
-            print_nanny_client::apis::configuration::Configuration{
+            Configuration{
                 base_path:self.api_base_path.to_string(), 
                 ..Default::default()
             }
         } else {
-            print_nanny_client::apis::configuration::Configuration{
+            Configuration{
                 base_path:self.api_base_path.to_string(),
                 bearer_access_token:self.api_token.clone(),
                 ..Default::default()
