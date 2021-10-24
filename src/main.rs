@@ -40,9 +40,11 @@ async fn main() -> Result<()> {
             let prompter = SetupPrompter::new()?;
             prompter.setup().await?;
         },
-        // ("reset", Some(_sub_m)) => {
-        //     handle_reset(config_name).await?;
-        // },
+        ("reset", Some(_sub_m)) => {
+            let mut prompter = SetupPrompter::new()?;
+            prompter = prompter.reset()?;
+            prompter.setup().await?;
+        },
         ("update", Some(_sub_m)) => {
             unimplemented!();
         },
