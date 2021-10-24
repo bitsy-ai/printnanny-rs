@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::{ PathBuf };
 use log::{ info, error, debug, warn };
 use glob::glob;
@@ -73,6 +74,33 @@ impl SetupPrompter {
         Ok(SetupPrompter { config })
     }
 
+    fn rm_dirs(&self) -> Result<()>{
+        fs::remove_dir_all(&self.config.config_path)?;
+        fs::create_dir(&self.config.config_path)?;
+        info!("Recreated settings dir {}", &self.config.config_path);
+        fs::remove_dir_all(&self.config.data_path)?;
+        fs::create_dir(&self.config.data_path)?;
+        info!("Recreated data dir {}", &self.config.data_path);
+        Ok(())
+    }
+
+    pub fn reset(&self) -> Result<SetupPrompter> {
+        let prompt = "Do you want to reset your Print Nanny settings?";
+        let proceed = Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt(prompt)
+            .default(false)
+            .interact()?;
+        match proceed {
+            true => {
+                self.rm_dirs()?;
+                let prompter = SetupPrompter::new()?;
+                Ok(prompter)
+            }
+            false => {
+                Err(anyhow!("Failed to delete config {:?}", self.config))
+            }
+        }
+    }
 
     // Basic flow goess
     // if <field> not exist -> prompt for config
@@ -276,12 +304,6 @@ impl LocalConfig {
 
     }
 
-    // pub fn reset() -> Self {
-    //     let defaults = LocalConfig::new();
-    //     defaults.save();
-    //     print_reset();
-    //     Ok(defaults)
-    // }
 
     pub fn api_config(&self) -> Configuration {
         if self.api_token.is_none(){
@@ -323,12 +345,6 @@ impl LocalConfig {
         info!("💜 {:#?}", self);
         LocalConfig::print_spacer();
     }
-    // pub async fn update_or_create_appliance(&self) -> Result<Appliance>{
-    //     let res = print_nanny_client::apis::users_api::users_me_retrieve(
-    //         &self.api_config()
-    //     ).await.context(format!("🔴 Failed to retreive user {:#?}", self.email))?;
-    //     Ok(res)
-    // }
 
     pub async fn get_user(&self) -> Result<print_nanny_client::models::User> {
         let res = print_nanny_client::apis::users_api::users_me_retrieve(

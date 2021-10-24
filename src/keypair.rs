@@ -4,7 +4,7 @@ use std::io::prelude::*;
 use sha2::{Sha256, Digest};
 use anyhow::{ Context, Result };
 use serde::{ Serialize, Deserialize };
-use log::{ info, error, debug, warn };
+use log::{ debug};
 
 use print_nanny_client::apis::configuration::Configuration;
 use print_nanny_client::apis::appliances_api::{
