@@ -41,7 +41,7 @@ pub struct LocalConfig {
     pub hostname: Option<String>,
 
     #[serde(default, skip_serializing_if="Option::is_none")]
-    pub appliance: Option<print_nanny_client::models::Appliance>,
+    pub device: Option<print_nanny_client::models::Device>,
     #[serde(default, skip_serializing_if="Option::is_none")]
     pub user: Option<print_nanny_client::models::User>,
     #[serde(default, skip_serializing_if="Option::is_none")]
@@ -55,7 +55,7 @@ impl ::std::default::Default for LocalConfig {
         config_path: ".tmp".to_string(),
         hostname: None,
         data_path: ".tmp".to_string(),
-        appliance: None,
+        device: None,
         email: None,
         user: None,
         keypair: None,
@@ -110,15 +110,15 @@ impl SetupPrompter {
     //     let
     // }
 
-    async fn get_or_create_appliance(&self) -> Result<print_nanny_client::models::Appliance> {
+    async fn get_or_create_device(&self) -> Result<print_nanny_client::models::Device> {
         let hostname = self.config.hostname.as_ref().unwrap();
         let api_config = self.config.api_config();
-        let req = print_nanny_client::models::ApplianceRequest{hostname: hostname.to_string()};
-        match print_nanny_client::apis::appliances_api::appliances_create(&api_config, req.clone()).await {
-            Ok(appliance) => return Ok(appliance),
+        let req = print_nanny_client::models::DeviceRequest{hostname: hostname.to_string()};
+        match print_nanny_client::apis::devices_api::devices_create(&api_config, req.clone()).await {
+            Ok(device) => return Ok(device),
 
             Err(e) => {
-                let context = format!("appliances_create returned error for request {:?}", &req);
+                let context = format!("devices_create returned error for request {:?}", &req);
                 if let print_nanny_client::apis::Error::ResponseError(t) = &e {      
                     match t.status {
                         http::status::StatusCode::CONFLICT => {
@@ -127,8 +127,8 @@ impl SetupPrompter {
                             match overwrite {
                                 true => {
                                     info!("New host key will be generated for {}", &hostname);
-                                    let appliance = print_nanny_client::apis::appliances_api::appliances_retrieve_hostname(&api_config, hostname).await?;
-                                    return Ok(appliance);
+                                    let device = print_nanny_client::apis::devices_api::devices_retrieve_hostname(&api_config, hostname).await?;
+                                    return Ok(device);
                                 },
                                 false => {
                                     error!("{:?}", &t.entity);
@@ -172,21 +172,21 @@ impl SetupPrompter {
             info!("💜 Saved API config to {:?}", self.config.config_path);
             info!("💜 Proceeding to device setup");
         };
-        if self.config.appliance.is_none(){
+        if self.config.device.is_none(){
             self.config.hostname = Some(self.prompt_hostname()?);
-            let appliance = self.get_or_create_appliance().await?;
-            let appliance_id = appliance.id.unwrap();
+            let device = self.get_or_create_device().await?;
+            let device_id = device.id.unwrap();
             let keypair = KeyPair::create(
                 PathBuf::from(&self.config.data_path),
                 &self.config.api_config(),
-                &appliance_id
+                &device_id
             ).await?;
             self.config.keypair = Some(keypair);
-            self.config.appliance = Some(print_nanny_client::apis::appliances_api::appliances_retrieve(
+            self.config.device = Some(print_nanny_client::apis::devices_api::devices_retrieve(
                 &self.config.api_config(),
-                appliance_id
+                device_id
             ).await?);
-            info!("✅ Sucess! Registered your device {:?}", &self.config.appliance);
+            info!("✅ Sucess! Registered your device {:?}", &self.config.device);
             self.config.save_settings("local.json")?;
             info!("💜 Saved config to {:?}", self.config.config_path);
 
