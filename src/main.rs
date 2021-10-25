@@ -3,6 +3,8 @@ use env_logger::Builder;
 use log::LevelFilter;
 use clap::{ Arg, App, SubCommand };
 use printnanny::config:: { SetupPrompter };
+use printnanny::mqtt:: { MQTTClient };
+use printnanny::config:: { LocalConfig };
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -25,9 +27,7 @@ async fn main() -> Result<()> {
             .about("Update Print Nanny system"))  
         .subcommand(SubCommand::with_name("mqtt")
             .about("Publish or subscribe to MQTT messages")
-            .subcommand(SubCommand::with_name("publish")
-            .subcommand(SubCommand::with_name("subscribe"))
-        ));  
+        );  
     let app_m = app.get_matches();
 
     // Vary the output based on how many times the user used the "verbose" flag
@@ -41,6 +41,11 @@ async fn main() -> Result<()> {
     };
     
     match app_m.subcommand() {
+        ("mqtt", Some(_sub_m)) => {
+            let config = LocalConfig::new()?;
+            let client = MQTTClient::new(config)?;
+            // client.run().await;
+        },
         ("setup", Some(_sub_m)) => {
             let prompter = SetupPrompter::new()?;
             prompter.setup().await?;
