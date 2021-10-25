@@ -21,7 +21,7 @@ env_logger = "0.9.0"
 glob = "0.3.0"
 http = "0.2.5"
 log = "0.4.14"
-print-nanny-client = "0.8.47"
+print-nanny-client = "0.8.49"
 procfs = "0.11.0"
 rumqttc = "0.9.0"
 serde = { version = "1.0.130", features = ["derive"] }

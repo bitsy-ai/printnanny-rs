@@ -11,6 +11,7 @@ use dialoguer::{ Input, Confirm };
 use dialoguer::theme::{ ColorfulTheme };
 use serde::{ Serialize, Deserialize };
 use config::{ConfigError, Config, File as ConfigFile, Environment};
+use procfs::{ CpuInfo, Meminfo };
 
 use print_nanny_client::apis::auth_api::{ auth_email_create, auth_token_create };
 use crate::keypair::KeyPair;
@@ -113,7 +114,25 @@ impl SetupPrompter {
     async fn get_or_create_device(&self) -> Result<print_nanny_client::models::Device> {
         let hostname = self.config.hostname.as_ref().unwrap();
         let api_config = self.config.api_config();
-        let req = print_nanny_client::models::DeviceRequest{hostname: hostname.to_string()};
+        let cpuinfo = CpuInfo::new()?;
+        let unknown = "Unknown".to_string();
+        let revision = cpuinfo.fields.get("Revision").unwrap_or(&unknown);
+        let hardware = cpuinfo.fields.get("Hardware").unwrap_or(&unknown);
+        let model = cpuinfo.fields.get("Model").unwrap_or(&unknown);
+        let serial = cpuinfo.fields.get("Serial").unwrap_or(&unknown);
+        let cores = cpuinfo.num_cores();
+        let meminfo = Meminfo::new()?;
+        let ram = meminfo.mem_total;
+
+        let req = print_nanny_client::models::DeviceRequest{
+            cores: cores as i32,
+            hostname: hostname.to_string(),
+            hardware: hardware.to_string(),
+            model: model.to_string(),
+            serial: serial.to_string(),
+            ram: ram as i64,
+            revision: revision.to_string()
+        };
         match print_nanny_client::apis::devices_api::devices_create(&api_config, req.clone()).await {
             Ok(device) => return Ok(device),
 
