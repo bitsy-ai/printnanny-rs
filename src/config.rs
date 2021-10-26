@@ -70,7 +70,7 @@ pub struct SetupPrompter {
 
 impl SetupPrompter {
     pub fn new() -> Result<SetupPrompter> {
-        let config = LocalConfig::from()?;
+        let config = LocalConfig::new()?;
         info!("Read config {:?}", &config);
         Ok(SetupPrompter { config })
     }
@@ -89,7 +89,7 @@ impl SetupPrompter {
         let prompt = "Do you want to reset your Print Nanny settings?";
         let proceed = Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt(prompt)
-            .default(false)
+            .default(true)
             .interact()?;
         match proceed {
             true => {
@@ -253,7 +253,7 @@ impl SetupPrompter {
 impl LocalConfig {
     /// Serializes settings stored in ~/.printnanny/settings/*json
     
-    pub fn from() -> Result<Self, ConfigError> {
+    pub fn new() -> Result<Self, ConfigError> {
         let mut s = Config::default();
         // call Config::set_default for default in from LocalConfig::default()
         let defaults = LocalConfig::default();
