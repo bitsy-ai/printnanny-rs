@@ -1,5 +1,5 @@
 use std::path::{ PathBuf };
-use std::fs::File;
+use std::fs;
 use std::io::prelude::*;
 use sha2::{Sha256, Digest};
 use anyhow::{ Context, Result };
@@ -26,8 +26,18 @@ pub struct KeyPair {
 
 impl KeyPair {
 
+    pub fn read_private_key(&self) ->  Result<Vec<u8>> {
+        let result = fs::read(&self.private_key_path)?;
+        Ok(result)
+    }
+
+    pub fn read_public_key(&self) -> Result<Vec<u8>> {
+        let result = fs::read(&self.public_key_path)?;
+        Ok(result)
+    }
+
     fn write_and_verify_checksum(filepath: &PathBuf, content: String, checksum: String) -> Result<()> {
-        let mut file_w = File::create(filepath)
+        let mut file_w = fs::File::create(filepath)
             .context(format!("Failed to create file {:#?}", filepath))?;
         file_w.write_all(content.as_bytes())?;
         debug!("Wrote key to {:?}", filepath);

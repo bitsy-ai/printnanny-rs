@@ -1,15 +1,25 @@
+use std::include_bytes;
+use chrono;
 use rumqttc::{MqttOptions, AsyncClient, Client, QoS, ClientError, LastWill};
 use tokio::{task, time};
 use anyhow::{ anyhow, Result };
 use log::{ info, error, debug, warn };
 use std::thread;
-
+use serde::{Serialize, Deserialize};
+use jsonwebtoken::{encode, decode, Header, Algorithm, Validation, EncodingKey, DecodingKey};
+use print_nanny_client::models::Device;
 
 use std::time::Duration;
-use std::error::Error;
-use print_nanny_client::models::Device;
 use crate::config::LocalConfig;
 use crate::keypair::KeyPair;
+
+/// Our claims struct, it needs to derive `Serialize` and/or `Deserialize`
+#[derive(Debug, Serialize, Deserialize)]
+struct Claims {
+    sub: i32, // Subject (whom token refers to)
+    iat: i64, // Issued At (as UTC timestamp)
+    exp: i64, // Expiration
+}
 
 #[derive(Debug, Clone)]
 pub struct MQTTClient {
@@ -54,18 +64,46 @@ impl MQTTClient {
 
     }
 
-    // pub async fn run(&self) {
-    //     let mut mqttoptions = MqttOptions::new(&self.mqtt_client_id, &self.mqtt_hostname,self.mqtt_port as u16);
-    //     mqttoptions.set_keep_alive(5);
+    async fn client_loop(&self, device: &Device, keypair: &KeyPair) -> Result<()> {
+        let iat = chrono::offset::Utc::now().timestamp(); // issued at (seconds since epoch)
+        let exp = iat + 86400; // 24 hours later
+        let claims = Claims { iat: iat, exp: exp, sub: device.id.unwrap() };
+        let key = keypair.read_private_key()?;
+        let mut mqttoptions = MqttOptions::new(&self.mqtt_client_id, &self.mqtt_hostname,self.mqtt_port as u16);
+        mqttoptions.set_keep_alive(5);
+        let token = encode(&Header::new(Algorithm::ES256), &claims, &EncodingKey::from_ec_pem(&key)?)?;
 
-    //     let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
-    //     client.subscribe("hello/rumqtt", QoS::AtLeastOnce).await.unwrap();
+        let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
+        client.subscribe("hello/rumqtt", QoS::AtLeastOnce).await.unwrap();
+        loop {
+            let notification = eventloop.poll().await.unwrap();
+            println!("Received = {:?}", notification);
+        }
+        Ok(())
+    }
 
-    //     let transport = Transport::Tls(TlsConfiguration::Simple {
-    //         ca: ca.to_vec(),
-    //         alpn: None,
-    //         client_auth: Some((client_cert.to_vec(), Key::RSA(client_key.to_vec()))),
-    //     });
+    pub async fn run(&self) -> Result<()> {
+        let config = LocalConfig::new()?;
+        match config.device {
+            Some(device) => {
+                match config.keypair {
+                    Some(keypair) => self.client_loop(&device, &keypair).await?,
+                    None => {
+                        return Err(anyhow!("Missing device config. Please run `printnanny setup` to configure your device first!"));
+                    }
+                }
+            },
+            None => {
+                return Err(anyhow!("Missing device config. Please run `printnanny setup` to configure your device first!"))
+            }
+        }
+
+
+        // let transport = Transport::Tls(TlsConfiguration::Simple {
+        //     ca: ca.to_vec(),
+        //     alpn: None,
+        //     client_auth: Some((client_cert.to_vec(), Key::RSA(client_key.to_vec()))),
+        // });
     
         // task::spawn(async move {
         //     for i in 0..10 {
@@ -84,11 +122,9 @@ impl MQTTClient {
         //     }
         // });
 
-        // loop {
-        //     let notification = eventloop.poll().await.unwrap();
-        //     println!("Received = {:?}", notification);
-        // }
-    // }
+
+        Ok(())
+    }
 }
 
 
