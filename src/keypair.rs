@@ -1,5 +1,5 @@
 use std::path::{ PathBuf };
-use std::fs::File;
+use std::fs;
 use std::io::prelude::*;
 use sha2::{Sha256, Digest};
 use anyhow::{ Context, Result };
@@ -14,20 +14,32 @@ use print_nanny_client::apis::devices_api::{
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct KeyPair {
-    public_key_path: PathBuf,
-    public_key_checksum: String,
+    pub public_key_path: PathBuf,
+    pub public_key_checksum: String,
     private_key_path: PathBuf,
     private_key_checksum: String,
-    ca_certs_path: PathBuf,
-    ca_certs_checksum: String,
-    backup_ca_certs_path: PathBuf,
-    backup_ca_certs_checksum: String,
+    pub ca_certs_path: PathBuf,
+    pub ca_certs_checksum: String,
+    pub backup_ca_certs_path: PathBuf,
+    pub backup_ca_certs_checksum: String,
 }
 
 impl KeyPair {
 
+    pub fn read_private_key(&self) ->  Result<Vec<u8>> {
+        let result = fs::read(&self.private_key_path)
+            .context(format!("Failed to read file {:?}", &self.private_key_path))?;
+        Ok(result)
+    }
+
+    pub fn read_public_key(&self) -> Result<Vec<u8>> {
+        let result = fs::read(&self.public_key_path)
+            .context(format!("Failed to read file {:?}", &self.public_key_path))?;
+        Ok(result)
+    }
+
     fn write_and_verify_checksum(filepath: &PathBuf, content: String, checksum: String) -> Result<()> {
-        let mut file_w = File::create(filepath)
+        let mut file_w = fs::File::create(filepath)
             .context(format!("Failed to create file {:#?}", filepath))?;
         file_w.write_all(content.as_bytes())?;
         debug!("Wrote key to {:?}", filepath);

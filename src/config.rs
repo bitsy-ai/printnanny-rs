@@ -24,7 +24,7 @@ pub enum AlreadyExistsError {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LocalConfig {
-    
+     
     #[serde(default)]
     pub api_base_path: String,
 
@@ -35,8 +35,12 @@ pub struct LocalConfig {
 
     #[serde(default)]
     pub email: Option<String>,
+
     #[serde(default)]
     pub data_path: String,
+
+    #[serde(default)]
+    pub gcp_project: String,
 
     #[serde(default)]
     pub hostname: Option<String>,
@@ -54,6 +58,7 @@ impl ::std::default::Default for LocalConfig {
         api_base_path: "https://print-nanny.com".to_string(),
         api_token: None,
         config_path: ".tmp".to_string(),
+        gcp_project: "print-nanny".to_string(),
         hostname: None,
         data_path: ".tmp".to_string(),
         device: None,
@@ -71,7 +76,7 @@ pub struct SetupPrompter {
 impl SetupPrompter {
     pub fn new() -> Result<SetupPrompter> {
         let config = LocalConfig::new()?;
-        info!("Read config {:?}", &config);
+        info!("Read config {:?}", config);
         Ok(SetupPrompter { config })
     }
 
@@ -190,7 +195,9 @@ impl SetupPrompter {
             self.config.save_settings("local.json")?;
             info!("💜 Saved API config to {:?}", self.config.config_path);
             info!("💜 Proceeding to device setup");
-        };
+        } else {
+
+        }
         if self.config.device.is_none(){
             self.config.hostname = Some(self.prompt_hostname()?);
             let device = self.get_or_create_device().await?;
@@ -253,6 +260,24 @@ impl SetupPrompter {
 impl LocalConfig {
     /// Serializes settings stored in ~/.printnanny/settings/*json
     
+    pub async fn refresh(mut self) -> Result<Self> {
+        match &self.user {
+            Some(_) => {
+                self.user = Some(self.get_user().await?);
+            },
+            None => info!("No user detected in LocalConfig.refresh()")
+        }
+        match &self.device {
+            Some(device) => {
+                self.device = Some(self.get_device(device.id.unwrap()).await?);
+            },
+            None => info!("No user detected in LocalConfig.refresh()")
+        }
+        info!("Refreshed config from remote {:?}", &self);
+        self.save_settings("local.json")?;
+        Ok(self)
+    }
+    
     pub fn new() -> Result<Self, ConfigError> {
         let mut s = Config::default();
         // call Config::set_default for default in from LocalConfig::default()
@@ -290,7 +315,6 @@ impl LocalConfig {
 
         // You can deserialize (and thus freeze) the entire configuration as
         s.try_into()
-
     }
 
     async fn verify_2fa_send_email(&self) -> Result<print_nanny_client::models::DetailResponse> {
@@ -368,10 +392,18 @@ impl LocalConfig {
     pub async fn get_user(&self) -> Result<print_nanny_client::models::User> {
         let res = print_nanny_client::apis::users_api::users_me_retrieve(
             &self.api_config()
-        ).await.context(format!("🔴 Failed to retreive user {:#?}", self.email))?;
+        ).await.context(format!("Failed to retreive user {:#?}", self.email))?;
         Ok(res)
     }
-    
+
+    pub async fn get_device(&self, device_id: i32) -> Result<print_nanny_client::models::Device> {
+        let res = print_nanny_client::apis::devices_api::devices_retrieve(
+            &self.api_config(),
+            device_id
+        ).await.context(format!("Failed to retreive device id={}", device_id))?;
+        Ok(res)
+    }
+
     pub fn save_settings(&self, filename: &str) -> Result<()>{
         let save_path = PathBuf::from(&self.config_path).join(filename);
         let file = std::fs::OpenOptions::new()
