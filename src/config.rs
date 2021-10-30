@@ -24,7 +24,7 @@ pub enum AlreadyExistsError {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LocalConfig {
-    
+     
     #[serde(default)]
     pub api_base_path: String,
 
@@ -35,8 +35,12 @@ pub struct LocalConfig {
 
     #[serde(default)]
     pub email: Option<String>,
+
     #[serde(default)]
     pub data_path: String,
+
+    #[serde(default)]
+    pub gcp_project: String,
 
     #[serde(default)]
     pub hostname: Option<String>,
@@ -54,6 +58,7 @@ impl ::std::default::Default for LocalConfig {
         api_base_path: "https://print-nanny.com".to_string(),
         api_token: None,
         config_path: ".tmp".to_string(),
+        gcp_project: "print-nanny".to_string(),
         hostname: None,
         data_path: ".tmp".to_string(),
         device: None,

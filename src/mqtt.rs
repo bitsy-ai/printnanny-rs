@@ -1,6 +1,8 @@
 use std::include_bytes;
+use std::convert::TryFrom;
+
 use chrono;
-use rumqttc::{MqttOptions, AsyncClient, Client, QoS, ClientError, LastWill};
+use rumqttc::{MqttOptions, AsyncClient, Client, QoS, ClientError };
 use tokio::{task, time};
 use anyhow::{ anyhow, Result };
 use log::{ info, error, debug, warn };
@@ -14,20 +16,18 @@ use crate::config::LocalConfig;
 use crate::keypair::KeyPair;
 
 /// Our claims struct, it needs to derive `Serialize` and/or `Deserialize`
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct Claims {
-    sub: i32, // Subject (whom token refers to)
+    aud: String, // Google Cloud Project id
     iat: i64, // Issued At (as UTC timestamp)
     exp: i64, // Expiration
 }
 
 #[derive(Debug, Clone)]
-pub struct MQTTClient {
-    device: Device,
-    keypair: KeyPair,
-    mqtt_client_id: String,
-    mqtt_hostname: String,
-    mqtt_port: i32, 
+pub struct MQTTWorker {
+    claims: Claims,
+    desired_config_topic: String,
+    mqttoptions: MqttOptions, 
 }
 
 fn publish(mut client: Client) {
@@ -43,61 +43,61 @@ fn publish(mut client: Client) {
     thread::sleep(Duration::from_secs(1));
 }
 
-impl MQTTClient {
-    pub fn new(config: LocalConfig) -> Result<MQTTClient> {
-        match config.device {
-            Some(device) => {
-                let hostname = device.cloudiot_device.as_ref().unwrap().mqtt_bridge_hostname.as_ref().unwrap();
-                let port = device.cloudiot_device.as_ref().unwrap().mqtt_bridge_port.as_ref().unwrap();
-                let mqtt_client_id = device.cloudiot_device.as_ref().unwrap().mqtt_client_id.as_ref().unwrap();
-                let result = MQTTClient{ 
-                    device: device.clone(), 
-                    keypair: config.keypair.unwrap(),
-                    mqtt_hostname: hostname.to_string(), 
-                    mqtt_port: *port,   
-                    mqtt_client_id: mqtt_client_id.to_string()
+fn encode_jwt(keypair: &KeyPair, claims: &Claims) -> Result<String> {
+    let key = EncodingKey::from_ec_pem(&keypair.read_private_key()?)?;
+    let result = encode(&Header::new(Algorithm::ES256), &claims, &key)?;
+    Ok(result)
+}
+
+impl MQTTWorker {
+
+    pub fn new(config: LocalConfig) -> Result<MQTTWorker> {
+        if config.device.is_some() || config.keypair.is_some(){
+            let device = config.device.unwrap();
+            if device.desired_config_topic.is_none() {
+                return Err(anyhow!("Device is not registered. Please run `printnanny setup` and try again."))
+            } else {
+                let desired_config_topic = device.desired_config_topic.unwrap();
+                let keypair = config.keypair.unwrap();
+    
+                let mqtt_hostname = device.cloudiot_device.as_ref().unwrap().mqtt_bridge_hostname.as_ref().unwrap().to_string();
+                let mqtt_port = u16::try_from(*device.cloudiot_device.as_ref().unwrap().mqtt_bridge_port.as_ref().unwrap())?;
+                let mqtt_client_id = device.cloudiot_device.as_ref().unwrap().mqtt_client_id.as_ref().unwrap().to_string();
+        
+                let iat = chrono::offset::Utc::now().timestamp(); // issued at (seconds since epoch)
+                let exp = iat + 86400; // 24 hours later
+                let claims = Claims { iat: iat, exp: exp, aud: config.gcp_project };
+                let token = encode_jwt(&keypair, &claims)?;
+    
+                let mut mqttoptions = MqttOptions::new(
+                    &mqtt_client_id, 
+                    &mqtt_hostname,
+                    mqtt_port
+                );
+                mqttoptions.set_keep_alive(5);
+                mqttoptions.set_credentials("unused", &token);
+                
+                let result = MQTTWorker{
+                    claims,
+                    desired_config_topic,
+                    mqttoptions
                 };
                 Ok(result)
             }
-            None => Err(anyhow!("Device is not registered. Please run `printnanny setup` and try again"))
+   
+        } else {
+            Err(anyhow!("Device is not registered. Please run `printnanny setup` and try again."))
         }
-
     }
 
-    async fn client_loop(&self, device: &Device, keypair: &KeyPair) -> Result<()> {
-        let iat = chrono::offset::Utc::now().timestamp(); // issued at (seconds since epoch)
-        let exp = iat + 86400; // 24 hours later
-        let claims = Claims { iat: iat, exp: exp, sub: device.id.unwrap() };
-        let key = keypair.read_private_key()?;
-        let mut mqttoptions = MqttOptions::new(&self.mqtt_client_id, &self.mqtt_hostname,self.mqtt_port as u16);
-        mqttoptions.set_keep_alive(5);
-        let token = encode(&Header::new(Algorithm::ES256), &claims, &EncodingKey::from_ec_pem(&key)?)?;
+    pub async fn run(&self) -> Result<()> {
 
-        let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
-        client.subscribe("hello/rumqtt", QoS::AtLeastOnce).await.unwrap();
+        let (mut client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 10);
+        client.subscribe(&self.desired_config_topic, QoS::AtLeastOnce).await.unwrap();
         loop {
             let notification = eventloop.poll().await.unwrap();
             println!("Received = {:?}", notification);
         }
-        Ok(())
-    }
-
-    pub async fn run(&self) -> Result<()> {
-        let config = LocalConfig::new()?;
-        match config.device {
-            Some(device) => {
-                match config.keypair {
-                    Some(keypair) => self.client_loop(&device, &keypair).await?,
-                    None => {
-                        return Err(anyhow!("Missing device config. Please run `printnanny setup` to configure your device first!"));
-                    }
-                }
-            },
-            None => {
-                return Err(anyhow!("Missing device config. Please run `printnanny setup` to configure your device first!"))
-            }
-        }
-
 
         // let transport = Transport::Tls(TlsConfiguration::Simple {
         //     ca: ca.to_vec(),
@@ -121,9 +121,11 @@ impl MQTTClient {
         //         time::sleep(Duration::from_millis(100)).await;
         //     }
         // });
-
-
-        Ok(())
+        // loop {
+        //     let notification = eventloop.poll().await.unwrap();
+        //     println!("Received = {:?}", notification);
+        // }
+        // Ok(())
     }
 }
 

@@ -3,7 +3,7 @@ use env_logger::Builder;
 use log::LevelFilter;
 use clap::{ Arg, App, SubCommand };
 use printnanny::config:: { SetupPrompter };
-use printnanny::mqtt:: { MQTTClient };
+use printnanny::mqtt:: { MQTTWorker };
 use printnanny::config:: { LocalConfig };
 
 #[tokio::main]
@@ -43,8 +43,8 @@ async fn main() -> Result<()> {
     match app_m.subcommand() {
         ("mqtt", Some(_sub_m)) => {
             let config = LocalConfig::new()?;
-            let client = MQTTClient::new(config)?;
-            // client.run().await;
+            let worker = MQTTWorker::new(config)?;
+            worker.run().await?;
         },
         ("setup", Some(_sub_m)) => {
             let prompter = SetupPrompter::new()?;
