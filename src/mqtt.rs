@@ -1,22 +1,13 @@
-use std::include_bytes;
-use std::sync::Arc;
 use std::convert::TryFrom;
 use std::fs::File;
 use std::io::BufReader;
-use std::io::prelude::*;
 
 use chrono;
-use rumqttc::{MqttOptions, AsyncClient, Client, QoS, ClientConfig, ClientError, LastWill, Transport, TlsConfiguration };
-use tokio::{task, time};
+use rumqttc::{MqttOptions, AsyncClient, QoS, Transport, TlsConfiguration };
 use anyhow::{ anyhow, Context, Result };
-use log::{ info, error, debug, warn };
-use std::thread;
+use log::{ error };
 use serde::{Serialize, Deserialize};
-use jsonwebtoken::{encode, decode, Header, Algorithm, Validation, EncodingKey, DecodingKey};
-
-use print_nanny_client::models::Device;
-
-use std::time::Duration;
+use jsonwebtoken::{encode, Header, Algorithm, EncodingKey};
 use crate::config::LocalConfig;
 use crate::keypair::KeyPair;
 
@@ -33,19 +24,6 @@ pub struct MQTTWorker {
     claims: Claims,
     desired_config_topic: String,
     mqttoptions: MqttOptions, 
-}
-
-fn publish(mut client: Client) {
-    client.subscribe("hello/+/world", QoS::AtMostOnce).unwrap();
-    for i in 0..10 {
-        let payload = vec![1; i as usize];
-        let topic = format!("hello/{}/world", i);
-        let qos = QoS::AtLeastOnce;
-
-        client.publish(topic, qos, true, payload).unwrap();
-    }
-
-    thread::sleep(Duration::from_secs(1));
 }
 
 fn encode_jwt(keypair: &KeyPair, claims: &Claims) -> Result<String> {
@@ -92,16 +70,18 @@ impl MQTTWorker {
             let certs = rustls_pemfile::read_all(&mut bufreader)?;
             for cert in certs {
                 match cert {
-                    rustls_pemfile::Item::PKCS8Key(bytes) => roots.add(&rustls::Certificate(bytes)),
-                    other => Ok(())
-                };
+                    rustls_pemfile::Item::X509Certificate(bytes) => roots.add(&rustls::Certificate(bytes)),
+                    other => {
+                        error!("Unrecognized root certificate format {:#?}", other);
+                        Ok(())
+                    }
+                }?;
             };
 
             let mut rustls_client_config = rustls::ClientConfig::new();
             rustls_client_config.root_store = roots;
+            rustls_client_config.versions = vec!(rustls::ProtocolVersion::TLSv1_2);
             let mqtt_tls_config = TlsConfiguration::from(rustls_client_config);
-            // let rc_config = Arc::new(client_config);
-            // let tlsconfig = TlsConfiguration::Rustls(rc_config);
             mqttoptions.set_transport(Transport::tls_with_config(mqtt_tls_config));
 
             let result = MQTTWorker{
@@ -115,28 +95,12 @@ impl MQTTWorker {
         }
     }
 
-    // pub fn run(&self) -> Result<()> {
-    //     let mut mqttoptions = self.mqttoptions.clone();
-    //     let will = LastWill::new("hello/world", "good bye", QoS::AtMostOnce, false);
-    //     mqttoptions.set_last_will(will);
-
-    //     let (client, mut connection) = Client::new(mqttoptions, 10);
-    //     thread::spawn(move || publish(client));
-    
-    //     for (i, notification) in connection.iter().enumerate() {
-    //         println!("{}. Notification = {:?}", i, notification);
-    //     }
-    
-    //     println!("Done with the stream!!");
-    //     Ok(())
-    // }
 
     pub async fn run(self) -> Result<()> {
 
 
         
-        let (mut client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 64);
-
+        let (client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 64);
 
         client.subscribe(&self.desired_config_topic, QoS::AtLeastOnce).await.unwrap();
         loop {
@@ -144,52 +108,6 @@ impl MQTTWorker {
             println!("Received = {:?}", notification);
         }
 
-        // let transport = Transport::Tls(TlsConfiguration::Simple {
-        //     ca: ca.to_vec(),
-        //     alpn: None,
-        //     client_auth: Some((client_cert.to_vec(), Key::RSA(client_key.to_vec()))),
-        // });
-    
-        // task::spawn(async move {
-        //     for i in 0..10 {
-        //         let res = client.publish("hello/rumqtt", QoS::AtLeastOnce, false, vec![i; i as usize]).await;
-        //         match res {
-        //             Ok(res) => info!("Publish success {:?}", res),
-        //             Err(e) => {
-        //                 match e {
-        //                     // rumqttc::SendError<rumqttc::Request>
-        //                     ClientError::Request(send_error) => error!("SendError {}", send_error),
-        //                     _ => error!("Publish failed"),
-        //                 }
-        //             }
-        //         }
-        //         time::sleep(Duration::from_millis(100)).await;
-        //     }
-        // });
-        // loop {
-        //     let notification = eventloop.poll().await.unwrap();
-        //     println!("Received = {:?}", notification);
-        // }
-        // Ok(())
+
     }
 }
-
-
-
-// let mut mqttoptions = MqttOptions::new("rumqtt-async", "test.mosquitto.org", 1883);
-// mqttoptions.set_keep_alive(5);
-
-// let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
-// client.subscribe("hello/rumqtt", QoS::AtMostOnce).await.unwrap();
-
-// task::spawn(async move {
-//     for i in 0..10 {
-//         client.publish("hello/rumqtt", QoS::AtLeastOnce, false, vec![i; i as usize]).await.unwrap();
-//         time::sleep(Duration::from_millis(100)).await;
-//     }
-// });
-
-// loop {
-//     let notification = eventloop.poll().await.unwrap();
-//     println!("Received = {:?}", notification);
-// }
