@@ -4,7 +4,7 @@ use std::convert::TryFrom;
 use chrono;
 use rumqttc::{MqttOptions, AsyncClient, Client, QoS, ClientError };
 use tokio::{task, time};
-use anyhow::{ anyhow, Result };
+use anyhow::{ anyhow, Context, Result };
 use log::{ info, error, debug, warn };
 use std::thread;
 use serde::{Serialize, Deserialize};
@@ -44,47 +44,46 @@ fn publish(mut client: Client) {
 }
 
 fn encode_jwt(keypair: &KeyPair, claims: &Claims) -> Result<String> {
-    let key = EncodingKey::from_ec_pem(&keypair.read_private_key()?)?;
+    let key = EncodingKey::from_ec_pem(&keypair.read_private_key()?)
+        .context(format!("Failed to encode EC pem from {:#?}", &keypair))?;
     let result = encode(&Header::new(Algorithm::ES256), &claims, &key)?;
     Ok(result)
 }
 
 impl MQTTWorker {
 
-    pub fn new(config: LocalConfig) -> Result<MQTTWorker> {
+    pub async fn new() -> Result<MQTTWorker> {
+        let mut config = LocalConfig::new()?;
+        config = config.refresh().await?;
         if config.device.is_some() || config.keypair.is_some(){
             let device = config.device.unwrap();
-            if device.desired_config_topic.is_none() {
-                return Err(anyhow!("Device is not registered. Please run `printnanny setup` and try again."))
-            } else {
-                let desired_config_topic = device.desired_config_topic.unwrap();
-                let keypair = config.keypair.unwrap();
+            let cloudiot_device = device.cloudiot_device.unwrap();
+            let desired_config_topic = cloudiot_device.desired_config_topic.unwrap();
+            let keypair = config.keypair.unwrap();
+
+            let mqtt_hostname = cloudiot_device.mqtt_bridge_hostname.as_ref().unwrap().to_string();
+            let mqtt_port = u16::try_from(*cloudiot_device.mqtt_bridge_port.as_ref().unwrap())?;
+            let mqtt_client_id = cloudiot_device.mqtt_client_id.as_ref().unwrap().to_string();
     
-                let mqtt_hostname = device.cloudiot_device.as_ref().unwrap().mqtt_bridge_hostname.as_ref().unwrap().to_string();
-                let mqtt_port = u16::try_from(*device.cloudiot_device.as_ref().unwrap().mqtt_bridge_port.as_ref().unwrap())?;
-                let mqtt_client_id = device.cloudiot_device.as_ref().unwrap().mqtt_client_id.as_ref().unwrap().to_string();
-        
-                let iat = chrono::offset::Utc::now().timestamp(); // issued at (seconds since epoch)
-                let exp = iat + 86400; // 24 hours later
-                let claims = Claims { iat: iat, exp: exp, aud: config.gcp_project };
-                let token = encode_jwt(&keypair, &claims)?;
-    
-                let mut mqttoptions = MqttOptions::new(
-                    &mqtt_client_id, 
-                    &mqtt_hostname,
-                    mqtt_port
-                );
-                mqttoptions.set_keep_alive(5);
-                mqttoptions.set_credentials("unused", &token);
-                
-                let result = MQTTWorker{
-                    claims,
-                    desired_config_topic,
-                    mqttoptions
-                };
-                Ok(result)
-            }
-   
+            let iat = chrono::offset::Utc::now().timestamp(); // issued at (seconds since epoch)
+            let exp = iat + 86400; // 24 hours later
+            let claims = Claims { iat: iat, exp: exp, aud: config.gcp_project };
+            let token = encode_jwt(&keypair, &claims)?;
+
+            let mut mqttoptions = MqttOptions::new(
+                &mqtt_client_id, 
+                &mqtt_hostname,
+                mqtt_port
+            );
+            mqttoptions.set_keep_alive(5);
+            mqttoptions.set_credentials("unused", &token);
+            
+            let result = MQTTWorker{
+                claims,
+                desired_config_topic,
+                mqttoptions
+            };
+            Ok(result)
         } else {
             Err(anyhow!("Device is not registered. Please run `printnanny setup` and try again."))
         }

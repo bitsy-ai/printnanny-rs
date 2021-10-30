@@ -27,12 +27,14 @@ pub struct KeyPair {
 impl KeyPair {
 
     pub fn read_private_key(&self) ->  Result<Vec<u8>> {
-        let result = fs::read(&self.private_key_path)?;
+        let result = fs::read(&self.private_key_path)
+            .context(format!("Failed to read file {:?}", &self.private_key_path))?;
         Ok(result)
     }
 
     pub fn read_public_key(&self) -> Result<Vec<u8>> {
-        let result = fs::read(&self.public_key_path)?;
+        let result = fs::read(&self.public_key_path)
+            .context(format!("Failed to read file {:?}", &self.public_key_path))?;
         Ok(result)
     }
 

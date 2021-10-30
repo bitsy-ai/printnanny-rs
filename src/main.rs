@@ -42,13 +42,14 @@ async fn main() -> Result<()> {
     
     match app_m.subcommand() {
         ("mqtt", Some(_sub_m)) => {
-            let config = LocalConfig::new()?;
-            let worker = MQTTWorker::new(config)?;
+            let worker = MQTTWorker::new().await?;
             worker.run().await?;
         },
         ("setup", Some(_sub_m)) => {
             let prompter = SetupPrompter::new()?;
             prompter.setup().await?;
+            let config = LocalConfig::new()?;
+            config.refresh().await?;
         },
         ("reset", Some(_sub_m)) => {
             let mut prompter = SetupPrompter::new()?;
@@ -60,5 +61,8 @@ async fn main() -> Result<()> {
         },
         _ => {}
     }
+
+    // refresh local config after any command
+
     Ok(())
 }
