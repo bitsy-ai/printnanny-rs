@@ -1179,6 +1179,8 @@ dependencies = [
  "print-nanny-client",
  "procfs",
  "rumqttc",
+ "rustls",
+ "rustls-pemfile",
  "serde 1.0.130",
  "serde_json",
  "sha2",
@@ -1442,6 +1444,15 @@ dependencies = [
  "ring",
  "sct",
  "webpki",
+]
+
+[[package]]
+name = "rustls-pemfile"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5eebeaeb360c87bfb72e84abdb3447159c0eaececf1bef2aecd65a8be949d1c9"
+dependencies = [
+ "base64 0.13.0",
 ]
 
 [[package]]

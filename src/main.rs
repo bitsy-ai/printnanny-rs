@@ -43,6 +43,7 @@ async fn main() -> Result<()> {
     match app_m.subcommand() {
         ("mqtt", Some(_sub_m)) => {
             let worker = MQTTWorker::new().await?;
+            // worker.run().await?;
             worker.run().await?;
         },
         ("setup", Some(_sub_m)) => {

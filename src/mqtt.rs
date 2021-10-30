@@ -1,14 +1,19 @@
 use std::include_bytes;
+use std::sync::Arc;
 use std::convert::TryFrom;
+use std::fs::File;
+use std::io::BufReader;
+use std::io::prelude::*;
 
 use chrono;
-use rumqttc::{MqttOptions, AsyncClient, Client, QoS, ClientError };
+use rumqttc::{MqttOptions, AsyncClient, Client, QoS, ClientConfig, ClientError, LastWill, Transport, TlsConfiguration };
 use tokio::{task, time};
 use anyhow::{ anyhow, Context, Result };
 use log::{ info, error, debug, warn };
 use std::thread;
 use serde::{Serialize, Deserialize};
 use jsonwebtoken::{encode, decode, Header, Algorithm, Validation, EncodingKey, DecodingKey};
+
 use print_nanny_client::models::Device;
 
 use std::time::Duration;
@@ -77,7 +82,28 @@ impl MQTTWorker {
             );
             mqttoptions.set_keep_alive(5);
             mqttoptions.set_credentials("unused", &token);
-            
+
+            // configure tls
+            let mut roots = rustls::RootCertStore::empty();
+            let file = File::open(&keypair.ca_certs_path)
+                .context(format!("Failed to read file {:?}", &keypair.ca_certs_path))?;
+
+            let mut bufreader = BufReader::new(file);
+            let certs = rustls_pemfile::read_all(&mut bufreader)?;
+            for cert in certs {
+                match cert {
+                    rustls_pemfile::Item::PKCS8Key(bytes) => roots.add(&rustls::Certificate(bytes)),
+                    other => Ok(())
+                };
+            };
+
+            let mut rustls_client_config = rustls::ClientConfig::new();
+            rustls_client_config.root_store = roots;
+            let mqtt_tls_config = TlsConfiguration::from(rustls_client_config);
+            // let rc_config = Arc::new(client_config);
+            // let tlsconfig = TlsConfiguration::Rustls(rc_config);
+            mqttoptions.set_transport(Transport::tls_with_config(mqtt_tls_config));
+
             let result = MQTTWorker{
                 claims,
                 desired_config_topic,
@@ -89,9 +115,29 @@ impl MQTTWorker {
         }
     }
 
-    pub async fn run(&self) -> Result<()> {
+    // pub fn run(&self) -> Result<()> {
+    //     let mut mqttoptions = self.mqttoptions.clone();
+    //     let will = LastWill::new("hello/world", "good bye", QoS::AtMostOnce, false);
+    //     mqttoptions.set_last_will(will);
 
-        let (mut client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 10);
+    //     let (client, mut connection) = Client::new(mqttoptions, 10);
+    //     thread::spawn(move || publish(client));
+    
+    //     for (i, notification) in connection.iter().enumerate() {
+    //         println!("{}. Notification = {:?}", i, notification);
+    //     }
+    
+    //     println!("Done with the stream!!");
+    //     Ok(())
+    // }
+
+    pub async fn run(self) -> Result<()> {
+
+
+        
+        let (mut client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 64);
+
+
         client.subscribe(&self.desired_config_topic, QoS::AtLeastOnce).await.unwrap();
         loop {
             let notification = eventloop.poll().await.unwrap();
