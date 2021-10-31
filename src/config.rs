@@ -24,8 +24,8 @@ pub enum AlreadyExistsError {
 }
 
 fn default_dot_path(suffix: &str) -> String {
-    let home = dirs::home_dir().unwrap();
-    format!("{:?}/.printnanny/{}", home, suffix)
+    let dir = dirs::home_dir().unwrap().join(".printnanny").join(suffix);
+    dir.into_os_string().into_string().unwrap()
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -126,8 +126,10 @@ impl SetupPrompter {
     }
 
     fn rm_dirs(&self) -> Result<()>{
-        fs::remove_dir_all(&self.config.dirs.settings)?;
-        fs::create_dir(&self.config.dirs.settings)?;
+        fs::remove_dir_all(&self.config.dirs.settings)
+            .context(format!("Failed to rm dir {}", &self.config.dirs.settings))?;
+        fs::create_dir(&self.config.dirs.settings)
+            .context(format!("Failed to create dir {}", &self.config.dirs.settings))?;
         info!("Recreated settings dir {}", &self.config.dirs.settings);
         fs::remove_dir_all(&self.config.dirs.data)?;
         fs::create_dir(&self.config.dirs.data)?;
@@ -319,7 +321,7 @@ impl LocalConfig {
         // Start off by merging in the "default" configuration file
         // Add in settings from the environment (with a prefix of APP)
         // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
-        s.merge(Environment::with_prefix("PRINTNANNY"))?;
+        // s.merge(Environment::with_prefix("PRINTNANNY").separator("_"))?;
 
         // glob all files in config directory
         let glob_pattern = format!("{}/*", defaults.dirs.settings);
@@ -335,7 +337,7 @@ impl LocalConfig {
 
         // Add in settings from the environment (with a prefix of APP)
         // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
-        s.merge(Environment::with_prefix("PRINTNANNY"))?;
+        s.merge(Environment::with_prefix("PRINTNANNY").separator("__"))?;
 
         // You may also programmatically change settings
         // s.set("dirs.settings", dirs.settings)?;
