@@ -3,7 +3,7 @@ use std::path::{ PathBuf };
 use log::{ info, error, debug, warn };
 use glob::glob;
 
-use  print_nanny_client::apis::configuration::Configuration;
+use print_nanny_client::apis::configuration::{ Configuration as APIConfiguration};
 
 use thiserror::Error;
 use anyhow::{ anyhow, Context, Result };
@@ -23,45 +23,72 @@ pub enum AlreadyExistsError {
     Required(String),
 }
 
+fn default_dot_path(suffix: &str) -> String {
+    let home = dirs::home_dir().unwrap();
+    format!("{:?}/.printnanny/{}", home, suffix)
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConfigDirs {
+    #[serde(default)]
+    pub backups: String,
+    #[serde(default)]
+    pub base: String, 
+    #[serde(default)]
+    pub data: String,
+    #[serde(default)]
+    pub secrets: String,
+    #[serde(default)]
+    pub settings: String,
+}
+
+impl ::std::default::Default for ConfigDirs {
+    fn default() -> Self { Self { 
+        base: default_dot_path(""),
+        backups: default_dot_path("backups"),
+        settings: default_dot_path("settings"),
+        data: default_dot_path("data"),
+        secrets: default_dot_path("secrets"),
+    }}
+}
+
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LocalConfig {
      
     #[serde(default)]
-    pub api_base_path: String,
+    pub api_config: APIConfiguration,
 
     #[serde(default)]
-    pub api_token: Option<String>,
-    #[serde(default)]
-    pub config_path: String,
+    pub dirs: ConfigDirs,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if="Option::is_none")]
     pub email: Option<String>,
-
-    #[serde(default)]
-    pub data_path: String,
 
     #[serde(default)]
     pub gcp_project: String,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if="Option::is_none")]
     pub hostname: Option<String>,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if="Option::is_none")]
     pub device: Option<print_nanny_client::models::Device>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if="Option::is_none")]
     pub user: Option<print_nanny_client::models::User>,
     #[serde(default)]
     pub keypair: Option<KeyPair>,
 }
 
 impl ::std::default::Default for LocalConfig {
+
     fn default() -> Self { Self { 
-        api_base_path: "https://print-nanny.com".to_string(),
-        api_token: None,
-        config_path: ".tmp".to_string(),
+        api_config: APIConfiguration {
+            base_path: "https://print-nanny.com".to_string(),
+            ..Default::default()
+        },
+        dirs: ConfigDirs { ..Default::default() },
         gcp_project: "print-nanny".to_string(),
         hostname: None,
-        data_path: ".tmp".to_string(),
         device: None,
         email: None,
         user: None,
@@ -73,15 +100,9 @@ impl ::std::default::Default for LocalConfig {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AnsibleFacts {
      
-    pub api_base_path: String,
-
-    pub api_token: Option<String>,
-    pub config_path: String,
+    pub dirs: ConfigDirs,
 
     pub email: Option<String>,
-
-    pub data_path: String,
-
     pub gcp_project: String,
 
     pub hostname: Option<String>,
@@ -93,11 +114,8 @@ pub struct AnsibleFacts {
 impl From<LocalConfig> for AnsibleFacts {
     fn from(config: LocalConfig) -> Self {
         Self {
-            api_base_path: config.api_base_path,
-            api_token: config.api_token,
-            config_path: config.config_path,
+            dirs: config.dirs,
             email: config.email,
-            data_path: config.data_path,
             gcp_project: config.gcp_project,
             hostname: config.hostname,
             device: config.device,
@@ -120,12 +138,12 @@ impl SetupPrompter {
     }
 
     fn rm_dirs(&self) -> Result<()>{
-        fs::remove_dir_all(&self.config.config_path)?;
-        fs::create_dir(&self.config.config_path)?;
-        info!("Recreated settings dir {}", &self.config.config_path);
-        fs::remove_dir_all(&self.config.data_path)?;
-        fs::create_dir(&self.config.data_path)?;
-        info!("Recreated data dir {}", &self.config.data_path);
+        fs::remove_dir_all(&self.config.dirs.settings)?;
+        fs::create_dir(&self.config.dirs.settings)?;
+        info!("Recreated settings dir {}", &self.config.dirs.settings);
+        fs::remove_dir_all(&self.config.dirs.data)?;
+        fs::create_dir(&self.config.dirs.data)?;
+        info!("Recreated data dir {}", &self.config.dirs.data);
         Ok(())
     }
 
@@ -157,7 +175,6 @@ impl SetupPrompter {
 
     async fn get_or_create_device(&self) -> Result<print_nanny_client::models::Device> {
         let hostname = self.config.hostname.as_ref().unwrap();
-        let api_config = self.config.api_config();
         let cpuinfo = CpuInfo::new()?;
         let unknown = "Unknown".to_string();
         let revision = cpuinfo.fields.get("Revision").unwrap_or(&unknown);
@@ -177,7 +194,7 @@ impl SetupPrompter {
             ram: ram as i64,
             revision: revision.to_string()
         };
-        match print_nanny_client::apis::devices_api::devices_create(&api_config, req.clone()).await {
+        match print_nanny_client::apis::devices_api::devices_create(&self.config.api_config, req.clone()).await {
             Ok(device) => return Ok(device),
 
             Err(e) => {
@@ -190,7 +207,7 @@ impl SetupPrompter {
                             match overwrite {
                                 true => {
                                     info!("New host key will be generated for {}", &hostname);
-                                    let device = print_nanny_client::apis::devices_api::devices_retrieve_hostname(&api_config, hostname).await?;
+                                    let device = print_nanny_client::apis::devices_api::devices_retrieve_hostname(&self.config.api_config, hostname).await?;
                                     return Ok(device);
                                 },
                                 false => {
@@ -221,18 +238,18 @@ impl SetupPrompter {
         if self.config.email.is_none() {
             self.config.email = Some(self.prompt_email());
         };
-        if self.config.api_token.is_none() {
+        if self.config.api_config.bearer_access_token.is_none() {
             LocalConfig::verify_2fa_send_email(&self.config).await?;
             let opt_token = self.prompt_token_input()?;
             let token_res = LocalConfig::verify_2fa_code(&self.config, opt_token).await?;
-            self.config.api_token = Some(token_res.token);
+            self.config.api_config.bearer_access_token = Some(token_res.token);
         };
         if self.config.user.is_none(){
             let user = self.config.get_user().await?;
             self.config.user = Some(user);
             info!("✅ Sucess! Verified identity {:?}", self.config.email);
             self.config.save_settings("local.json")?;
-            info!("💜 Saved API config to {:?}", self.config.config_path);
+            info!("💜 Saved API config to {:?}", self.config.dirs.settings);
             info!("💜 Proceeding to device setup");
         } else {
 
@@ -242,18 +259,18 @@ impl SetupPrompter {
             let device = self.get_or_create_device().await?;
             let device_id = device.id.unwrap();
             let keypair = KeyPair::create(
-                PathBuf::from(&self.config.data_path),
-                &self.config.api_config(),
+                PathBuf::from(&self.config.dirs.data),
+                &self.config.api_config,
                 &device_id
             ).await?;
             self.config.keypair = Some(keypair);
             self.config.device = Some(print_nanny_client::apis::devices_api::devices_retrieve(
-                &self.config.api_config(),
+                &self.config.api_config,
                 device_id
             ).await?);
             info!("✅ Sucess! Registered your device {:?}", &self.config.device);
             self.config.save_settings("local.json")?;
-            info!("💜 Saved config to {:?}", self.config.config_path);
+            info!("💜 Saved config to {:?}", self.config.dirs.settings);
 
 
         };
@@ -321,9 +338,6 @@ impl LocalConfig {
         let mut s = Config::default();
         // call Config::set_default for default in from LocalConfig::default()
         let defaults = LocalConfig::default();
-        s.set_default("api_base_path", defaults.api_base_path.clone())?;
-        s.set_default("config_path", defaults.config_path.clone())?;
-        s.set_default("data_path", defaults.data_path.clone())?;
 
         // https://github.com/mehcode/config-rs/blob/master/examples/hierarchical-env/src/settings.rs
         // Start off by merging in the "default" configuration file
@@ -332,7 +346,7 @@ impl LocalConfig {
         s.merge(Environment::with_prefix("PRINTNANNY"))?;
 
         // glob all files in config directory
-        let glob_pattern = format!("{}/*", s.get_str("config_path")?);
+        let glob_pattern = format!("{}/*", defaults.dirs.settings);
         info!("Loading config from {}", &glob_pattern);
 
         // Glob all configuration files in base directory
@@ -348,7 +362,7 @@ impl LocalConfig {
         s.merge(Environment::with_prefix("PRINTNANNY"))?;
 
         // You may also programmatically change settings
-        // s.set("config_path", config_path)?;
+        // s.set("dirs.settings", dirs.settings)?;
 
         // Now that we're done, let's access our configuration
 
@@ -361,7 +375,7 @@ impl LocalConfig {
         match &self.email {
             Some(email) => {
                 let req =  print_nanny_client::models::EmailAuthRequest{email: email.to_string()};
-                let res = auth_email_create(&self.api_config(), req).await
+                let res = auth_email_create(&self.api_config, req).await
                     .context(format!("🔴 Failed to send verification email to {:?}", self))?;
                 info!("SUCCESS auth_email_create detail {:?}", serde_json::to_string(&res));
                 Ok(res)
@@ -375,7 +389,7 @@ impl LocalConfig {
         match &self.email {
             Some(email) => {
                 let req = print_nanny_client::models::CallbackTokenAuthRequest{mobile: None, token, email:Some(email.to_string())};
-                let res = auth_token_create(&self.api_config(), req).await
+                let res = auth_token_create(&self.api_config, req).await
                     .context("🔴 Verification failed. Please try again or contact leigh@print-nanny.com for help.")?;
                 info!("SUCCESS auth_verify_create detail {:?}", serde_json::to_string(&res));
                 Ok(res)
@@ -386,21 +400,6 @@ impl LocalConfig {
 
     }
 
-
-    pub fn api_config(&self) -> Configuration {
-        if self.api_token.is_none(){
-            Configuration{
-                base_path:self.api_base_path.to_string(), 
-                ..Default::default()
-            }
-        } else {
-            Configuration{
-                base_path:self.api_base_path.to_string(),
-                bearer_access_token:self.api_token.clone(),
-                ..Default::default()
-            }
-        }
-    }
     pub fn print_reset(&self) {
         LocalConfig::print_spacer();
         info!("💜 Config was reset!");
@@ -430,21 +429,21 @@ impl LocalConfig {
 
     pub async fn get_user(&self) -> Result<print_nanny_client::models::User> {
         let res = print_nanny_client::apis::users_api::users_me_retrieve(
-            &self.api_config()
+            &self.api_config
         ).await.context(format!("Failed to retreive user {:#?}", self.email))?;
         Ok(res)
     }
 
     pub async fn get_device(&self, device_id: i32) -> Result<print_nanny_client::models::Device> {
         let res = print_nanny_client::apis::devices_api::devices_retrieve(
-            &self.api_config(),
+            &self.api_config,
             device_id
         ).await.context(format!("Failed to retreive device id={}", device_id))?;
         Ok(res)
     }
 
     pub fn save_settings(&self, filename: &str) -> Result<()>{
-        let save_path = PathBuf::from(&self.config_path).join(filename);
+        let save_path = PathBuf::from(&self.dirs.settings).join(filename);
         let file = std::fs::OpenOptions::new()
             .write(true)
             .truncate(true)
@@ -452,7 +451,7 @@ impl LocalConfig {
             .open(&save_path)
             .context(format!("🔴 Failed to create file handle {:?}", save_path))?;
         // File::create("/home/leigh/.printnanny/settings.json")
-        //     .context(format!("🔴 Failed to create file handle {:#?}",&self.config_path))?;
+        //     .context(format!("🔴 Failed to create file handle {:#?}",&self.dirs.settings))?;
         serde_json::to_writer(file, self)?;
         Ok(())
     }
