@@ -23,22 +23,35 @@ pub enum AlreadyExistsError {
     Required(String),
 }
 
-fn default_dot_path() -> String {
+fn default_dot_path(suffix: &str) -> String {
     let home = dirs::home_dir().unwrap();
-    format!("{:?}/.printnanny/", home)
+    format!("{:?}/.printnanny/{}", home, suffix)
 }
 
-fn default_config_path() -> String {
-    format!("{:?}settings/", default_dot_path())
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConfigDirs {
+    #[serde(default)]
+    pub backups: String,
+    #[serde(default)]
+    pub base: String, 
+    #[serde(default)]
+    pub data: String,
+    #[serde(default)]
+    pub secrets: String,
+    #[serde(default)]
+    pub settings: String,
 }
 
-fn default_data_path() -> String {
-    format!("{:?}data/", default_dot_path())
+impl ::std::default::Default for ConfigDirs {
+    fn default() -> Self { Self { 
+        base: default_dot_path(""),
+        backups: default_dot_path("backups"),
+        settings: default_dot_path("settings"),
+        data: default_dot_path("data"),
+        secrets: default_dot_path("secrets"),
+    }}
 }
 
-fn default_backups_path() -> String {
-    format!("{:?}backups/", default_dot_path())
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LocalConfig {
@@ -47,11 +60,7 @@ pub struct LocalConfig {
     pub api_config: APIConfiguration,
 
     #[serde(default)]
-    pub backups_path: String,
-    #[serde(default)]
-    pub config_path: String,
-    #[serde(default)]
-    pub data_path: String,
+    pub dirs: ConfigDirs,
 
     #[serde(default, skip_serializing_if="Option::is_none")]
     pub email: Option<String>,
@@ -77,10 +86,7 @@ impl ::std::default::Default for LocalConfig {
             base_path: "https://print-nanny.com".to_string(),
             ..Default::default()
         },
-
-        backups_path: default_backups_path(),
-        config_path: default_config_path(),
-        data_path: default_data_path(),
+        dirs: ConfigDirs { ..Default::default() },
         gcp_project: "print-nanny".to_string(),
         hostname: None,
         device: None,
@@ -94,15 +100,9 @@ impl ::std::default::Default for LocalConfig {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AnsibleFacts {
      
-    // pub api_base_path: String,
-
-    // pub api_token: Option<String>,
-    pub config_path: String,
+    pub dirs: ConfigDirs,
 
     pub email: Option<String>,
-
-    pub data_path: String,
-
     pub gcp_project: String,
 
     pub hostname: Option<String>,
@@ -114,11 +114,8 @@ pub struct AnsibleFacts {
 impl From<LocalConfig> for AnsibleFacts {
     fn from(config: LocalConfig) -> Self {
         Self {
-            // api_config: 
-            // api_token: config.api_token,
-            config_path: config.config_path,
+            dirs: config.dirs,
             email: config.email,
-            data_path: config.data_path,
             gcp_project: config.gcp_project,
             hostname: config.hostname,
             device: config.device,
@@ -141,12 +138,12 @@ impl SetupPrompter {
     }
 
     fn rm_dirs(&self) -> Result<()>{
-        fs::remove_dir_all(&self.config.config_path)?;
-        fs::create_dir(&self.config.config_path)?;
-        info!("Recreated settings dir {}", &self.config.config_path);
-        fs::remove_dir_all(&self.config.data_path)?;
-        fs::create_dir(&self.config.data_path)?;
-        info!("Recreated data dir {}", &self.config.data_path);
+        fs::remove_dir_all(&self.config.dirs.settings)?;
+        fs::create_dir(&self.config.dirs.settings)?;
+        info!("Recreated settings dir {}", &self.config.dirs.settings);
+        fs::remove_dir_all(&self.config.dirs.data)?;
+        fs::create_dir(&self.config.dirs.data)?;
+        info!("Recreated data dir {}", &self.config.dirs.data);
         Ok(())
     }
 
@@ -252,7 +249,7 @@ impl SetupPrompter {
             self.config.user = Some(user);
             info!("✅ Sucess! Verified identity {:?}", self.config.email);
             self.config.save_settings("local.json")?;
-            info!("💜 Saved API config to {:?}", self.config.config_path);
+            info!("💜 Saved API config to {:?}", self.config.dirs.settings);
             info!("💜 Proceeding to device setup");
         } else {
 
@@ -262,7 +259,7 @@ impl SetupPrompter {
             let device = self.get_or_create_device().await?;
             let device_id = device.id.unwrap();
             let keypair = KeyPair::create(
-                PathBuf::from(&self.config.data_path),
+                PathBuf::from(&self.config.dirs.data),
                 &self.config.api_config,
                 &device_id
             ).await?;
@@ -273,7 +270,7 @@ impl SetupPrompter {
             ).await?);
             info!("✅ Sucess! Registered your device {:?}", &self.config.device);
             self.config.save_settings("local.json")?;
-            info!("💜 Saved config to {:?}", self.config.config_path);
+            info!("💜 Saved config to {:?}", self.config.dirs.settings);
 
 
         };
@@ -341,8 +338,6 @@ impl LocalConfig {
         let mut s = Config::default();
         // call Config::set_default for default in from LocalConfig::default()
         let defaults = LocalConfig::default();
-        s.set_default("config_path", defaults.config_path.clone())?;
-        s.set_default("data_path", defaults.data_path.clone())?;
 
         // https://github.com/mehcode/config-rs/blob/master/examples/hierarchical-env/src/settings.rs
         // Start off by merging in the "default" configuration file
@@ -351,7 +346,7 @@ impl LocalConfig {
         s.merge(Environment::with_prefix("PRINTNANNY"))?;
 
         // glob all files in config directory
-        let glob_pattern = format!("{}/*", s.get_str("config_path")?);
+        let glob_pattern = format!("{}/*", defaults.dirs.settings);
         info!("Loading config from {}", &glob_pattern);
 
         // Glob all configuration files in base directory
@@ -367,7 +362,7 @@ impl LocalConfig {
         s.merge(Environment::with_prefix("PRINTNANNY"))?;
 
         // You may also programmatically change settings
-        // s.set("config_path", config_path)?;
+        // s.set("dirs.settings", dirs.settings)?;
 
         // Now that we're done, let's access our configuration
 
@@ -448,7 +443,7 @@ impl LocalConfig {
     }
 
     pub fn save_settings(&self, filename: &str) -> Result<()>{
-        let save_path = PathBuf::from(&self.config_path).join(filename);
+        let save_path = PathBuf::from(&self.dirs.settings).join(filename);
         let file = std::fs::OpenOptions::new()
             .write(true)
             .truncate(true)
@@ -456,7 +451,7 @@ impl LocalConfig {
             .open(&save_path)
             .context(format!("🔴 Failed to create file handle {:?}", save_path))?;
         // File::create("/home/leigh/.printnanny/settings.json")
-        //     .context(format!("🔴 Failed to create file handle {:#?}",&self.config_path))?;
+        //     .context(format!("🔴 Failed to create file handle {:#?}",&self.dirs.settings))?;
         serde_json::to_writer(file, self)?;
         Ok(())
     }
