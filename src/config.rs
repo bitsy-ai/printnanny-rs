@@ -62,20 +62,14 @@ pub struct LocalConfig {
     #[serde(default)]
     pub dirs: ConfigDirs,
 
-    #[serde(default, skip_serializing_if="Option::is_none")]
-    pub email: Option<String>,
-
     #[serde(default)]
     pub gcp_project: String,
-
-    #[serde(default, skip_serializing_if="Option::is_none")]
-    pub hostname: Option<String>,
 
     #[serde(default, skip_serializing_if="Option::is_none")]
     pub device: Option<print_nanny_client::models::Device>,
     #[serde(default, skip_serializing_if="Option::is_none")]
     pub user: Option<print_nanny_client::models::User>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if="Option::is_none")]
     pub keypair: Option<KeyPair>,
 }
 
@@ -87,10 +81,8 @@ impl ::std::default::Default for LocalConfig {
             ..Default::default()
         },
         dirs: ConfigDirs { ..Default::default() },
-        gcp_project: "print-nanny".to_string(),
-        hostname: None,
         device: None,
-        email: None,
+        gcp_project: "print-nanny".to_string(),
         user: None,
         keypair: None,
     }}
@@ -102,10 +94,8 @@ pub struct AnsibleFacts {
      
     pub dirs: ConfigDirs,
 
-    pub email: Option<String>,
     pub gcp_project: String,
 
-    pub hostname: Option<String>,
     pub device: Option<print_nanny_client::models::Device>,
     pub user: Option<print_nanny_client::models::User>,
     pub keypair: Option<KeyPair>,   
@@ -115,9 +105,7 @@ impl From<LocalConfig> for AnsibleFacts {
     fn from(config: LocalConfig) -> Self {
         Self {
             dirs: config.dirs,
-            email: config.email,
             gcp_project: config.gcp_project,
-            hostname: config.hostname,
             device: config.device,
             user: config.user,
             keypair: config.keypair
@@ -173,8 +161,7 @@ impl SetupPrompter {
     //     let
     // }
 
-    async fn get_or_create_device(&self) -> Result<print_nanny_client::models::Device> {
-        let hostname = self.config.hostname.as_ref().unwrap();
+    async fn get_or_create_device(&self, hostname: &str) -> Result<print_nanny_client::models::Device> {
         let cpuinfo = CpuInfo::new()?;
         let unknown = "Unknown".to_string();
         let revision = cpuinfo.fields.get("Revision").unwrap_or(&unknown);
@@ -235,28 +222,22 @@ impl SetupPrompter {
     }
 
     pub async fn setup(mut self) -> Result<()>{
-        if self.config.email.is_none() {
-            self.config.email = Some(self.prompt_email());
-        };
-        if self.config.api_config.bearer_access_token.is_none() {
-            LocalConfig::verify_2fa_send_email(&self.config).await?;
-            let opt_token = self.prompt_token_input()?;
-            let token_res = LocalConfig::verify_2fa_code(&self.config, opt_token).await?;
+        if self.config.user.is_none() {
+            let email = self.prompt_email();
+            LocalConfig::verify_2fa_send_email(&self.config, &email).await?;
+            let opt_token = self.prompt_token_input(&email)?;
+            let token_res = LocalConfig::verify_2fa_code(&self.config, &email, opt_token).await?;
             self.config.api_config.bearer_access_token = Some(token_res.token);
-        };
-        if self.config.user.is_none(){
             let user = self.config.get_user().await?;
             self.config.user = Some(user);
-            info!("✅ Sucess! Verified identity {:?}", self.config.email);
+            info!("✅ Sucess! Verified identity {:?}", email);
             self.config.save_settings("local.json")?;
             info!("💜 Saved API config to {:?}", self.config.dirs.settings);
             info!("💜 Proceeding to device setup");
-        } else {
-
-        }
+        };
         if self.config.device.is_none(){
-            self.config.hostname = Some(self.prompt_hostname()?);
-            let device = self.get_or_create_device().await?;
+            let hostname = self.prompt_hostname()?;
+            let device = self.get_or_create_device(&hostname).await?;
             let device_id = device.id.unwrap();
             let keypair = KeyPair::create(
                 PathBuf::from(&self.config.dirs.data),
@@ -297,19 +278,14 @@ impl SetupPrompter {
             .interact_text()
             .unwrap()
     }
-    fn prompt_token_input(&self) -> Result<String> {
-        match &self.config.email {
-            Some(email) => {
-                let prompt = format!("⚪ Enter the 6-digit code emailed to {}", email);
-                let input : String = Input::with_theme(&ColorfulTheme::default())
-                    .with_prompt(prompt)
-                    .interact_text()
-                    .unwrap();
-                info!("Received input code {}", input);
-                Ok(input)
-            }
-            None => Err(anyhow!("SetupPrompter.prompt_token_input requires email to be set"))
-        }
+    fn prompt_token_input(&self, email: &str) -> Result<String> {
+        let prompt = format!("⚪ Enter the 6-digit code emailed to {}", email);
+        let input : String = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt(prompt)
+            .interact_text()
+            .unwrap();
+        info!("Received input code {}", input);
+        Ok(input)
     }
 }
 
@@ -370,34 +346,21 @@ impl LocalConfig {
         s.try_into()
     }
 
-    async fn verify_2fa_send_email(&self) -> Result<print_nanny_client::models::DetailResponse> {
+    async fn verify_2fa_send_email(&self, email: &str) -> Result<print_nanny_client::models::DetailResponse> {
         // Sends an email containing an expiring one-time password (6 digits)
-        match &self.email {
-            Some(email) => {
-                let req =  print_nanny_client::models::EmailAuthRequest{email: email.to_string()};
-                let res = auth_email_create(&self.api_config, req).await
-                    .context(format!("🔴 Failed to send verification email to {:?}", self))?;
-                info!("SUCCESS auth_email_create detail {:?}", serde_json::to_string(&res));
-                Ok(res)
-            }
-            None => Err(anyhow!("LocalConfig.verify_2fa_send_email requires email to be set"))
-        }
-
+        let req =  print_nanny_client::models::EmailAuthRequest{email: email.to_string()};
+        let res = auth_email_create(&self.api_config, req).await
+            .context(format!("🔴 Failed to send verification email to {:?}", self))?;
+        info!("SUCCESS auth_email_create detail {:?}", serde_json::to_string(&res));
+        Ok(res)
     }
 
-    async fn verify_2fa_code(&self, token: String) -> Result<print_nanny_client::models::TokenResponse> {
-        match &self.email {
-            Some(email) => {
-                let req = print_nanny_client::models::CallbackTokenAuthRequest{mobile: None, token, email:Some(email.to_string())};
-                let res = auth_token_create(&self.api_config, req).await
-                    .context("🔴 Verification failed. Please try again or contact leigh@print-nanny.com for help.")?;
-                info!("SUCCESS auth_verify_create detail {:?}", serde_json::to_string(&res));
-                Ok(res)
-            }
-            None => Err(anyhow!("LocalConfig.verify_2fa_code requires email to be set"))
-
-        }
-
+    async fn verify_2fa_code(&self, email: &str, token: String) -> Result<print_nanny_client::models::TokenResponse> {
+        let req = print_nanny_client::models::CallbackTokenAuthRequest{mobile: None, token, email:Some(email.to_string())};
+        let res = auth_token_create(&self.api_config, req).await
+            .context("🔴 Verification failed. Please try again or contact leigh@print-nanny.com for help.")?;
+        info!("SUCCESS auth_verify_create detail {:?}", serde_json::to_string(&res));
+        Ok(res)
     }
 
     pub fn print_reset(&self) {
@@ -430,7 +393,7 @@ impl LocalConfig {
     pub async fn get_user(&self) -> Result<print_nanny_client::models::User> {
         let res = print_nanny_client::apis::users_api::users_me_retrieve(
             &self.api_config
-        ).await.context(format!("Failed to retreive user {:#?}", self.email))?;
+        ).await.context(format!("Failed to retreive user"))?;
         Ok(res)
     }
 
