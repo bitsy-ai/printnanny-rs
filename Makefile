@@ -22,6 +22,15 @@ run-local:
 	mkdir -p $(PWD)/.tmp/settings/
 	PRINTNANNY_GCP_PROJECT=print-nanny-sandbox \
 	PRINTNANNY_API_BASE_PATH=http://localhost:8000 \
-	PRINTNANNY_CONFIG_PATH=$(PWD)/.tmp/settings/ \
-	PRINTNANNY_DATA_PATH=$(PWD)/.tmp/data/ \
+	PRINTNANNY_CONFIG_PATH=$(PWD)/.tmp/settings \
+	PRINTNANNY_DATA_PATH=$(PWD)/.tmp/data \
 	cargo run -- -vv $(ARGS)
+
+ansible-facts:
+	mkdir -p $(PWD)/.tmp/data/
+	mkdir -p $(PWD)/.tmp/settings/
+	PRINTNANNY_GCP_PROJECT=print-nanny-sandbox \
+	PRINTNANNY_API_BASE_PATH=http://localhost:8000 \
+	PRINTNANNY_CONFIG_PATH=$(PWD)/.tmp/settings \
+	PRINTNANNY_DATA_PATH=$(PWD)/.tmp/data \
+	cargo run -- ansible-facts
