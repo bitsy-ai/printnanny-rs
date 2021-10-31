@@ -54,7 +54,7 @@ impl ::std::default::Default for ConfigDirs {
 
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct LocalConfig {
+pub struct DeviceInfo {
      
     #[serde(default)]
     pub api_config: APIConfiguration,
@@ -73,7 +73,7 @@ pub struct LocalConfig {
     pub keypair: Option<KeyPair>,
 }
 
-impl ::std::default::Default for LocalConfig {
+impl ::std::default::Default for DeviceInfo {
 
     fn default() -> Self { Self { 
         api_config: APIConfiguration {
@@ -101,8 +101,8 @@ pub struct AnsibleFacts {
     pub keypair: Option<KeyPair>,   
 }
 
-impl From<LocalConfig> for AnsibleFacts {
-    fn from(config: LocalConfig) -> Self {
+impl From<DeviceInfo> for AnsibleFacts {
+    fn from(config: DeviceInfo) -> Self {
         Self {
             dirs: config.dirs,
             gcp_project: config.gcp_project,
@@ -115,12 +115,12 @@ impl From<LocalConfig> for AnsibleFacts {
 
 #[derive(Debug, Clone)]
 pub struct SetupPrompter {
-    pub config: LocalConfig
+    pub config: DeviceInfo
 }
 
 impl SetupPrompter {
     pub fn new() -> Result<SetupPrompter> {
-        let config = LocalConfig::new()?;
+        let config = DeviceInfo::new()?;
         info!("Read config {:?}", config);
         Ok(SetupPrompter { config })
     }
@@ -226,9 +226,9 @@ impl SetupPrompter {
     pub async fn setup(mut self) -> Result<()>{
         if self.config.user.is_none() {
             let email = self.prompt_email();
-            LocalConfig::verify_2fa_send_email(&self.config, &email).await?;
+            DeviceInfo::verify_2fa_send_email(&self.config, &email).await?;
             let opt_token = self.prompt_token_input(&email)?;
-            let token_res = LocalConfig::verify_2fa_code(&self.config, &email, opt_token).await?;
+            let token_res = DeviceInfo::verify_2fa_code(&self.config, &email, opt_token).await?;
             self.config.api_config.bearer_access_token = Some(token_res.token);
             let user = self.config.get_user().await?;
             self.config.user = Some(user);
@@ -273,7 +273,7 @@ impl SetupPrompter {
     }
 
     fn prompt_email(&self) -> String {
-        LocalConfig::print_spacer();
+        DeviceInfo::print_spacer();
         let prompt = "📨 Enter your email address";
         Input::with_theme(&ColorfulTheme::default())
             .with_prompt(prompt)
@@ -291,7 +291,7 @@ impl SetupPrompter {
     }
 }
 
-impl LocalConfig {
+impl DeviceInfo {
     /// Serializes settings stored in ~/.printnanny/settings/*json
     
     pub async fn refresh(mut self) -> Result<Self> {
@@ -299,13 +299,13 @@ impl LocalConfig {
             Some(_) => {
                 self.user = Some(self.get_user().await?);
             },
-            None => info!("No user detected in LocalConfig.refresh()")
+            None => info!("No user detected in DeviceInfo.refresh()")
         }
         match &self.device {
             Some(device) => {
                 self.device = Some(self.get_device(device.id.unwrap()).await?);
             },
-            None => info!("No user detected in LocalConfig.refresh()")
+            None => info!("No user detected in DeviceInfo.refresh()")
         }
         info!("Refreshed config from remote {:?}", &self);
         self.save_settings("local.json")?;
@@ -314,8 +314,8 @@ impl LocalConfig {
     
     pub fn new() -> Result<Self, ConfigError> {
         let mut s = Config::default();
-        // call Config::set_default for default in from LocalConfig::default()
-        let defaults = LocalConfig::default();
+        // call Config::set_default for default in from DeviceInfo::default()
+        let defaults = DeviceInfo::default();
 
         // https://github.com/mehcode/config-rs/blob/master/examples/hierarchical-env/src/settings.rs
         // Start off by merging in the "default" configuration file
@@ -366,10 +366,10 @@ impl LocalConfig {
     }
 
     pub fn print_reset(&self) {
-        LocalConfig::print_spacer();
+        DeviceInfo::print_spacer();
         info!("💜 Config was reset!");
         info!("💜 To ");      
-        LocalConfig::print_spacer();
+        DeviceInfo::print_spacer();
     }
     
     pub fn print_spacer() {
@@ -379,17 +379,17 @@ impl LocalConfig {
     }
 
     pub fn print_user(&self) {
-        LocalConfig::print_spacer();
+        DeviceInfo::print_spacer();
         info!("💜 Logged in as user:");
         info!("💜 {:#?}", self.user);        
-        LocalConfig::print_spacer();
+        DeviceInfo::print_spacer();
     }
 
     pub fn print(&self) {
-        LocalConfig::print_spacer();
+        DeviceInfo::print_spacer();
         info!("💜 Print Nanny config:");
         info!("💜 {:#?}", self);
-        LocalConfig::print_spacer();
+        DeviceInfo::print_spacer();
     }
 
     pub async fn get_user(&self) -> Result<print_nanny_client::models::User> {

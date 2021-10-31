@@ -8,7 +8,7 @@ use anyhow::{ anyhow, Context, Result };
 use log::{ error };
 use serde::{Serialize, Deserialize};
 use jsonwebtoken::{encode, Header, Algorithm, EncodingKey};
-use crate::config::LocalConfig;
+use crate::config::DeviceInfo;
 use crate::keypair::KeyPair;
 
 /// Our claims struct, it needs to derive `Serialize` and/or `Deserialize`
@@ -36,7 +36,7 @@ fn encode_jwt(keypair: &KeyPair, claims: &Claims) -> Result<String> {
 impl MQTTWorker {
 
     pub async fn new() -> Result<MQTTWorker> {
-        let mut config = LocalConfig::new()?;
+        let mut config = DeviceInfo::new()?;
         config = config.refresh().await?;
         if config.device.is_some() || config.keypair.is_some(){
             let device = config.device.unwrap();

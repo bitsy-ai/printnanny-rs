@@ -4,7 +4,7 @@ use log::LevelFilter;
 use clap::{ Arg, App, SubCommand };
 use printnanny::config:: { SetupPrompter };
 use printnanny::mqtt:: { MQTTWorker };
-use printnanny::config:: { LocalConfig, AnsibleFacts };
+use printnanny::config:: { DeviceInfo, AnsibleFacts };
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -44,9 +44,10 @@ async fn main() -> Result<()> {
     
     match app_m.subcommand() {
         ("ansible-facts", Some(_sub_m)) => {
-            let config = LocalConfig::new()?;
+            let mut config = DeviceInfo::new()?;
+            config = config.refresh().await?;
             let facts = AnsibleFacts::from(config);
-            println!("{:?}", serde_json::to_string(&facts))
+            println!("{:?}", serde_json::to_string(&facts)?)
         },
         ("mqtt", Some(_sub_m)) => {
             let worker = MQTTWorker::new().await?;
@@ -56,7 +57,7 @@ async fn main() -> Result<()> {
         ("setup", Some(_sub_m)) => {
             let prompter = SetupPrompter::new()?;
             prompter.setup().await?;
-            let config = LocalConfig::new()?;
+            let config = DeviceInfo::new()?;
             config.refresh().await?;
         },
         ("reset", Some(_sub_m)) => {
