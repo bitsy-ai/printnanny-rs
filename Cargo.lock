@@ -1185,9 +1185,9 @@ dependencies = [
 
 [[package]]
 name = "print-nanny-client"
-version = "0.8.52"
+version = "0.8.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb5b5485851df3b9324257e1d31c825d2fe3ec7f040096779c56c748ae8c8100"
+checksum = "01d8186ddda082f32ce7f86a67bd2e73d646c932deec664b8608dec001cb4619"
 dependencies = [
  "reqwest",
  "serde 1.0.130",
