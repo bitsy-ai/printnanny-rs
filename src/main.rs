@@ -4,7 +4,7 @@ use log::LevelFilter;
 use clap::{ Arg, App, SubCommand };
 use printnanny::config:: { SetupPrompter };
 use printnanny::mqtt:: { MQTTWorker };
-use printnanny::config:: { LocalConfig, AnsibleFacts };
+use printnanny::config:: { DeviceInfo };
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -19,8 +19,8 @@ async fn main() -> Result<()> {
         .short("v")
         .multiple(true)
         .help("Sets the level of verbosity"))
-        .subcommand(SubCommand::with_name("ansible-facts")
-            .about("Output device config as Ansible Facts"))
+        .subcommand(SubCommand::with_name("ansible-extra-vars")
+            .about("Output device config as Ansible Facts")
         .subcommand(SubCommand::with_name("setup")
             .about("Connect your Print Nanny account"))
         .subcommand(SubCommand::with_name("reset")
@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
             .about("Update Print Nanny system"))  
         .subcommand(SubCommand::with_name("mqtt")
             .about("Publish or subscribe to MQTT messages")
-        );  
+        ));  
     let app_m = app.get_matches();
 
     // Vary the output based on how many times the user used the "verbose" flag
@@ -43,10 +43,11 @@ async fn main() -> Result<()> {
     };
     
     match app_m.subcommand() {
-        ("ansible-facts", Some(_sub_m)) => {
-            let config = LocalConfig::new()?;
-            let facts = AnsibleFacts::from(config);
-            println!("{:?}", serde_json::to_string(&facts))
+        ("ansible-extra-vars", Some(_sub_m)) => {
+            let mut config = DeviceInfo::new()?;
+            config = config.refresh().await?;
+            let release = config.release.unwrap();
+            println!("{:?}", serde_json::to_string(&release.ansible_extra_vars)?)
         },
         ("mqtt", Some(_sub_m)) => {
             let worker = MQTTWorker::new().await?;
@@ -56,7 +57,7 @@ async fn main() -> Result<()> {
         ("setup", Some(_sub_m)) => {
             let prompter = SetupPrompter::new()?;
             prompter.setup().await?;
-            let config = LocalConfig::new()?;
+            let config = DeviceInfo::new()?;
             config.refresh().await?;
         },
         ("reset", Some(_sub_m)) => {
