@@ -3,6 +3,9 @@ use std::path::{ PathBuf };
 use log::{ info, error, debug, warn };
 use glob::glob;
 
+use print_nanny_client::apis::auth_api::{ auth_email_create, auth_token_create };
+use print_nanny_client::apis::releases_api::{ releases_latest_retrieve };
+
 use print_nanny_client::apis::configuration::{ Configuration as APIConfiguration};
 
 use thiserror::Error;
@@ -12,9 +15,7 @@ use dialoguer::theme::{ ColorfulTheme };
 use serde::{ Serialize, Deserialize };
 use config::{ConfigError, Config, File as ConfigFile, Environment};
 use procfs::{ CpuInfo, Meminfo };
-use serde_prefix::prefix_all;
 
-use print_nanny_client::apis::auth_api::{ auth_email_create, auth_token_create };
 use crate::keypair::KeyPair;
 
 #[derive(Error, Debug)]
@@ -69,6 +70,10 @@ pub struct DeviceInfo {
     pub device: Option<print_nanny_client::models::Device>,
     #[serde(default, skip_serializing_if="Option::is_none")]
     pub user: Option<print_nanny_client::models::User>,
+
+    #[serde(default, skip_serializing_if="Option::is_none")]
+    pub release: Option<print_nanny_client::models::Release>,
+
     #[serde(default, skip_serializing_if="Option::is_none")]
     pub keypair: Option<KeyPair>,
 }
@@ -85,33 +90,10 @@ impl ::std::default::Default for DeviceInfo {
         gcp_project: "print-nanny".to_string(),
         user: None,
         keypair: None,
+        release: None,
     }}
 }
 
-#[prefix_all("printnanny_")]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct AnsibleFacts {
-     
-    pub dirs: ConfigDirs,
-
-    pub gcp_project: String,
-
-    pub device: Option<print_nanny_client::models::Device>,
-    pub user: Option<print_nanny_client::models::User>,
-    pub keypair: Option<KeyPair>,   
-}
-
-impl From<DeviceInfo> for AnsibleFacts {
-    fn from(config: DeviceInfo) -> Self {
-        Self {
-            dirs: config.dirs,
-            gcp_project: config.gcp_project,
-            device: config.device,
-            user: config.user,
-            keypair: config.keypair
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct SetupPrompter {
@@ -181,7 +163,8 @@ impl SetupPrompter {
             model: model.to_string(),
             serial: serial.to_string(),
             ram: ram as i64,
-            revision: revision.to_string()
+            revision: revision.to_string(),
+            ..Default::default()
         };
         match print_nanny_client::apis::devices_api::devices_create(&self.config.api_config, req.clone()).await {
             Ok(device) => return Ok(device),
@@ -303,13 +286,24 @@ impl DeviceInfo {
         }
         match &self.device {
             Some(device) => {
+                let release_channel = &device.release_channel.as_ref().unwrap().to_string();
                 self.device = Some(self.get_device(device.id.unwrap()).await?);
+                self.release = Some(self.get_latest_release(&release_channel).await?);
             },
-            None => info!("No user detected in DeviceInfo.refresh()")
+            None => {
+                self.release = Some(self.get_latest_release(&print_nanny_client::models::ReleaseChannelEnum::Stable.to_string()).await?);
+            }
         }
         info!("Refreshed config from remote {:?}", &self);
         self.save_settings("local.json")?;
         Ok(self)
+    }
+
+    pub async fn get_latest_release(&self, release_channel: &str) -> Result<print_nanny_client::models::Release> {
+        let res = releases_latest_retrieve(&self.api_config, release_channel).await
+            .context(format!("🔴 Failed to retreive latest for release_channel={}", release_channel))?;
+        info!("SUCCESS auth_verify_create detail {:?}", serde_json::to_string(&res));
+        Ok(res)
     }
     
     pub fn new() -> Result<Self, ConfigError> {

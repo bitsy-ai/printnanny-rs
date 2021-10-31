@@ -24,9 +24,9 @@ run-local:
 	PRINTNANNY_API_CONFIG__BASE_PATH=http://localhost:8000 \
 	cargo run -- -vv $(ARGS)
 
-ansible-facts:
-	mkdir -p $(PWD)/.tmp/data/
-	mkdir -p $(PWD)/.tmp/settings/
+ansible-extra-vars:
+	mkdir -p $(HOME)/.printnanny/data/
+	mkdir -p $(HOME)/.printnanny/settings/
 	PRINTNANNY_GCP_PROJECT=print-nanny-sandbox \
 	PRINTNANNY_API_CONFIG__BASE_PATH=http://localhost:8000 \
-	cargo run -q -- ansible-facts
+	cargo run -q -- ansible-extra-vars
