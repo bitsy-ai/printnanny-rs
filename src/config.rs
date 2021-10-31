@@ -12,6 +12,7 @@ use dialoguer::theme::{ ColorfulTheme };
 use serde::{ Serialize, Deserialize };
 use config::{ConfigError, Config, File as ConfigFile, Environment};
 use procfs::{ CpuInfo, Meminfo };
+use serde_prefix::prefix_all;
 
 use print_nanny_client::apis::auth_api::{ auth_email_create, auth_token_create };
 use crate::keypair::KeyPair;
@@ -28,7 +29,7 @@ pub struct LocalConfig {
     #[serde(default)]
     pub api_base_path: String,
 
-    #[serde(default, skip_serializing_if="Option::is_none")]
+    #[serde(default)]
     pub api_token: Option<String>,
     #[serde(default)]
     pub config_path: String,
@@ -45,11 +46,11 @@ pub struct LocalConfig {
     #[serde(default)]
     pub hostname: Option<String>,
 
-    #[serde(default, skip_serializing_if="Option::is_none")]
+    #[serde(default)]
     pub device: Option<print_nanny_client::models::Device>,
-    #[serde(default, skip_serializing_if="Option::is_none")]
+    #[serde(default)]
     pub user: Option<print_nanny_client::models::User>,
-    #[serde(default, skip_serializing_if="Option::is_none")]
+    #[serde(default)]
     pub keypair: Option<KeyPair>,
 }
 
@@ -66,6 +67,44 @@ impl ::std::default::Default for LocalConfig {
         user: None,
         keypair: None,
     }}
+}
+
+#[prefix_all("printnanny_")]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AnsibleFacts {
+     
+    pub api_base_path: String,
+
+    pub api_token: Option<String>,
+    pub config_path: String,
+
+    pub email: Option<String>,
+
+    pub data_path: String,
+
+    pub gcp_project: String,
+
+    pub hostname: Option<String>,
+    pub device: Option<print_nanny_client::models::Device>,
+    pub user: Option<print_nanny_client::models::User>,
+    pub keypair: Option<KeyPair>,   
+}
+
+impl From<LocalConfig> for AnsibleFacts {
+    fn from(config: LocalConfig) -> Self {
+        Self {
+            api_base_path: config.api_base_path,
+            api_token: config.api_token,
+            config_path: config.config_path,
+            email: config.email,
+            data_path: config.data_path,
+            gcp_project: config.gcp_project,
+            hostname: config.hostname,
+            device: config.device,
+            user: config.user,
+            keypair: config.keypair
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
