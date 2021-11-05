@@ -5,6 +5,8 @@ use clap::{ Arg, App, SubCommand };
 use printnanny::config:: { SetupPrompter };
 use printnanny::mqtt:: { MQTTWorker };
 use printnanny::config:: { DeviceInfo };
+use printnanny::http:: { handle_probe };
+use warp::Filter;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -20,7 +22,9 @@ async fn main() -> Result<()> {
         .multiple(true)
         .help("Sets the level of verbosity"))
         .subcommand(SubCommand::with_name("ansible-extra-vars")
-            .about("Output device config as Ansible Facts")
+            .about("Output device config as Ansible Facts"))
+        .subcommand(SubCommand::with_name("http")
+            .about("Serves HTTP requests. Used for device registration and status checks."))
         .subcommand(SubCommand::with_name("setup")
             .about("Connect your Print Nanny account"))
         .subcommand(SubCommand::with_name("reset")
@@ -29,7 +33,7 @@ async fn main() -> Result<()> {
             .about("Update Print Nanny system"))  
         .subcommand(SubCommand::with_name("mqtt")
             .about("Publish or subscribe to MQTT messages")
-        ));  
+        );  
     let app_m = app.get_matches();
 
     // Vary the output based on how many times the user used the "verbose" flag
@@ -59,6 +63,12 @@ async fn main() -> Result<()> {
             prompter.setup().await?;
             let config = DeviceInfo::new()?;
             config.refresh().await?;
+            
+        },
+        ("http", Some(_sub_m)) => {
+            let routes = warp::path!("config")
+                .map(handle_probe);
+            warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
         },
         ("reset", Some(_sub_m)) => {
             let mut prompter = SetupPrompter::new()?;
@@ -68,6 +78,7 @@ async fn main() -> Result<()> {
         ("update", Some(_sub_m)) => {
             unimplemented!();
         },
+
         _ => {}
     }
 
