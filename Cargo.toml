@@ -38,6 +38,7 @@ thiserror = "1.0.29"
 term_size = "0.3.2"
 tokio = { version = "1.12.0", features = ["full"] }
 openssl = { version = "=0.10.36", features = ["vendored"] }
+warp = "0.3"
 
 [dev-dependencies]
 assert_cmd = "2.0.2"
