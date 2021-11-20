@@ -145,55 +145,55 @@ impl SetupPrompter {
     //     let
     // }
 
-    async fn get_or_create_device(&self, hostname: &str) -> Result<print_nanny_client::models::Device> {
-        let cpuinfo = CpuInfo::new()?;
-        let unknown = "Unknown".to_string();
-        let revision = cpuinfo.fields.get("Revision").unwrap_or(&unknown);
-        let hardware = cpuinfo.fields.get("Hardware").unwrap_or(&unknown);
-        let model = cpuinfo.fields.get("Model").unwrap_or(&unknown);
-        let serial = cpuinfo.fields.get("Serial").unwrap_or(&unknown);
-        let cores = cpuinfo.num_cores();
-        let meminfo = Meminfo::new()?;
-        let ram = meminfo.mem_total;
+    // async fn get_or_create_device(&self, hostname: &str) -> Result<print_nanny_client::models::Device> {
+    //     let cpuinfo = CpuInfo::new()?;
+    //     let unknown = "Unknown".to_string();
+    //     let revision = cpuinfo.fields.get("Revision").unwrap_or(&unknown);
+    //     let hardware = cpuinfo.fields.get("Hardware").unwrap_or(&unknown);
+    //     let model = cpuinfo.fields.get("Model").unwrap_or(&unknown);
+    //     let serial = cpuinfo.fields.get("Serial").unwrap_or(&unknown);
+    //     let cores = cpuinfo.num_cores();
+    //     let meminfo = Meminfo::new()?;
+    //     let ram = meminfo.mem_total;
 
-        let req = print_nanny_client::models::DeviceRequest{
-            cores: cores as i32,
-            hostname: hostname.to_string(),
-            hardware: hardware.to_string(),
-            model: model.to_string(),
-            serial: serial.to_string(),
-            ram: ram as i64,
-            revision: revision.to_string(),
-            ..Default::default()
-        };
-        match print_nanny_client::apis::devices_api::devices_create(&self.config.api_config, req.clone()).await {
-            Ok(device) => return Ok(device),
+    //     let req = print_nanny_client::models::DeviceRequest{
+    //         cores: cores as i32,
+    //         hostname: hostname.to_string(),
+    //         hardware: hardware.to_string(),
+    //         model: model.to_string(),
+    //         serial: serial.to_string(),
+    //         ram: ram as i64,
+    //         revision: revision.to_string(),
+    //         ..Default::default()
+    //     };
+    //     match print_nanny_client::apis::devices_api::devices_create(&self.config.api_config, req.clone()).await {
+    //         Ok(device) => return Ok(device),
 
-            Err(e) => {
-                let context = format!("devices_create returned error for request {:?}", &req);
-                if let print_nanny_client::apis::Error::ResponseError(t) = &e {      
-                    match t.status {
-                        http::status::StatusCode::CONFLICT => {
-                            let warn_msg = format!("Found existing settings for {}", hostname);
-                            let overwrite = self.prompt_overwrite(&warn_msg).unwrap();
-                            match overwrite {
-                                true => {
-                                    info!("New host key will be generated for {}", &hostname);
-                                    let device = print_nanny_client::apis::devices_api::devices_retrieve_hostname(&self.config.api_config, hostname).await?;
-                                    return Ok(device);
-                                },
-                                false => {
-                                    error!("{:?}", &t.entity);
-                                }
-                            }
-                        }
-                        _ => ()
-                    }    
-                }
-                return Err(anyhow::Error::from(e).context(context));
-            }
-        };
-    }
+    //         Err(e) => {
+    //             let context = format!("devices_create returned error for request {:?}", &req);
+    //             if let print_nanny_client::apis::Error::ResponseError(t) = &e {      
+    //                 match t.status {
+    //                     http::status::StatusCode::CONFLICT => {
+    //                         let warn_msg = format!("Found existing settings for {}", hostname);
+    //                         let overwrite = self.prompt_overwrite(&warn_msg).unwrap();
+    //                         match overwrite {
+    //                             true => {
+    //                                 info!("New host key will be generated for {}", &hostname);
+    //                                 let device = print_nanny_client::apis::devices_api::devices_retrieve_hostname(&self.config.api_config, hostname).await?;
+    //                                 return Ok(device);
+    //                             },
+    //                             false => {
+    //                                 error!("{:?}", &t.entity);
+    //                             }
+    //                         }
+    //                     }
+    //                     _ => ()
+    //                 }    
+    //             }
+    //             return Err(anyhow::Error::from(e).context(context));
+    //         }
+    //     };
+    // }
 
     fn prompt_overwrite(&self, warn_msg: &str) -> Result<bool> {
         warn!("{}",warn_msg);
@@ -206,42 +206,42 @@ impl SetupPrompter {
         Ok(proceed)
     }
 
-    pub async fn setup(mut self) -> Result<()>{
-        if self.config.user.is_none() {
-            let email = self.prompt_email();
-            DeviceInfo::verify_2fa_send_email(&self.config, &email).await?;
-            let opt_token = self.prompt_token_input(&email)?;
-            let token_res = DeviceInfo::verify_2fa_code(&self.config, &email, opt_token).await?;
-            self.config.api_config.bearer_access_token = Some(token_res.token);
-            let user = self.config.get_user().await?;
-            self.config.user = Some(user);
-            info!("✅ Sucess! Verified identity {:?}", email);
-            self.config.save_settings("local.json")?;
-            info!("💜 Saved API config to {:?}", self.config.dirs.settings);
-            info!("💜 Proceeding to device setup");
-        };
-        if self.config.device.is_none(){
-            let hostname = self.prompt_hostname()?;
-            let device = self.get_or_create_device(&hostname).await?;
-            let device_id = device.id.unwrap();
-            let keypair = KeyPair::create(
-                PathBuf::from(&self.config.dirs.data),
-                &self.config.api_config,
-                &device_id
-            ).await?;
-            self.config.keypair = Some(keypair);
-            self.config.device = Some(print_nanny_client::apis::devices_api::devices_retrieve(
-                &self.config.api_config,
-                device_id
-            ).await?);
-            info!("✅ Sucess! Registered your device {:?}", &self.config.device);
-            self.config.save_settings("local.json")?;
-            info!("💜 Saved config to {:?}", self.config.dirs.settings);
+    // pub async fn setup(mut self) -> Result<()>{
+    //     if self.config.user.is_none() {
+    //         let email = self.prompt_email();
+    //         DeviceInfo::verify_2fa_send_email(&self.config, &email).await?;
+    //         let opt_token = self.prompt_token_input(&email)?;
+    //         let token_res = DeviceInfo::verify_2fa_code(&self.config, &email, opt_token).await?;
+    //         self.config.api_config.bearer_access_token = Some(token_res.token);
+    //         let user = self.config.get_user().await?;
+    //         self.config.user = Some(user);
+    //         info!("✅ Sucess! Verified identity {:?}", email);
+    //         self.config.save_settings("local.json")?;
+    //         info!("💜 Saved API config to {:?}", self.config.dirs.settings);
+    //         info!("💜 Proceeding to device setup");
+    //     };
+    //     if self.config.device.is_none(){
+    //         let hostname = self.prompt_hostname()?;
+    //         let device = self.get_or_create_device(&hostname).await?;
+    //         let device_id = device.id.unwrap();
+    //         let keypair = KeyPair::create(
+    //             PathBuf::from(&self.config.dirs.data),
+    //             &self.config.api_config,
+    //             &device_id
+    //         ).await?;
+    //         self.config.keypair = Some(keypair);
+    //         self.config.device = Some(print_nanny_client::apis::devices_api::devices_retrieve(
+    //             &self.config.api_config,
+    //             device_id
+    //         ).await?);
+    //         info!("✅ Sucess! Registered your device {:?}", &self.config.device);
+    //         self.config.save_settings("local.json")?;
+    //         info!("💜 Saved config to {:?}", self.config.dirs.settings);
 
 
-        };
-        Ok(())
-    }
+    //     };
+    //     Ok(())
+    // }
     
     fn prompt_hostname(&self) -> Result<String> {
         let hostname = sys_info::hostname()?;

@@ -1,8 +1,8 @@
 use anyhow::{ Result };
+use std::process::{Command, Stdio};
 use env_logger::Builder;
 use log::LevelFilter;
 use clap::{ Arg, App, SubCommand };
-use printnanny::config:: { SetupPrompter };
 use printnanny::mqtt:: { MQTTWorker };
 use printnanny::config:: { DeviceInfo };
 use printnanny::http:: { handle_probe };
@@ -59,26 +59,23 @@ async fn main() -> Result<()> {
             // worker.run().await?;
             worker.run().await?;
         },
-        ("setup", Some(_sub_m)) => {
-            let prompter = SetupPrompter::new()?;
-            prompter.setup().await?;
-            let config = DeviceInfo::new()?;
-            config.refresh().await?;
-            
-        },
         ("http", Some(sub_m)) => {
             let routes = warp::path!("config")
                 .map(handle_probe);
             let addr = std::net::Ipv4Addr::new(0,0,0,0);
             warp::serve(routes).run((addr, 8331)).await;
         },
-        ("reset", Some(_sub_m)) => {
-            let mut prompter = SetupPrompter::new()?;
-            prompter = prompter.reset()?;
-            prompter.setup().await?;
-        },
         ("update", Some(_sub_m)) => {
-            unimplemented!();
+            let mut cmd =
+            Command::new("systemctl")
+            .args(&["start", "printnanny-manual-update"])
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .spawn()
+            .unwrap();
+
+            let status = cmd.wait();
+            println!("Update excited with status {:?}", status);
         },
 
         _ => {}
