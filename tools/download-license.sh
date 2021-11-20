@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set +eu
+
 PRINTNANNY_WEBAPP_REPO="${PRINTNANNY_WEBAPP_REPO:-$HOME/projects/octoprint-nanny-webapp}"
 
 get_test_api_token(){
@@ -29,7 +31,7 @@ download_license(){
     filename="$PRINTNANNY_INSTALL_DIR/printnanny_license.zip"
     curl -sX "GET" \
         "$PRINTNANNY_API_URL/api/devices/$device_id/license/" \
-        -H "accept: application/zip" \
+        -H "accept: application/json" \
         -H "Authorization: Bearer $PRINTNANNY_API_TOKEN" \
         --output $filename
     echo "Created $filename"
@@ -37,3 +39,4 @@ download_license(){
 
 mkdir -p $PRINTNANNY_INSTALL_DIR
 download_license
+cd "$PRINTNANNY_INSTALL_DIR" && unzip printnanny_license

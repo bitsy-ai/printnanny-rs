@@ -26,7 +26,6 @@ images:
 
 run-local: $(TMP_DIR)
 	PRINTNANNY_GCP_PROJECT=print-nanny-sandbox \
-	PRINTNANNY_API_CONFIG__BASE_PATH=http://localhost:8000 \
 	cargo run -- -vv -c $(TMP_DIR) $(ARGS)
 
 
