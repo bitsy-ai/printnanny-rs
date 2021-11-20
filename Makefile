@@ -1,5 +1,12 @@
 
 VERSION ?= 0.2.1
+TMP_DIR ?= .tmp
+
+$(TMP_DIR):
+	mkdir -p $(TMP_DIR)
+
+clean:
+	rm -rf $(TMP_DIR)
 images:
 	docker build \
 		-f docker/aarch64-unknown-linux-gnu.Dockerfile \
@@ -18,15 +25,11 @@ images:
 	docker push bitsyai/cross:x86_64-unknown-linux-gnu-$(VERSION)
 
 run-local:
-	mkdir -p $(HOME)/.printnanny/data/
-	mkdir -p $(HOME)/.printnanny/settings/
+	mkdir -p 
 	PRINTNANNY_GCP_PROJECT=print-nanny-sandbox \
 	PRINTNANNY_API_CONFIG__BASE_PATH=http://localhost:8000 \
-	cargo run -- -vv $(ARGS)
+	cargo run -- -vv -c $(TMP_DIR) $(ARGS)
 
-ansible-extra-vars:
-	mkdir -p $(HOME)/.printnanny/data/
-	mkdir -p $(HOME)/.printnanny/settings/
-	PRINTNANNY_GCP_PROJECT=print-nanny-sandbox \
-	PRINTNANNY_API_CONFIG__BASE_PATH=http://localhost:8000 \
-	cargo run -q -- ansible-extra-vars
+
+$(TMP_DIR)/printnanny_license.zip:
+	PRINTNANNY_INSTALL_DIR=$(TMP_DIR) ./tools/download-license.sh
