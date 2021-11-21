@@ -1,0 +1,36 @@
+name: Bump version
+on:
+  push:
+    branches:
+      - main
+      - devel
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: '0'
+    - name: Set output
+      id: git
+      run: echo ::set-output name=git_branch::${GITHUB_REF#refs/*/}
+    - name: Bump version (dry run)
+      id: tags
+      uses: anothrNick/github-tag-action@1.36.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        WITH_V: false
+        DRY_RUN: true
+        RELEASE_BRANCHES: "main"
+        PRERELEASE_SUFFIX: "dev"
+    - name: Commit version bump message
+      run: |
+        ./tools/bump-version.sh ${{ steps.tags.outputs.tag }} ${{ steps.tags.outputs.new_tag }} ${{ steps.git.outputs.git_branch }} 
+    - name: Bump version and push tag
+      uses: anothrNick/github-tag-action@1.36.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        WITH_V: false
+        DRY_RUN: false
+        RELEASE_BRANCHES: "main"
+        PRERELEASE_SUFFIX: "dev"
