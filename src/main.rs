@@ -63,7 +63,7 @@ async fn main() -> Result<()> {
             println!("Update excited with status {:?}", status);
         },
         ("verify", Some(_sub_m)) => {
-            verify_license(&config)?;
+            verify_license(&config).await?;
         },
         _ => {}
     }
