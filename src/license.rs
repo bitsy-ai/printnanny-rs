@@ -17,8 +17,8 @@ pub async fn verify_license(base_dir: &str) -> Result<()>{
 
     // read api & device config json from disk
     let api_creds = serde_json::from_str::<ApiConfig>(
-        &read_to_string(base_path.join("printnanny_api_config.json"))
-            .context(format!("Failed to read {:?}", base_path.join("printnanny_api_config.json")))?
+        &read_to_string(base_path.join("printnanny_credentials.json"))
+            .context(format!("Failed to read {:?}", base_path.join("printnanny_credentials.json")))?
         )?;
     let device = serde_json::from_str::<Device>(
         &read_to_string(base_path.join("printnanny_device.json"))
