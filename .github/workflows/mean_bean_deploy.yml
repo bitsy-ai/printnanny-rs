@@ -196,3 +196,15 @@ jobs:
           asset_path: ${{ env.BIN }}.tar.gz
           asset_name: ${{ env.BIN }}-${{ matrix.target }}.tar.gz
           asset_content_type: application/gzip
+      - name: Set new version output
+        id: version
+        run: echo ::set-output semver=version::$(cat version.txt)
+      - name: Send Discord notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.PRINT_NANNY_DISCORD_DEPLOY_WEBHOOK }}
+        uses: Ilshidur/action-discord@master
+        with:
+          args: |
+              🦀 Published {{ EVENT_PAYLOAD.repository.full_name }}@{{ GITHUB_SHA }}
+              https://github.com/bitsy-ai/printnanny-cli/releases/tag/${{ github.ref }}
+              https://crates.io/crates/printnanny-cli/${{ steps.version.outputs.semver }}/
