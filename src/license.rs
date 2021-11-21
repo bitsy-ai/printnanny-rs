@@ -2,7 +2,7 @@ use std::path::{ PathBuf };
 use std::fs::{ read_to_string, OpenOptions };
 use anyhow::{ Result, Context };
 use procfs::{ CpuInfo, Meminfo };
-use print_nanny_client::models::{ ApiConfig, Device, DeviceInfoRequest, DeviceInfo };
+use print_nanny_client::models::{ Device, DeviceInfoRequest, DeviceInfo };
 use print_nanny_client::apis::configuration::{ Configuration };
 use print_nanny_client::apis::devices_api::{ 
     devices_retrieve, 
@@ -15,19 +15,20 @@ use print_nanny_client::apis::devices_api::{
 pub async fn verify_license(base_dir: &str) -> Result<()>{
     let base_path = PathBuf::from(base_dir);
 
-    // read api & device config json from disk
-    let api_creds = serde_json::from_str::<ApiConfig>(
-        &read_to_string(base_path.join("printnanny_credentials.json"))
-            .context(format!("Failed to read {:?}", base_path.join("printnanny_credentials.json")))?
-        )?;
+    // read device config json from disk
     let device = serde_json::from_str::<Device>(
         &read_to_string(base_path.join("printnanny_device.json"))
         .context(format!("Failed to read {:?}", base_path.join("printnanny_device.json")))?
         )?;
     
+    let license = device.active_license.as_ref().unwrap();
+    let creds = license.credentials.as_ref().unwrap();
+    
+    let api_base_path = creds.printnanny_api_url.as_ref().unwrap().to_string();
+    let api_token = Some(creds.printnanny_api_token.as_ref().unwrap().to_string());
     let api_config = Configuration{ 
-        base_path: api_creds.api_url,
-        bearer_access_token: Some(api_creds.api_token),
+        base_path: api_base_path,
+        bearer_access_token: api_token,
         ..Configuration::default()
     };
     verify_remote_device(&api_config, &device).await?;
