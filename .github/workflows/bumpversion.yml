@@ -11,7 +11,7 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: '0'
-    - name: Set output
+    - name: Set git branch output
       id: git
       run: echo ::set-output name=git_branch::${GITHUB_REF#refs/*/}
     - name: Bump version (dry run)
@@ -19,7 +19,7 @@ jobs:
       uses: anothrNick/github-tag-action@1.36.0
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        WITH_V: false
+        WITH_V: true
         DRY_RUN: true
         RELEASE_BRANCHES: "main"
         PRERELEASE_SUFFIX: "dev"
@@ -30,7 +30,7 @@ jobs:
       uses: anothrNick/github-tag-action@1.36.0
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        WITH_V: false
+        WITH_V: true
         DRY_RUN: false
         RELEASE_BRANCHES: "main"
         PRERELEASE_SUFFIX: "dev"

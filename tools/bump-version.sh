@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-FILES=("CARGO.toml")
+FILES=("CARGO.toml" "version.txt")
 old_tag=${1:1}
 new_tag=${2:1}
 for f in "${FILES[@]}"
