@@ -3,10 +3,8 @@ use std::process::{Command, Stdio};
 use env_logger::Builder;
 use log::LevelFilter;
 use clap::{ Arg, App, SubCommand };
-use printnanny::mqtt:: { MQTTWorker };
-use printnanny::config:: { DeviceInfo };
-use printnanny::http:: { handle_probe };
-use warp::Filter;
+// use printnanny::mqtt:: { MQTTWorker };
+use printnanny::license:: { verify_license };
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -21,17 +19,14 @@ async fn main() -> Result<()> {
         .short("v")
         .multiple(true)
         .help("Sets the level of verbosity"))
-        .subcommand(SubCommand::with_name("ansible-extra-vars")
-            .about("Output device config as Ansible Facts"))
-        .subcommand(SubCommand::with_name("http")
-            .about("Serves HTTP requests. Used for device registration and status checks.")
-        )
-        .subcommand(SubCommand::with_name("setup")
-            .about("Connect your Print Nanny account"))
-        .subcommand(SubCommand::with_name("reset")
-            .about("Reset your Print Nanny setup"))
-        .subcommand(SubCommand::with_name("update")
-            .about("Update Print Nanny system"))  
+        .arg(Arg::with_name("config")
+        .short("c")
+        .long("config")
+        .takes_value(true)
+        .help("Path to Print Nanny installation")
+        .default_value("/opt/printnanny"))
+        .subcommand(SubCommand::with_name("verify")
+        .about("Verify license and send device info to Print Nanny API"))
         .subcommand(SubCommand::with_name("mqtt")
             .about("Publish or subscribe to MQTT messages")
         );  
@@ -46,25 +41,15 @@ async fn main() -> Result<()> {
         2 => builder.filter_level(LevelFilter::Debug).init(),
         _ => builder.filter_level(LevelFilter::Trace).init(),
     };
+
+    let config = app_m.value_of("config").unwrap();
     
     match app_m.subcommand() {
-        ("ansible-extra-vars", Some(_sub_m)) => {
-            let mut config = DeviceInfo::new()?;
-            config = config.refresh().await?;
-            let release = config.release.unwrap();
-            println!("{:?}", serde_json::to_string(&release.ansible_extra_vars)?)
-        },
-        ("mqtt", Some(_sub_m)) => {
-            let worker = MQTTWorker::new().await?;
-            // worker.run().await?;
-            worker.run().await?;
-        },
-        ("http", Some(sub_m)) => {
-            let routes = warp::path!("config")
-                .map(handle_probe);
-            let addr = std::net::Ipv4Addr::new(0,0,0,0);
-            warp::serve(routes).run((addr, 8331)).await;
-        },
+        // ("mqtt", Some(_sub_m)) => {
+        //     let worker = MQTTWorker::new().await?;
+        //     // worker.run().await?;
+        //     worker.run().await?;
+        // },
         ("update", Some(_sub_m)) => {
             let mut cmd =
             Command::new("systemctl")
@@ -77,7 +62,9 @@ async fn main() -> Result<()> {
             let status = cmd.wait();
             println!("Update excited with status {:?}", status);
         },
-
+        ("verify", Some(_sub_m)) => {
+            verify_license(&config).await?;
+        },
         _ => {}
     }
 
