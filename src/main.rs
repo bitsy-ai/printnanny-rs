@@ -3,7 +3,8 @@ use std::process::{Command, Stdio};
 use env_logger::Builder;
 use log::LevelFilter;
 use clap::{ Arg, App, SubCommand };
-use printnanny::mqtt:: { MQTTWorker };
+// use printnanny::mqtt:: { MQTTWorker };
+use printnanny::license:: { verify_license };
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -18,16 +19,14 @@ async fn main() -> Result<()> {
         .short("v")
         .multiple(true)
         .help("Sets the level of verbosity"))
-        .arg(Arg::with_name("c")
+        .arg(Arg::with_name("config")
         .short("c")
         .long("config")
+        .takes_value(true)
         .help("Path to Print Nanny installation")
         .default_value("/opt/printnanny"))
-        .subcommand(SubCommand::with_name("device")
-            .about("Manage Print Nanny device")
-            .subcommand(SubCommand::with_name("verify")
-            .about("Verify license and send device info to Print Nanny API")
-            ))
+        .subcommand(SubCommand::with_name("verify")
+        .about("Verify license and send device info to Print Nanny API"))
         .subcommand(SubCommand::with_name("mqtt")
             .about("Publish or subscribe to MQTT messages")
         );  
@@ -42,13 +41,15 @@ async fn main() -> Result<()> {
         2 => builder.filter_level(LevelFilter::Debug).init(),
         _ => builder.filter_level(LevelFilter::Trace).init(),
     };
+
+    let config = app_m.value_of("config").unwrap();
     
     match app_m.subcommand() {
-        ("mqtt", Some(_sub_m)) => {
-            let worker = MQTTWorker::new().await?;
-            // worker.run().await?;
-            worker.run().await?;
-        },
+        // ("mqtt", Some(_sub_m)) => {
+        //     let worker = MQTTWorker::new().await?;
+        //     // worker.run().await?;
+        //     worker.run().await?;
+        // },
         ("update", Some(_sub_m)) => {
             let mut cmd =
             Command::new("systemctl")
@@ -61,7 +62,9 @@ async fn main() -> Result<()> {
             let status = cmd.wait();
             println!("Update excited with status {:?}", status);
         },
-
+        ("verify", Some(_sub_m)) => {
+            verify_license(&config)?;
+        },
         _ => {}
     }
 

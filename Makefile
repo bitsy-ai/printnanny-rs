@@ -26,7 +26,7 @@ images:
 
 run-local: $(TMP_DIR)
 	PRINTNANNY_GCP_PROJECT=print-nanny-sandbox \
-	cargo run -- -vv -c $(TMP_DIR) $(ARGS)
+	cargo run -- -vv --config=$(PWD)/$(TMP_DIR) $(ARGS)
 
 
 $(TMP_DIR)/printnanny_license.zip:
