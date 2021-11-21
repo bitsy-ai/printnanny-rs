@@ -1,5 +1,5 @@
 use std::path::{ PathBuf };
-use std::fs::{ read_to_string };
+use std::fs::{ read_to_string, OpenOptions };
 use anyhow::{ Result, Context };
 use procfs::{ CpuInfo, Meminfo };
 use print_nanny_client::models::{ ApiConfig, Device, DeviceInfoRequest, DeviceInfo };
@@ -31,7 +31,11 @@ pub async fn verify_license(base_dir: &str) -> Result<()>{
         ..Configuration::default()
     };
     verify_remote_device(&api_config, &device).await?;
-    let device_info = info_update_or_create(&api_config, &device).await?;
+    let device_info = info_update_or_create(
+        &api_config, 
+        &device,
+        &base_path.join("printnanny_device_info.json")
+        ).await?;
     println!("Created DeviceInfo {:?}", device_info);
     Ok(())
 }
@@ -44,7 +48,7 @@ async fn verify_remote_device(api_config: &Configuration, device: &Device) -> Re
     Ok(())
 }
 
-async fn info_update_or_create(api_config: &Configuration, device: &Device) -> Result<DeviceInfo> {
+async fn info_update_or_create(api_config: &Configuration, device: &Device, out: &PathBuf) -> Result<DeviceInfo> {
     let machine_id = read_to_string("/etc/machine-id")?;
     let image_version = read_to_string("/boot/image_version.txt")?;
     let cpuinfo = CpuInfo::new()?;
@@ -69,5 +73,12 @@ async fn info_update_or_create(api_config: &Configuration, device: &Device) -> R
         image_version: image_version
     };
     let res = device_info_update_or_create(api_config, device_id, req).await?;
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(out)?;
+    serde_json::to_writer(file, &res)
+        .context(format!("Failed to save DeviceInfo to {:?}", out))?;
     Ok(res)
 }
