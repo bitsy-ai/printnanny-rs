@@ -211,5 +211,5 @@ jobs:
         with:
           args: |
               🦀 Published {{ EVENT_PAYLOAD.repository.full_name }}@{{ GITHUB_SHA }}
-              https://github.com/bitsy-ai/printnanny-cli/releases/tag/${{ github.ref }}
+              https://github.com/bitsy-ai/printnanny-cli/releases/tag/${{ steps.version.outputs.semver }}
               https://crates.io/crates/printnanny-cli/${{ steps.version.outputs.semver }}/
