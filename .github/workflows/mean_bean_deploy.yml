@@ -199,6 +199,9 @@ jobs:
       - name: Set new version output
         id: version
         run: echo ::set-output semver=version::$(cat version.txt)
+        
+  discord:
+    steps:
       - name: Send Discord notification
         env:
           DISCORD_WEBHOOK: ${{ secrets.PRINT_NANNY_DISCORD_DEPLOY_WEBHOOK }}
