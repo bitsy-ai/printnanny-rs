@@ -143,7 +143,7 @@ jobs:
           # - powerpc64le-unknown-linux-gnu
           # - s390x-unknown-linux-gnu
           - x86_64-unknown-linux-gnu
-          # - x86_64-unknown-linux-musl
+          # - x86_64-unknown-linux-mlinuxusl
           # Android
           # - aarch64-linux-android
           # - arm-linux-androideabi
@@ -199,8 +199,10 @@ jobs:
       - name: Set new version output
         id: version
         run: echo ::set-output semver=version::$(cat version.txt)
-        
+
   discord:
+    runs-on: ubuntu-latest
+    needs: linux
     steps:
       - name: Send Discord notification
         env:
