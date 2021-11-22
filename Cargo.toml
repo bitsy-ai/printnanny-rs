@@ -1,6 +1,6 @@
 [package]
 name = "printnanny"
-version = "0.3.6"
+version = "0.3.7"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2018"
 
@@ -13,13 +13,13 @@ panic = "abort"
 [dependencies]
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 chrono = "0.4.19"
-clap = "2.3.6"
+clap = "2.3.7"
 config = "0.11.0"
 console = "0.14.1"
 dialoguer = "0.8.0"
 dirs = "4.0.0"
 env_logger = "0.9.0"
-glob = "0.3.6"
+glob = "0.3.7"
 http = "0.2.5"
 jsonwebtoken = "7"
 log = "0.4.14"
@@ -35,7 +35,7 @@ serde_json = "1.0.68"
 sha2 = "0.9.8"
 sys-info = "0.9"
 thiserror = "1.0.29"
-term_size = "0.3.6"
+term_size = "0.3.7"
 tokio = { version = "1.12.0", features = ["full"] }
 openssl = { version = "=0.10.36", features = ["vendored"] }
 warp = "0.3"
