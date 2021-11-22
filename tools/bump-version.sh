@@ -12,4 +12,4 @@ done
 git add -A
 git commit -m "🚀 Bump version: $1 -> $2"
 git tag "v$2"
-git push "v$2"
+git push --tags
