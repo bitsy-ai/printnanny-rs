@@ -196,14 +196,14 @@ jobs:
           asset_path: ${{ env.BIN }}.tar.gz
           asset_name: ${{ env.BIN }}-${{ matrix.target }}.tar.gz
           asset_content_type: application/gzip
-      - name: Set new version output
-        id: version
-        run: echo ::set-output name=semver::$(cat version.txt)
 
   discord:
     runs-on: ubuntu-latest
     needs: linux
     steps:
+      - name: Set new version output
+        id: version
+        run: echo ::set-output name=semver::$(cat version.txt)
       - name: Send Discord notification
         env:
           DISCORD_WEBHOOK: ${{ secrets.PRINT_NANNY_DISCORD_DEPLOY_WEBHOOK }}
