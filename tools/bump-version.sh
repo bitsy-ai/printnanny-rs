@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-FILES=("CARGO.toml")
+FILES=("Cargo.toml")
 old_tag=${1:1}
 new_tag=${2:1}
 for f in "${FILES[@]}"
@@ -11,4 +11,5 @@ done
 
 git add -A
 git commit -m "🚀 Bump version: $1 -> $2"
-git push origin "$3"
+git tag "v$2"
+git push "v$2"
