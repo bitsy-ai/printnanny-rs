@@ -198,7 +198,7 @@ jobs:
           asset_content_type: application/gzip
       - name: Set new version output
         id: version
-        run: echo ::set-output semver=version::$(cat version.txt)
+        run: echo ::set-output name=semver::$(cat version.txt)
 
   discord:
     runs-on: ubuntu-latest
