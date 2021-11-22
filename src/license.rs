@@ -2,9 +2,9 @@ use std::path::{ PathBuf };
 use std::fs::{ read_to_string, OpenOptions };
 use anyhow::{ Result, Context };
 use procfs::{ CpuInfo, Meminfo };
-use print_nanny_client::models::{ Device, DeviceInfoRequest, DeviceInfo };
-use print_nanny_client::apis::configuration::{ Configuration };
-use print_nanny_client::apis::devices_api::{ 
+use printnanny_api_client::models::{ Device, DeviceInfoRequest, DeviceInfo };
+use printnanny_api_client::apis::configuration::{ Configuration };
+use printnanny_api_client::apis::devices_api::{ 
     devices_retrieve, 
     device_info_update_or_create
 };

@@ -6,8 +6,8 @@ use anyhow::{ Context, Result };
 use serde::{ Serialize, Deserialize };
 use log::{ debug};
 
-use print_nanny_client::apis::configuration::Configuration;
-use print_nanny_client::apis::devices_api::{
+use printnanny_api_client::apis::configuration::Configuration;
+use printnanny_api_client::apis::devices_api::{
     devices_keypairs_create
 };
 

@@ -3,10 +3,10 @@ use std::path::{ PathBuf };
 use log::{ info, error, debug, warn };
 use glob::glob;
 
-use print_nanny_client::apis::auth_api::{ auth_email_create, auth_token_create };
-use print_nanny_client::apis::releases_api::{ releases_latest_retrieve };
+use printnanny_api_client::apis::auth_api::{ auth_email_create, auth_token_create };
+use printnanny_api_client::apis::releases_api::{ releases_latest_retrieve };
 
-use print_nanny_client::apis::configuration::{ Configuration as APIConfiguration};
+use printnanny_api_client::apis::configuration::{ Configuration as APIConfiguration};
 
 use thiserror::Error;
 use anyhow::{ anyhow, Context, Result };
@@ -67,12 +67,12 @@ pub struct DeviceInfo {
     pub gcp_project: String,
 
     #[serde(default, skip_serializing_if="Option::is_none")]
-    pub device: Option<print_nanny_client::models::Device>,
+    pub device: Option<printnanny_api_client::models::Device>,
     #[serde(default, skip_serializing_if="Option::is_none")]
-    pub user: Option<print_nanny_client::models::User>,
+    pub user: Option<printnanny_api_client::models::User>,
 
     #[serde(default, skip_serializing_if="Option::is_none")]
-    pub release: Option<print_nanny_client::models::Release>,
+    pub release: Option<printnanny_api_client::models::Release>,
 
     #[serde(default, skip_serializing_if="Option::is_none")]
     pub keypair: Option<KeyPair>,
@@ -141,11 +141,11 @@ impl SetupPrompter {
     // if <field> not exist -> prompt for config
     // if <field> exist, print config -> prompt to use Y/n -> prompt for config OR proceed
     
-    // async fn get_or_create_camera(&self) -> Result<print_nanny_client::models::Camera> {
+    // async fn get_or_create_camera(&self) -> Result<printnanny_api_client::models::Camera> {
     //     let
     // }
 
-    // async fn get_or_create_device(&self, hostname: &str) -> Result<print_nanny_client::models::Device> {
+    // async fn get_or_create_device(&self, hostname: &str) -> Result<printnanny_api_client::models::Device> {
     //     let cpuinfo = CpuInfo::new()?;
     //     let unknown = "Unknown".to_string();
     //     let revision = cpuinfo.fields.get("Revision").unwrap_or(&unknown);
@@ -156,7 +156,7 @@ impl SetupPrompter {
     //     let meminfo = Meminfo::new()?;
     //     let ram = meminfo.mem_total;
 
-    //     let req = print_nanny_client::models::DeviceRequest{
+    //     let req = printnanny_api_client::models::DeviceRequest{
     //         cores: cores as i32,
     //         hostname: hostname.to_string(),
     //         hardware: hardware.to_string(),
@@ -166,12 +166,12 @@ impl SetupPrompter {
     //         revision: revision.to_string(),
     //         ..Default::default()
     //     };
-    //     match print_nanny_client::apis::devices_api::devices_create(&self.config.api_config, req.clone()).await {
+    //     match printnanny_api_client::apis::devices_api::devices_create(&self.config.api_config, req.clone()).await {
     //         Ok(device) => return Ok(device),
 
     //         Err(e) => {
     //             let context = format!("devices_create returned error for request {:?}", &req);
-    //             if let print_nanny_client::apis::Error::ResponseError(t) = &e {      
+    //             if let printnanny_api_client::apis::Error::ResponseError(t) = &e {      
     //                 match t.status {
     //                     http::status::StatusCode::CONFLICT => {
     //                         let warn_msg = format!("Found existing settings for {}", hostname);
@@ -179,13 +179,13 @@ impl SetupPrompter {
     //                         match overwrite {
     //                             true => {
     //                                 info!("New host key will be generated for {}", &hostname);
-    //                                 let device = print_nanny_client::apis::devices_api::devices_retrieve_hostname(&self.config.api_config, hostname).await?;
+    //                                 let device = printnanny_api_client::apis::devices_api::devices_retrieve_hostname(&self.config.api_config, hostname).await?;
     //                                 return Ok(device);
     //                             },
     //                             false => {
     //                                 error!("{:?}", &t.entity);
     //                             }
-    //                         }
+    //                         }fapi
     //                     }
     //                     _ => ()
     //                 }    
@@ -230,7 +230,7 @@ impl SetupPrompter {
     //             &device_id
     //         ).await?;
     //         self.config.keypair = Some(keypair);
-    //         self.config.device = Some(print_nanny_client::apis::devices_api::devices_retrieve(
+    //         self.config.device = Some(printnanny_api_client::apis::devices_api::devices_retrieve(
     //             &self.config.api_config,
     //             device_id
     //         ).await?);
@@ -291,7 +291,7 @@ impl DeviceInfo {
                 self.release = Some(self.get_latest_release(&release_channel).await?);
             },
             None => {
-                self.release = Some(self.get_latest_release(&print_nanny_client::models::ReleaseChannelEnum::Stable.to_string()).await?);
+                self.release = Some(self.get_latest_release(&printnanny_api_client::models::ReleaseChannelEnum::Stable.to_string()).await?);
             }
         }
         info!("Refreshed config from remote {:?}", &self);
@@ -299,7 +299,7 @@ impl DeviceInfo {
         Ok(self)
     }
 
-    pub async fn get_latest_release(&self, release_channel: &str) -> Result<print_nanny_client::models::Release> {
+    pub async fn get_latest_release(&self, release_channel: &str) -> Result<printnanny_api_client::models::Release> {
         let res = releases_latest_retrieve(&self.api_config, release_channel).await
             .context(format!("🔴 Failed to retreive latest for release_channel={}", release_channel))?;
         info!("SUCCESS auth_verify_create detail {:?}", serde_json::to_string(&res));
@@ -342,17 +342,17 @@ impl DeviceInfo {
         s.try_into()
     }
 
-    async fn verify_2fa_send_email(&self, email: &str) -> Result<print_nanny_client::models::DetailResponse> {
+    async fn verify_2fa_send_email(&self, email: &str) -> Result<printnanny_api_client::models::DetailResponse> {
         // Sends an email containing an expiring one-time password (6 digits)
-        let req =  print_nanny_client::models::EmailAuthRequest{email: email.to_string()};
+        let req =  printnanny_api_client::models::EmailAuthRequest{email: email.to_string()};
         let res = auth_email_create(&self.api_config, req).await
             .context(format!("🔴 Failed to send verification email to {:?}", self))?;
         info!("SUCCESS auth_email_create detail {:?}", serde_json::to_string(&res));
         Ok(res)
     }
 
-    async fn verify_2fa_code(&self, email: &str, token: String) -> Result<print_nanny_client::models::TokenResponse> {
-        let req = print_nanny_client::models::CallbackTokenAuthRequest{mobile: None, token, email:Some(email.to_string())};
+    async fn verify_2fa_code(&self, email: &str, token: String) -> Result<printnanny_api_client::models::TokenResponse> {
+        let req = printnanny_api_client::models::CallbackTokenAuthRequest{mobile: None, token, email:Some(email.to_string())};
         let res = auth_token_create(&self.api_config, req).await
             .context("🔴 Verification failed. Please try again or contact leigh@print-nanny.com for help.")?;
         info!("SUCCESS auth_verify_create detail {:?}", serde_json::to_string(&res));
@@ -386,15 +386,15 @@ impl DeviceInfo {
         DeviceInfo::print_spacer();
     }
 
-    pub async fn get_user(&self) -> Result<print_nanny_client::models::User> {
-        let res = print_nanny_client::apis::users_api::users_me_retrieve(
+    pub async fn get_user(&self) -> Result<printnanny_api_client::models::User> {
+        let res = printnanny_api_client::apis::users_api::users_me_retrieve(
             &self.api_config
         ).await.context(format!("Failed to retreive user"))?;
         Ok(res)
     }
 
-    pub async fn get_device(&self, device_id: i32) -> Result<print_nanny_client::models::Device> {
-        let res = print_nanny_client::apis::devices_api::devices_retrieve(
+    pub async fn get_device(&self, device_id: i32) -> Result<printnanny_api_client::models::Device> {
+        let res = printnanny_api_client::apis::devices_api::devices_retrieve(
             &self.api_config,
             device_id
         ).await.context(format!("Failed to retreive device id={}", device_id))?;
