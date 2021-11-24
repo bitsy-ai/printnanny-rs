@@ -196,8 +196,6 @@ jobs:
           tag: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        outputs:
-          ref_name: ${{ github.ref_name }}
       - name: Upload Release Asset
         id: upload-release-asset
         uses: actions/upload-release-asset@v1
@@ -241,6 +239,8 @@ jobs:
           tag: ${{ github.ref_name }}
           release_id: ${{ steps.get_release.outputs.id }}
           draft: false
+        outputs:
+          ref_name: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Send Discord notification
