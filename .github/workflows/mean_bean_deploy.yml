@@ -190,10 +190,9 @@ jobs:
         uses: octokit/request-action@v2.x
         id: get_release
         with:
-          route: GET /repos/{owner}/{repo}/releases/tags/{tag}
+          route: GET /repos/{owner}/{repo}/releases/${{ github.ref_name }}
           owner: bitsy-ai
           repo: printnanny-cli
-          tag: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Release Asset
@@ -219,10 +218,9 @@ jobs:
         uses: octokit/request-action@v2.x
         id: get_release
         with:
-          route: GET /repos/{owner}/{repo}/releases/tags/{tag}
+          route: GET /repos/{owner}/{repo}/releases/${{ github.ref_name }}
           owner: bitsy-ai
           repo: printnanny-cli
-          tag: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions-rs/toolchain@v1
