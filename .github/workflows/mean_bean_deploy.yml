@@ -196,6 +196,8 @@ jobs:
           tag: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        outputs:
+          ref_name: ${{ github.ref_name }}
       - name: Upload Release Asset
         id: upload-release-asset
         uses: actions/upload-release-asset@v1
@@ -248,5 +250,5 @@ jobs:
         with:
           args: |
               🦀 **Published** {{ EVENT_PAYLOAD.repository.full_name }}@{{ GITHUB_SHA }}
-              **Release notes:** https://github.com/bitsy-ai/printnanny-cli/releases/tag/${{ github.ref_name }}
-              **Download:** https://crates.io/crates/printnanny-cli/${{ github.ref_name }}
+              **Release notes:** https://github.com/bitsy-ai/printnanny-cli/releases/tag/v${{ steps.publish_release.outputs.ref_name }}
+              **Download:** https://crates.io/crates/printnanny-cli/${{ steps.publish_release.outputs.ref_name }}
