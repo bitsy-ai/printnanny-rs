@@ -239,6 +239,6 @@ jobs:
         uses: Ilshidur/action-discord@master
         with:
           args: |
-              🦀 Published {{ EVENT_PAYLOAD.repository.full_name }}@{{ GITHUB_SHA }}
-              Release notes: https://github.com/bitsy-ai/printnanny-cli/releases/tag/${{ github.ref_name }}
-              Download: https://crates.io/crates/printnanny-cli/${{ github.ref_name }}
+              🦀 **Published** {{ EVENT_PAYLOAD.repository.full_name }}@{{ GITHUB_SHA }}
+              **Release notes:** https://github.com/bitsy-ai/printnanny-cli/releases/tag/${{ github.ref_name }}
+              **Download:** https://crates.io/crates/printnanny-cli/${{ github.ref_name }}
