@@ -221,6 +221,14 @@ jobs:
           tag: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            override: true
+      - uses: katyo/publish-crates@v1
+        with:
+            registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish release
         uses: octokit/request-action@v2.x
         id: publish_release
@@ -233,8 +241,6 @@ jobs:
           draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        outputs:
-          ref_name: ${{ github.ref_name }}
       - name: Send Discord notification
         env:
           DISCORD_WEBHOOK: ${{ secrets.PRINT_NANNY_DISCORD_DEPLOY_WEBHOOK }}
@@ -242,5 +248,5 @@ jobs:
         with:
           args: |
               🦀 **Published** {{ EVENT_PAYLOAD.repository.full_name }}@{{ GITHUB_SHA }}
-              **Release notes:** https://github.com/bitsy-ai/printnanny-cli/releases/tag/${{ steps.publish_release.outputs.ref_name }}
-              **Download:** https://crates.io/crates/printnanny-cli/${{ steps.publish_release.outputs.ref_name }}
+              **Release notes:** https://github.com/bitsy-ai/printnanny-cli/releases/tag/${{ github.ref_name }}
+              **Download:** https://crates.io/crates/printnanny-cli/${{ github.ref_name }}
