@@ -8,17 +8,18 @@ use printnanny_api_client::apis::devices_api::{
     devices_retrieve, 
     device_info_update_or_create
 };
+use crate::paths::{ PrintNannyPath };
 
 // The files referenced in this fn are unzipped to correct target location 
 // by an Ansible playbook executed in systemd unit on device boot
 // ref: https://github.com/bitsy-ai/ansible-collection-printnanny/blob/main/roles/main/tasks/license_install.yml
 pub async fn verify_license(base_dir: &str) -> Result<()>{
-    let base_path = PathBuf::from(base_dir);
+    let PATHS = PrintNannyPath::from(base_dir);
 
     // read device config json from disk
     let device = serde_json::from_str::<Device>(
-        &read_to_string(base_path.join("printnanny_device.json"))
-        .context(format!("Failed to read {:?}", base_path.join("printnanny_device.json")))?
+        &read_to_string(PATHS.device_json.clone())
+        .context(format!("Failed to read {:?}", PATHS.device_json))?
         )?;
     
     let license = device.active_license.as_ref().unwrap();
@@ -35,7 +36,7 @@ pub async fn verify_license(base_dir: &str) -> Result<()>{
     let device_info = info_update_or_create(
         &api_config, 
         &device,
-        &base_path.join("printnanny_device_info.json")
+        &PATHS.device_info_json
         ).await?;
     println!("Created DeviceInfo {:?}", device_info);
     Ok(())
