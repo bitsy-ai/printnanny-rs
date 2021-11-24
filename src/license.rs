@@ -1,6 +1,7 @@
 use std::path::{ PathBuf };
 use std::fs::{ read_to_string, OpenOptions };
-use anyhow::{ Result, Context };
+use anyhow::{ Result, Context, anyhow };
+use log::{ error };
 use procfs::{ CpuInfo, Meminfo };
 use printnanny_api_client::models::{ Device, DeviceInfoRequest, DeviceInfo };
 use printnanny_api_client::apis::configuration::{ Configuration };
@@ -46,8 +47,13 @@ async fn verify_remote_device(api_config: &Configuration, device: &Device) -> Re
     let device_id = device.id.unwrap();
     let remote_device = devices_retrieve(&api_config, device_id).await
         .context(format!("Failed to retrieve device with id={}", device_id))?;
-    assert_eq!(device, &remote_device, "Device verification failed. Please re-download license file to /boot/printnanny_license.zip");
-    Ok(())
+    
+    if device == &remote_device {
+        Ok(())
+    } else {
+        error!("Device verification failed. Please re-download license file to /boot/printnanny_license.zip");
+        Err(anyhow!("Device verification failed. Please re-download license file to /boot/printnanny_license.zip"))
+    }
 }
 
 async fn info_update_or_create(api_config: &Configuration, device: &Device, out: &PathBuf) -> Result<DeviceInfo> {
