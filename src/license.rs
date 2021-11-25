@@ -1,11 +1,20 @@
 use std::path::{ PathBuf };
 use std::fs::{ read_to_string, OpenOptions };
 use anyhow::{ Result, Context, anyhow };
-use log::{ error };
+use log::{ error, info };
 use procfs::{ CpuInfo, Meminfo };
-use printnanny_api_client::models::{ Device, DeviceInfoRequest, DeviceInfo };
+use printnanny_api_client::models::{ 
+    Device, 
+    DeviceInfo, 
+    DeviceInfoRequest, 
+    SystemTask, 
+    SystemTaskRequest,
+    SystemTaskStatus,
+    SystemTaskType, 
+};
 use printnanny_api_client::apis::configuration::{ Configuration };
 use printnanny_api_client::apis::devices_api::{ 
+    devices_system_tasks_create,
     devices_retrieve, 
     device_info_update_or_create
 };
@@ -33,14 +42,59 @@ pub async fn verify_license(base_dir: &str) -> Result<()>{
         bearer_access_token: api_token,
         ..Configuration::default()
     };
+    let device_id = device.id.unwrap();
+    create_system_task(
+        &api_config, 
+        device_id,
+        SystemTaskType::VerifyLicense,
+        SystemTaskStatus::Started
+    ).await?;
     verify_remote_device(&api_config, &device).await?;
-    let device_info = info_update_or_create(
+    let device_info_result = info_update_or_create(
         &api_config, 
         &device,
         &PATHS.device_info_json
-        ).await?;
-    println!("Created DeviceInfo {:?}", device_info);
+        ).await;
+    
+    match device_info_result {
+        Ok(device_info) => {
+            create_system_task(
+                &api_config, 
+                device_id,
+                SystemTaskType::VerifyLicense,
+                SystemTaskStatus::Success
+            ).await?;
+        },
+        Err(err) => {
+            create_system_task(
+                &api_config, 
+                device_id,
+                SystemTaskType::VerifyLicense,
+                SystemTaskStatus::Failed
+            ).await?; 
+        }
+    }
     Ok(())
+}
+
+
+async fn create_system_task(
+    api_config: &Configuration, 
+    device_id: i32, 
+    _type: SystemTaskType, 
+    status: SystemTaskStatus
+) -> Result<SystemTask> {
+    let request = SystemTaskRequest{
+        status: Some(status), 
+        _type: Some(_type), 
+        device: device_id,
+        ansible_facts: None,
+        ansible_extra_vars: None
+    };
+    let result = devices_system_tasks_create(
+        api_config, device_id, request).await?;
+    info!("Created SystemTask {:?}", result);
+    Ok(result)
 }
 
 async fn verify_remote_device(api_config: &Configuration, device: &Device) -> Result<()>{
@@ -88,5 +142,6 @@ async fn info_update_or_create(api_config: &Configuration, device: &Device, out:
         .open(out)?;
     serde_json::to_writer(file, &res)
         .context(format!("Failed to save DeviceInfo to {:?}", out))?;
+    info!("Created DeviceInfo {:?}", res);
     Ok(res)
 }
