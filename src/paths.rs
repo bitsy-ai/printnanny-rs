@@ -29,6 +29,7 @@ impl PrintNannyPath {
         let public_key = license.join("ecdsa_public.pem");
         let device = license.join("printnanny_device.json");
         let device_info = license.join("printnanny_device_info.json");
+        let ansible_facts = PathBuf::from("/etc/ansible/facts.json");
         Self { 
             base: base,
             license: license,

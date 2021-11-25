@@ -1,26 +1,36 @@
 use std::path::{ PathBuf };
 use std::fs::{ read_to_string, OpenOptions };
 use anyhow::{ Result, Context, anyhow };
-use log::{ error };
+use log::{ error, info };
 use procfs::{ CpuInfo, Meminfo };
-use printnanny_api_client::models::{ Device, DeviceInfoRequest, DeviceInfo };
+use printnanny_api_client::models::{ 
+    Device, 
+    DeviceInfo, 
+    DeviceInfoRequest, 
+    SystemTask, 
+    SystemTaskRequest,
+    SystemTaskStatus,
+    SystemTaskType, 
+};
 use printnanny_api_client::apis::configuration::{ Configuration };
 use printnanny_api_client::apis::devices_api::{ 
+    devices_system_tasks_create,
     devices_retrieve, 
     device_info_update_or_create
 };
 use crate::paths::{ PrintNannyPath };
+use crate::msgs;
 
 // The files referenced in this fn are unzipped to correct target location 
 // by an Ansible playbook executed in systemd unit on device boot
 // ref: https://github.com/bitsy-ai/ansible-collection-printnanny/blob/main/roles/main/tasks/license_install.yml
 pub async fn verify_license(base_dir: &str) -> Result<()>{
-    let PATHS = PrintNannyPath::from(base_dir);
+    let paths = PrintNannyPath::from(base_dir);
 
     // read device config json from disk
     let device = serde_json::from_str::<Device>(
-        &read_to_string(PATHS.device_json.clone())
-        .context(format!("Failed to read {:?}", PATHS.device_json))?
+        &read_to_string(paths.device_json.clone())
+        .context(format!("Failed to read {:?}", paths.device_json))?
         )?;
     
     let license = device.active_license.as_ref().unwrap();
@@ -33,14 +43,69 @@ pub async fn verify_license(base_dir: &str) -> Result<()>{
         bearer_access_token: api_token,
         ..Configuration::default()
     };
-    verify_remote_device(&api_config, &device).await?;
-    let device_info = info_update_or_create(
+    let device_id = device.id.unwrap();
+    create_system_task(
         &api_config, 
-        &device,
-        &PATHS.device_info_json
-        ).await?;
-    println!("Created DeviceInfo {:?}", device_info);
+        device_id,
+        SystemTaskType::VerifyLicense,
+        SystemTaskStatus::Started,
+        Some(msgs::LICENSE_VERIFY_STARTED_MSG.to_string()),
+        None
+    ).await?;
+    let verify_result = verify_remote_device(&api_config, &device).await;
+    
+    match verify_result {
+        Ok(_) => {
+            create_system_task(
+                &api_config, 
+                device_id,
+                SystemTaskType::VerifyLicense,
+                SystemTaskStatus::Success,
+                Some(msgs::LICENSE_VERIFY_SUCCESS_MSG.to_string()),
+                Some(msgs::LICENSE_VERIFY_SUCCESS_HELP.to_string())
+            ).await?;
+            info_update_or_create(
+                &api_config, 
+                &device,
+                &paths.device_info_json
+                ).await?;
+        },
+        Err(_) => {
+            create_system_task(
+                &api_config, 
+                device_id,
+                SystemTaskType::VerifyLicense,
+                SystemTaskStatus::Failed,
+                Some(msgs::LICENSE_VERIFY_FAILED_MSG.to_string()),
+                Some(msgs::LICENSE_VERIFY_FAILED_HELP.to_string())
+            ).await?; 
+        }
+    }
     Ok(())
+}
+
+
+async fn create_system_task(
+    api_config: &Configuration, 
+    device_id: i32, 
+    _type: SystemTaskType, 
+    status: SystemTaskStatus,
+    msg: Option<String>,
+    wiki_url: Option<String>
+) -> Result<SystemTask> {
+    
+    let request = SystemTaskRequest{
+        status: Some(status), 
+        _type: Some(_type), 
+        device: device_id,
+        ansible_facts: None,
+        msg: msg,
+        wiki_url: wiki_url
+    };
+    let result = devices_system_tasks_create(
+        api_config, device_id, request).await?;
+    info!("Created SystemTask {:?}", result);
+    Ok(result)
 }
 
 async fn verify_remote_device(api_config: &Configuration, device: &Device) -> Result<()>{
@@ -51,8 +116,8 @@ async fn verify_remote_device(api_config: &Configuration, device: &Device) -> Re
     if device == &remote_device {
         Ok(())
     } else {
-        error!("Device verification failed. Please re-download license file to /boot/printnanny_license.zip");
-        Err(anyhow!("Device verification failed. Please re-download license file to /boot/printnanny_license.zip"))
+        error!("Device verification failed");
+        Err(anyhow!("Device verification failed"))
     }
 }
 
@@ -88,5 +153,6 @@ async fn info_update_or_create(api_config: &Configuration, device: &Device, out:
         .open(out)?;
     serde_json::to_writer(file, &res)
         .context(format!("Failed to save DeviceInfo to {:?}", out))?;
+    info!("Created DeviceInfo {:?}", res);
     Ok(res)
 }
