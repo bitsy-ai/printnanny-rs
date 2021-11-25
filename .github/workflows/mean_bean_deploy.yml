@@ -209,7 +209,7 @@ jobs:
         uses: octokit/request-action@v2.x
         id: get_release
         with:
-          route: GET /repos/bitsy-ai/printnanny-cli/releases/${{ github.ref_name }}
+          route: GET /repos/bitsy-ai/printnanny-cli/releases/tags/${{ github.ref_name }}
           owner: bitsy-ai
           repo: printnanny-cli
         env:
