@@ -2,6 +2,7 @@ use std::path::{ PathBuf };
 
 #[derive(Debug, Clone)]
 pub struct PrintNannyPath {
+    pub ansible_facts: PathBuf,
     pub base: PathBuf,
     pub license: PathBuf,
     pub data: PathBuf,
@@ -31,6 +32,7 @@ impl PrintNannyPath {
         let device_info = license.join("printnanny_device_info.json");
         let ansible_facts = PathBuf::from("/etc/ansible/facts.json");
         Self { 
+            ansible_facts: ansible_facts,
             base: base,
             license: license,
             backups:backups,

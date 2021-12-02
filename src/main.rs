@@ -4,7 +4,7 @@ use env_logger::Builder;
 use log::LevelFilter;
 use clap::{ Arg, App, SubCommand };
 // use printnanny::mqtt:: { MQTTWorker };
-use printnanny::license:: { verify_license };
+use printnanny::license:: { activate_license };
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -25,8 +25,8 @@ async fn main() -> Result<()> {
         .takes_value(true)
         .help("Path to Print Nanny installation")
         .default_value("/opt/printnanny"))
-        .subcommand(SubCommand::with_name("verify")
-        .about("Verify license and send device info to Print Nanny API"))
+        .subcommand(SubCommand::with_name("activate")
+        .about("Activate license and send device info to Print Nanny API"))
         .subcommand(SubCommand::with_name("mqtt")
             .about("Publish or subscribe to MQTT messages")
         );  
@@ -62,8 +62,8 @@ async fn main() -> Result<()> {
             let status = cmd.wait();
             println!("Update excited with status {:?}", status);
         },
-        ("verify", Some(_sub_m)) => {
-            verify_license(&config).await?;
+        ("activate", Some(_sub_m)) => {
+            activate_license(&config).await?;
         },
         _ => {}
     }

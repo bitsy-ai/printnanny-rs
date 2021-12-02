@@ -24,7 +24,7 @@ use crate::msgs;
 // The files referenced in this fn are unzipped to correct target location 
 // by an Ansible playbook executed in systemd unit on device boot
 // ref: https://github.com/bitsy-ai/ansible-collection-printnanny/blob/main/roles/main/tasks/license_install.yml
-pub async fn verify_license(base_dir: &str) -> Result<()>{
+pub async fn activate_license(base_dir: &str) -> Result<()>{
     let paths = PrintNannyPath::from(base_dir);
 
     // read device config json from disk
@@ -47,19 +47,19 @@ pub async fn verify_license(base_dir: &str) -> Result<()>{
     create_system_task(
         &api_config, 
         device_id,
-        SystemTaskType::VerifyLicense,
+        SystemTaskType::ActivateLicense,
         SystemTaskStatus::Started,
         Some(msgs::LICENSE_VERIFY_STARTED_MSG.to_string()),
         None
     ).await?;
-    let verify_result = verify_remote_device(&api_config, &device).await;
+    let activate_result = activate_remote_device(&api_config, &device).await;
     
-    match verify_result {
+    match activate_result {
         Ok(_) => {
             create_system_task(
                 &api_config, 
                 device_id,
-                SystemTaskType::VerifyLicense,
+                SystemTaskType::ActivateLicense,
                 SystemTaskStatus::Success,
                 Some(msgs::LICENSE_VERIFY_SUCCESS_MSG.to_string()),
                 Some(msgs::LICENSE_VERIFY_SUCCESS_HELP.to_string())
@@ -74,7 +74,7 @@ pub async fn verify_license(base_dir: &str) -> Result<()>{
             create_system_task(
                 &api_config, 
                 device_id,
-                SystemTaskType::VerifyLicense,
+                SystemTaskType::ActivateLicense,
                 SystemTaskStatus::Failed,
                 Some(msgs::LICENSE_VERIFY_FAILED_MSG.to_string()),
                 Some(msgs::LICENSE_VERIFY_FAILED_HELP.to_string())
@@ -108,7 +108,7 @@ async fn create_system_task(
     Ok(result)
 }
 
-async fn verify_remote_device(api_config: &Configuration, device: &Device) -> Result<()>{
+async fn activate_remote_device(api_config: &Configuration, device: &Device) -> Result<()>{
     let device_id = device.id.unwrap();
     let remote_device = devices_retrieve(&api_config, device_id).await
         .context(format!("Failed to retrieve device with id={}", device_id))?;
