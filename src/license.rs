@@ -53,7 +53,6 @@ pub async fn activate_license(base_dir: &str) -> Result<()>{
         )?;
     
     check_task_type(&device, TaskType::ActivateLicense)?;
-    
     let last_task = device.last_task.as_ref().unwrap();
     let license = device.active_license.as_ref().unwrap();
     
@@ -64,15 +63,13 @@ pub async fn activate_license(base_dir: &str) -> Result<()>{
         bearer_access_token: api_token,
         ..Configuration::default()
     };
-    let device_id = device.id;
-    // devices_tasks_status_create(
-    //     &api_config, 
-    //     device_id,
-    //     TaskType::ActivateLicense,
-    //     TaskStatusType::Started,
-    //     Some(msgs::LICENSE_ACTIVATE_STARTED_MSG.to_string()),
-    //     None
-    // ).await?;
+    update_task_status(
+        &api_config, 
+        &last_task,
+        Some(TaskStatusType::Started),
+        Some(msgs::LICENSE_ACTIVATE_STARTED_MSG.to_string()),
+        None
+    ).await?;
     let activate_result = activate_remote_device(&api_config, &device, &license).await;
     
     match activate_result {
