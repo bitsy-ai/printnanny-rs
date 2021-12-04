@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set +eu
+set +eux
 
 PRINTNANNY_WEBAPP_REPO="${PRINTNANNY_WEBAPP_REPO:-$HOME/projects/octoprint-nanny-webapp}"
 
@@ -30,7 +30,7 @@ download_license(){
     echo "Fetching license for device_id=$device_id"
     filename="$PRINTNANNY_INSTALL_DIR/printnanny_license.zip"
     curl -sX "GET" \
-        "$PRINTNANNY_API_URL/api/devices/$device_id/license/" \
+        "$PRINTNANNY_API_URL/api/devices/$device_id/generate-license/" \
         -H "accept: application/json" \
         -H "Authorization: Bearer $PRINTNANNY_API_TOKEN" \
         --output $filename
@@ -39,4 +39,4 @@ download_license(){
 
 mkdir -p $PRINTNANNY_INSTALL_DIR
 download_license
-cd "$PRINTNANNY_INSTALL_DIR" && unzip printnanny_license
+cd "$PRINTNANNY_INSTALL_DIR" && unzip printnanny_license.zip

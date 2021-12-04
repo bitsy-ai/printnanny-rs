@@ -6,21 +6,40 @@ use procfs::{ CpuInfo, Meminfo };
 use printnanny_api_client::models::{ 
     Device, 
     DeviceInfo, 
-    DeviceInfoRequest, 
-    SystemTask, 
-    SystemTaskRequest,
-    SystemTaskStatus,
-    SystemTaskType, 
+    DeviceInfoRequest,
+    License,
+    Task,
+    TaskRequest,
+    TaskStatus,
+    TaskStatusRequest,
+    TaskStatusType,
+    TaskType,
 };
+
 use printnanny_api_client::apis::configuration::{ Configuration };
-use printnanny_api_client::apis::devices_api::{ 
-    devices_system_tasks_create,
+use printnanny_api_client::apis::licenses_api::{
+    license_activate
+};
+use printnanny_api_client::apis::devices_api::{
+    devices_tasks_status_create,
     devices_retrieve, 
     device_info_update_or_create
 };
 use crate::paths::{ PrintNannyPath };
 use crate::msgs;
 
+fn check_task_type(device: &Device, expected_type: TaskType) -> Result<()>{
+    match &device.last_task {
+        Some(last_task) => {
+            if last_task.task_type.unwrap() != expected_type {
+                return Err(anyhow!("Expected Device.last_task to be {:?} but received task {:?}", expected_type, last_task))
+            } else { Ok(()) }
+        },
+        None => {
+            return Err(anyhow!("Expected Device.last_task to be {:?} but received task None", expected_type))
+        }
+    }
+}
 // The files referenced in this fn are unzipped to correct target location 
 // by an Ansible playbook executed in systemd unit on device boot
 // ref: https://github.com/bitsy-ai/ansible-collection-printnanny/blob/main/roles/main/tasks/license_install.yml
@@ -33,36 +52,37 @@ pub async fn activate_license(base_dir: &str) -> Result<()>{
         .context(format!("Failed to read {:?}", paths.device_json))?
         )?;
     
-    let license = device.active_license.as_ref().unwrap();
-    let creds = license.credentials.as_ref().unwrap();
+    check_task_type(&device, TaskType::ActivateLicense)?;
     
-    let api_base_path = creds.printnanny_api_url.as_ref().unwrap().to_string();
-    let api_token = Some(creds.printnanny_api_token.as_ref().unwrap().to_string());
+    let last_task = device.last_task.as_ref().unwrap();
+    let license = device.active_license.as_ref().unwrap();
+    
+    let api_base_path = license.credentials.printnanny_api_url.as_ref().unwrap().to_string();
+    let api_token = Some(license.credentials.printnanny_api_token.as_ref().unwrap().to_string());
     let api_config = Configuration{ 
         base_path: api_base_path,
         bearer_access_token: api_token,
         ..Configuration::default()
     };
-    let device_id = device.id.unwrap();
-    create_system_task(
-        &api_config, 
-        device_id,
-        SystemTaskType::ActivateLicense,
-        SystemTaskStatus::Started,
-        Some(msgs::LICENSE_VERIFY_STARTED_MSG.to_string()),
-        None
-    ).await?;
-    let activate_result = activate_remote_device(&api_config, &device).await;
+    let device_id = device.id;
+    // devices_tasks_status_create(
+    //     &api_config, 
+    //     device_id,
+    //     TaskType::ActivateLicense,
+    //     TaskStatusType::Started,
+    //     Some(msgs::LICENSE_ACTIVATE_STARTED_MSG.to_string()),
+    //     None
+    // ).await?;
+    let activate_result = activate_remote_device(&api_config, &device, &license).await;
     
     match activate_result {
         Ok(_) => {
-            create_system_task(
+            update_task_status(
                 &api_config, 
-                device_id,
-                SystemTaskType::ActivateLicense,
-                SystemTaskStatus::Success,
-                Some(msgs::LICENSE_VERIFY_SUCCESS_MSG.to_string()),
-                Some(msgs::LICENSE_VERIFY_SUCCESS_HELP.to_string())
+                &last_task,
+                Some(TaskStatusType::Success),
+                Some(msgs::LICENSE_ACTIVATE_SUCCESS_MSG.to_string()),
+                Some(msgs::LICENSE_ACTIVATE_SUCCESS_HELP.to_string())
             ).await?;
             info_update_or_create(
                 &api_config, 
@@ -71,13 +91,12 @@ pub async fn activate_license(base_dir: &str) -> Result<()>{
                 ).await?;
         },
         Err(_) => {
-            create_system_task(
+            update_task_status(
                 &api_config, 
-                device_id,
-                SystemTaskType::ActivateLicense,
-                SystemTaskStatus::Failed,
-                Some(msgs::LICENSE_VERIFY_FAILED_MSG.to_string()),
-                Some(msgs::LICENSE_VERIFY_FAILED_HELP.to_string())
+                &last_task,
+                Some(TaskStatusType::Failed),
+                Some(msgs::LICENSE_ACTIVATE_FAILED_MSG.to_string()),
+                Some(msgs::LICENSE_ACTIVATE_FAILED_HELP.to_string())
             ).await?; 
         }
     }
@@ -85,39 +104,48 @@ pub async fn activate_license(base_dir: &str) -> Result<()>{
 }
 
 
-async fn create_system_task(
-    api_config: &Configuration, 
-    device_id: i32, 
-    _type: SystemTaskType, 
-    status: SystemTaskStatus,
-    msg: Option<String>,
-    wiki_url: Option<String>
-) -> Result<SystemTask> {
+async fn update_task_status(
+    api_config: &Configuration,
+    task: &Task,
+    status: Option<TaskStatusType>,
+    detail: Option<String>,
+    wiki_url: Option<String>,
+) -> Result<TaskStatus> {
     
-    let request = SystemTaskRequest{
-        status: Some(status), 
-        _type: Some(_type), 
-        device: device_id,
-        ansible_facts: None,
-        msg: msg,
-        wiki_url: wiki_url
+    let request = TaskStatusRequest{
+        detail, wiki_url, status, task: task.id
     };
-    let result = devices_system_tasks_create(
-        api_config, device_id, request).await?;
-    info!("Created SystemTask {:?}", result);
+    let device_id = task.device.to_string();
+    let result = devices_tasks_status_create(
+        api_config, &device_id, task.id, request).await?;
+    info!("Created TaskStatus {:?}", result);
     Ok(result)
 }
 
-async fn activate_remote_device(api_config: &Configuration, device: &Device) -> Result<()>{
-    let device_id = device.id.unwrap();
+async fn activate_remote_device(api_config: &Configuration, device: &Device, license: &License) -> Result<License>{
+    let device_id = device.id;
     let remote_device = devices_retrieve(&api_config, device_id).await
         .context(format!("Failed to retrieve device with id={}", device_id))?;
     
-    if device == &remote_device {
-        Ok(())
-    } else {
-        error!("Device verification failed");
-        Err(anyhow!("Device verification failed"))
+    let result = match remote_device.active_license {
+        Some(active_license) => {
+            if active_license.fingerprint == license.fingerprint {
+                Ok(())
+            } else {
+                return Err(anyhow!("License fingerprint {} did not match Device.active_license for device with id={}", license.fingerprint, device_id))
+            }
+        },
+        None => {
+            return Err(anyhow!("Device with id={} has no active license set", device_id))
+        }
+    };
+
+    match result {
+        Ok(_) => {
+            let result = license_activate(&api_config, license.id, None).await?;
+            Ok(result)
+        },
+        Err(e) => e
     }
 }
 
@@ -133,7 +161,7 @@ async fn info_update_or_create(api_config: &Configuration, device: &Device, out:
     let cores = cpuinfo.num_cores();
     let meminfo = Meminfo::new()?;
     let ram = meminfo.mem_total;
-    let device_id = device.id.unwrap();
+    let device_id = device.id;
     let req = DeviceInfoRequest{
         cores: cores as i32,
         device: device_id,
