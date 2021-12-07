@@ -5,6 +5,8 @@ TMP_DIR ?= .tmp
 $(TMP_DIR):
 	mkdir -p $(TMP_DIR)
 
+license:
+	./tools/download-license.sh
 clean:
 	rm -rf $(TMP_DIR)
 images:
