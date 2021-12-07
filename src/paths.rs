@@ -2,9 +2,10 @@ use std::path::{ PathBuf };
 
 #[derive(Debug, Clone)]
 pub struct PrintNannyPath {
-    pub ansible_facts: PathBuf,
+    pub facts_path: PathBuf,
+    pub device_facts: PathBuf,
+    pub license_facts: PathBuf,
     pub base: PathBuf,
-    pub license: PathBuf,
     pub data: PathBuf,
     pub backups: PathBuf,
     pub private_key: PathBuf,
@@ -13,6 +14,8 @@ pub struct PrintNannyPath {
     // with mutable fields and hierarchal/relationship fields serialized (but no guarantee of freshness in local cache)
     // https://github.com/bitsy-ai/printnanny-webapp/blob/55ead2ac638e243a8a5fe6bc046a0120eccd2c78/print_nanny_webapp/devices/api/serializers.py#L124
     pub device_json: PathBuf,
+    // contains secrets, tokens deserialized from printnanny_license.zip
+    pub license_json: PathBuf,
     // immutable view of device, mostly derived from /proc/cpuinfo
     // this file is created after successful license verification, is used to indicate success of license verification in Ansible task set
     // created by: https://github.com/bitsy-ai/printnanny-webapp/blob/55ead2ac638e243a8a5fe6bc046a0120eccd2c78/print_nanny_webapp/devices/api/serializers.py#L152
@@ -21,26 +24,32 @@ pub struct PrintNannyPath {
 }
 
 impl PrintNannyPath {
-    pub fn from(base_str: &str) -> Self { 
+    pub fn from(base_str: &str) -> Self {
         let base = PathBuf::from(base_str);
-        let license = base.join("license");
+ 
         let backups = base.join("backups");
         let data = base.join("data");
-        let private_key = license.join("ecdsa256.pem");
-        let public_key = license.join("ecdsa_public.pem");
-        let device = license.join("printnanny_device.json");
-        let device_info = license.join("printnanny_device_info.json");
-        let ansible_facts = PathBuf::from("/etc/ansible/facts.json");
+        let device_info_json = data.join("device_info.json");
+        let device_json = data.join("device.json");
+        let facts_path = base.join("facts.d");
+        let license_json = data.join("license.json");
+        let private_key = data.join("ecdsa256.pem");
+        let public_key = data.join("ecdsa_public.pem");
+
+        let device_facts = facts_path.join("device.fact");
+        let license_facts = facts_path.join("license.fact");
         Self { 
-            ansible_facts: ansible_facts,
-            base: base,
-            license: license,
             backups:backups,
+            base: base,
             data: data,
+            device_info_json: device_info_json,
+            device_json: device_json,
+            facts_path: facts_path,
+            license_json: license_json,
             private_key: private_key,
             public_key: public_key,
-            device_json: device,
-            device_info_json: device_info,
+            device_facts: device_facts,
+            license_facts: license_facts
         }
     }
 }
