@@ -49,11 +49,9 @@ impl PrintNannyService {
             .context(format!("Failed to read {:?}", paths.license_json))?
         )?;
 
-        let api_base_path = license.tokens.printnanny_api_url.as_ref().unwrap().to_string();
-        let api_token = Some(license.tokens.printnanny_api_token.as_ref().unwrap().to_string());
         let api_config = Configuration{ 
-            base_path: api_base_path,
-            bearer_access_token: api_token,
+            base_path: license.printnanny_api_url.clone(),
+            bearer_access_token: Some(license.printnanny_api_token.clone()),
             ..Configuration::default()
         };
 
