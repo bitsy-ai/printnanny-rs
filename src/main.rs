@@ -13,7 +13,7 @@ async fn main() -> Result<()> {
     let app_name = "printnanny";
     
     let app = App::new(app_name)
-        .version("0.5.0")
+        .version("0.5.1")
         .author("Leigh Johnson <leigh@bitsy.ai>")
         .about("Official Print Nanny CLI https://print-nanny.com")
         .arg(Arg::with_name("v")
