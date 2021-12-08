@@ -29,9 +29,14 @@ async fn main() -> Result<()> {
         // activate
         .subcommand(SubCommand::with_name("activate")
         .about("Activate license and send device info to Print Nanny API"))
+        .subcommand(SubCommand::with_name("factsd")
+        .about("Retrieve serialized JSON, intended for use by /etc/ansible/facts.d/")
+            .subcommand(SubCommand::with_name("device")
+            .about("GET /api/devices/:id"))
+            .subcommand(SubCommand::with_name("license")
+            .about("GET /api/licenses/:id")))
         // device
-        .subcommand(SubCommand::with_name("device")
-        .about("Interact with /api/devices endpoints"))
+
         // license
         .subcommand(SubCommand::with_name("license")
         .about("Interact with /api/licenses endpoints"))
@@ -65,15 +70,20 @@ async fn main() -> Result<()> {
         ("activate", Some(_sub_m)) => {
             activate_license(&config).await?;
         },
-        ("device", Some(_sub_m)) => {
-            let service = PrintNannyService::new(&config)?;
-            let device_json = service.refresh_device_json().await?;
-            print!("{}", device_json);
-        },
-        ("license", Some(_sub_m)) => {
-            let service = PrintNannyService::new(&config)?;
-            let license_json = service.refresh_license_json().await?;
-            print!("{}", license_json);
+        ("factsd", Some(sub_m)) => {
+            match sub_m.subcommand() {
+                ("device", Some(_sub_m)) => {
+                    let service = PrintNannyService::new(&config)?;
+                    let device_json = service.refresh_device_json().await?;
+                    print!("{}", device_json);
+                },
+                ("license", Some(_sub_m)) => {
+                    let service = PrintNannyService::new(&config)?;
+                    let license_json = service.refresh_license_json().await?;
+                    print!("{}", license_json);
+                },
+                _ => {}
+            }
         },
         ("update", Some(_sub_m)) => {
             let mut cmd =
