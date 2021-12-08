@@ -8,10 +8,11 @@ use printnanny_api_client::apis::configuration::{ Configuration };
 use printnanny_api_client::apis::devices_api::{
     devices_tasks_status_create,
     devices_active_license_retrieve,
+    devices_retrieve,
     device_info_update_or_create
 };
 use printnanny_api_client::apis::licenses_api::{
-    license_activate
+    license_activate,
 };
 use printnanny_api_client::models::{ 
     Device, 
@@ -60,6 +61,20 @@ impl PrintNannyService {
         Ok(service)
     }
 
+    pub async fn refresh_device_json(&self) -> Result<String> {
+        let device = devices_retrieve(&self.api_config, self.device.id).await?;
+
+        // test serde_json serialization before truncating file
+        let result = serde_json::to_string(&device)?;
+
+        let file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&self.paths.device_json)?;
+        serde_json::to_writer(&file, &device)?;
+        Ok(result)
+    }
+
     pub async fn update_task_status(
         &self,
         task: &Task,
@@ -78,17 +93,37 @@ impl PrintNannyService {
         Ok(result)
     }
 
-    pub async fn activate_device(&self) -> Result<License>{
+    pub async fn check_license(&self) -> Result<License>{
         let device_id = self.device.id;
         let active_license = devices_active_license_retrieve(&self.api_config, device_id).await
             .context(format!("Failed to retrieve device with id={}", device_id))?;
         
         if active_license.fingerprint == self.license.fingerprint {
-            let result = license_activate(&self.api_config, self.license.id, None).await?;
-            Ok(result)
+            Ok(active_license)
         } else {
             return Err(anyhow!("License fingerprint {} did not match Device.active_license for device with id={}", self.license.fingerprint, device_id))
         }
+    }
+
+    pub async fn activate_license(&self) -> Result<License> {
+        let check = self.check_license().await?;
+        let license = license_activate(&self.api_config, check.id, None).await?;
+        Ok(license)
+    }
+
+
+    pub async fn refresh_license_json(&self) -> Result<String> {
+        let license = self.check_license().await?;
+
+        // test serde_json serialization before truncating file
+        let result = serde_json::to_string(&license)?;
+
+        let file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&self.paths.license_json)?;
+        serde_json::to_writer(&file, &license)?;
+        Ok(result)
     }
 
     pub async fn device_info_update_or_create(&self) -> Result<DeviceInfo> {

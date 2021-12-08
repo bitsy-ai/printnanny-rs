@@ -5,6 +5,7 @@ use log::LevelFilter;
 use clap::{ Arg, App, SubCommand };
 // use printnanny::mqtt:: { MQTTWorker };
 use printnanny::license:: { activate_license };
+use printnanny::service::PrintNannyService;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -25,8 +26,19 @@ async fn main() -> Result<()> {
         .takes_value(true)
         .help("Path to Print Nanny installation")
         .default_value("/opt/printnanny"))
+        // activate
         .subcommand(SubCommand::with_name("activate")
         .about("Activate license and send device info to Print Nanny API"))
+        // device
+        .subcommand(SubCommand::with_name("device")
+        .about("Interact with /api/devices endpoints"))
+        // license
+        .subcommand(SubCommand::with_name("license")
+        .about("Interact with /api/licenses endpoints"))
+        // update
+        .subcommand(SubCommand::with_name("update")
+        .about("Update Print Nanny software"))
+        // mqtt <subscribe|publish>
         .subcommand(SubCommand::with_name("mqtt")
             .about("Publish or subscribe to MQTT messages")
         );  
@@ -50,6 +62,19 @@ async fn main() -> Result<()> {
         //     // worker.run().await?;
         //     worker.run().await?;
         // },
+        ("activate", Some(_sub_m)) => {
+            activate_license(&config).await?;
+        },
+        ("device", Some(_sub_m)) => {
+            let service = PrintNannyService::new(&config)?;
+            let device_json = service.refresh_device_json().await?;
+            print!("{}", device_json);
+        },
+        ("license", Some(_sub_m)) => {
+            let service = PrintNannyService::new(&config)?;
+            let license_json = service.refresh_license_json().await?;
+            print!("{}", license_json);
+        },
         ("update", Some(_sub_m)) => {
             let mut cmd =
             Command::new("systemctl")
@@ -61,9 +86,6 @@ async fn main() -> Result<()> {
 
             let status = cmd.wait();
             println!("Update excited with status {:?}", status);
-        },
-        ("activate", Some(_sub_m)) => {
-            activate_license(&config).await?;
         },
         _ => {}
     }
