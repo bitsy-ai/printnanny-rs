@@ -59,11 +59,20 @@ impl PrintNannyService {
         Ok(service)
     }
 
-    pub async fn refresh_device_json(&self) -> Result<String> {
+
+    pub async fn read_device_json(&self) -> Result<String> {
         let device = devices_retrieve(&self.api_config, self.device.id).await?;
 
         // test serde_json serialization before truncating file
         let result = serde_json::to_string(&device)?;
+        Ok(result)
+    }
+
+    pub async fn refresh_device_json(&self) -> Result<String> {
+        let device = devices_retrieve(&self.api_config, self.device.id).await?;
+
+        // test serde_json serialization before truncating file
+        let result = self.read_device_json().await?;
 
         let file = OpenOptions::new()
             .write(true)
@@ -121,6 +130,12 @@ impl PrintNannyService {
             .truncate(true)
             .open(&self.paths.license_json)?;
         serde_json::to_writer(&file, &license)?;
+        Ok(result)
+    }
+
+    pub async fn read_license_json(&self) -> Result<String> {
+        let license = self.check_license().await?;
+        let result = serde_json::to_string(&license)?;
         Ok(result)
     }
 

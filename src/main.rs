@@ -31,6 +31,11 @@ async fn main() -> Result<()> {
         .about("Activate license and send device info to Print Nanny API"))
         .subcommand(SubCommand::with_name("factsd")
         .about("Retrieve serialized JSON, intended for use by /etc/ansible/facts.d/")
+            .arg(
+                Arg::with_name("save")
+                .long("save")
+                .takes_value(false)
+                .help("Persist data to /opt/printnanny (requires write permissions)"))
             .subcommand(SubCommand::with_name("device")
             .about("GET /api/devices/:id"))
             .subcommand(SubCommand::with_name("license")
@@ -74,12 +79,18 @@ async fn main() -> Result<()> {
             match sub_m.subcommand() {
                 ("device", Some(_sub_m)) => {
                     let service = PrintNannyService::new(&config)?;
-                    let device_json = service.refresh_device_json().await?;
+                    let device_json = match app_m.is_present("save-data"){
+                        true => service.refresh_device_json().await?,
+                        false => service.read_device_json().await?
+                    };
                     print!("{}", device_json);
                 },
                 ("license", Some(_sub_m)) => {
                     let service = PrintNannyService::new(&config)?;
-                    let license_json = service.refresh_license_json().await?;
+                    let license_json = match app_m.is_present("save-data"){
+                        true => service.refresh_license_json().await?,
+                        false => service.read_license_json().await?
+                    };
                     print!("{}", license_json);
                 },
                 _ => {}
