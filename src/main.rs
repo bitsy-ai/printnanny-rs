@@ -32,8 +32,8 @@ async fn main() -> Result<()> {
         .subcommand(SubCommand::with_name("factsd")
         .about("Retrieve serialized JSON, intended for use by /etc/ansible/facts.d/")
             .arg(
-                Arg::with_name("save_data")
-                .long("save-data")
+                Arg::with_name("save")
+                .long("save")
                 .takes_value(false)
                 .help("Persist data to /opt/printnanny (requires write permissions)"))
             .subcommand(SubCommand::with_name("device")
