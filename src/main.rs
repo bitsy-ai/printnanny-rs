@@ -2,7 +2,7 @@ use anyhow::{ Result };
 use std::process::{Command, Stdio};
 use env_logger::Builder;
 use log::LevelFilter;
-use clap::{ Arg, App, SubCommand, value_t };
+use clap::{ Arg, App, AppSettings, SubCommand, value_t };
 // use printnanny::mqtt:: { MQTTWorker };
 use printnanny::license:: { activate_license };
 use printnanny::service::{ printnanny_api_call, ApiModel, ApiAction };
@@ -15,6 +15,7 @@ async fn main() -> Result<()> {
     
     let app = App::new(app_name)
         .version("0.5.1")
+        .setting(AppSettings::SubcommandRequiredElseHelp)
         .author("Leigh Johnson <leigh@bitsy.ai>")
         .about("Official Print Nanny CLI https://print-nanny.com")
         .arg(Arg::with_name("v")
@@ -32,6 +33,7 @@ async fn main() -> Result<()> {
             .about("Activate license and send device info to Print Nanny API"))
         // janus-admin
         .subcommand(SubCommand::with_name("janus-admin")
+            .setting(AppSettings::SubcommandRequiredElseHelp)
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token")
             .arg(Arg::with_name("host")
             .long("host")

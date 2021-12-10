@@ -1,4 +1,3 @@
-use std::future::Future;
 use std::fs::{ read_to_string, OpenOptions };
 use anyhow::{ anyhow, Context, Result };
 use log::{ info };

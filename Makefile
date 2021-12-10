@@ -17,7 +17,7 @@ endif
 run: $(TMP_DIR)
 	cargo run -- -vv --config=$(PWD)/$(TMP_DIR) $(RUN_ARGS)
 
-license:
+test-license:
 	./tools/download-license.sh
 
 clean:
