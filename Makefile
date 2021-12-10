@@ -1,14 +1,28 @@
 
 VERSION ?= 0.2.1
 TMP_DIR ?= .tmp
-
 $(TMP_DIR):
 	mkdir -p $(TMP_DIR)
 
+# just some misuse of make over here, nothing to see
+# https://stackoverflow.com/questions/2214575/passing-arguments-to-make-run
+# If the first argument is "run"...
+ifeq (run,$(firstword $(MAKECMDGOALS)))
+  # use the rest as arguments for "run"
+  RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  # ...and turn them into do-nothing targets
+  $(eval $(RUN_ARGS):;@:)
+endif
+
+run: $(TMP_DIR)
+	cargo run -- -vv --config=$(PWD)/$(TMP_DIR) $(RUN_ARGS)
+
 license:
 	./tools/download-license.sh
+
 clean:
 	rm -rf $(TMP_DIR)
+
 images:
 	docker build \
 		-f docker/aarch64-unknown-linux-gnu.Dockerfile \
@@ -25,11 +39,6 @@ images:
 		-t bitsyai/cross:x86_64-unknown-linux-gnu-$(VERSION) \
 		docker
 	docker push bitsyai/cross:x86_64-unknown-linux-gnu-$(VERSION)
-
-run-local: $(TMP_DIR)
-	PRINTNANNY_GCP_PROJECT=print-nanny-sandbox \
-	cargo run -- -vv --config=$(PWD)/$(TMP_DIR) $(ARGS)
-
 
 $(TMP_DIR)/printnanny_license.zip:
 	PRINTNANNY_INSTALL_DIR=$(TMP_DIR) ./tools/download-license.sh
