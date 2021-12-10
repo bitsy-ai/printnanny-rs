@@ -2,10 +2,11 @@ use anyhow::{ Result };
 use std::process::{Command, Stdio};
 use env_logger::Builder;
 use log::LevelFilter;
-use clap::{ Arg, App, SubCommand };
+use clap::{ Arg, App, SubCommand, value_t };
 // use printnanny::mqtt:: { MQTTWorker };
 use printnanny::license:: { activate_license };
-use printnanny::service::PrintNannyService;
+use printnanny::service::{ printnanny_api_call, ApiModel, ApiAction };
+
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -86,8 +87,12 @@ async fn main() -> Result<()> {
             .about("Retrieve Print Nanny REST API JSON responses")
             .arg(Arg::with_name("action")
                 .long("action")
+                .short("a")
                 .takes_value(true)
-                .possible_value("get")
+                // possible values is case-sensitive
+                // https://github.com/clap-rs/clap/issues/891#issuecomment-285545880
+                .possible_values(&ApiAction::variants())
+                .case_insensitive(true)
                 //.possible_value("create")
                 //.possible_value("update")
                 //.possible_value("delete")
@@ -95,14 +100,18 @@ async fn main() -> Result<()> {
             .arg(Arg::with_name("save")
                 .long("save")
                 .takes_value(false)
+                .required(false)
                 .help("Cache API response to /opt/printnanny/data (requires filesystem write permission)"))
-            // device
-            .subcommand(SubCommand::with_name("device")
-            .about("ACTION /api/devices"))
-            // license
-            .subcommand(SubCommand::with_name("license")
-            .about("ACTION /api/devices")))
-
+            // model
+            .arg(Arg::with_name("model")
+                .long("model")
+                .short("m")
+                .takes_value(true)
+                // possible values is case-sensitive
+                // https://github.com/clap-rs/clap/issues/891#issuecomment-285545880
+                .possible_values(&ApiModel::variants())
+                .case_insensitive(true)
+            ))
         // run system updates
         .subcommand(SubCommand::with_name("system-update")
         .about("Update Print Nanny software"))
@@ -133,38 +142,26 @@ async fn main() -> Result<()> {
         ("activate", Some(_sub_m)) => {
             activate_license(&config).await?;
         },
-        ("factsd", Some(sub_m)) => {
-            match sub_m.subcommand() {
-                ("device", Some(_sub_m)) => {
-                    let service = PrintNannyService::new(&config)?;
-                    let device_json = match app_m.is_present("save-data"){
-                        true => service.refresh_device_json().await?,
-                        false => service.read_device_json().await?
-                    };
-                    print!("{}", device_json);
-                },
-                ("license", Some(_sub_m)) => {
-                    let service = PrintNannyService::new(&config)?;
-                    let license_json = match app_m.is_present("save-data"){
-                        true => service.refresh_license_json().await?,
-                        false => service.read_license_json().await?
-                    };
-                    print!("{}", license_json);
-                },
-                _ => {}
-            }
+        ("api", Some(sub_m)) => {
+            let action = value_t!(sub_m, "action", ApiAction).unwrap_or_else(|e| e.exit());
+            let model = value_t!(sub_m, "model", ApiModel).unwrap_or_else(|e| e.exit());
+            let save = value_t!(sub_m, "save", bool).unwrap_or_default();
+            
+            let jsonstr = printnanny_api_call(&config, &save, &action, &model).await?;
+            print!("{}", jsonstr)
+
         },
-        ("update", Some(_sub_m)) => {
+        ("system-update", Some(_sub_m)) => {
             let mut cmd =
             Command::new("systemctl")
-            .args(&["start", "printnanny-manual-update"])
+            .args(&["start", "printnanny-updater"])
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .spawn()
             .unwrap();
 
             let status = cmd.wait();
-            println!("Update excited with status {:?}", status);
+            println!("System update exited with status {:?}", status);
         },
         _ => {}
     }

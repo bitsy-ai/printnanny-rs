@@ -1,9 +1,9 @@
-
+use std::future::Future;
 use std::fs::{ read_to_string, OpenOptions };
 use anyhow::{ anyhow, Context, Result };
 use log::{ info };
 use procfs::{ CpuInfo, Meminfo };
-
+use clap::arg_enum;
 use printnanny_api_client::apis::configuration::{ Configuration };
 use printnanny_api_client::apis::devices_api::{
     devices_tasks_status_create,
@@ -26,7 +26,6 @@ use printnanny_api_client::models::{
 };
 use crate::paths::{ PrintNannyPath };
 
-
 #[derive(Debug, Clone)]
 pub struct PrintNannyService {
     pub api_config: Configuration,
@@ -35,10 +34,62 @@ pub struct PrintNannyService {
     pub paths: PrintNannyPath,
 }
 
+arg_enum!{
+    #[derive(PartialEq, Debug, Clone)]
+    pub enum ApiModel{
+        Device,
+        License,
+    }
+}
+
+arg_enum!{
+    #[derive(PartialEq, Debug, Clone)]
+    pub enum ApiAction{
+        Create,
+        Get,
+        PartialUpdate,
+        Update,
+        Delete,
+    }
+}
+
+async fn device_api(config: &str, save: &bool, action: &ApiAction) -> Result<String> {
+    let service = PrintNannyService::new(&config)?;
+    match action {
+        ApiAction::Get => {
+            match save {
+                true => Ok(service.refresh_device_json().await?),
+                false => Ok(service.read_device_json().await?)
+            }
+        },
+        _ => unimplemented!()
+    }
+}
+
+async fn license_api(config: &str, save: &bool, action: &ApiAction) -> Result<String>{
+    let service = PrintNannyService::new(&config)?;
+    match action {
+        ApiAction::Get => {
+            match save {
+                true => Ok(service.refresh_license_json().await?),
+                false => Ok(service.read_license_json().await?)
+            }
+        },
+        _ => unimplemented!()
+    }
+}
+
+pub async fn printnanny_api_call(config_dir: &str, save: &bool, action: &ApiAction, model: &ApiModel) -> Result<String> {
+    match model {
+        ApiModel::Device => Ok(device_api(config_dir, save, action).await?),
+        ApiModel::License => Ok(license_api(config_dir, save, action).await?)
+    }
+}
+
 impl PrintNannyService {
 
-    pub fn new(install_dir: &str) -> Result<PrintNannyService>{
-        let paths = PrintNannyPath::from(install_dir);
+    pub fn new(config_dir: &str) -> Result<PrintNannyService>{
+        let paths = PrintNannyPath::from(config_dir);
         // read device json from disk
         let device = serde_json::from_str::<Device>(
             &read_to_string(paths.device_json.clone())
