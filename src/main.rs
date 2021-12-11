@@ -63,7 +63,7 @@ async fn main() -> Result<()> {
                 .default_value("janus.plugin.echotest,janus.plugin.streaming")
                     )
             .arg(Arg::with_name("token")
-                .hide_default_value(true)
+                .hide_env_values(true)
                 .long("token")
                 .takes_value(true)
                 .required_ifs(&[
@@ -75,7 +75,7 @@ async fn main() -> Result<()> {
                 .env("JANUS_TOKEN")
             )
             .arg(Arg::with_name("admin_secret")
-                .hide_default_value(true)
+                .hide_env_values(true)
                 .long("adminsecret")
                 .takes_value(true)
                 .required_ifs(&[
