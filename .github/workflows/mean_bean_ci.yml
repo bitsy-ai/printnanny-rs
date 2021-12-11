@@ -1,6 +1,11 @@
 name: Mean Bean CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+      - devel
+  pull_request:
 
 jobs:
   # This job downloads and stores `cross` as an artifact, so that it can be
