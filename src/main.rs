@@ -2,8 +2,14 @@ use anyhow::{ Result };
 use std::process::{Command, Stdio};
 use env_logger::Builder;
 use log::LevelFilter;
-use clap::{ Arg, App, AppSettings, SubCommand, value_t };
+use clap::{ 
+    Arg, App, AppSettings, SubCommand, 
+    value_t, crate_version, crate_authors, crate_description
+};
+use std::convert::TryInto;
+
 // use printnanny::mqtt:: { MQTTWorker };
+use printnanny::janus::JanusAdminEndpoint;
 use printnanny::license:: { activate_license };
 use printnanny::service::{ printnanny_api_call, ApiModel, ApiAction };
 
@@ -12,12 +18,11 @@ use printnanny::service::{ printnanny_api_call, ApiModel, ApiAction };
 async fn main() -> Result<()> {
     let mut builder = Builder::new();
     let app_name = "printnanny";
-    
     let app = App::new(app_name)
-        .version("0.5.1")
+        .version(crate_version!())
         .setting(AppSettings::SubcommandRequiredElseHelp)
-        .author("Leigh Johnson <leigh@bitsy.ai>")
-        .about("Official Print Nanny CLI https://print-nanny.com")
+        .author(crate_authors!())
+        .about(crate_description!())
         .arg(Arg::with_name("v")
         .short("v")
         .multiple(true)
@@ -33,87 +38,68 @@ async fn main() -> Result<()> {
             .about("Activate license and send device info to Print Nanny API"))
         // janus-admin
         .subcommand(SubCommand::with_name("janus-admin")
-            .setting(AppSettings::SubcommandRequiredElseHelp)
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token")
             .arg(Arg::with_name("host")
             .long("host")
             .short("h")
             .takes_value(true)
             .default_value("localhost:8088"))
-            // add-token
-            .subcommand(SubCommand::with_name("add-token")
-                .about("Add memory-stored token")
-                .arg(Arg::with_name("admin_secret")
-                    .long("admin-secret")
-                    .takes_value(true)
-                    .required(true)
-                )
-                .arg(Arg::with_name("token")
-                    .long("token")
-                    .takes_value(true)
-                    .required(true)
-                )
-                .arg(Arg::with_name("plugins")
-                    .long("plugins")
-                    .takes_value(true)
-                    .required(true)
-                    .use_delimiter(true)
-                    .help("Comma-separated list of plugins used to scope token access. E.g janus.plugin.streaming,janus.plugin.videoroom")
-                    .default_value("janus.plugin.echotest,janus.plugin.streaming")
-                )
+            .arg(Arg::with_name("endpoint")
+                .possible_values(&JanusAdminEndpoint::variants())
+                .help("Janus admin/monitoring API endpoint")
+                .default_value("janus.plugin.echotest,janus.plugin.streaming")
+                .case_insensitive(true)
+            ) 
+            .arg(Arg::with_name("plugins")
+                .long("plugins")
+                .takes_value(true)
+                .required_ifs(&[
+                    ("endpoint", "addtoken"),
+                    ("endpoint", "AddToken"),
+                ])
+                .use_delimiter(true)
+                .help("Comma-separated list of plugins used to scope token access.")
+                .default_value("janus.plugin.echotest,janus.plugin.streaming")
             )
-            // list tokens
-            .subcommand(SubCommand::with_name("list-tokens")
-                .about("List tokens stored in memory")
-                .arg(Arg::with_name("admin_secret")
+            .arg(Arg::with_name("token")
+                .long("token")
+                .takes_value(true)
+                .required_ifs(&[
+                    ("endpoint", "addtoken"),
+                    ("endpoint", "AddToken"),
+                    ("endpoint", "removetoken"),
+                    ("endpoint", "RemoveToken")
+                ])
+            )
+            .arg(Arg::with_name("admin_secret")
                 .long("admin-secret")
                 .takes_value(true)
-                .required(true)
-                ))
-            // remove token
-            .subcommand(SubCommand::with_name("remove-token")
-                .about("Remove stored in memory without restarting Janus service")
-                .arg(Arg::with_name("admin_secret")
-                .long("admin-secret")
-                .takes_value(true)
-                .required(true)
-                ))
-            )
-            // ping & info
-            .subcommand(SubCommand::with_name("info"))
-            .subcommand(SubCommand::with_name("ping"))
-
-            .subcommand(SubCommand::with_name("test-stun"))
+                .required_ifs(&[
+                    ("endpoint", "addtoken"),
+                    ("endpoint", "AddToken"),
+                    ("endpoint", "removetoken"),
+                    ("endpoint", "RemoveToken"),
+                    ("endpoint", "listtokens"),
+                    ("endpoint", "ListTokens"),
+                ])
+            ))
         // api endpoints (used by ansible facts.d)
         .subcommand(SubCommand::with_name("api")
             .about("Retrieve Print Nanny REST API JSON responses")
             .arg(Arg::with_name("action")
-                .long("action")
-                .short("a")
-                .takes_value(true)
-                // possible values is case-sensitive
-                // https://github.com/clap-rs/clap/issues/891#issuecomment-285545880
                 .possible_values(&ApiAction::variants())
                 .case_insensitive(true)
-                //.possible_value("create")
-                //.possible_value("update")
-                //.possible_value("delete")
+            )
+            // model
+            .arg(Arg::with_name("model")
+                .possible_values(&ApiModel::variants())
+                .case_insensitive(true)
             )
             .arg(Arg::with_name("save")
                 .long("save")
                 .takes_value(false)
                 .required(false)
-                .help("Cache API response to /opt/printnanny/data (requires filesystem write permission)"))
-            // model
-            .arg(Arg::with_name("model")
-                .long("model")
-                .short("m")
-                .takes_value(true)
-                // possible values is case-sensitive
-                // https://github.com/clap-rs/clap/issues/891#issuecomment-285545880
-                .possible_values(&ApiModel::variants())
-                .case_insensitive(true)
-            ))
+                .help("Cache API response to /opt/printnanny/data (requires filesystem write permission)")))
         // run system updates
         .subcommand(SubCommand::with_name("system-update")
         .about("Update Print Nanny software"))
