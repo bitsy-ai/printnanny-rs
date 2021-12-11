@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use rand::{thread_rng, Rng};
 use rand::distributions::Alphanumeric;
 
-use anyhow::{ Result };
+use anyhow::{ Result, anyhow };
+use log::{ debug };
 use clap::arg_enum;
 use reqwest;
 
@@ -42,29 +43,55 @@ pub struct JanusAdminService {
     pub token: Option<String>,
 }
 
-pub async fn janus_admin_api_call(host: String, endpoint: JanusAdminEndpoint, token: Option<String>, admin_secret: Option<String>) -> Result<String> {
-    let action = endpoint.to_action();
+fn validate_request_field(endpoint: &JanusAdminEndpoint, field: &str, value: Option<String>) -> Result<String> {
+    match value {
+        Some(t) => Ok(t),
+        None => Err(anyhow!("{} is required by {}", field, endpoint))
+    }
+}
+
+fn build_request_body(endpoint: &JanusAdminEndpoint, token: Option<String>, admin_secret: Option<String>) -> Result<HashMap<String, String>> {
     let transaction: String = thread_rng()
         .sample_iter(&Alphanumeric)
         .take(30)
         .map(char::from)
         .collect();
-    let client = reqwest::Client::new();
+    let action = endpoint.to_action();
     let mut map = HashMap::new();
-    map.insert("transaction", &transaction);
-    map.insert("janus", &action);
+    map.insert(String::from("transaction"), transaction);
+    map.insert(String::from("janus"), action);
+    debug!("Building Janus Admin API {} request body {:?}", &endpoint, &map);
     match endpoint {
-        JanusAdminEndpoint::Ping => {
-            let body = client.post(host)
-                .json(&map)
-                .send()
-                .await?
-                .text()
-                .await?;
-            Ok(body)
+        JanusAdminEndpoint::AddToken => {
+            map.insert(String::from("token"), validate_request_field(&endpoint, "token", token)?);
+            map.insert(String::from("admin_secret"), validate_request_field(&endpoint, "admin_secret", admin_secret)?);
         },
-        _ => {Ok("null".to_string())}
-    }
+        JanusAdminEndpoint::RemoveToken => {
+            map.insert(String::from("token"), validate_request_field(&endpoint, "token", token)?);
+            map.insert(String::from("admin_secret"), validate_request_field(&endpoint, "admin_secret", admin_secret)?);
+        },
+        JanusAdminEndpoint::ListTokens => {
+            map.insert(String::from("admin_secret"), validate_request_field(&endpoint, "admin_secret", token)?);
+        }
+        JanusAdminEndpoint::TestStun => {
+            map.insert(String::from("admin_secret"), validate_request_field(&endpoint, "admin_secret", token)?);
+        }
+        _ => {}
+    };
+    Ok(map)
+}
+
+pub async fn janus_admin_api_call(host: String, endpoint: JanusAdminEndpoint, token: Option<String>, admin_secret: Option<String>) -> Result<String> {
+
+    let body = build_request_body(&endpoint, token, admin_secret)?;
+    let client = reqwest::Client::new();
+    let res = client.post(host)
+        .json(&body)
+        .send()
+        .await?
+        .text()
+        .await?;
+    Ok(res)
 }
 
 impl JanusAdminService {
