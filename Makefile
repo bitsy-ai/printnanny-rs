@@ -5,10 +5,12 @@ TMP_DIR ?= .tmp
 $(TMP_DIR):
 	mkdir -p $(TMP_DIR)
 
-license:
+test-license:
 	./tools/download-license.sh
+
 clean:
 	rm -rf $(TMP_DIR)
+
 images:
 	docker build \
 		-f docker/aarch64-unknown-linux-gnu.Dockerfile \
@@ -25,11 +27,6 @@ images:
 		-t bitsyai/cross:x86_64-unknown-linux-gnu-$(VERSION) \
 		docker
 	docker push bitsyai/cross:x86_64-unknown-linux-gnu-$(VERSION)
-
-run-local: $(TMP_DIR)
-	PRINTNANNY_GCP_PROJECT=print-nanny-sandbox \
-	cargo run -- -vv --config=$(PWD)/$(TMP_DIR) $(ARGS)
-
 
 $(TMP_DIR)/printnanny_license.zip:
 	PRINTNANNY_INSTALL_DIR=$(TMP_DIR) ./tools/download-license.sh
