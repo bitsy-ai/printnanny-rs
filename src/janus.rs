@@ -1,5 +1,9 @@
 
-use anyhow::{ Result,  anyhow };
+use std::collections::HashMap;
+use rand::{thread_rng, Rng};
+use rand::distributions::Alphanumeric;
+
+use anyhow::{ Result };
 use clap::arg_enum;
 use reqwest;
 
@@ -18,17 +22,17 @@ arg_enum!{
 
 impl JanusAdminEndpoint {
 
-    pub fn to_url(&self, host: &str) -> String {
-        let endpoint = match self {
-            JanusAdminEndpoint::GetStatus => "/admin/get_status",
-            JanusAdminEndpoint::Info => "/admin/info",
-            JanusAdminEndpoint::Ping => "/admin/ping",
-            JanusAdminEndpoint::AddToken => "/admin/add_token",
-            JanusAdminEndpoint::RemoveToken => "/admin/remove_token",
-            JanusAdminEndpoint::ListTokens => "/admin/list_tokens",
-            JanusAdminEndpoint::TestStun => "/admin/test_stun",
+    pub fn to_action(&self) -> String {
+        let action = match self {
+            JanusAdminEndpoint::GetStatus => "get_status",
+            JanusAdminEndpoint::Info => "info",
+            JanusAdminEndpoint::Ping => "ping",
+            JanusAdminEndpoint::AddToken => "add_token",
+            JanusAdminEndpoint::RemoveToken => "remove_token",
+            JanusAdminEndpoint::ListTokens => "list_tokens",
+            JanusAdminEndpoint::TestStun => "test_stun",
         };
-        format!("{}{}", host, endpoint)
+        format!("{}", action)
     }
 }
 #[derive(Debug, Clone)]
@@ -38,19 +42,29 @@ pub struct JanusAdminService {
     pub token: Option<String>,
 }
 
-pub async fn janus_admin_api_call(host: String, endpoint: JanusAdminEndpoint, token: Option<String>, admin_secret: Option<String>) -> Result<()> {
-    let url = endpoint.to_url(&host);
-    let res = match endpoint {
+pub async fn janus_admin_api_call(host: String, endpoint: JanusAdminEndpoint, token: Option<String>, admin_secret: Option<String>) -> Result<String> {
+    let action = endpoint.to_action();
+    let transaction: String = thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(30)
+        .map(char::from)
+        .collect();
+    let client = reqwest::Client::new();
+    let mut map = HashMap::new();
+    map.insert("transaction", &transaction);
+    map.insert("janus", &action);
+    match endpoint {
         JanusAdminEndpoint::Ping => {
-            let body = reqwest::get(url)
+            let body = client.post(host)
+                .json(&map)
+                .send()
                 .await?
                 .text()
                 .await?;
-            println!("{}", body)
+            Ok(body)
         },
-        _ => {}
-    };
-    Ok(())
+        _ => {Ok("null".to_string())}
+    }
 }
 
 impl JanusAdminService {

@@ -45,7 +45,7 @@ async fn main() -> Result<()> {
                 .long("host")
                 .short("h")
                 .takes_value(true)
-                .default_value("http://localhost:8088"))
+                .default_value("http://localhost:7088/admin"))
             .arg(Arg::with_name("endpoint")
                 .possible_values(&JanusAdminEndpoint::variants())
                 .help("Janus admin/monitoring API endpoint")
@@ -158,6 +158,7 @@ async fn main() -> Result<()> {
                 token.map(|s| s.into()),
                 admin_secret.map(|s| s.into()),
             ).await?;
+            println!("{}", res);
 
         },
         ("system-update", Some(_sub_m)) => {
