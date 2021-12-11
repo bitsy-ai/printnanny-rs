@@ -78,17 +78,17 @@ async fn license_api(config: &str, save: &bool, action: &ApiAction) -> Result<St
     }
 }
 
-pub async fn printnanny_api_call(config_dir: &str, save: &bool, action: &ApiAction, model: &ApiModel) -> Result<String> {
+pub async fn printnanny_api_call(config: &str, save: &bool, action: &ApiAction, model: &ApiModel) -> Result<String> {
     match model {
-        ApiModel::Device => Ok(device_api(config_dir, save, action).await?),
-        ApiModel::License => Ok(license_api(config_dir, save, action).await?)
+        ApiModel::Device => Ok(device_api(config, save, action).await?),
+        ApiModel::License => Ok(license_api(config, save, action).await?)
     }
 }
 
 impl PrintNannyService {
 
-    pub fn new(config_dir: &str) -> Result<PrintNannyService>{
-        let paths = PrintNannyPath::from(config_dir);
+    pub fn new(config: &str) -> Result<PrintNannyService>{
+        let paths = PrintNannyPath::from(config);
         // read device json from disk
         let device = serde_json::from_str::<Device>(
             &read_to_string(paths.device_json.clone())

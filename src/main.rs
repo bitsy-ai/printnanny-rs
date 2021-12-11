@@ -1,15 +1,16 @@
+use std::convert::TryInto;
+use std::process::{ Command, Stdio };
+
 use anyhow::{ Result };
-use std::process::{Command, Stdio};
 use env_logger::Builder;
 use log::LevelFilter;
 use clap::{ 
     Arg, App, AppSettings, SubCommand, 
     value_t, crate_version, crate_authors, crate_description
 };
-use std::convert::TryInto;
 
 // use printnanny::mqtt:: { MQTTWorker };
-use printnanny::janus::JanusAdminEndpoint;
+use printnanny::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny::license:: { activate_license };
 use printnanny::service::{ printnanny_api_call, ApiModel, ApiAction };
 
@@ -18,6 +19,7 @@ use printnanny::service::{ printnanny_api_call, ApiModel, ApiAction };
 async fn main() -> Result<()> {
     let mut builder = Builder::new();
     let app_name = "printnanny";
+
     let app = App::new(app_name)
         .version(crate_version!())
         .setting(AppSettings::SubcommandRequiredElseHelp)
@@ -36,14 +38,14 @@ async fn main() -> Result<()> {
         // activate
         .subcommand(SubCommand::with_name("activate")
             .about("Activate license and send device info to Print Nanny API"))
-        // janus-admin
+        // janusadmin
         .subcommand(SubCommand::with_name("janus-admin")
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token")
             .arg(Arg::with_name("host")
-            .long("host")
-            .short("h")
-            .takes_value(true)
-            .default_value("localhost:8088"))
+                .long("host")
+                .short("h")
+                .takes_value(true)
+                .default_value("http://localhost:8088"))
             .arg(Arg::with_name("endpoint")
                 .possible_values(&JanusAdminEndpoint::variants())
                 .help("Janus admin/monitoring API endpoint")
@@ -58,10 +60,11 @@ async fn main() -> Result<()> {
                     ("endpoint", "AddToken"),
                 ])
                 .use_delimiter(true)
-                .help("Comma-separated list of plugins used to scope token access.")
+                .help("Commaseparated list of plugins used to scope token access.")
                 .default_value("janus.plugin.echotest,janus.plugin.streaming")
-            )
+                    )
             .arg(Arg::with_name("token")
+                .hide_default_value(true)
                 .long("token")
                 .takes_value(true)
                 .required_ifs(&[
@@ -70,9 +73,11 @@ async fn main() -> Result<()> {
                     ("endpoint", "removetoken"),
                     ("endpoint", "RemoveToken")
                 ])
+                .env("JANUS_TOKEN")
             )
             .arg(Arg::with_name("admin_secret")
-                .long("admin-secret")
+                .hide_default_value(true)
+                .long("adminsecret")
                 .takes_value(true)
                 .required_ifs(&[
                     ("endpoint", "addtoken"),
@@ -82,6 +87,7 @@ async fn main() -> Result<()> {
                     ("endpoint", "listtokens"),
                     ("endpoint", "ListTokens"),
                 ])
+                .env("JANUS_ADMIN_SECRET")
             ))
         // api endpoints (used by ansible facts.d)
         .subcommand(SubCommand::with_name("api")
@@ -106,11 +112,13 @@ async fn main() -> Result<()> {
         // mqtt <subscribe|publish>
         .subcommand(SubCommand::with_name("mqtt")
             .about("Publish or subscribe to MQTT messages")
-        );  
+        );
+    
+    
     let app_m = app.get_matches();
 
     // Vary the output based on how many times the user used the "verbose" flag
-    // (i.e. 'printnanny -v -v -v' or 'printnanny -vvv' vs 'printnanny -v'
+    // (i.e. 'printnanny v v v' or 'printnanny vvv' vs 'printnanny v'
     let verbosity = app_m.occurrences_of("v");
     match verbosity {
         0 => builder.filter_level(LevelFilter::Warn).init(),
@@ -139,10 +147,23 @@ async fn main() -> Result<()> {
             print!("{}", jsonstr)
 
         },
+        ("janus-admin", Some(sub_m)) => {
+            let endpoint = value_t!(sub_m, "endpoint", JanusAdminEndpoint).unwrap_or_else(|e| e.exit());
+            let token = sub_m.value_of("token");
+            let admin_secret = sub_m.value_of("admin_secret");
+            let host = sub_m.value_of("host").unwrap();
+            let res = janus_admin_api_call(
+                host.to_string(), 
+                endpoint,
+                token.map(|s| s.into()),
+                admin_secret.map(|s| s.into()),
+            ).await?;
+
+        },
         ("system-update", Some(_sub_m)) => {
             let mut cmd =
             Command::new("systemctl")
-            .args(&["start", "printnanny-updater"])
+            .args(&["start", "printnannyupdater"])
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .spawn()

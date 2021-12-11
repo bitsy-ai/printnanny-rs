@@ -1280,6 +1280,7 @@ dependencies = [
  "predicates 2.1.0",
  "printnanny-api-client",
  "procfs",
+ "reqwest",
  "rumqttc",
  "rustls",
  "rustls-pemfile",
