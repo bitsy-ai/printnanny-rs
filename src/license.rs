@@ -1,4 +1,5 @@
 use anyhow::{ Result,  anyhow };
+use log:: { error, info };
 use printnanny_api_client::models::{ 
     Device,
     TaskStatusType,
@@ -40,20 +41,24 @@ pub async fn activate_license(base_dir: &str) -> Result<()>{
     let activate_result = service.activate_license().await;
     
     match activate_result {
-        Ok(_) => {
+        Ok(result) => {
+            let msg = msgs::LICENSE_ACTIVATE_SUCCESS_MSG.to_string();
+            info!("{} {:?}", msg, result);
             service.update_task_status(
                 &last_task,
                 Some(TaskStatusType::Success),
-                Some(msgs::LICENSE_ACTIVATE_SUCCESS_MSG.to_string()),
+                Some(msg),
                 Some(msgs::LICENSE_ACTIVATE_SUCCESS_HELP.to_string())
             ).await?;
             service.device_info_update_or_create().await?;
         },
         Err(e) => {
+            let msg = format!("{} {:?}", msgs::LICENSE_ACTIVATE_FAILED_MSG.to_string(), e);
+            error!("{}", msg);
             service.update_task_status(
                 &last_task,
                 Some(TaskStatusType::Failed),
-                Some(format!("{} {:?}", msgs::LICENSE_ACTIVATE_FAILED_MSG.to_string(), e)),
+                Some(msg),
                 Some(msgs::LICENSE_ACTIVATE_FAILED_HELP.to_string())
             ).await?; 
         }
