@@ -71,13 +71,19 @@ fn build_request_body(endpoint: &JanusAdminEndpoint, token: Option<String>, admi
             map.insert(String::from("admin_secret"), validate_request_field(&endpoint, "admin_secret", admin_secret)?);
         },
         JanusAdminEndpoint::ListTokens => {
-            map.insert(String::from("admin_secret"), validate_request_field(&endpoint, "admin_secret", token)?);
+            map.insert(String::from("admin_secret"), validate_request_field(&endpoint, "admin_secret", admin_secret)?);
+        },
+        JanusAdminEndpoint::GetStatus => {
+            map.insert(String::from("token"), validate_request_field(&endpoint, "token", token)?);
+            map.insert(String::from("admin_secret"), validate_request_field(&endpoint, "admin_secret", admin_secret)?);
         }
         JanusAdminEndpoint::TestStun => {
-            map.insert(String::from("admin_secret"), validate_request_field(&endpoint, "admin_secret", token)?);
+            map.insert(String::from("admin_secret"), validate_request_field(&endpoint, "admin_secret", admin_secret)?);
         }
         _ => {}
     };
+    debug!("Building Janus Admin API {} request body {:?}", &endpoint, &map);
+
     Ok(map)
 }
 

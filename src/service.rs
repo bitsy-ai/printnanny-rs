@@ -151,9 +151,14 @@ impl PrintNannyService {
     }
 
     pub async fn check_license(&self) -> Result<License>{
+        let hostname = sys_info::hostname()?;
         let device_id = self.device.id;
         let active_license = devices_active_license_retrieve(&self.api_config, device_id).await
             .context(format!("Failed to retrieve device with id={}", device_id))?;
+        
+        // if device_id != active_license.device.id {
+        //     return Err(anyhow!("License fingerprint {} did not match Device.active_license for device with id={}", self.license.fingerprint, device_id))
+        // }
         
         if active_license.fingerprint == self.license.fingerprint {
             Ok(active_license)

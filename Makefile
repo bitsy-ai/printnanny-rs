@@ -2,11 +2,14 @@
 VERSION ?= 0.2.1
 TMP_DIR ?= .tmp
 
+
+$(TMP_DIR)/printnanny_license.zip:
+	PRINTNANNY_INSTALL_DIR=$(TMP_DIR) ./tools/download-license.sh
+
 $(TMP_DIR):
 	mkdir -p $(TMP_DIR)
 
-test-license:
-	./tools/download-license.sh
+test-license: $(TMP_DIR)/printnanny_license.zip
 
 clean:
 	rm -rf $(TMP_DIR)
@@ -27,6 +30,3 @@ images:
 		-t bitsyai/cross:x86_64-unknown-linux-gnu-$(VERSION) \
 		docker
 	docker push bitsyai/cross:x86_64-unknown-linux-gnu-$(VERSION)
-
-$(TMP_DIR)/printnanny_license.zip:
-	PRINTNANNY_INSTALL_DIR=$(TMP_DIR) ./tools/download-license.sh

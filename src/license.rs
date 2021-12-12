@@ -1,7 +1,6 @@
 use anyhow::{ Result,  anyhow };
 use printnanny_api_client::models::{ 
     Device,
-    License,
     TaskStatusType,
     TaskType,
 };
