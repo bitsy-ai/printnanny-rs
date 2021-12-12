@@ -156,10 +156,19 @@ impl PrintNannyService {
         let active_license = devices_active_license_retrieve(&self.api_config, device_id).await
             .context(format!("Failed to retrieve device with id={}", device_id))?;
         
-        // if device_id != active_license.device.id {
-        //     return Err(anyhow!("License fingerprint {} did not match Device.active_license for device with id={}", self.license.fingerprint, device_id))
-        // }
+        let remote_device = active_license.device.as_ref().unwrap();
         
+        // device id mismatch (usually indicates wrong printnanny_license.zip copied)
+        if device_id != remote_device.id {
+            return Err(anyhow!("Device id mismatch {} {}", &device_id, &remote_device.id))
+        }
+
+        // hostname mismatch (usually indicates wrong printnanny_license.zip copied)
+        let remote_hostname = remote_device.hostname.as_ref().unwrap().to_string();
+        if hostname != remote_hostname {
+            return Err(anyhow!("Device id mismatch {} {}", hostname, remote_hostname))
+        }
+
         if active_license.fingerprint == self.license.fingerprint {
             Ok(active_license)
         } else {
