@@ -15,9 +15,7 @@ use printnanny_api_client::apis::devices_api::{
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct KeyPair {
     pub public_key_path: PathBuf,
-    pub public_key_checksum: String,
     private_key_path: PathBuf,
-    private_key_checksum: String,
     pub ca_certs_path: PathBuf,
     pub ca_certs_checksum: String,
     pub backup_ca_certs_path: PathBuf,
