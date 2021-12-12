@@ -1,7 +1,6 @@
 use anyhow::{ Result,  anyhow };
 use printnanny_api_client::models::{ 
     Device,
-    License,
     TaskStatusType,
     TaskType,
 };
@@ -50,51 +49,14 @@ pub async fn activate_license(base_dir: &str) -> Result<()>{
             ).await?;
             service.device_info_update_or_create().await?;
         },
-        Err(_) => {
+        Err(e) => {
             service.update_task_status(
                 &last_task,
                 Some(TaskStatusType::Failed),
-                Some(msgs::LICENSE_ACTIVATE_FAILED_MSG.to_string()),
+                Some(format!("{} {:?}", msgs::LICENSE_ACTIVATE_FAILED_MSG.to_string(), e)),
                 Some(msgs::LICENSE_ACTIVATE_FAILED_HELP.to_string())
             ).await?; 
         }
     }
     Ok(())
-}
-
-pub async fn check_license(base_dir: &str) -> Result<License>{
-    let service = PrintNannyService::new(base_dir)?;
-
-
-    check_task_type(&service.device, TaskType::ActivateLicense)?;
-    let last_task = service.device.last_task.as_ref().unwrap();
-    
-    service.update_task_status(
-        &last_task,
-        Some(TaskStatusType::Started),
-        Some(msgs::LICENSE_ACTIVATE_STARTED_MSG.to_string()),
-        None
-    ).await?;
-    let activate_result = service.activate_license().await;
-    
-    match activate_result {
-        Ok(_) => {
-            service.update_task_status(
-                &last_task,
-                Some(TaskStatusType::Success),
-                Some(msgs::LICENSE_ACTIVATE_SUCCESS_MSG.to_string()),
-                Some(msgs::LICENSE_ACTIVATE_SUCCESS_HELP.to_string())
-            ).await?;
-            service.device_info_update_or_create().await?;
-        },
-        Err(_) => {
-            service.update_task_status(
-                &last_task,
-                Some(TaskStatusType::Failed),
-                Some(msgs::LICENSE_ACTIVATE_FAILED_MSG.to_string()),
-                Some(msgs::LICENSE_ACTIVATE_FAILED_HELP.to_string())
-            ).await?; 
-        }
-    }
-    Ok(service.license)
 }
