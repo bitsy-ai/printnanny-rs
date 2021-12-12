@@ -8,9 +8,9 @@ use clap::{
     value_t, crate_version, crate_authors, crate_description
 };
 
-// use printnanny::mqtt:: { MQTTWorker };
 use printnanny::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny::license:: { activate_license };
+use printnanny::mqtt::{ MQTTWorker };
 use printnanny::service::{ printnanny_api_call, ApiModel, ApiAction };
 
 
@@ -129,11 +129,11 @@ async fn main() -> Result<()> {
     let config = app_m.value_of("config").unwrap();
     
     match app_m.subcommand() {
-        // ("mqtt", Some(_sub_m)) => {
-        //     let worker = MQTTWorker::new().await?;
-        //     // worker.run().await?;
-        //     worker.run().await?;
-        // },
+        ("mqtt", Some(_sub_m)) => {
+            let worker = MQTTWorker::new(&config).await?;
+            // println!("{:?}", worker);
+            worker.run().await?;
+        },
         ("activate", Some(_sub_m)) => {
             activate_license(&config).await?;
         },

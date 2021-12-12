@@ -1,15 +1,17 @@
 use std::convert::TryFrom;
-use std::fs::File;
-use std::io::BufReader;
+use std::fs;
+use std::path::{ PathBuf };
+use std::time::Duration;
 
 use chrono;
-use rumqttc::{MqttOptions, AsyncClient, QoS, Transport, TlsConfiguration };
-use anyhow::{ anyhow, Context, Result };
-use log::{ error };
+use rumqttc::{MqttOptions, AsyncClient, QoS, Transport };
+use anyhow::{ Context, Result };
 use serde::{Serialize, Deserialize};
 use jsonwebtoken::{encode, Header, Algorithm, EncodingKey};
-use crate::config::DeviceInfo;
-use crate::keypair::KeyPair;
+
+use printnanny_api_client::models::{ CloudiotDevice };
+use crate::paths::PrintNannyPath;
+use crate::service::PrintNannyService;
 
 /// Our claims struct, it needs to derive `Serialize` and/or `Deserialize`
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -21,88 +23,76 @@ struct Claims {
 
 #[derive(Debug, Clone)]
 pub struct MQTTWorker {
+    service: PrintNannyService,
     claims: Claims,
-    desired_config_topic: String,
+    config_topic: String,
+    task_topic: String,
     mqttoptions: MqttOptions, 
 }
 
-fn encode_jwt(keypair: &KeyPair, claims: &Claims) -> Result<String> {
-    let key = EncodingKey::from_ec_pem(&keypair.read_private_key()?)
-        .context(format!("Failed to encode EC pem from {:#?}", &keypair))?;
+fn encode_jwt(keypath: &PathBuf, claims: &Claims) -> Result<String> {
+    let contents = fs::read(keypath)
+        .context(format!("Failed to read file {:?}", keypath))?;
+    let key = EncodingKey::from_ec_pem(&contents)
+        .context(format!("Failed to encode EC pem from {:#?}", &keypath))?;
     let result = encode(&Header::new(Algorithm::ES256), &claims, &key)?;
     Ok(result)
 }
 
 impl MQTTWorker {
 
-    pub async fn new() -> Result<MQTTWorker> {
-        let mut config = DeviceInfo::new()?;
-        config = config.refresh().await?;
-        if config.device.is_some() || config.keypair.is_some(){
-            let device = config.device.unwrap();
-            let cloudiot_device = device.cloudiot_device.unwrap();
-            let desired_config_topic = cloudiot_device.desired_config_topic.unwrap();
-            let keypair = config.keypair.unwrap();
+    fn mqttoptions(cloudiot_device: &CloudiotDevice, paths: &PrintNannyPath, token: &str) -> Result<MqttOptions> {
+        let mqtt_port = u16::try_from(cloudiot_device.mqtt_bridge_port)?;
 
-            let mqtt_hostname = cloudiot_device.mqtt_bridge_hostname.as_ref().unwrap().to_string();
-            let mqtt_port = u16::try_from(*cloudiot_device.mqtt_bridge_port.as_ref().unwrap())?;
-            let mqtt_client_id = cloudiot_device.mqtt_client_id.as_ref().unwrap().to_string();
-    
-            let iat = chrono::offset::Utc::now().timestamp(); // issued at (seconds since epoch)
-            let exp = iat + 86400; // 24 hours later
-            let claims = Claims { iat: iat, exp: exp, aud: config.gcp_project };
-            let token = encode_jwt(&keypair, &claims)?;
+        let mut mqttoptions = MqttOptions::new(
+            &cloudiot_device.mqtt_client_id, 
+            &cloudiot_device.mqtt_bridge_hostname,
+            mqtt_port
+        );
+        mqttoptions.set_keep_alive(Duration::new(5, 0));
+        mqttoptions.set_credentials("unused", &token);
 
-            let mut mqttoptions = MqttOptions::new(
-                &mqtt_client_id, 
-                &mqtt_hostname,
-                mqtt_port
-            );
-            mqttoptions.set_keep_alive(5);
-            mqttoptions.set_credentials("unused", &token);
+        let mut roots = rustls::RootCertStore::empty();
 
-            // configure tls
-            let mut roots = rustls::RootCertStore::empty();
-            let file = File::open(&keypair.ca_certs_path)
-                .context(format!("Failed to read file {:?}", &keypair.ca_certs_path))?;
+        let root_ca_bytes =  std::fs::read(&paths.ca_cert)
+            .context(format!("Failed to read file {:?}", &paths.ca_cert))?;
 
-            let mut bufreader = BufReader::new(file);
-            let certs = rustls_pemfile::read_all(&mut bufreader)?;
-            for cert in certs {
-                match cert {
-                    rustls_pemfile::Item::X509Certificate(bytes) => roots.add(&rustls::Certificate(bytes)),
-                    other => {
-                        error!("Unrecognized root certificate format {:#?}", other);
-                        Ok(())
-                    }
-                }?;
-            };
+        let root_cert = rustls::Certificate(root_ca_bytes);
+        roots.add(&root_cert)?;
 
-            let mut rustls_client_config = rustls::ClientConfig::new();
-            rustls_client_config.root_store = roots;
-            rustls_client_config.versions = vec!(rustls::ProtocolVersion::TLSv1_2);
-            let mqtt_tls_config = TlsConfiguration::from(rustls_client_config);
-            mqttoptions.set_transport(Transport::tls_with_config(mqtt_tls_config));
+        let mut client_config = rumqttc::ClientConfig::new();
+        client_config.root_store = roots;
+        client_config.versions = vec!(rustls::ProtocolVersion::TLSv1_2);
+        mqttoptions.set_transport(Transport::tls_with_config(client_config.into()));
+        Ok(mqttoptions)
+    }
 
-            let result = MQTTWorker{
-                claims,
-                desired_config_topic,
-                mqttoptions
-            };
-            Ok(result)
-        } else {
-            Err(anyhow!("Device is not registered. Please run `printnanny setup` and try again."))
-        }
+    pub async fn new(config: &str) -> Result<MQTTWorker> {
+        let service = PrintNannyService::new(config)?;
+        let cloudiot_device = service.device.cloudiot_device.as_ref().unwrap();
+        let gcp_project_id: String = cloudiot_device.gcp_project_id.clone();
+
+        let iat = chrono::offset::Utc::now().timestamp(); // issued at (seconds since epoch)
+        let exp = iat + 86400; // 24 hours later
+        let claims = Claims { iat: iat, exp: exp, aud: gcp_project_id };
+        let token = encode_jwt(&service.paths.private_key, &claims)?;
+        let mqttoptions = MQTTWorker::mqttoptions(&cloudiot_device, &service.paths, &token)?;
+
+        let result = MQTTWorker{
+            service: service.clone(),
+            claims: claims,
+            config_topic: cloudiot_device.config_topic.clone(),
+            task_topic: cloudiot_device.task_topic.clone(),
+            mqttoptions: mqttoptions,
+        };
+        Ok(result)
     }
 
 
     pub async fn run(self) -> Result<()> {
-
-
-        
         let (client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 64);
-
-        client.subscribe(&self.desired_config_topic, QoS::AtLeastOnce).await.unwrap();
+        client.subscribe(&self.config_topic, QoS::AtLeastOnce).await.unwrap();
+        client.subscribe(&self.task_topic, QoS::AtLeastOnce).await.unwrap();
         loop {
             let notification = eventloop.poll().await.unwrap();
             println!("Received = {:?}", notification);

@@ -70,7 +70,10 @@ async fn license_api(config: &str, save: &bool, action: &ApiAction) -> Result<St
     match action {
         ApiAction::Get => {
             match save {
-                true => Ok(service.refresh_license_json().await?),
+                true => {
+                    service.refresh_license_json().await?;
+                    Ok(service.read_license_json().await?)
+                },
                 false => Ok(service.read_license_json().await?)
             }
         },
@@ -118,18 +121,23 @@ impl PrintNannyService {
         Ok(result)
     }
 
-    pub async fn refresh_device_json(&self) -> Result<String> {
+    pub async fn refresh_device(&self) -> Result<Device> {
         let device = devices_retrieve(&self.api_config, self.device.id).await?;
 
         // test serde_json serialization before truncating file
-        let result = self.read_device_json().await?;
+        self.read_device_json().await?;
 
         let file = OpenOptions::new()
             .write(true)
             .truncate(true)
             .open(&self.paths.device_json)?;
         serde_json::to_writer(&file, &device)?;
-        Ok(result)
+        Ok(device)
+    }
+
+    pub async fn refresh_device_json(&self) -> Result<String> {
+        self.refresh_device().await?;
+        Ok(self.read_device_json().await?)
     }
 
     pub async fn update_task_status(
@@ -183,23 +191,29 @@ impl PrintNannyService {
     }
 
 
-    pub async fn refresh_license_json(&self) -> Result<String> {
+    pub async fn refresh_license(&self) -> Result<License> {
         let license = self.check_license().await?;
 
         // test serde_json serialization before truncating file
-        let result = serde_json::to_string(&license)?;
+        serde_json::to_string(&license)?;
 
         let file = OpenOptions::new()
             .write(true)
             .truncate(true)
             .open(&self.paths.license_json)?;
         serde_json::to_writer(&file, &license)?;
-        Ok(result)
+        Ok(license)
     }
 
     pub async fn read_license_json(&self) -> Result<String> {
         let license = self.check_license().await?;
         let result = serde_json::to_string(&license)?;
+        Ok(result)
+    }
+
+    pub async fn refresh_license_json(&self) -> Result<String>{
+        self.refresh_license().await?;
+        let result = self.read_license_json().await?;
         Ok(result)
     }
 
