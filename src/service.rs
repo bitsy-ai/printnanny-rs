@@ -1,9 +1,13 @@
 use std::fs::{ read_to_string, OpenOptions };
+use std::convert::{ From, Into };
+
 use anyhow::{ anyhow, Context, Result };
+use clap::arg_enum;
 use log::{ info };
 use procfs::{ CpuInfo, Meminfo };
-use clap::arg_enum;
-use printnanny_api_client::apis::configuration::{ Configuration };
+use serde::{Serialize, Deserialize};
+
+use printnanny_api_client::apis::configuration::Configuration;
 use printnanny_api_client::apis::devices_api::{
     devices_tasks_status_create,
     devices_active_license_retrieve,
@@ -24,6 +28,36 @@ use printnanny_api_client::models::{
     TaskStatusType,
 };
 use crate::paths::{ PrintNannyPath };
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PrintNannyApiConfig {
+    pub bearer_access_token: String,
+    pub base_path: String,
+}
+
+impl From<Configuration> for PrintNannyApiConfig {
+    fn from(c: Configuration) -> Self {
+        let bearer_access_token = match c.bearer_access_token {
+            Some(t) => t,
+            None => panic!("Configuration.bearer_access_token is required")
+        };
+        let base_path = c.base_path;
+        PrintNannyApiConfig { 
+            bearer_access_token,
+            base_path
+        }
+    }
+}
+
+impl From<PrintNannyApiConfig> for Configuration {
+    fn from(c: PrintNannyApiConfig) -> Self {
+        Configuration{
+            bearer_access_token: Some(c.bearer_access_token),
+            base_path: c.base_path,
+            ..Configuration.defaults()
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct PrintNannyService {
