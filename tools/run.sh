@@ -2,6 +2,6 @@
 
 set +eu
 
-CONFIG="$PWD/.tmp/printnanny"
+CONFIG="$PWD/.tmp/test"
 
 cargo run -- -vv --config="$CONFIG" "$@"

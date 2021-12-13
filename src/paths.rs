@@ -1,11 +1,22 @@
 use std::path::{ PathBuf };
+use std::fs::{ OpenOptions };
 
-#[derive(Debug, Clone)]
+use anyhow::{ Result };
+use serde::{ Serialize, Deserialize };
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrintNannyPath {
     pub backups: PathBuf,
     pub base: PathBuf,
     pub data: PathBuf,
     pub ca_certs: PathBuf,
+
+    // this struct
+    pub paths_json: PathBuf,
+
+    // api config
+    pub api_config_json: PathBuf,
+
     // serialized representation contains the "kitchen sink" view of this device
     // with mutable fields and hierarchal/relationship fields serialized (but no guarantee of freshness in local cache)
     // https://github.com/bitsy-ai/printnanny-webapp/blob/55ead2ac638e243a8a5fe6bc046a0120eccd2c78/print_nanny_webapp/devices/api/serializers.py#L124
@@ -26,7 +37,7 @@ pub struct PrintNannyPath {
 }
 
 impl PrintNannyPath {
-    pub fn from(base_str: &str) -> Self {
+    pub fn new(base_str: &str) -> Self {
         let base = PathBuf::from(base_str);
  
         let backups = base.join("backups");
@@ -36,23 +47,39 @@ impl PrintNannyPath {
         let ca_cert_backup = ca_certs.join("GSR4.crt");
 
         let device_info_json = data.join("device_info.json");
+        let api_config_json = data.join("api_config.json");
+        let paths_json = data.join("paths.json");
+
         let device_json = data.join("device.json");
         let license_json = data.join("license.json");
         let private_key = data.join("ecdsa256_pkcs8.pem");
         let public_key = data.join("ecdsa_public.pem");
 
         Self { 
+            api_config_json: api_config_json,
             backups:backups,
             base: base,
-            ca_certs: ca_certs,
-            ca_cert: ca_cert,
             ca_cert_backup: ca_cert_backup,
+            ca_cert: ca_cert,
+            ca_certs: ca_certs,
             data: data,
             device_info_json: device_info_json,
-            license_json: license_json,
             device_json: device_json,
+            license_json: license_json,
             private_key: private_key,
             public_key: public_key,
+            paths_json: paths_json
         }
+    }
+}
+
+impl PrintNannyPath {
+    pub fn save(&self) -> Result<()>{
+        let file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&self.paths_json)?;
+        serde_json::to_writer(&file, &self)?;
+        Ok(())
     }
 }

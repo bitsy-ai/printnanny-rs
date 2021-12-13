@@ -1,12 +1,11 @@
 use std::fs::{ read_to_string, OpenOptions };
-use std::convert::{ From, Into };
 
 use anyhow::{ anyhow, Context, Result };
 use clap::arg_enum;
 use log::{ info };
 use procfs::{ CpuInfo, Meminfo };
-use serde::{Serialize, Deserialize};
 
+use printnanny_api_client::models::print_nanny_api_config::PrintNannyApiConfig;
 use printnanny_api_client::apis::configuration::Configuration;
 use printnanny_api_client::apis::devices_api::{
     devices_tasks_status_create,
@@ -29,41 +28,10 @@ use printnanny_api_client::models::{
 };
 use crate::paths::{ PrintNannyPath };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PrintNannyApiConfig {
-    pub bearer_access_token: String,
-    pub base_path: String,
-}
-
-impl From<Configuration> for PrintNannyApiConfig {
-    fn from(c: Configuration) -> Self {
-        let bearer_access_token = match c.bearer_access_token {
-            Some(t) => t,
-            None => panic!("Configuration.bearer_access_token is required")
-        };
-        let base_path = c.base_path;
-        PrintNannyApiConfig { 
-            bearer_access_token,
-            base_path
-        }
-    }
-}
-
-impl From<PrintNannyApiConfig> for Configuration {
-    fn from(c: PrintNannyApiConfig) -> Self {
-        Configuration{
-            bearer_access_token: Some(c.bearer_access_token),
-            base_path: c.base_path,
-            ..Configuration.defaults()
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct PrintNannyService {
-    pub api_config: Configuration,
-    pub device: Device,
-    pub license: License,
+    pub api_config: PrintNannyApiConfig,
+    pub request_config: Configuration,
     pub paths: PrintNannyPath,
 }
 
@@ -91,8 +59,8 @@ async fn device_api(config: &str, save: &bool, action: &ApiAction) -> Result<Str
     match action {
         ApiAction::Get => {
             match save {
-                true => Ok(service.refresh_device_json().await?),
-                false => Ok(service.read_device_json().await?)
+                true => Ok(service.save_device_json().await?),
+                false => Ok(service.get_device_json().await?)
             }
         },
         _ => unimplemented!()
@@ -125,42 +93,40 @@ pub async fn printnanny_api_call(config: &str, save: &bool, action: &ApiAction, 
 impl PrintNannyService {
 
     pub fn new(config: &str) -> Result<PrintNannyService>{
-        let paths = PrintNannyPath::from(config);
-        // read device json from disk
-        let device = serde_json::from_str::<Device>(
-            &read_to_string(paths.device_json.clone())
+        let paths = PrintNannyPath::new(config);
+        // read api_config.json from disk
+        let api_config = serde_json::from_str::<PrintNannyApiConfig>(
+            &read_to_string(&paths.api_config_json)
             .context(format!("Failed to read {:?}", paths.device_json))?
             )?;
-        let license = serde_json::from_str::<License>(
-            &read_to_string(paths.license_json.clone())
-            .context(format!("Failed to read {:?}", paths.license_json))?
-        )?;
 
-        let api_config = Configuration{ 
-            base_path: license.printnanny_api_url.clone(),
-            bearer_access_token: Some(license.printnanny_api_token.clone()),
+        let request_config = Configuration{ 
+            base_path: api_config.base_path.clone(),
+            bearer_access_token: Some(api_config.bearer_access_token.clone()),
             ..Configuration::default()
         };
 
-        let service = PrintNannyService{api_config, device, license, paths};
-        Ok(service)
+        Ok(PrintNannyService{request_config, api_config, paths})
     }
 
+    pub async fn save(&self) -> Result<()> {
+        self.paths.save()?;
+        self.save_device().await?;
+        Ok(())
+    }
+    pub async fn get_device(&self) -> Result<Device> {
+        let device = devices_retrieve(&self.request_config, self.api_config.device_id).await?;
+        Ok(device)
+    }
 
-    pub async fn read_device_json(&self) -> Result<String> {
-        let device = devices_retrieve(&self.api_config, self.device.id).await?;
-
-        // test serde_json serialization before truncating file
+    pub async fn get_device_json(&self) -> Result<String> {
+        let device = devices_retrieve(&self.request_config, self.api_config.device_id).await?;
         let result = serde_json::to_string(&device)?;
         Ok(result)
     }
 
-    pub async fn refresh_device(&self) -> Result<Device> {
-        let device = devices_retrieve(&self.api_config, self.device.id).await?;
-
-        // test serde_json serialization before truncating file
-        self.read_device_json().await?;
-
+    pub async fn save_device(&self) -> Result<Device> {
+        let device = devices_retrieve(&self.request_config, self.api_config.device_id).await?;
         let file = OpenOptions::new()
             .write(true)
             .truncate(true)
@@ -169,9 +135,10 @@ impl PrintNannyService {
         Ok(device)
     }
 
-    pub async fn refresh_device_json(&self) -> Result<String> {
-        self.refresh_device().await?;
-        Ok(self.read_device_json().await?)
+    pub async fn save_device_json(&self) -> Result<String> {
+        let device = self.save_device().await?;
+        let result = serde_json::to_string(&device)?;
+        Ok(result)
     }
 
     pub async fn update_task_status(
@@ -187,40 +154,34 @@ impl PrintNannyService {
         };
         let device_id = task.device.to_string();
         let result = devices_tasks_status_create(
-            &self.api_config, &device_id, task.id, request).await?;
+            &self.request_config, &device_id, task.id, request).await?;
         info!("Created TaskStatus {:?}", result);
         Ok(result)
     }
 
     pub async fn check_license(&self) -> Result<License>{
-        let hostname = sys_info::hostname()?;
-        let device_id = self.device.id;
-        let active_license = devices_active_license_retrieve(&self.api_config, device_id).await
-            .context(format!("Failed to retrieve device with id={}", device_id))?;
+        let device = self.load_device_json().await?;
+        let license = self.load_license_json().await?;
+        let active_license = devices_active_license_retrieve(&self.request_config, device.id).await
+            .context(format!("Failed to retrieve device with id={}", device.id))?;
         
         let remote_device = active_license.device.as_ref().unwrap();
         
         // device id mismatch (usually indicates wrong printnanny_license.zip copied)
-        if device_id != remote_device.id {
-            return Err(anyhow!("Device id mismatch {} {}", &device_id, &remote_device.id))
+        if device.id != remote_device.id {
+            return Err(anyhow!("Device id mismatch {} {}", &device.id, &remote_device.id))
         }
 
-        // hostname mismatch (usually indicates wrong printnanny_license.zip copied)
-        let remote_hostname = remote_device.hostname.as_ref().unwrap().to_string();
-        if hostname != remote_hostname {
-            return Err(anyhow!("Device id mismatch {} {}", hostname, remote_hostname))
-        }
-
-        if active_license.fingerprint == self.license.fingerprint {
+        if active_license.fingerprint == license.fingerprint {
             Ok(active_license)
         } else {
-            return Err(anyhow!("License fingerprint {} did not match Device.active_license for device with id={}", self.license.fingerprint, device_id))
+            return Err(anyhow!("License fingerprint {} did not match Device.active_license for device with id={}", license.fingerprint, device.id))
         }
     }
 
     pub async fn activate_license(&self) -> Result<License> {
         let check = self.check_license().await?;
-        let license = license_activate(&self.api_config, check.id, None).await?;
+        let license = license_activate(&self.request_config, check.id, None).await?;
         Ok(license)
     }
 
@@ -237,6 +198,22 @@ impl PrintNannyService {
             .open(&self.paths.license_json)?;
         serde_json::to_writer(&file, &license)?;
         Ok(license)
+    }
+
+    pub async fn load_license_json(&self) -> Result<License> {
+        let result = serde_json::from_str::<License>(
+            &read_to_string(&self.paths.license_json)
+            .context(format!("Failed to read {:?}", self.paths.license_json))?
+            )?;
+        Ok(result)
+    }
+
+    pub async fn load_device_json(&self) -> Result<Device> {
+        let result = serde_json::from_str::<Device>(
+            &read_to_string(&self.paths.device_json)
+            .context(format!("Failed to read {:?}", self.paths.device_json))?
+            )?;
+        Ok(result)
     }
 
     pub async fn read_license_json(&self) -> Result<String> {
@@ -263,7 +240,7 @@ impl PrintNannyService {
         let cores = cpuinfo.num_cores();
         let meminfo = Meminfo::new()?;
         let ram = meminfo.mem_total;
-        let device_id = self.device.id;
+        let device_id = self.api_config.device_id;
         let req = DeviceInfoRequest{
             cores: cores as i32,
             device: device_id,
@@ -275,7 +252,7 @@ impl PrintNannyService {
             serial: serial.to_string(),
             image_version: image_version
         };
-        let res = device_info_update_or_create(&self.api_config, device_id, req).await?;
+        let res = device_info_update_or_create(&self.request_config, device_id, req).await?;
         let file = OpenOptions::new()
             .read(true)
             .write(true)
