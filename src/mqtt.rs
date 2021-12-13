@@ -4,7 +4,8 @@ use std::path::{ PathBuf };
 use std::time::Duration;
 
 use chrono;
-use rumqttc::{MqttOptions, AsyncClient, QoS, Transport };
+use log::{ debug, info };
+use rumqttc::{MqttOptions, AsyncClient, QoS, Transport, Event, Incoming, Outgoing };
 use anyhow::{ Context, Result };
 use serde::{Serialize, Deserialize};
 use jsonwebtoken::{encode, Header, Algorithm, EncodingKey};
@@ -89,16 +90,21 @@ impl MQTTWorker {
         Ok(result)
     }
 
-
     pub async fn run(self) -> Result<()> {
         let (client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 64);
         client.subscribe(&self.config_topic, QoS::AtLeastOnce).await.unwrap();
         client.subscribe(&self.task_topic, QoS::AtLeastOnce).await.unwrap();
         loop {
             let notification = eventloop.poll().await.unwrap();
-            println!("Received = {:?}", notification);
+            match notification {
+                Event::Incoming(Incoming::PingReq) => {
+                    debug!("Received = {:?}", notification)
+                },
+                Event::Outgoing(Outgoing::PingResp)=> {
+                    debug!("Received = {:?}", notification)
+                },
+                _ => info!("Received = {:?}", notification)
+            }
         }
-
-
     }
 }
