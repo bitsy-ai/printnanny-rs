@@ -69,7 +69,8 @@ impl MQTTWorker {
 
     pub async fn new(config: &str) -> Result<MQTTWorker> {
         let service = PrintNannyService::new(config)?;
-        let cloudiot_device = service.device.cloudiot_device.as_ref().unwrap();
+        let device = service.get_device().await?;
+        let cloudiot_device = device.cloudiot_device.as_ref().unwrap();
         let gcp_project_id: String = cloudiot_device.gcp_project_id.clone();
 
         let iat = chrono::offset::Utc::now().timestamp(); // issued at (seconds since epoch)

@@ -27,10 +27,11 @@ fn check_task_type(device: &Device, expected_type: TaskType) -> Result<()>{
 // ref: https://github.com/bitsy-ai/ansible-collection-printnanny/blob/main/roles/main/tasks/license_install.yml
 pub async fn activate_license(base_dir: &str) -> Result<()>{
     let service = PrintNannyService::new(base_dir)?;
+    let device = service.get_device().await?;
 
 
-    check_task_type(&service.device, TaskType::ActivateLicense)?;
-    let last_task = service.device.last_task.as_ref().unwrap();
+    check_task_type(&device, TaskType::ActivateLicense)?;
+    let last_task = device.last_task.as_ref().unwrap();
     
     service.update_task_status(
         &last_task,
@@ -51,6 +52,7 @@ pub async fn activate_license(base_dir: &str) -> Result<()>{
                 Some(msgs::LICENSE_ACTIVATE_SUCCESS_HELP.to_string())
             ).await?;
             service.device_info_update_or_create().await?;
+            service.save().await?;
         },
         Err(e) => {
             let msg = format!("{} {:?}", msgs::LICENSE_ACTIVATE_FAILED_MSG.to_string(), e);
