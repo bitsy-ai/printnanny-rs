@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use chrono;
 use log::{ debug, info };
-use rumqttc::{MqttOptions, AsyncClient, QoS, Transport, Event, Incoming, Outgoing };
+use rumqttc::{MqttOptions, AsyncClient, QoS, Transport, Event, Packet, Outgoing };
 use anyhow::{ Context, Result };
 use serde::{Serialize, Deserialize};
 use jsonwebtoken::{encode, Header, Algorithm, EncodingKey};
@@ -50,7 +50,7 @@ impl MQTTWorker {
             &cloudiot_device.mqtt_bridge_hostname,
             mqtt_port
         );
-        mqttoptions.set_keep_alive(Duration::new(30, 0));
+        mqttoptions.set_keep_alive(Duration::new(5, 0));
         mqttoptions.set_credentials("unused", &token);
 
         let mut roots = rustls::RootCertStore::empty();
@@ -95,12 +95,12 @@ impl MQTTWorker {
         client.subscribe(&self.config_topic, QoS::AtLeastOnce).await.unwrap();
         client.subscribe(&self.task_topic, QoS::AtLeastOnce).await.unwrap();
         loop {
-            let notification = eventloop.poll().await.unwrap();
+            let notification = eventloop.poll().await?;
             match notification {
-                Event::Incoming(Incoming::PingReq) => {
+                Event::Incoming(Packet::PingResp) => {
                     debug!("Received = {:?}", notification)
                 },
-                Event::Outgoing(Outgoing::PingResp)=> {
+                Event::Outgoing(Outgoing::PingReq)=> {
                     debug!("Received = {:?}", notification)
                 },
                 _ => info!("Received = {:?}", notification)
