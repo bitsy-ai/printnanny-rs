@@ -1,6 +1,7 @@
 use anyhow::{ Result, anyhow };
 use async_trait::async_trait;
 use clap::arg_enum;
+use log:: { debug };
 
 use printnanny_api_client::apis::licenses_api::{
     license_activate,
@@ -8,6 +9,7 @@ use printnanny_api_client::apis::licenses_api::{
 };
 use printnanny_api_client::models::{ 
     License,
+    Device
 };
 use crate::services::generic::{ ApiService, PrintNannyService };
 
@@ -42,6 +44,7 @@ impl PrintNannyService<License> {
 
     async fn check(&self) ->  Result<License>
     {
+        let service = PrintNannyService::<Device>::new(&self.config)?;
         match &self.item {
             Some(item) => Ok(license_activate(&self.request_config, item.id, None).await?),
             None => Err(anyhow!("PrintNannyService.item not set, but id is required for retrieve method"))
@@ -49,7 +52,7 @@ impl PrintNannyService<License> {
     }
 }
 
-pub async fn handle_license_cmd(action: LicenseAction, config: &str) -> Result<()>{
+pub async fn handle_license_cmd(action: LicenseAction, config: &str) -> Result<String>{
     let mut service = PrintNannyService::<License>::new(config)?;
     service.item = Some(service.read_json(&service.paths.license_json)?);
     let result = match action {
@@ -57,5 +60,6 @@ pub async fn handle_license_cmd(action: LicenseAction, config: &str) -> Result<(
         LicenseAction::Get => service.retrieve().await?,
         LicenseAction::Check => service.check().await?
     };
-    Ok(())
+    debug!("Success action={} config={} result.updated_dt={:?}", action, config, result);
+    Ok(service.to_string_pretty(result)?)
 }

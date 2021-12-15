@@ -21,6 +21,7 @@ pub struct PrintNannyService<T>{
     pub api_config: PrintNannyApiConfig,
     pub request_config: Configuration,
     pub paths: PrintNannyPath,
+    pub config: String,
     pub item: Option<T>
 }
 
@@ -40,12 +41,12 @@ impl<T> PrintNannyService<T> {
             ..Configuration::default()
         };
 
-        Ok(PrintNannyService{request_config, api_config, paths, item: None })
+        Ok(PrintNannyService{request_config, api_config, paths, item: None, config: config.to_string() })
     }
 }
 
 #[async_trait]
-pub trait ApiService<T:serde::de::DeserializeOwned> {
+pub trait ApiService<T:serde::de::DeserializeOwned + Serialize> {
     // async fn create<T, R>(&self, request: R) -> Result<T>;
     async fn retrieve(&self) -> Result<T>;
     // async fn partial_update<T, R>(&self, id: &i32, rquest: R) -> Result<T>;
@@ -57,5 +58,8 @@ pub trait ApiService<T:serde::de::DeserializeOwned> {
             .context(format!("Failed to read {:?}", path))?
             )?;
         Ok(result)
+    }
+    fn to_string_pretty(&self, item: T) -> Result<String> {
+        Ok(serde_json::to_string_pretty::<T>(&item)?)
     }
 }

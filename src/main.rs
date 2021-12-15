@@ -14,7 +14,7 @@ use printnanny_api_client::models::{
 use printnanny::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny::mqtt::{ MQTTWorker };
 use printnanny::services::generic::{PrintNannyService};
-use printnanny::services::device::{ DeviceAction };
+use printnanny::services::device::{ DeviceAction, handle_device_cmd };
 use printnanny::services::license::{ LicenseAction, handle_license_cmd };
 
 
@@ -158,10 +158,11 @@ async fn main() -> Result<()> {
 
         ("license", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", LicenseAction).unwrap_or_else(|e| e.exit());
-            handle_license_cmd(action, config).await?
+            println!("{}", handle_license_cmd(action, config).await?);
         },
-        ("device", Some(_sub_m)) => {
-            // activate_license(&config).await?;
+        ("device", Some(sub_m)) => {
+            let action = value_t!(sub_m, "action", DeviceAction).unwrap_or_else(|e| e.exit());
+            println!("{}", handle_device_cmd(action, config).await?);
         }, 
         // ("api", Some(sub_m)) => {
         //     let action = value_t!(sub_m, "action", ApiAction).unwrap_or_else(|e| e.exit());
