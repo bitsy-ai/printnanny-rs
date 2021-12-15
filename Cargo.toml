@@ -11,6 +11,7 @@ panic = "abort"
 panic = "abort"
 
 [dependencies]
+async-trait = "0.1"
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 chrono = "0.4.19"
 clap = "2.3.7"

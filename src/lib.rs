@@ -4,3 +4,4 @@ pub mod msgs;
 pub mod mqtt;
 pub mod paths;
 pub mod service;
+pub mod services;
