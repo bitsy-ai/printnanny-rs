@@ -37,7 +37,7 @@ pub async fn activate_license(base_dir: &str) -> Result<()>{
     let device = service.get_device().await?;
 
 
-    check_task_type(&device, TaskType::ActivateLicense)?;
+    check_task_type(&device, TaskType::CheckLicense)?;
     let last_task = device.last_task.as_ref().unwrap();
     
     service.update_task_status(

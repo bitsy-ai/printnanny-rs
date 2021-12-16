@@ -9,7 +9,8 @@ use printnanny_api_client::apis::licenses_api::{
 };
 use printnanny_api_client::models::{ 
     License,
-    Device
+    Device,
+    TaskType
 };
 use crate::services::generic::{ ApiService, PrintNannyService };
 
@@ -24,27 +25,35 @@ arg_enum!{
 
 #[async_trait]
 impl ApiService<License> for PrintNannyService<License> {
-    async fn retrieve(&self) -> Result<License>{
-        match &self.item {
-            Some(item) => Ok(licenses_retrieve(&self.request_config, item.id).await?),
-            None => Err(anyhow!("PrintNannyService.item not set, but id is required for retrieve method"))
-        }
+    async fn retrieve(&self, id: i32) -> Result<License>{
+        Ok(licenses_retrieve(&self.request_config, id).await?)
     }
 }
 
 impl PrintNannyService<License> {
-    async fn activate(&self) -> Result<License>
+    async fn activate(&self, id: i32) -> Result<License>
     {
-        self.check().await?;
-        match &self.item {
-            Some(item) => Ok(license_activate(&self.request_config, item.id, None).await?),
-            None => Err(anyhow!("PrintNannyService.item not set, but id is required for retrieve method"))
+        let service = PrintNannyService::new(&self.config)?;
+        let device = service.retrieve().await?;
+        Ok(license_activate(&self.request_config, id, None).await?)
+    }
+
+    fn check_task_type(&self, device: &Device, expected_type: TaskType) -> Result<()>{
+        match &device.last_task {
+            Some(last_task) => {
+                if last_task.task_type.unwrap() != expected_type {
+                    return Err(anyhow!("Expected Device.last_task to be {:?} but received task {:?}", expected_type, last_task))
+                } else { Ok(()) }
+            },
+            None => {
+                return Err(anyhow!("Expected Device.last_task to be {:?} but received task None", expected_type))
+            }
         }
     }
 
     async fn check(&self) ->  Result<License>
     {
-        let service = PrintNannyService::<Device>::new(&self.config)?;
+
         match &self.item {
             Some(item) => Ok(license_activate(&self.request_config, item.id, None).await?),
             None => Err(anyhow!("PrintNannyService.item not set, but id is required for retrieve method"))
