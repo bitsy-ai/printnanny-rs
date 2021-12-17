@@ -31,11 +31,10 @@ impl ApiService<License> for PrintNannyService<License> {
 }
 
 impl PrintNannyService<License> {
-    async fn activate(&self, id: i32) -> Result<License>
+    async fn activate(&self) -> Result<License>
     {
-        let service = PrintNannyService::new(&self.config)?;
-        let device = service.retrieve().await?;
-        Ok(license_activate(&self.request_config, id, None).await?)
+        let device = self.retrieve(self.license.id).await?;
+        Ok(license_activate(&self.request_config, self.license.id, None).await?)
     }
 
     fn check_task_type(&self, device: &Device, expected_type: TaskType) -> Result<()>{
@@ -62,11 +61,10 @@ impl PrintNannyService<License> {
 }
 
 pub async fn handle_license_cmd(action: LicenseAction, config: &str) -> Result<String>{
-    let mut service = PrintNannyService::<License>::new(config)?;
-    service.item = Some(service.read_json(&service.paths.license_json)?);
+    let service = PrintNannyService::<License>::new(config)?;
     let result = match action {
         LicenseAction::Activate => service.activate().await?,
-        LicenseAction::Get => service.retrieve().await?,
+        LicenseAction::Get => service.retrieve(service.license.id).await?,
         LicenseAction::Check => service.check().await?
     };
     debug!("Success action={} config={} result.updated_dt={:?}", action, config, result);

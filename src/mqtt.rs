@@ -12,7 +12,7 @@ use jsonwebtoken::{encode, Header, Algorithm, EncodingKey};
 
 use printnanny_api_client::models::{ CloudiotDevice };
 use crate::paths::PrintNannyPath;
-use crate::service::PrintNannyService;
+// use crate::services::PrintNannyService;
 
 /// Our claims struct, it needs to derive `Serialize` and/or `Deserialize`
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -24,7 +24,7 @@ struct Claims {
 
 #[derive(Debug, Clone)]
 pub struct MQTTWorker {
-    service: PrintNannyService,
+    // service: PrintNannyService,
     claims: Claims,
     config_topic: String,
     task_topic: String,

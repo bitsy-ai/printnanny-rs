@@ -34,9 +34,7 @@ impl PrintNannyService<Device> {
 
 pub async fn handle_device_cmd(action: DeviceAction, config: &str) -> Result<String>{
     let service = PrintNannyService::<Device>::new(config)?;
-    let result = match action {
-        DeviceAction::Get => service.retrieve().await?
-    };
+    let result = service.retrieve(service.license.device).await?;
     debug!("Success action={} config={} result={:?}", action, config, result);
     
     Ok(service.to_string_pretty(result)?)
