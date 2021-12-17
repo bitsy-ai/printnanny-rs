@@ -31,8 +31,12 @@ impl ApiService<License> for PrintNannyService<License> {
 }
 
 impl PrintNannyService<License> {
+
+    /// Check validity of license
+    /// Mark license activated
     async fn activate(&self) -> Result<License>
     {
+        self.check_license().await?;
         let device = self.retrieve(self.license.id).await?;
         Ok(license_activate(&self.request_config, self.license.id, None).await?)
     }
@@ -40,22 +44,13 @@ impl PrintNannyService<License> {
     fn check_task_type(&self, device: &Device, expected_type: TaskType) -> Result<()>{
         match &device.last_task {
             Some(last_task) => {
-                if last_task.task_type.unwrap() != expected_type {
+                if last_task.task_type != expected_type {
                     return Err(anyhow!("Expected Device.last_task to be {:?} but received task {:?}", expected_type, last_task))
                 } else { Ok(()) }
             },
             None => {
                 return Err(anyhow!("Expected Device.last_task to be {:?} but received task None", expected_type))
             }
-        }
-    }
-
-    async fn check(&self) ->  Result<License>
-    {
-
-        match &self.item {
-            Some(item) => Ok(license_activate(&self.request_config, item.id, None).await?),
-            None => Err(anyhow!("PrintNannyService.item not set, but id is required for retrieve method"))
         }
     }
 }
@@ -65,7 +60,7 @@ pub async fn handle_license_cmd(action: LicenseAction, config: &str) -> Result<S
     let result = match action {
         LicenseAction::Activate => service.activate().await?,
         LicenseAction::Get => service.retrieve(service.license.id).await?,
-        LicenseAction::Check => service.check().await?
+        LicenseAction::Check => service.check_license().await?
     };
     debug!("Success action={} config={} result.updated_dt={:?}", action, config, result);
     Ok(service.to_string_pretty(result)?)

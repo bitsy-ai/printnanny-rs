@@ -38,9 +38,6 @@ async fn main() -> Result<()> {
         .takes_value(true)
         .help("Path to Print Nanny installation")
         .default_value("/opt/printnanny"))
-        // activate
-        .subcommand(SubCommand::with_name("activate")
-            .about("Activate license and send device info to Print Nanny API"))
         // janusadmin
         .subcommand(SubCommand::with_name("janus-admin")
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token")
