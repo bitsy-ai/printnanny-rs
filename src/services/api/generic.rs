@@ -25,8 +25,8 @@ use printnanny_api_client::models::{
     Task
 };
 use crate::paths::{ PrintNannyPath };
-pub use super::device::{ DeviceAction, handle_device_cmd };
-pub use super::license::{ LicenseAction, handle_license_cmd };
+pub use super::device::{ DeviceCmd, DeviceAction };
+pub use super::license::{ LicenseCmd, LicenseAction };
 
 #[derive(Debug, Clone)]
 pub struct PrintNannyService<T>{

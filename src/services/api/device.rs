@@ -19,6 +19,26 @@ arg_enum!{
     }
 }
 
+pub struct DeviceCmd {
+    pub action: DeviceAction,
+    pub service: PrintNannyService::<Device>
+}
+
+impl DeviceCmd {
+    pub fn new(action: DeviceAction, config: &str) -> Result<Self> {
+        let service = PrintNannyService::<Device>::new(config)?;
+        Ok(Self { service, action })
+    }
+    pub async fn handle(&self) -> Result<String>{
+        let result = match self.action {
+            DeviceAction::Get => self.service.retrieve(self.service.license.device).await?
+        };
+        debug!("Success action={} result={:?}", self.action, result);
+        Ok(self.service.to_string_pretty(result)?)
+    }    
+}
+
+
 #[async_trait]
 impl ApiService<Device> for PrintNannyService<Device> {
     async fn retrieve(&self, id: i32) -> Result<Device>{
@@ -27,12 +47,4 @@ impl ApiService<Device> for PrintNannyService<Device> {
 }
 
 impl PrintNannyService<Device> {
-}
-
-pub async fn handle_device_cmd(action: DeviceAction, config: &str) -> Result<String>{
-    let service = PrintNannyService::<Device>::new(config)?;
-    let result = service.retrieve(service.license.device).await?;
-    debug!("Success action={} config={} result={:?}", action, config, result);
-    
-    Ok(service.to_string_pretty(result)?)
 }

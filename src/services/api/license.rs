@@ -27,6 +27,26 @@ arg_enum!{
     }
 }
 
+pub struct LicenseCmd {
+    pub action: LicenseAction,
+    pub service: PrintNannyService::<License>
+}
+
+impl LicenseCmd{
+    pub fn new(action: LicenseAction, config: &str) -> Result<Self> {
+        let service = PrintNannyService::<License>::new(config)?;
+        Ok(Self { service, action })
+    }
+    pub async fn handle(&self) -> Result<String>{
+        let result = match self.action {
+            LicenseAction::Get => self.service.retrieve(self.service.license.id).await?,
+            LicenseAction::Check => self.service.check_license().await?
+        };
+        debug!("Success action={} result.updated_dt={:?}", self.action, result.updated_dt);
+        Ok(self.service.to_string_pretty(result)?)
+    }
+}
+
 #[async_trait]
 impl ApiService<License> for PrintNannyService<License> {
     async fn retrieve(&self, id: i32) -> Result<License>{
@@ -113,14 +133,4 @@ impl PrintNannyService<License> {
             return Ok(result)
         }
     }
-}
-
-pub async fn handle_license_cmd(action: LicenseAction, config: &str) -> Result<String>{
-    let service = PrintNannyService::<License>::new(config)?;
-    let result = match action {
-        LicenseAction::Get => service.retrieve(service.license.id).await?,
-        LicenseAction::Check => service.check_license().await?
-    };
-    debug!("Success action={} config={} result.updated_dt={:?}", action, config, result);
-    Ok(service.to_string_pretty(result)?)
 }
