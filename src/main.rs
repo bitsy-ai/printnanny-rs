@@ -9,7 +9,7 @@ use clap::{
 };
 
 use printnanny::janus::{ JanusAdminEndpoint, janus_admin_api_call };
-// use printnanny::mqtt::{ MQTTWorker };
+use printnanny::services::mqtt::{ MQTTWorker };
 use printnanny::services::api::{ DeviceCmd, DeviceAction, LicenseCmd, LicenseAction };
 // use printnanny::services::license::{ LicenseAction, handle_license_cmd };
 
@@ -143,11 +143,11 @@ async fn main() -> Result<()> {
     let config = app_m.value_of("config").unwrap();
     
     match app_m.subcommand() {
-        // ("mqtt", Some(_sub_m)) => {
-        //     let worker = MQTTWorker::new(&config).await?;
-        //     // println!("{:?}", worker);
-        //     worker.run().await?;
-        // },
+        ("mqtt", Some(_sub_m)) => {
+            let worker = MQTTWorker::new(&config).await?;
+            // println!("{:?}", worker);
+            worker.run().await?;
+        },
 
         ("license", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", LicenseAction).unwrap_or_else(|e| e.exit());
