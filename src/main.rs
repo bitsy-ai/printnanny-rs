@@ -9,9 +9,9 @@ use clap::{
 };
 
 use printnanny::janus::{ JanusAdminEndpoint, janus_admin_api_call };
-// use printnanny::mqtt::{ MQTTWorker };
-use printnanny::services::device::{ DeviceAction, handle_device_cmd };
-use printnanny::services::license::{ LicenseAction, handle_license_cmd };
+use printnanny::services::mqtt::{ MQTTWorker };
+use printnanny::services::api::{ DeviceCmd, DeviceAction, LicenseCmd, LicenseAction };
+// use printnanny::services::license::{ LicenseAction, handle_license_cmd };
 
 
 #[tokio::main]
@@ -143,28 +143,24 @@ async fn main() -> Result<()> {
     let config = app_m.value_of("config").unwrap();
     
     match app_m.subcommand() {
-        // ("mqtt", Some(_sub_m)) => {
-        //     let worker = MQTTWorker::new(&config).await?;
-        //     // println!("{:?}", worker);
-        //     worker.run().await?;
-        // },
+        ("mqtt", Some(_sub_m)) => {
+            let worker = MQTTWorker::new(&config).await?;
+            // println!("{:?}", worker);
+            worker.run().await?;
+        },
 
         ("license", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", LicenseAction).unwrap_or_else(|e| e.exit());
-            println!("{}", handle_license_cmd(action, config).await?);
+            let cmd = LicenseCmd::new(action, config)?;
+            let result = cmd.handle().await?;
+            println!("{}", result)
         },
         ("device", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", DeviceAction).unwrap_or_else(|e| e.exit());
-            println!("{}", handle_device_cmd(action, config).await?);
+            let cmd = DeviceCmd::new(action, config)?;
+            let result = cmd.handle().await?;
+            println!("{}", result)
         }, 
-        // ("api", Some(sub_m)) => {
-        //     let action = value_t!(sub_m, "action", ApiAction).unwrap_or_else(|e| e.exit());
-        //     let model = value_t!(sub_m, "model", ApiModel).unwrap_or_else(|e| e.exit());
-            
-        //     let jsonstr = printnanny_api_call(&config, &action, &model).await?;
-        //     // print!("{}", jsonstr)
-
-        // },
         ("janus-admin", Some(sub_m)) => {
             let endpoint = value_t!(sub_m, "endpoint", JanusAdminEndpoint).unwrap_or_else(|e| e.exit());
             let token = sub_m.value_of("token");
@@ -193,8 +189,5 @@ async fn main() -> Result<()> {
         },
         _ => {}
     }
-
-    // refresh local config after any command
-
     Ok(())
 }

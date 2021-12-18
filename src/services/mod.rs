@@ -1,4 +1,3 @@
-pub mod device;
-pub mod generic;
-pub mod license;
+pub mod api;
 pub mod msgs;
+pub mod mqtt;
