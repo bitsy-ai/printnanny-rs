@@ -8,10 +8,14 @@ use clap::{
     value_t, crate_version, crate_authors, crate_description
 };
 
+use printnanny_api_client::models::{ 
+    License,
+};
 use printnanny::janus::{ JanusAdminEndpoint, janus_admin_api_call };
-use printnanny::license:: { activate_license };
-use printnanny::mqtt::{ MQTTWorker };
-use printnanny::service::{ printnanny_api_call, ApiModel, ApiAction };
+// use printnanny::mqtt::{ MQTTWorker };
+use printnanny::services::generic::{PrintNannyService};
+use printnanny::services::device::{ DeviceAction, handle_device_cmd };
+use printnanny::services::license::{ LicenseAction, handle_license_cmd };
 
 
 #[tokio::main]
@@ -34,9 +38,6 @@ async fn main() -> Result<()> {
         .takes_value(true)
         .help("Path to Print Nanny installation")
         .default_value("/opt/printnanny"))
-        // activate
-        .subcommand(SubCommand::with_name("activate")
-            .about("Activate license and send device info to Print Nanny API"))
         // janusadmin
         .subcommand(SubCommand::with_name("janus-admin")
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token")
@@ -89,22 +90,39 @@ async fn main() -> Result<()> {
                 .env("JANUS_ADMIN_SECRET")
             ))
         // api endpoints (used by ansible facts.d)
-        .subcommand(SubCommand::with_name("api")
-            .about("Retrieve Print Nanny REST API JSON responses")
-            .arg(Arg::with_name("action")
-                .possible_values(&ApiAction::variants())
-                .case_insensitive(true)
-            )
+        .subcommand(SubCommand::with_name("factsd")
+            .about("REST API JSON for Ansible facts.d")
+            .arg(Arg::with_name("output")
+                .short("o")
+                .long("output")
+                .takes_value(true)
+            ))
+        // device
+        .subcommand(SubCommand::with_name("device")
+            .about("Interact with device REST API")
             // model
-            .arg(Arg::with_name("model")
-                .possible_values(&ApiModel::variants())
+            .arg(Arg::with_name("action")
+                .possible_values(&DeviceAction::variants())
                 .case_insensitive(true)
             )
-            .arg(Arg::with_name("save")
-                .long("save")
-                .takes_value(false)
-                .required(false)
-                .help("Cache API response to /opt/printnanny/data (requires filesystem write permission)")))
+            .arg(Arg::with_name("output")
+                .short("o")
+                .long("output")
+                .takes_value(true)
+            ))
+        // license
+        .subcommand(SubCommand::with_name("license")
+            .about("Interact with device REST API")
+            // model
+            .arg(Arg::with_name("action")
+                .possible_values(&LicenseAction::variants())
+                .case_insensitive(true)
+            )
+            .arg(Arg::with_name("output")
+                .short("o")
+                .long("output")
+                .takes_value(true)
+            ))
         // run system updates
         .subcommand(SubCommand::with_name("system-update")
         .about("Update Print Nanny software"))
@@ -129,23 +147,28 @@ async fn main() -> Result<()> {
     let config = app_m.value_of("config").unwrap();
     
     match app_m.subcommand() {
-        ("mqtt", Some(_sub_m)) => {
-            let worker = MQTTWorker::new(&config).await?;
-            // println!("{:?}", worker);
-            worker.run().await?;
-        },
-        ("activate", Some(_sub_m)) => {
-            activate_license(&config).await?;
-        },
-        ("api", Some(sub_m)) => {
-            let action = value_t!(sub_m, "action", ApiAction).unwrap_or_else(|e| e.exit());
-            let model = value_t!(sub_m, "model", ApiModel).unwrap_or_else(|e| e.exit());
-            let save = value_t!(sub_m, "save", bool).unwrap_or_default();
-            
-            let jsonstr = printnanny_api_call(&config, &save, &action, &model).await?;
-            print!("{}", jsonstr)
+        // ("mqtt", Some(_sub_m)) => {
+        //     let worker = MQTTWorker::new(&config).await?;
+        //     // println!("{:?}", worker);
+        //     worker.run().await?;
+        // },
 
+        ("license", Some(sub_m)) => {
+            let action = value_t!(sub_m, "action", LicenseAction).unwrap_or_else(|e| e.exit());
+            println!("{}", handle_license_cmd(action, config).await?);
         },
+        ("device", Some(sub_m)) => {
+            let action = value_t!(sub_m, "action", DeviceAction).unwrap_or_else(|e| e.exit());
+            println!("{}", handle_device_cmd(action, config).await?);
+        }, 
+        // ("api", Some(sub_m)) => {
+        //     let action = value_t!(sub_m, "action", ApiAction).unwrap_or_else(|e| e.exit());
+        //     let model = value_t!(sub_m, "model", ApiModel).unwrap_or_else(|e| e.exit());
+            
+        //     let jsonstr = printnanny_api_call(&config, &action, &model).await?;
+        //     // print!("{}", jsonstr)
+
+        // },
         ("janus-admin", Some(sub_m)) => {
             let endpoint = value_t!(sub_m, "endpoint", JanusAdminEndpoint).unwrap_or_else(|e| e.exit());
             let token = sub_m.value_of("token");

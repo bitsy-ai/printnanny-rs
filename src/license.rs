@@ -1,12 +1,19 @@
 use anyhow::{ Result,  anyhow };
+use async_trait::async_trait;
 use log:: { error, info };
+
+use printnanny_api_client::apis::licenses_api::{
+    license_activate,
+    licenses_retrieve
+};
 use printnanny_api_client::models::{ 
     Device,
     TaskStatusType,
     TaskType,
+    License,
 };
 
-use crate::service::PrintNannyService;
+use crate::service::{ PrintNannyService };
 use crate::msgs;
 
 fn check_task_type(device: &Device, expected_type: TaskType) -> Result<()>{
@@ -30,7 +37,7 @@ pub async fn activate_license(base_dir: &str) -> Result<()>{
     let device = service.get_device().await?;
 
 
-    check_task_type(&device, TaskType::ActivateLicense)?;
+    check_task_type(&device, TaskType::CheckLicense)?;
     let last_task = device.last_task.as_ref().unwrap();
     
     service.update_task_status(
@@ -67,3 +74,5 @@ pub async fn activate_license(base_dir: &str) -> Result<()>{
     }
     Ok(())
 }
+
+
