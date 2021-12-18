@@ -21,9 +21,15 @@ use printnanny_api_client::apis::licenses_api::{
 };
 
 use printnanny_api_client::models::{ 
-    Device, License, TaskType, TaskRequest, TaskStatusRequest, TaskStatus, TaskStatusType, Task
+    Device,
+    License,
+    TaskType,
+    TaskRequest,
+    TaskStatusRequest,
+    TaskStatusType,
+    Task
 };
-use crate::msgs;
+use crate::services::msgs;
 use crate::paths::{ PrintNannyPath };
 
 #[derive(Debug, Clone)]
@@ -80,8 +86,8 @@ impl<T> PrintNannyService<T> {
         &self, 
         task_id: i32,
         status: TaskStatusType,
+        detail: Option<String>,
         wiki_url: Option<String>,
-        detail: Option<String>
     ) -> Result<Task, printnanny_api_client::apis::Error<DevicesTasksStatusCreateError>> {
         let request = TaskStatusRequest{detail, wiki_url, task: task_id, status};
         info!("Submitting TaskStatusRequest={:?}", request);
@@ -93,7 +99,7 @@ impl<T> PrintNannyService<T> {
         ).await
     }
 
-    pub async fn create_task(&self, task_type: TaskType, status: Option<TaskStatusType>, wiki_url: Option<String>, detail: Option<String>) -> Result<Task> {
+    pub async fn create_task(&self, task_type: TaskType, status: Option<TaskStatusType>, detail: Option<String>, wiki_url: Option<String>) -> Result<Task> {
         let request = TaskRequest{
             active: Some(true),
             task_type: task_type,
@@ -128,7 +134,12 @@ impl<T> PrintNannyService<T> {
                             // task state is pending, awaiting acknowledgement from device. update to started to ack.
                             TaskStatusType::Pending => Some(self.update_task_status(last_check_task.id, TaskStatusType::Started, None, None).await?),
                             // for Failed, Success, and Timeout states create a new task
-                            _ => Some(self.create_task(TaskType::CheckLicense, Some(TaskStatusType::Started), None, None).await?)
+                            _ => Some(self.create_task(
+                                TaskType::CheckLicense,
+                                Some(TaskStatusType::Started),
+                                Some(msgs::LICENSE_ACTIVATE_STARTED_MSG.to_string()),
+                                None
+                            ).await?)
                         }
                     },
                     None => Some(self.create_task(TaskType::CheckLicense, Some(TaskStatusType::Started), None, None).await?)
@@ -140,7 +151,7 @@ impl<T> PrintNannyService<T> {
 
         let task_id = match task{
             Some(t) => t.id,
-            None => active_license.last_check_task.unwrap().id
+            None => active_license.last_check_task.as_ref().unwrap().id
         };
 
         // check license ids and fingerprints
@@ -155,6 +166,8 @@ impl<T> PrintNannyService<T> {
                 "License mismatch local={} active={}", 
                 &self.license.id, &active_license.id
             ))
+        } else if active_license.activated.as_ref().unwrap() == &true {
+            return Ok(active_license)
         }
         // ensure license marked activated
         else {

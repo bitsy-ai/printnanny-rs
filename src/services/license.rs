@@ -17,7 +17,6 @@ use crate::services::generic::{ ApiService, PrintNannyService };
 arg_enum!{
     #[derive(PartialEq, Debug, Clone)]
     pub enum LicenseAction{
-        Activate,
         Check,
         Get,
     }
@@ -58,7 +57,6 @@ impl PrintNannyService<License> {
 pub async fn handle_license_cmd(action: LicenseAction, config: &str) -> Result<String>{
     let service = PrintNannyService::<License>::new(config)?;
     let result = match action {
-        LicenseAction::Activate => service.activate().await?,
         LicenseAction::Get => service.retrieve(service.license.id).await?,
         LicenseAction::Check => service.check_license().await?
     };
