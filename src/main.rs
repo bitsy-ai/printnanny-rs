@@ -11,8 +11,6 @@ use clap::{
 use printnanny::services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny::services::mqtt::{ MQTTWorker };
 use printnanny::services::api::{ DeviceCmd, DeviceAction, LicenseCmd, LicenseAction };
-// use printnanny::services::license::{ LicenseAction, handle_license_cmd };
-
 
 #[tokio::main]
 async fn main() -> Result<()> {
