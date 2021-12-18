@@ -1,10 +1,8 @@
-use anyhow::{ Result, anyhow };
+use anyhow::{ Result };
 use async_trait::async_trait;
 use clap::arg_enum;
 use log:: { debug };
 
-use printnanny_api_client::models::print_nanny_api_config::PrintNannyApiConfig;
-use printnanny_api_client::apis::configuration::Configuration;
 use printnanny_api_client::apis::devices_api::{
     devices_retrieve,
 };
@@ -13,7 +11,6 @@ use printnanny_api_client::models::{
 };
 
 use crate::services::generic::{ ApiService, PrintNannyService };
-
 
 arg_enum!{
     #[derive(PartialEq, Debug, Clone)]
