@@ -10,9 +10,9 @@ use anyhow::{ Context, Result };
 use serde::{Serialize, Deserialize};
 use jsonwebtoken::{encode, Header, Algorithm, EncodingKey};
 
-use printnanny_api_client::models::{ CloudiotDevice };
+use printnanny_api_client::models::{ Device, CloudiotDevice };
 use crate::paths::PrintNannyPath;
-// use crate::services::PrintNannyService;
+use crate::services::device::PrintNannyService;
 
 /// Our claims struct, it needs to derive `Serialize` and/or `Deserialize`
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -24,7 +24,7 @@ struct Claims {
 
 #[derive(Debug, Clone)]
 pub struct MQTTWorker {
-    // service: PrintNannyService,
+    service: PrintNannyService::<Device>,
     claims: Claims,
     config_topic: String,
     task_topic: String,
@@ -69,8 +69,8 @@ impl MQTTWorker {
     }
 
     pub async fn new(config: &str) -> Result<MQTTWorker> {
-        let service = PrintNannyService::new(config)?;
-        let device = service.get_device().await?;
+        let service = PrintNannyService::<Device>::new(config)?;
+        let device = service.retrieve().await?;
         let cloudiot_device = device.cloudiot_device.as_ref().unwrap();
         let gcp_project_id: String = cloudiot_device.gcp_project_id.clone();
 
@@ -81,7 +81,6 @@ impl MQTTWorker {
         let mqttoptions = MQTTWorker::mqttoptions(&cloudiot_device, &service.paths, &token)?;
 
         let result = MQTTWorker{
-            service: service.clone(),
             claims: claims,
             config_topic: cloudiot_device.config_topic.clone(),
             task_topic: cloudiot_device.task_topic.clone(),

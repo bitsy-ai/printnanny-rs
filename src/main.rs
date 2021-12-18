@@ -10,8 +10,8 @@ use clap::{
 
 use printnanny::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 // use printnanny::mqtt::{ MQTTWorker };
-use printnanny::services::device::{ DeviceAction, handle_device_cmd };
-use printnanny::services::license::{ LicenseAction, handle_license_cmd };
+use printnanny::services::api::{ DeviceAction, handle_device_cmd, LicenseAction, handle_license_cmd };
+// use printnanny::services::license::{ LicenseAction, handle_license_cmd };
 
 
 #[tokio::main]
@@ -157,14 +157,6 @@ async fn main() -> Result<()> {
             let action = value_t!(sub_m, "action", DeviceAction).unwrap_or_else(|e| e.exit());
             println!("{}", handle_device_cmd(action, config).await?);
         }, 
-        // ("api", Some(sub_m)) => {
-        //     let action = value_t!(sub_m, "action", ApiAction).unwrap_or_else(|e| e.exit());
-        //     let model = value_t!(sub_m, "model", ApiModel).unwrap_or_else(|e| e.exit());
-            
-        //     let jsonstr = printnanny_api_call(&config, &action, &model).await?;
-        //     // print!("{}", jsonstr)
-
-        // },
         ("janus-admin", Some(sub_m)) => {
             let endpoint = value_t!(sub_m, "endpoint", JanusAdminEndpoint).unwrap_or_else(|e| e.exit());
             let token = sub_m.value_of("token");
@@ -193,8 +185,5 @@ async fn main() -> Result<()> {
         },
         _ => {}
     }
-
-    // refresh local config after any command
-
     Ok(())
 }

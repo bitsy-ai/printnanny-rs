@@ -10,7 +10,7 @@ use printnanny_api_client::models::{
     Device
 };
 
-use crate::services::generic::{ ApiService, PrintNannyService };
+use super::generic::{ ApiService, PrintNannyService };
 
 arg_enum!{
     #[derive(PartialEq, Debug, Clone)]
