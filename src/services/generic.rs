@@ -13,12 +13,18 @@ use printnanny_api_client::apis::configuration::Configuration;
 use printnanny_api_client::apis::devices_api::{
     devices_active_license_retrieve,
     devices_tasks_create,
-    devices_tasks_status_create
+    devices_tasks_status_create,
+    DevicesTasksStatusCreateError,
+    DevicesActiveLicenseRetrieveError
+};
+use printnanny_api_client::apis::licenses_api::{
+    license_activate
 };
 
 use printnanny_api_client::models::{ 
     Device, License, TaskType, TaskRequest, TaskStatusRequest, TaskStatus, TaskStatusType, Task
 };
+use crate::msgs;
 use crate::paths::{ PrintNannyPath };
 
 #[derive(Debug, Clone)]
@@ -59,12 +65,16 @@ impl<T> PrintNannyService<T> {
         Ok(PrintNannyService{request_config, api_config, paths, license, item: None, config: config.to_string() })
     }
 
-    pub async fn retreive_active_license(&self) -> Result<License> {
-        let active_license = devices_active_license_retrieve(
+    pub async fn activate_license(&self) -> Result<License> {
+        Ok(license_activate(&self.request_config, self.license.id, None).await
+        .context(format!("Failed to activate license id={}", self.license.id))?)
+    }
+
+    pub async fn retreive_active_license(&self) -> Result<License, printnanny_api_client::apis::Error<DevicesActiveLicenseRetrieveError>> {
+        devices_active_license_retrieve(
             &self.request_config,
             self.license.device,
-        ).await?;
-        Ok(active_license)
+        ).await
     }
 
     pub async fn update_task_status(
@@ -73,33 +83,31 @@ impl<T> PrintNannyService<T> {
         status: TaskStatusType,
         wiki_url: Option<String>,
         detail: Option<String>
-    ) -> Result<Task> {
+    ) -> Result<Task, printnanny_api_client::apis::Error<DevicesTasksStatusCreateError>> {
         let request = TaskStatusRequest{detail, wiki_url, task: task_id, status};
-        let task = devices_tasks_status_create(
+        info!("Submitting TaskStatusRequest={:?}", request);
+        return devices_tasks_status_create(
             &self.request_config,
             self.license.device,
             task_id,
             request
-        ).await?;
-        info!("Updated task={:?}", task);
-        Ok(task)
+        ).await
     }
 
-    pub async fn create_task(&self, task_type: TaskType, status: Option<TaskStatusType>, detail: Option<String>, wiki_url: Option<String>) -> Result<Task> {
+    pub async fn create_task(&self, task_type: TaskType, status: Option<TaskStatusType>, wiki_url: Option<String>, detail: Option<String>) -> Result<Task> {
         let request = TaskRequest{
             active: Some(true),
             task_type: task_type,
             device: self.license.device
         };
         let task = devices_tasks_create(&self.request_config, self.license.device, request).await?;
+        info!("Created task={:?}", task);
         let task = match status {
             Some(s) => self.update_task_status(task.id, s, wiki_url, detail, ).await?,
             None => task
         };
-        info!("Created task={:?}", task);
         Ok(task)
     }
-
 
     /// Check validity of license
     /// Manage state of latest Task.task_type=CheckLicense
@@ -109,7 +117,7 @@ impl<T> PrintNannyService<T> {
 
         // handle various pending/running/failed/success states of last check task
         // return active license check task in running state
-        let check_task: Option<Task> = match &active_license.last_check_task {
+        let task = match &active_license.last_check_task {
             // check state of last task
             Some(last_check_task) => {
                 match &last_check_task.last_status {
@@ -130,9 +138,36 @@ impl<T> PrintNannyService<T> {
             // no license check task found, create one in a running state
             None => Some(self.create_task(TaskType::CheckLicense, Some(TaskStatusType::Started), None, None).await?)
         };
-        
-        // check task is in running state
-        Ok(active_license)
+
+        let task_id = match task{
+            Some(t) => t.id,
+            None => active_license.last_check_task.unwrap().id
+        };
+
+        // check license ids and fingerprints
+        if (self.license.id != active_license.id) || (self.license.fingerprint != active_license.fingerprint) {
+            self.update_task_status(
+                task_id, 
+                TaskStatusType::Failed,
+                Some(msgs::LICENSE_ACTIVATE_FAILED_MSG.to_string()),
+                Some(msgs::LICENSE_ACTIVATE_FAILED_HELP.to_string())
+                ).await?;
+            return Err(anyhow!(
+                "License mismatch local={} active={}", 
+                &self.license.id, &active_license.id
+            ))
+        }
+        // ensure license marked activated
+        else {
+            let result = self.activate_license().await?;
+            self.update_task_status(
+                task_id, 
+                TaskStatusType::Success,
+                Some(msgs::LICENSE_ACTIVATE_SUCCESS_MSG.to_string()),
+                Some(msgs::LICENSE_ACTIVATE_SUCCESS_HELP.to_string())
+                ).await?;
+            return Ok(result)
+        }
     }
 }
 
