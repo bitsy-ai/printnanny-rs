@@ -8,12 +8,8 @@ use clap::{
     value_t, crate_version, crate_authors, crate_description
 };
 
-use printnanny_api_client::models::{ 
-    License,
-};
 use printnanny::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 // use printnanny::mqtt::{ MQTTWorker };
-use printnanny::services::generic::{PrintNannyService};
 use printnanny::services::device::{ DeviceAction, handle_device_cmd };
 use printnanny::services::license::{ LicenseAction, handle_license_cmd };
 
