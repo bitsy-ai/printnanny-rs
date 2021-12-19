@@ -149,7 +149,6 @@ async fn main() -> Result<()> {
             match action {
                 MqttAction::Subscribe => {
                     let worker = MQTTWorker::new(&config).await?;
-                    // println!("{:?}", worker);
                     worker.run().await?;
                 },
                 MqttAction::Publish => unimplemented!("mqtt publish is not implemented yet")
