@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use chrono;
 use log::{ debug, info };
+use clap::arg_enum;
 use rumqttc::{MqttOptions, AsyncClient, QoS, Transport, Event, Packet, Outgoing };
 use anyhow::{ Context, Result };
 use serde::{Serialize, Deserialize};
@@ -14,6 +15,13 @@ use printnanny_api_client::models::{ Device, CloudiotDevice };
 use crate::paths::PrintNannyPath;
 
 use super::api::{ ApiService, PrintNannyService };
+
+arg_enum!{
+    pub enum MqttAction {
+        Publish,
+        Subscribe,
+    }
+}
 
 /// Our claims struct, it needs to derive `Serialize` and/or `Deserialize`
 #[derive(Debug, Serialize, Deserialize, Clone)]

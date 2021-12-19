@@ -9,7 +9,7 @@ use clap::{
 };
 
 use printnanny::services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
-use printnanny::services::mqtt::{ MQTTWorker };
+use printnanny::services::mqtt::{ MQTTWorker, MqttAction };
 use printnanny::services::api::{ DeviceCmd, DeviceAction, LicenseCmd, LicenseAction };
 
 #[tokio::main]
@@ -117,13 +117,16 @@ async fn main() -> Result<()> {
                 .long("output")
                 .takes_value(true)
             ))
-        // run system updates
-        .subcommand(SubCommand::with_name("system-update")
-        .about("Update Print Nanny software"))
         // mqtt <subscribe|publish>
         .subcommand(SubCommand::with_name("mqtt")
-            .about("Publish or subscribe to MQTT messages")
-        );
+            .arg(Arg::with_name("action")
+            .possible_values(&MqttAction::variants())
+            .case_insensitive(true)
+        ))
+        // run system updates
+        .subcommand(SubCommand::with_name("system-update")
+        .about("Update Print Nanny software"));
+
     
     
     let app_m = app.get_matches();
@@ -141,10 +144,16 @@ async fn main() -> Result<()> {
     let config = app_m.value_of("config").unwrap();
     
     match app_m.subcommand() {
-        ("mqtt", Some(_sub_m)) => {
-            let worker = MQTTWorker::new(&config).await?;
-            // println!("{:?}", worker);
-            worker.run().await?;
+        ("mqtt", Some(sub_m)) => {
+            let action = value_t!(sub_m, "action", MqttAction).unwrap_or_else(|e| e.exit());
+            match action {
+                MqttAction::Subscribe => {
+                    let worker = MQTTWorker::new(&config).await?;
+                    // println!("{:?}", worker);
+                    worker.run().await?;
+                },
+                MqttAction::Publish => unimplemented!("mqtt publish is not implemented yet")
+            }
         },
 
         ("license", Some(sub_m)) => {
