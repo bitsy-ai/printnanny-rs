@@ -191,7 +191,7 @@ async fn main() -> Result<()> {
         ("monitor", Some(sub_m)) => {
             match sub_m.subcommand() {
                 ("start", Some(_)) => println!("Starting Print Nanny monitoring"),
-                ("stop", Some(_)) => println!("Stop Print Nanny monitoring"),
+                ("stop", Some(_)) => println!("Stopping Print Nanny monitoring"),
                 _ => panic!("Received unrecognized subcommand")
             };
         }
