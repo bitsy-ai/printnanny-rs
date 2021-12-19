@@ -111,6 +111,7 @@ async fn main() -> Result<()> {
             .arg(Arg::with_name("action")
                 .possible_values(&LicenseAction::variants())
                 .case_insensitive(true)
+                .required(true)
             )
             .arg(Arg::with_name("output")
                 .short("o")
@@ -122,12 +123,17 @@ async fn main() -> Result<()> {
             .arg(Arg::with_name("action")
             .possible_values(&MqttAction::variants())
             .case_insensitive(true)
-        ))
-        // run system updates
-        .subcommand(SubCommand::with_name("system-update")
-        .about("Update Print Nanny software"));
+            ))
 
-    
+        .subcommand(SubCommand::with_name("monitor")
+            .setting(AppSettings::SubcommandRequiredElseHelp)
+            .subcommand(
+                SubCommand::with_name("start")
+                .about("Start Print Nanny monitoring service"))
+            .subcommand(
+                SubCommand::with_name("stop")
+                .about("Stop Print Nanny monitoring service"))
+        );
     
     let app_m = app.get_matches();
 
@@ -181,6 +187,15 @@ async fn main() -> Result<()> {
             println!("{}", res);
 
         },
+
+        ("monitor", Some(sub_m)) => {
+            match sub_m.subcommand() {
+                ("start", Some(_)) => println!("Starting Print Nanny monitoring"),
+                ("stop", Some(_)) => println!("Stop Print Nanny monitoring"),
+                _ => panic!("Received unrecognized subcommand")
+            };
+        }
+
         ("system-update", Some(_sub_m)) => {
             let mut cmd =
             Command::new("systemctl")
