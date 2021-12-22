@@ -72,7 +72,7 @@ impl PrintNannyService<License> {
         // get active license from remote
         info!("Checking validity of local license.json {}", self.license.fingerprint);
         let active_license = self.retreive_active_license().await?;
-        info!("Retrieved active license for device_id={} {}", active_license.fingerprint);
+        info!("Retrieved active license for device_id={} {}", active_license.device, active_license.fingerprint);
 
         // handle various pending/running/failed/success states of last check task
         // return active license check task in running state
