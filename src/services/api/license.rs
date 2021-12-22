@@ -1,7 +1,7 @@
 use anyhow::{ Result, anyhow, Context };
 use async_trait::async_trait;
 use clap::arg_enum;
-use log:: { debug };
+use log:: { debug, info };
 
 use printnanny_api_client::apis::licenses_api::{
     license_activate,
@@ -70,7 +70,9 @@ impl PrintNannyService<License> {
     /// Manage state of latest Task.task_type=CheckLicense
     pub async fn check_license(&self) -> Result<License> {
         // get active license from remote
+        info!("Checking validity of local license.json {}", self.license.fingerprint);
         let active_license = self.retreive_active_license().await?;
+        info!("Retrieved active license for device_id={} {}", active_license.fingerprint);
 
         // handle various pending/running/failed/success states of last check task
         // return active license check task in running state
@@ -82,24 +84,42 @@ impl PrintNannyService<License> {
                         // assume failed state if task status can't be read
                         match last_status.status {
                             // task state is already started, no update needed
-                            TaskStatusType::Started => None,
-                            // task state is pending, awaiting acknowledgement from device. update to started to ack.
-                            TaskStatusType::Pending => Some(self.update_task_status(last_check_task.id, TaskStatusType::Started, None, None).await?),
-                            // for Failed, Success, and Timeout states create a new task
-                            _ => Some(self.create_task(
-                                TaskType::CheckLicense,
-                                Some(TaskStatusType::Started),
-                                Some(msgs::LICENSE_ACTIVATE_STARTED_MSG.to_string()),
+                            TaskStatusType::Started => {
+                                info!("Task is already in Started state, skipping update {:?}", last_check_task);
                                 None
-                            ).await?)
+                            },
+                            // task state is pending, awaiting acknowledgement from device. update to started to ack.
+                            TaskStatusType::Pending => {
+                                info!("Task is Pending state, sending Started status update {:?}", last_check_task);
+                                Some(self.update_task_status(last_check_task.id, TaskStatusType::Started, None, None).await?)
+                            },
+                            // for Failed, Success, and Timeout states create a new task
+                            _ => {
+                                info!("No active task found, creating task {:?} ", TaskType::CheckLicense);
+                                Some(self.create_task(
+                                    TaskType::CheckLicense,
+                                    Some(TaskStatusType::Started),
+                                    Some(msgs::LICENSE_ACTIVATE_STARTED_MSG.to_string()),
+                                    None
+                                ).await?)
+                            }
                         }
                     },
-                    None => Some(self.create_task(TaskType::CheckLicense, Some(TaskStatusType::Started), None, None).await?)
+                    None => {
+                        info!("No active task found, creating task {:?} ", TaskType::CheckLicense);
+                        Some(self.create_task(TaskType::CheckLicense, Some(TaskStatusType::Started), None, None).await?)
+                    }
                 }
             },
             // no license check task found, create one in a running state
-            None => Some(self.create_task(TaskType::CheckLicense, Some(TaskStatusType::Started), None, None).await?)
+            None => {
+                info!("No active task found, creating task {:?} ", TaskType::CheckLicense);
+                Some(self.create_task(TaskType::CheckLicense, Some(TaskStatusType::Started), None, None).await?)
+            }
         };
+
+        info!("Updated task {:?}", task);
+
 
         let task_id = match task{
             Some(t) => t.id,
