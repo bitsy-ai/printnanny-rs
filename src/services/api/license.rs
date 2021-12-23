@@ -95,9 +95,9 @@ impl PrintNannyService<License> {
                             },
                             // for Failed, Success, and Timeout states create a new task
                             _ => {
-                                info!("No active task found, creating task {:?} ", TaskType::CheckLicense);
+                                info!("No active task found, creating task {:?} ", TaskType::SystemCheck);
                                 Some(self.create_task(
-                                    TaskType::CheckLicense,
+                                    TaskType::SystemCheck,
                                     Some(TaskStatusType::Started),
                                     Some(msgs::LICENSE_ACTIVATE_STARTED_MSG.to_string()),
                                     None
@@ -106,15 +106,15 @@ impl PrintNannyService<License> {
                         }
                     },
                     None => {
-                        info!("No active task found, creating task {:?} ", TaskType::CheckLicense);
-                        Some(self.create_task(TaskType::CheckLicense, Some(TaskStatusType::Started), None, None).await?)
+                        info!("No active task found, creating task {:?} ", TaskType::SystemCheck);
+                        Some(self.create_task(TaskType::SystemCheck, Some(TaskStatusType::Started), None, None).await?)
                     }
                 }
             },
             // no license check task found, create one in a running state
             None => {
-                info!("No active task found, creating task {:?} ", TaskType::CheckLicense);
-                Some(self.create_task(TaskType::CheckLicense, Some(TaskStatusType::Started), None, None).await?)
+                info!("No active task found, creating task {:?} ", TaskType::SystemCheck);
+                Some(self.create_task(TaskType::SystemCheck, Some(TaskStatusType::Started), None, None).await?)
             }
         };
 
@@ -138,8 +138,6 @@ impl PrintNannyService<License> {
                 "License mismatch local={} active={}", 
                 &self.license.id, &active_license.id
             ))
-        } else if active_license.activated.as_ref().unwrap() == &true {
-            return Ok(active_license)
         }
         // ensure license marked activated
         else {
