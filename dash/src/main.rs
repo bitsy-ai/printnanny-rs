@@ -1,7 +1,7 @@
 #[macro_use] extern crate rocket;
 use std::str::FromStr;
 
-use anyhow::{ Result };
+use anyhow::{Error, Result};
 use clap::{ 
     Arg,
     App,
@@ -14,7 +14,6 @@ use rocket::http::{Status, ContentType};
 use rocket::form::{Form, Contextual, FromForm, FromFormField, Context};
 use rocket::fs::{FileServer, TempFile, relative};
 use rocket_auth::{ Users, User };
-use rocket_sync_db_pools::Config;
 use rocket_dyn_templates::Template;
 use sqlx::sqlite::{ SqlitePool, SqliteConnectOptions};
 use sqlx::prelude::ConnectOptions;
@@ -74,7 +73,7 @@ struct SubmitStep1<'v> {
 #[get("/")]
 fn index(option: Option<User>) -> Template {
     if let Some(user) = option {
-        Template::render("index", &Context::default())
+        Template::render("index", user)
     } else {
         Template::render("login", &Context::default())
     }
@@ -103,7 +102,7 @@ async fn main() -> Result<()> {
         .version(crate_version!())
         .author(crate_authors!())
         .about(crate_description!())
-        .arg(Arg::with_name("db")
+        .arg(Arg::new("db")
         .help("Path to sqlite.db")
         .default_value("sqlite://data.db")
         .takes_value(true));
@@ -111,7 +110,7 @@ async fn main() -> Result<()> {
     let app_m = app.get_matches();
     let db = app_m.value_of("db").unwrap();
 
-    let options = SqliteConnectOptions::from_str(&db)?
+    SqliteConnectOptions::from_str(&db)?
         .create_if_missing(true)
         .connect().await?;
     let conn = SqlitePool::connect(&db).await?;
@@ -123,13 +122,6 @@ async fn main() -> Result<()> {
         .attach(Template::fairing())
         .mount("/", FileServer::from(relative!("/static")))
         .manage(users)
-        .launch();
-
-    // let rocket::build()
-    //     .mount("/", routes![index, submit])
-    //     .attach(Template::fairing())
-    //     .mount("/", FileServer::from(relative!("/static")))
-    //     // .manage(users)
-    //     .launch();
+        .launch().await?;
     Ok(())
 }
