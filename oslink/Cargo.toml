@@ -6,6 +6,11 @@ edition = "2018"
 
 [dependencies]
 rocket = "0.5.0-rc.1"
+time = { version = "0.3", features = ["macros", "parsing"] }
+
+[dependencies.rocket_dyn_templates]
+version = "0.1.0-rc.1"
+features = ["handlebars", "tera"]
 
 [dependencies.rocket_sync_db_pools]
 version = "0.1.0-rc.1"

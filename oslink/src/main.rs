@@ -1,79 +1,90 @@
 #[macro_use] extern crate rocket;
 
-#[derive(FromFormField)]
-enum Lang {
-    #[field(value = "en")]
-    English,
-    #[field(value = "ru")]
-    #[field(value = "ру")]
-    Russian
+use rocket::http::{Status, ContentType};
+use rocket::form::{Form, Contextual, FromForm, FromFormField, Context};
+use rocket::fs::{FileServer, TempFile, relative};
+
+use rocket_dyn_templates::Template;
+
+#[derive(Debug, FromForm)]
+struct Password<'v> {
+    #[field(validate = len(6..))]
+    #[field(validate = eq(self.second))]
+    first: &'v str,
+    #[field(validate = eq(self.first))]
+    second: &'v str,
 }
 
-#[derive(FromForm)]
-struct Options<'r> {
-    emoji: bool,
-    name: Option<&'r str>,
+#[derive(Debug, FromFormField)]
+enum Rights {
+    Public,
+    Reserved,
+    Exclusive,
 }
 
-// Try visiting:
-//   http://127.0.0.1:8000/hello/world
-#[get("/world")]
-fn world() -> &'static str {
-    "Hello, world!"
+#[derive(Debug, FromFormField)]
+enum Category {
+    Biology,
+    Chemistry,
+    Physics,
+    #[field(value = "CS")]
+    ComputerScience,
 }
 
-// Try visiting:
-//   http://127.0.0.1:8000/hello/мир
-#[get("/мир")]
-fn mir() -> &'static str {
-    "Привет, мир!"
+#[derive(Debug, FromForm)]
+struct Submission<'v> {
+    #[field(validate = len(1..))]
+    title: &'v str,
+    #[field(validate = len(1..=250))]
+    r#abstract: &'v str,
+    #[field(validate = ext(ContentType::PDF))]
+    file: TempFile<'v>,
+    #[field(validate = len(1..))]
+    category: Vec<Category>,
+    rights: Rights,
+    ready: bool,
 }
 
-// Try visiting:
-//   http://127.0.0.1:8000/wave/Rocketeer/100
-#[get("/<name>/<age>")]
-fn wave(name: &str, age: u8) -> String {
-    format!("👋 Hello, {} year old named {}!", age, name)
+#[derive(Debug, FromForm)]
+struct Account<'v> {
+    #[field(validate = len(1..))]
+    name: &'v str,
+    password: Password<'v>,
+    #[field(validate = contains('@').or_else(msg!("invalid email address")))]
+    email: &'v str,
 }
 
-// Note: without the `..` in `opt..`, we'd need to pass `opt.emoji`, `opt.name`.
-//
-// Try visiting:
-//   http://127.0.0.1:8000/?emoji
-//   http://127.0.0.1:8000/?name=Rocketeer
-//   http://127.0.0.1:8000/?lang=ру
-//   http://127.0.0.1:8000/?lang=ру&emoji
-//   http://127.0.0.1:8000/?emoji&lang=en
-//   http://127.0.0.1:8000/?name=Rocketeer&lang=en
-//   http://127.0.0.1:8000/?emoji&name=Rocketeer
-//   http://127.0.0.1:8000/?name=Rocketeer&lang=en&emoji
-//   http://127.0.0.1:8000/?lang=ru&emoji&name=Rocketeer
-#[get("/?<lang>&<opt..>")]
-fn hello(lang: Option<Lang>, opt: Options<'_>) -> String {
-    let mut greeting = String::new();
-    if opt.emoji {
-        greeting.push_str("👋 ");
-    }
+#[derive(Debug, FromForm)]
+struct Submit<'v> {
+    account: Account<'v>,
+    submission: Submission<'v>,
+}
 
-    match lang {
-        Some(Lang::Russian) => greeting.push_str("Привет"),
-        Some(Lang::English) => greeting.push_str("Hello"),
-        None => greeting.push_str("Hi"),
-    }
+#[get("/")]
+fn index() -> Template {
+    Template::render("index", &Context::default())
+}
 
-    if let Some(name) = opt.name {
-        greeting.push_str(", ");
-        greeting.push_str(name);
-    }
+// NOTE: We use `Contextual` here because we want to collect all submitted form
+// fields to re-render forms with submitted values on error. If you have no such
+// need, do not use `Contextual`. Use the equivalent of `Form<Submit<'_>>`.
+#[post("/", data = "<form>")]
+fn submit<'r>(form: Form<Contextual<'r, Submit<'r>>>) -> (Status, Template) {
+    let template = match form.value {
+        Some(ref submission) => {
+            println!("submission: {:#?}", submission);
+            Template::render("success", &form.context)
+        }
+        None => Template::render("index", &form.context),
+    };
 
-    greeting.push('!');
-    greeting
+    (form.context.status(), template)
 }
 
 #[launch]
 fn rocket() -> _ {
     rocket::build()
-        .mount("/", routes![hello])
-        .mount("/hello", routes![world, mir])
-        .mount("/wave", routes![wave])
+        .mount("/", routes![index, submit])
+        .attach(Template::fairing())
+        .mount("/", FileServer::from(relative!("/static")))
 }
