@@ -1,0 +1,7 @@
+[default]
+limits.data-form = "2MiB"
+template_dir = "templates/"
+port = 9001
+
+[global.databases]
+sqlite = { url = "db.sqlite" }
