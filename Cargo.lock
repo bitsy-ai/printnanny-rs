@@ -1397,14 +1397,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "oslink"
-version = "0.1.0"
-dependencies = [
- "rocket",
- "rocket_sync_db_pools",
-]
-
-[[package]]
 name = "parking_lot"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1508,6 +1500,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "58893f751c9b0412871a09abd62ecd2a00298c6c83befa223ef98c52aef40cbe"
 
 [[package]]
+name = "pn-oslink"
+version = "0.1.0"
+dependencies = [
+ "rocket",
+ "rocket_sync_db_pools",
+]
+
+[[package]]
 name = "pollster"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1567,41 +1567,11 @@ name = "printnanny"
 version = "0.9.4"
 dependencies = [
  "anyhow",
- "assert_cmd",
- "async-trait",
- "chrono",
  "clap",
- "config",
- "console",
- "dialoguer",
- "dirs",
  "env_logger",
- "glob",
- "http",
- "jsonwebtoken",
  "log",
- "mockall",
- "openssl",
- "oslink",
- "predicates 2.1.0",
- "printnanny-api-client",
- "procfs",
- "rand 0.8.4",
- "reqwest",
- "rumqttc",
- "rustls",
- "serde 1.0.132",
- "serde_json",
- "serde_prefix",
- "serde_with",
  "services",
- "sha2",
- "sys-info",
- "tempdir",
- "thiserror",
  "tokio",
- "tokio-rustls",
- "warp",
 ]
 
 [[package]]
@@ -2270,7 +2240,6 @@ dependencies = [
  "console",
  "dialoguer",
  "dirs",
- "env_logger",
  "glob",
  "http",
  "jsonwebtoken",

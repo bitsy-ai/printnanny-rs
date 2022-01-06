@@ -1,5 +1,5 @@
 [package]
-name = "oslink"
+name = "pn-oslink"
 version = "0.1.0"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2018"
