@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "services",
-    "oslink",
+    "dash",
     "cli",
 ]
 

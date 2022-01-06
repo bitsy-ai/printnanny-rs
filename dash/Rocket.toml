@@ -4,4 +4,4 @@ template_dir = "templates/"
 port = 9001
 
 [global.databases]
-sqlite_logs = { url = "/opt/printnanny/data/db.sqlite" }
+sqlite = { url = "db.sqlite" }

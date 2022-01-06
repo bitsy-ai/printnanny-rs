@@ -1,12 +1,26 @@
 [package]
-name = "pn-oslink"
+name = "printnanny-dash"
 version = "0.1.0"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2018"
 
 [dependencies]
+anyhow = "1"
 rocket = "0.5.0-rc.1"
 time = { version = "0.3", features = ["macros", "parsing"] }
+tokio = "1.15.0"
+
+[dependencies.clap]
+version = "3.0"
+features = ["cargo"]
+
+[dependencies.rocket_auth]
+version = "0.4.0"
+features = ["sqlx-sqlite"]
+
+[dependencies.sqlx]
+version = "0.5"
+features = [ "runtime-tokio-rustls" ]
 
 [dependencies.rocket_dyn_templates]
 version = "0.1.0-rc.1"
