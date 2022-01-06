@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# https://github.com/japaric/trust/blob/6df66ab2b4a8e174e00ec322512288f19d3dae5a/ci/install.sh
+# https://github.com/japaric/trust/blob/6df66ab2b4a8e174e00ec322512288f19d3dae5a/tools/ci/install.sh
 # Copyright (c) 2016 Jorge Aparicio
 # Modified (c) 2021 Leigh Johnson
 
