@@ -1,0 +1,2 @@
+[global.databases]
+sqlite_logs = { url = "/opt/printnanny/data/db.sqlite" }

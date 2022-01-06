@@ -45,8 +45,8 @@ jobs:
   #         # - x86_64-pc-windows-gnu
     # steps:
     #   - uses: actions/checkout@v2
-    #   - run: bash ci/set_rust_version.bash stable ${{ matrix.target }}
-    #   - run: bash ci/build.bash cargo ${{ matrix.target }} RELEASE
+    #   - run: bash tools/ci/set_rust_version.bash stable ${{ matrix.target }}
+    #   - run: bash tools/ci/build.bash cargo ${{ matrix.target }} RELEASE
     #   - run: |
     #       cd ./target/${{ matrix.target }}/release/
     #       7z a "${{ env.BIN }}.zip" "${{ env.BIN }}.exe"
@@ -97,8 +97,8 @@ jobs:
   #         path: /usr/local/bin/
   #     - run: chmod +x /usr/local/bin/cross
 
-  #     - run: ci/set_rust_version.bash stable ${{ matrix.target }}
-  #     - run: ci/build.bash cross ${{ matrix.target }} RELEASE
+  #     - run: tools/ci/set_rust_version.bash stable ${{ matrix.target }}
+  #     - run: tools/ci/build.bash cross ${{ matrix.target }} RELEASE
   #     - run: tar -czvf ${{ env.BIN }}.tar.gz --directory=target/${{ matrix.target }}/release ${{ env.BIN }}
   #     - uses: XAMPPRocky/create-release@v1.0.2
   #       id: create_release
@@ -173,8 +173,8 @@ jobs:
           path: /tmp/
       - run: chmod +x /tmp/cross
 
-      - run: ci/set_rust_version.bash stable ${{ matrix.target }}
-      - run: ci/build.bash /tmp/cross ${{ matrix.target }} RELEASE
+      - run: tools/ci/set_rust_version.bash stable ${{ matrix.target }}
+      - run: tools/ci/build.bash /tmp/cross ${{ matrix.target }} RELEASE
       - run: tar -czvf ${{ env.BIN }}.tar.gz --directory=target/${{ matrix.target }}/release ${{ env.BIN }}
       - name: Upload Release Asset
         id: upload-release-asset

@@ -1,49 +1,12 @@
-[package]
-name = "printnanny"
-version = "0.9.4"
-authors = ["Leigh Johnson <leigh@bitsy.ai>"]
-edition = "2018"
+[workspace]
+members = [
+    "services",
+    "oslink",
+    "cli",
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.dev]
 panic = "abort"
 [profile.release]
 panic = "abort"
-
-[dependencies]
-async-trait = "0.1"
-anyhow = { version = "1.0.44", features = ["backtrace"] }
-chrono = "0.4.19"
-clap = "2.3.7"
-config = "0.11.0"
-console = "0.14.1"
-dialoguer = "0.8.0"
-dirs = "4.0.0"
-env_logger = "0.9.0"
-glob = "0.3.0"
-http = "0.2.5"
-jsonwebtoken = "7"
-log = "0.4.14"
-printnanny-api-client = "0.33.0"
-procfs = "0.11"
-rumqttc = "0.10"
-rustls = "0.19"
-tokio-rustls = "0.22"
-serde = { version = "1.0.130", features = ["derive"] }
-serde_with = "1.11.0"
-serde_prefix = "0.1.0"
-serde_json = "1.0.68"
-sha2 = "0.9.8"
-sys-info = "0.9"
-rand = "0.8"
-reqwest = "0.11"
-thiserror = "1.0.29"
-tokio = { version = "1.12.0", features = ["full"] }
-openssl = { version = "=0.10.36", features = ["vendored"] }
-warp = "0.3"
-
-[dev-dependencies]
-assert_cmd = "2.0.2"
-mockall = "0.10.2"
-predicates = "2.0.3"
-tempdir = "0.3.7"
