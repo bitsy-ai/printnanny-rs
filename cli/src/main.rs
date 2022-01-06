@@ -8,9 +8,9 @@ use clap::{
     value_t, crate_version, crate_authors, crate_description
 };
 
-use printnanny::services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
-use printnanny::services::mqtt::{ MQTTWorker, MqttAction };
-use printnanny::services::api::{ DeviceCmd, DeviceAction, LicenseCmd, LicenseAction };
+use services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
+use services::mqtt::{ MQTTWorker, MqttAction };
+use services::api::{ DeviceCmd, DeviceAction, LicenseCmd, LicenseAction };
 
 #[tokio::main]
 async fn main() -> Result<()> {

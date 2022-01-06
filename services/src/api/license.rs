@@ -16,7 +16,7 @@ use printnanny_api_client::apis::devices_api::{
     devices_active_license_retrieve,
     DevicesActiveLicenseRetrieveError
 };
-use crate::services::msgs;
+use crate::msgs;
 use super::generic::{ ApiService, PrintNannyService };
 
 arg_enum!{
