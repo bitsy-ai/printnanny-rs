@@ -11,7 +11,13 @@ use clap::{
 };
 
 use rocket::http::{Status, ContentType};
-use rocket::form::{Form, Contextual, FromForm, FromFormField, Context};
+use rocket::form::{
+    Form,
+    Contextual,
+    FromForm,
+    FromFormField,
+    Context,
+};
 use rocket::fs::{FileServer, TempFile, relative};
 use rocket_auth::{ Users, User };
 use rocket_dyn_templates::Template;
@@ -57,18 +63,12 @@ struct Submission<'v> {
 }
 
 #[derive(Debug, FromForm)]
-struct Account<'v> {
+struct Signup<'v> {
     #[field(validate = contains('@').or_else(msg!("invalid email address")))]
     email: &'v str,
     analytics: bool,
-
 }
 
-#[derive(Debug, FromForm)]
-struct SubmitStep1<'v> {
-    account: Account<'v>,
-    // submission: Submission<'v>,
-}
 
 #[get("/")]
 fn index(option: Option<User>) -> Template {
@@ -83,7 +83,7 @@ fn index(option: Option<User>) -> Template {
 // fields to re-render forms with submitted values on error. If you have no such
 // need, do not use `Contextual`. Use the equivalent of `Form<Submit<'_>>`.
 #[post("/login", data = "<form>")]
-fn submit<'r>(form: Form<Contextual<'r, SubmitStep1<'r>>>) -> (Status, Template) {
+fn submit<'r>(form: Form<Contextual<'r, Signup<'r>>>) -> (Status, Template) {
     let template = match form.value {
         Some(ref submission) => {
             println!("submission: {:#?}", submission);
