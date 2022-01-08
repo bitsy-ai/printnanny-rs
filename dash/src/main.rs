@@ -1,4 +1,5 @@
 #[macro_use] extern crate rocket;
+
 use std::str::FromStr;
 use std::collections::HashMap;
 
@@ -12,105 +13,28 @@ use clap::{
     crate_description
 };
 
-use rocket::State;
-use rocket::http::{Status, ContentType};
-use rocket::form::{
-    Form,
-    Contextual,
-    FromForm,
-    FromFormField,
-    Context,
-};
-use rocket::http::RawStr;
-use rocket::fs::{FileServer, TempFile, relative};
+use rocket::response::Redirect;
+use rocket::fs::{FileServer, relative};
 use rocket_auth::{ Users, User };
-use rocket_dyn_templates::Template;
 use sqlx::sqlite::{ SqlitePool, SqliteConnectOptions};
 use sqlx::prelude::ConnectOptions;
+use rocket_dyn_templates::Template;
 
-use services::printnanny_api::ApiService;
-
-struct Config {
-    base_url: String,
-    path: String
-}
-
-#[derive(Debug, FromForm)]
-struct Password<'v> {
-    #[field(validate = len(6..))]
-    #[field(validate = eq(self.second))]
-    first: &'v str,
-    #[field(validate = eq(self.first))]
-    second: &'v str,
-}
-
-#[derive(Debug, FromFormField)]
-enum Rights {
-    Public,
-    Reserved,
-    Exclusive,
-}
-
-#[derive(Debug, FromFormField)]
-enum Category {
-    Biology,
-    Chemistry,
-    Physics,
-    #[field(value = "CS")]
-    ComputerScience,
-}
-
-#[derive(Debug, FromForm)]
-struct Account<'v> {
-    #[field(validate = contains('@').or_else(msg!("invalid email address")))]
-    email: &'v str,
-    #[field(validate = eq(true).or_else(msg!("Please agree to submit anonymous debug logs")))]
-    analytics: bool,
-}
-
+use printnanny_dash::{Config, Response};
+use printnanny_dash::auth;
 
 #[get("/")]
-fn index(option: Option<User>) -> Template {
+fn index(option: Option<User>) -> Response {
     let mut context = HashMap::new();
     if let Some(user) = option {
         context.insert("user", user);
-        Template::render("index", context)
+        Response::Template(Template::render("index", context))
     } else {
-        Template::render("authemail", &Context::default())
+        Response::Redirect(Redirect::to("/login"))
     }
 }
 
-// NOTE: We use `Contextual` here because we want to collect all submitted form
-// fields to re-render forms with submitted values on error. If you have no such
-// need, do not use `Contextual`. Use the equivalent of `Form<Submit<'_>>`.
-#[post("/login", data = "<form>")]
-async fn submit<'r>(form: Form<Contextual<'r, Account<'r>>>, config: &State<Config>) -> (Status, Template) {
-    info!("Received form response {:?}", form);
-    let template = match form.value {
-        Some(ref signup) => {
-            let service = ApiService::new(&config.path, &config.base_url).await;
-            match service {
-                Ok(s) => {
-                    let res = s.auth_email_create(signup.email.to_string()).await;
-                    match res {
-                        Ok(_) => Template::render("authcode", &form.context),
-                        Err(e) => {
-                            error!("{}", e);
-                            Template::render("error", &form.context)
-                        }
-                    }
-                },
-                Err(e) => {
-                    error!("{}", e);
-                    Template::render("error", &form.context)
-                }
-            }
-        }
-        None => Template::render("authemail", &form.context),
-    };
 
-    (form.context.status(), template)
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -149,7 +73,13 @@ async fn main() -> Result<()> {
     let config = Config{ path: config.to_string(), base_url: base_url.to_string()};
 
     rocket::build()
-        .mount("/", routes![index, submit])
+        .mount("/", routes![
+            index,
+            auth::login_step1,
+            auth::login_step1_submit,
+            auth::login_step2,
+            auth::login_step2_submit
+        ])
         .attach(Template::fairing())
         .mount("/", FileServer::from(relative!("/static")))
         .manage(users)

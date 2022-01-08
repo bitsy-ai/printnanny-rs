@@ -72,7 +72,6 @@ impl ApiService {
             },
             Err(e) => {
                 warn!("Failed to read {:?} - calling api as anonymous user", &paths.api_config_json);
-                error!("{}", e);
                 Configuration{ 
                     base_path: base_url.to_string(),
                     ..Configuration::default()
@@ -86,7 +85,6 @@ impl ApiService {
             Ok(device) => Some(device),
             Err(e) => {
                 warn!("Failed to read {:?} - methods requiring device will fail", &paths.device_json);
-                error!("{}", e);
                 None
             }
         };
@@ -97,7 +95,6 @@ impl ApiService {
             Ok(license) => Some(license),
             Err(e) => {
                 warn!("Failed to read {:?} - methods requiring license will fail", &paths.license_json);
-                error!("{}", e);
                 None
             }
         };
@@ -115,6 +112,12 @@ impl ApiService {
     pub async fn auth_email_create(&self, email: String) -> Result<DetailResponse> {
         let req = EmailAuthRequest{email};
         let res = auth_email_create(&self.request_config, req).await?;
+        Ok(res)
+    }
+    pub async fn auth_token_validate(&self, email: &str, token: &str) -> Result<printnanny_api_client::models::TokenResponse> {
+        let req = printnanny_api_client::models::CallbackTokenAuthRequest{email: Some(email.to_string()), token: token.to_string(), mobile: None};
+        let res = printnanny_api_client::apis::auth_api::auth_token_create(&self.request_config, req).await
+            .context(format!("Failed to validate email/token pair: {} {}", &email, &token))?;
         Ok(res)
     }
     // device API

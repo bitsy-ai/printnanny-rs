@@ -6,6 +6,22 @@
     <title>Rocket Form Example</title>
     <link rel="stylesheet" href="/chota.min.css">
     <style>
+      :root {
+          --bg-color: #f1f3fa;
+          --bg-secondary-color: #98a6ad;
+          --color-primary: #727cf5;
+          --color-lightGrey: #dee2e6;
+          --color-grey: #6c757d;
+          --color-darkGrey: #313a46;
+          --color-error: #ff679b;
+          --color-success: #0acf97;
+          --grid-maxWidth: 120rem;
+          --grid-gutter: 2rem;
+          --font-size: 1.6rem;
+          --font-color: #333333;
+          --font-family-sans: sans-serif;
+          --font-family-mono: monaco, "Consolas", "Lucida Console", monospace;
+      }
       .container {
         max-width: 800px;
         margin: 0 auto;
@@ -17,38 +33,25 @@
     <div class="container">
     <h1>Check your email 💌</h1>
 
-      {% if errors | length > 1 %}
-          <small class="text-error" style="margin-top: -20px">
-              {{ errors | length }} field(s) have errors
-          </small>
-      {% endif %}
 
       <div class="row">
         <div class="col-9">
 
           <form action="/login" method="post" enctype="multipart/form-data">
             <fieldset>
-              <legend>Step 2: Enter the 6-digit code sent to {{ email }} to finish setup</legend>
+              <legend>Step 2: Enter the 6-digit code sent to {{ email }}</legend>
               <div class="row">
                 <div class="col-12">
-                {{ m::input(label="Registration code", type="text", name="code") }}
+                <input label="Registration code", type="text", name="token" />
                 </div>
               </div>
             </fieldset>
             <br />
-            <input type="submit" value="Submit" class="is-full-width" />
+            <input type="submit" value="Finish Setup" class="is-full-width" />
           </form>
         </div>
         <div class="col-3">
-        <img src="/logo.svg" style="is-full-width" />
         </div>
     </div>
-      <ul>
-          {% for key, value in values %}
-              <li><strong>{{ key }}</strong> - {{ value }}</li>
-          {% endfor %}
-      </ul>
-
-      <a href="/">&lt; Submit Another</a>
   </body>
 </html>
