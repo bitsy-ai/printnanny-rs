@@ -3,7 +3,7 @@ use std::fs::{ read_to_string };
 use std::path::{ PathBuf };
 use log::{ info };
 
-use anyhow::{ anyhow, Context, Result };
+use anyhow::{ Context, Result };
 use async_trait::async_trait;
 use serde::{ Serialize };
 
@@ -16,7 +16,6 @@ use printnanny_api_client::apis::devices_api::{
 };
 
 use printnanny_api_client::models::{ 
-    Device,
     License,
     TaskType,
     TaskRequest,
@@ -33,7 +32,7 @@ pub struct PrintNannyService<T>{
     pub paths: PrintNannyPath,
     pub config: String,
     pub item: Option<T>,
-    pub license: License // loaded from license.json
+    pub license: License,
 }
 
 fn read_model_json<T:serde::de::DeserializeOwned >(path: &PathBuf) -> Result<T> {
@@ -61,7 +60,13 @@ impl<T> PrintNannyService<T> {
             ..Configuration::default()
         };
 
-        Ok(PrintNannyService{request_config, api_config, paths, license, item: None, config: config.to_string() })
+        Ok(PrintNannyService{
+            request_config, 
+            api_config, paths, 
+            item: None, 
+            config: config.to_string(),
+            license: license,
+        })
     }
 
     pub async fn update_task_status(
@@ -98,33 +103,17 @@ impl<T> PrintNannyService<T> {
 }
 
 #[async_trait]
-pub trait ApiService<T:serde::de::DeserializeOwned + Serialize> {
+pub trait ApiModel<T:serde::de::DeserializeOwned + Serialize> {
     // async fn create<T, R>(&self, request: R) -> Result<T>;
     async fn retrieve(&self, id: i32) -> Result<T>;
     // async fn partial_update<T, R>(&self, id: &i32, rquest: R) -> Result<T>;
     // async fn update<T, R>(&self, id: &i32, request: R) -> Result<T>;
 
-    fn read_json(&self, path: &PathBuf) -> Result<T> {
-        let result = serde_json::from_str::<T>(
-            &read_to_string(path)
-            .context(format!("Failed to read {:?}", path))?
-            )?;
-        Ok(result)
-    }
-    fn to_string_pretty(&self, item: T) -> Result<String> {
-        Ok(serde_json::to_string_pretty::<T>(&item)?)
+    fn read_json(path: &PathBuf) -> Result<T> {
+        return read_model_json::<T>(path)
     }
 
-    fn check_task_type(&self, device: &Device, expected_type: TaskType) -> Result<()>{
-        match &device.last_task {
-            Some(last_task) => {
-                if last_task.task_type == expected_type {
-                    return Err(anyhow!("Expected Device.last_task to be {:?} but received task {:?}", expected_type, last_task))
-                } else { Ok(()) }
-            },
-            None => {
-                return Err(anyhow!("Expected Device.last_task to be {:?} but received task None", expected_type))
-            }
-        }
+    fn to_string_pretty(&self, item: T) -> Result<String> {
+        Ok(serde_json::to_string_pretty::<T>(&item)?)
     }
 }

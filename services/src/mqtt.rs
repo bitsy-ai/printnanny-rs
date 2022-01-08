@@ -14,7 +14,7 @@ use jsonwebtoken::{encode, Header, Algorithm, EncodingKey};
 use printnanny_api_client::models::{ Device, CloudiotDevice };
 use crate::paths::PrintNannyPath;
 
-use super::api::{ ApiService, PrintNannyService };
+use super::api::{ ApiModel, PrintNannyService };
 
 arg_enum!{
     pub enum MqttAction {

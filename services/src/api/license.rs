@@ -17,7 +17,7 @@ use printnanny_api_client::apis::devices_api::{
     DevicesActiveLicenseRetrieveError
 };
 use crate::msgs;
-use super::generic::{ ApiService, PrintNannyService };
+use super::generic::{ ApiModel, PrintNannyService };
 
 arg_enum!{
     #[derive(PartialEq, Debug, Clone)]
@@ -48,7 +48,7 @@ impl LicenseCmd{
 }
 
 #[async_trait]
-impl ApiService<License> for PrintNannyService<License> {
+impl ApiModel<License> for PrintNannyService<License> {
     async fn retrieve(&self, id: i32) -> Result<License>{
         Ok(licenses_retrieve(&self.request_config, id).await?)
     }

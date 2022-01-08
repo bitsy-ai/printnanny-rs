@@ -10,7 +10,7 @@ use printnanny_api_client::models::{
     Device
 };
 
-use super::generic::{ ApiService, PrintNannyService };
+use super::generic::{ ApiModel, PrintNannyService };
 
 arg_enum!{
     #[derive(PartialEq, Debug, Clone)]
@@ -40,7 +40,7 @@ impl DeviceCmd {
 
 
 #[async_trait]
-impl ApiService<Device> for PrintNannyService<Device> {
+impl ApiModel<Device> for PrintNannyService<Device> {
     async fn retrieve(&self, id: i32) -> Result<Device>{
         Ok(devices_retrieve(&self.request_config, id).await?)
     }
