@@ -7,6 +7,10 @@ use anyhow::{ anyhow, Context, Result };
 
 use printnanny_api_client::models::print_nanny_api_config::PrintNannyApiConfig;
 use printnanny_api_client::apis::configuration::Configuration;
+
+use printnanny_api_client::apis::auth_api::{
+    auth_email_create
+};
 use printnanny_api_client::apis::devices_api::{
     devices_tasks_create,
     devices_tasks_status_create,
@@ -25,7 +29,9 @@ use printnanny_api_client::models::{
     TaskRequest,
     TaskStatusRequest,
     TaskStatusType,
-    Task
+    Task,
+    EmailAuthRequest,
+    DetailResponse
 };
 use printnanny_api_client::apis::devices_api::{
     devices_retrieve,
@@ -104,6 +110,12 @@ impl ApiService {
             device: device,
             license: license
         })
+    }
+    // auth APIs
+    pub async fn auth_email_create(&self, email: String) -> Result<DetailResponse> {
+        let req = EmailAuthRequest{email};
+        let res = auth_email_create(&self.request_config, req).await?;
+        Ok(res)
     }
     // device API
     pub async fn device_retrieve(&self) -> Result<Device> {
