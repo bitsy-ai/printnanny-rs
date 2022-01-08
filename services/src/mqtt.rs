@@ -11,10 +11,10 @@ use anyhow::{ Context, Result };
 use serde::{Serialize, Deserialize};
 use jsonwebtoken::{encode, Header, Algorithm, EncodingKey};
 
-use printnanny_api_client::models::{ Device, CloudiotDevice };
+use printnanny_api_client::models::{ CloudiotDevice };
 use crate::paths::PrintNannyPath;
 
-use super::api::{ ApiModel, PrintNannyService };
+use super::printnanny_api::{ ApiService };
 
 arg_enum!{
     pub enum MqttAction {
@@ -33,7 +33,7 @@ struct Claims {
 
 #[derive(Debug, Clone)]
 pub struct MQTTWorker {
-    service: PrintNannyService::<Device>,
+    service: ApiService,
     claims: Claims,
     config_topic: String,
     task_topic: String,
@@ -77,9 +77,9 @@ impl MQTTWorker {
         Ok(mqttoptions)
     }
 
-    pub async fn new(config: &str) -> Result<MQTTWorker> {
-        let service = PrintNannyService::<Device>::new(config)?;
-        let device = service.retrieve(service.license.device).await?;
+    pub async fn new(config: &str, base_api_url: &str) -> Result<MQTTWorker> {
+        let service = ApiService::new(config, base_api_url).await?;
+        let device = service.device_retrieve().await?;
         let cloudiot_device = device.cloudiot_device.as_ref().unwrap();
         let gcp_project_id: String = cloudiot_device.gcp_project_id.clone();
 
