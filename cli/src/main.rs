@@ -10,7 +10,8 @@ use clap::{
 
 use services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use services::mqtt::{ MQTTWorker, MqttAction };
-use services::api::{ DeviceCmd, DeviceAction, LicenseCmd, LicenseAction };
+use printnanny::device::{DeviceCmd, DeviceAction };
+use printnanny::license::{ LicenseCmd, LicenseAction};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,6 +27,12 @@ async fn main() -> Result<()> {
         .short("v")
         .multiple(true)
         .help("Sets the level of verbosity"))
+        .arg(Arg::with_name("base_url")
+        .long("base-url")
+        .takes_value(true)
+        .help("Base Print Nanny url")
+        .default_value("https://print-nanny.com"))
+
         .arg(Arg::with_name("config")
         .short("c")
         .long("config")
@@ -148,13 +155,14 @@ async fn main() -> Result<()> {
     };
 
     let config = app_m.value_of("config").unwrap();
+    let base_url = app_m.value_of("base-url").unwrap();
     
     match app_m.subcommand() {
         ("mqtt", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", MqttAction).unwrap_or_else(|e| e.exit());
             match action {
                 MqttAction::Subscribe => {
-                    let worker = MQTTWorker::new(&config).await?;
+                    let worker = MQTTWorker::new(&config, &base_url).await?;
                     worker.run().await?;
                 },
                 MqttAction::Publish => unimplemented!("mqtt publish is not implemented yet")
@@ -163,13 +171,13 @@ async fn main() -> Result<()> {
 
         ("license", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", LicenseAction).unwrap_or_else(|e| e.exit());
-            let cmd = LicenseCmd::new(action, config)?;
+            let cmd = LicenseCmd::new(action, config, base_url).await?;
             let result = cmd.handle().await?;
             println!("{}", result)
         },
         ("device", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", DeviceAction).unwrap_or_else(|e| e.exit());
-            let cmd = DeviceCmd::new(action, config)?;
+            let cmd = DeviceCmd::new(action, config, base_url).await?;
             let result = cmd.handle().await?;
             println!("{}", result)
         }, 
