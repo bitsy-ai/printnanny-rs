@@ -1,5 +1,6 @@
 
 use std::collections::HashMap;
+use std::convert::TryInto;
 
 use rocket::response::Redirect;
 use rocket::http::Status;
@@ -53,10 +54,9 @@ pub async fn login_step1_submit<'r>(form: Form<Contextual<'r, EmailForm<'r>>>, c
 
                         },
                         Err(e) => {
-                            info!("auth_email_create produced an error");
                             error!("{}",e);
-                            let redirect = Redirect::to(format!("/login/{}", signup.email));
-                            (Status::new(500), Response::Template(Template::render("error", &form.context)))
+                            form.context.push_error(e.try_into()?);
+                            (Status::new(500),  Response::Template(Template::render("authemail", &form.context)))
                         }
                     }
                 },
@@ -88,8 +88,8 @@ pub async fn login_step2_submit<'r>(email: String, form: Form<Contextual<'r, Tok
                     let res = s.auth_token_validate(&email, token).await;
                     match res {
                         Ok(_) => {
-                            let redirect = Redirect::to(format!("/"));
-                            (Status::new(303), Response::Redirect(redirect))
+                            // let redirect = Redirect::to(format!("/success"));
+                            (Status::new(200), Response::Template(Template::render("success", &form.context)))
 
                         },
                         Err(e) => {
@@ -106,7 +106,7 @@ pub async fn login_step2_submit<'r>(email: String, form: Form<Contextual<'r, Tok
         },
         None => {
             info!("form.value is empty");
-            (form.context.status(), Response::Template(Template::render("authemail", &form.context)))
+            (Status::new(500), Response::Template(Template::render("error", &form.context)))
         },
     }
 }

@@ -15,40 +15,6 @@
   </head>
   <body>
     <div class="container">
-    <h1>Check your email 💌</h1>
-
-      {% if errors | length > 1 %}
-          <small class="text-error" style="margin-top: -20px">
-              {{ errors | length }} field(s) have errors
-          </small>
-      {% endif %}
-
-      <div class="row">
-        <div class="col-9">
-
-          <form action="/login" method="post" enctype="multipart/form-data">
-            <fieldset>
-              <legend>Step 2: Enter the 6-digit code sent to {{ email }} to finish setup</legend>
-              <div class="row">
-                <div class="col-12">
-                {{ m::input(label="Registration code", type="text", name="code") }}
-                </div>
-              </div>
-            </fieldset>
-            <br />
-            <input type="submit" value="Submit" class="is-full-width" />
-          </form>
-        </div>
-        <div class="col-3">
-        <img src="/logo.svg" style="is-full-width" />
-        </div>
-    </div>
-      <ul>
-          {% for key, value in values %}
-              <li><strong>{{ key }}</strong> - {{ value }}</li>
-          {% endfor %}
-      </ul>
-
-      <a href="/">&lt; Submit Another</a>
+    <h1>Success 💌</h1>
   </body>
 </html>

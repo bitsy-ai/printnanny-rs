@@ -1,9 +1,8 @@
 
-use std::fs::{ read_to_string };
+use std::fs::{ File, read_to_string };
+use std::io::BufReader;
 use std::path::{ PathBuf };
 use log::{ info, warn, error };
-
-use anyhow::{ anyhow, Context, Result };
 
 use printnanny_api_client::models::print_nanny_api_config::PrintNannyApiConfig;
 use printnanny_api_client::apis::configuration::Configuration;
@@ -31,13 +30,17 @@ use printnanny_api_client::models::{
     TaskStatusType,
     Task,
     EmailAuthRequest,
-    DetailResponse
+    DetailResponse,
+    TokenResponse
 };
 use printnanny_api_client::apis::devices_api::{
     devices_retrieve,
 };
 use crate::paths::{ PrintNannyPath };
 use crate::msgs;
+
+use printnanny_api_client::apis::Error;
+use printnanny_api_client::apis::auth_api;
 
 #[derive(Debug, Clone)]
 pub struct ApiService{
@@ -48,11 +51,9 @@ pub struct ApiService{
     pub device: Option<Device>
 }
 
-fn read_model_json<T:serde::de::DeserializeOwned >(path: &PathBuf) -> Result<T> {
-    let result = serde_json::from_str::<T>(
-        &read_to_string(path)
-        .context(format!("Failed to read {:?}", path))?
-        )?;
+fn read_model_json<T:serde::de::DeserializeOwned >(path: &PathBuf) -> Result<T, Box<dyn error::Error>> {
+    let reader = BufReader::new(file);
+    let result: T = serde_json::from_reader(reader)?;
     Ok(result)
 }
 
@@ -109,16 +110,13 @@ impl ApiService {
         })
     }
     // auth APIs
-    pub async fn auth_email_create(&self, email: String) -> Result<DetailResponse> {
+    pub async fn auth_email_create(&self, email: String) -> Result<DetailResponse, Error<auth_api::AuthEmailCreateError>> {
         let req = EmailAuthRequest{email};
-        let res = auth_email_create(&self.request_config, req).await?;
-        Ok(res)
+        auth_email_create(&self.request_config, req).await
     }
-    pub async fn auth_token_validate(&self, email: &str, token: &str) -> Result<printnanny_api_client::models::TokenResponse> {
+    pub async fn auth_token_validate(&self, email: &str, token: &str) -> Result<TokenResponse, Error<auth_api::AuthTokenCreateError>> {
         let req = printnanny_api_client::models::CallbackTokenAuthRequest{email: Some(email.to_string()), token: token.to_string(), mobile: None};
-        let res = printnanny_api_client::apis::auth_api::auth_token_create(&self.request_config, req).await
-            .context(format!("Failed to validate email/token pair: {} {}", &email, &token))?;
-        Ok(res)
+        printnanny_api_client::apis::auth_api::auth_token_create(&self.request_config, req).await
     }
     // device API
     pub async fn device_retrieve(&self) -> Result<Device> {
