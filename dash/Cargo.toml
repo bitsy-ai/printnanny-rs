@@ -10,7 +10,6 @@ indexmap = "1.8.0"
 printnanny-api-client = "0.33"
 log = "0.4" 
 anyhow = "1"
-rocket = "0.5.0-rc.1"
 time = { version = "0.3", features = ["macros", "parsing"] }
 tokio = "1.15.0"
 
@@ -18,9 +17,9 @@ tokio = "1.15.0"
 version = "3.0"
 features = ["cargo"]
 
-[dependencies.rocket_auth]
-version = "0.4.0"
-features = ["sqlx-sqlite"]
+[dependencies.rocket]
+version = "0.5.0-rc.1"
+features = ["secrets"]
 
 [dependencies.sqlx]
 version = "0.5"

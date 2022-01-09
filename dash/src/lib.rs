@@ -1,6 +1,6 @@
 #[macro_use] extern crate rocket;
 use rocket_dyn_templates::Template;
-use rocket::response::Redirect;
+use rocket::response::{Flash, Redirect};
 
 pub mod auth;
 

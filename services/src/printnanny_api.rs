@@ -1,50 +1,30 @@
-use std::fs::{ File, read_to_string };
+use std::fs::{ File };
 use std::io::BufReader;
 use std::path::{ PathBuf };
 use log::{ info, warn, error };
 
 use thiserror::Error;
+use serde::{Serialize, Deserialize};
 
 use printnanny_api_client::models::print_nanny_api_config::PrintNannyApiConfig;
 use printnanny_api_client::apis::configuration::Configuration;
-
-use printnanny_api_client::apis::auth_api::{
-    auth_email_create
-};
-use printnanny_api_client::apis::devices_api::{
-    devices_tasks_create,
-    devices_tasks_status_create,
-};
-use printnanny_api_client::apis::licenses_api::{
-    license_activate,
-    licenses_retrieve
-};
-use printnanny_api_client::apis::devices_api::{
-    devices_active_license_retrieve,
-};
-use printnanny_api_client::models::{ 
-    Device,
-    License,
-    TaskType,
-    TaskRequest,
-    TaskStatusRequest,
-    TaskStatusType,
-    Task,
-    EmailAuthRequest,
-    DetailResponse,
-    TokenResponse
-};
-use printnanny_api_client::apis::devices_api::{
-    devices_retrieve,
-};
-use crate::paths::{ PrintNannyPath };
-use crate::msgs;
 
 use printnanny_api_client::apis::Error as ApiError;
 use printnanny_api_client::apis::auth_api;
 use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::licenses_api;
 use printnanny_api_client::models;
+
+use crate::paths::{ PrintNannyPath };
+use crate::msgs;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DashboardCookie {
+    api_config: models::PrintNannyApiConfig,
+    user: models::User,
+    device: models::Device,
+    analytics: bool,
+}
 
 #[derive(Error, Debug)]
 pub enum ServiceError<T>{
@@ -73,8 +53,8 @@ pub struct ApiService{
     pub request_config: Configuration,
     pub paths: PrintNannyPath,
     pub config: String,
-    pub license: Option<License>,
-    pub device: Option<Device>
+    pub license: Option<models::License>,
+    pub device: Option<models::Device>
 }
 
 fn read_model_json<T:serde::de::DeserializeOwned>(path: &PathBuf) -> Result<T, std::io::Error> {
@@ -149,34 +129,34 @@ impl ApiService {
     }
 
     // auth APIs
-    pub async fn auth_email_create(&self, email: String) -> Result<DetailResponse, ApiError::<auth_api::AuthEmailCreateError>> {
-        let req = EmailAuthRequest{email};
-        auth_email_create(&self.request_config, req).await
+    pub async fn auth_email_create(&self, email: String) -> Result<models::DetailResponse, ApiError::<auth_api::AuthEmailCreateError>> {
+        let req = models::EmailAuthRequest{email};
+        auth_api::auth_email_create(&self.request_config, req).await
     }
-    pub async fn auth_token_validate(&self, email: &str, token: &str) -> Result<TokenResponse, ApiError::<auth_api::AuthTokenCreateError>> {
-        let req = printnanny_api_client::models::CallbackTokenAuthRequest{email: Some(email.to_string()), token: token.to_string(), mobile: None};
+    pub async fn auth_token_validate(&self, email: &str, token: &str) -> Result<models::TokenResponse, ApiError::<auth_api::AuthTokenCreateError>> {
+        let req = models::CallbackTokenAuthRequest{email: Some(email.to_string()), token: token.to_string(), mobile: None};
         auth_api::auth_token_create(&self.request_config, req).await
     }
     // device API
-    pub async fn device_retrieve(&self) -> Result<Device, ServiceError<devices_api::DevicesRetrieveError>> {
+    pub async fn device_retrieve(&self) -> Result<models::Device, ServiceError<devices_api::DevicesRetrieveError>> {
         match &self.device {
             Some(device) => Ok(devices_api::devices_retrieve(&self.request_config, device.id).await?),
             None => Err(ServiceError::SignupIncomplete{cache: self.paths.device_json.clone() })
         }
     }
-    pub async fn device_retrieve_hostname(&self) -> Result<Device, ServiceError<devices_api::DevicesRetrieveHostnameError>> {
+    pub async fn device_retrieve_hostname(&self) -> Result<models::Device, ServiceError<devices_api::DevicesRetrieveHostnameError>> {
         let hostname = sys_info::hostname()?;
         let res = devices_api::devices_retrieve_hostname(&self.request_config, &hostname).await?;
         Ok(res)
     }
     // license API
-    pub async fn license_activate(&self, license_id: i32) -> Result<License, ApiError<licenses_api::LicenseActivateError>> {
-        license_activate(&self.request_config, license_id, None).await
+    pub async fn license_activate(&self, license_id: i32) -> Result<models::License, ApiError<licenses_api::LicenseActivateError>> {
+        licenses_api::license_activate(&self.request_config, license_id, None).await
     }
-    pub async fn license_retrieve(&self, license_id: i32) -> Result<License, ApiError<licenses_api::LicensesRetrieveError>> {
+    pub async fn license_retrieve(&self, license_id: i32) -> Result<models::License, ApiError<licenses_api::LicensesRetrieveError>> {
         licenses_api::licenses_retrieve(&self.request_config, license_id).await
     }
-    pub async fn license_retreive_active(&self) -> Result<License, ServiceError<devices_api::DevicesActiveLicenseRetrieveError>> {
+    pub async fn license_retreive_active(&self) -> Result<models::License, ServiceError<devices_api::DevicesActiveLicenseRetrieveError>> {
         match &self.device {
             Some(device) => Ok(devices_api::devices_active_license_retrieve(
                 &self.request_config,
@@ -196,8 +176,8 @@ impl ApiService {
 
     // read device.json from disk cache @ /var/run/printnanny
     // hydrate cache if device.json not found
-    pub async fn load_device_json(&self) -> Result<Device, ServiceError<devices_api::DevicesRetrieveHostnameError>> {
-        let m = read_model_json::<Device>(&self.paths.device_json);
+    pub async fn load_device_json(&self) -> Result<models::Device, ServiceError<devices_api::DevicesRetrieveHostnameError>> {
+        let m = read_model_json::<models::Device>(&self.paths.device_json);
         match m {
             Ok(device) => Ok(device),
             Err(e) => {
@@ -205,7 +185,7 @@ impl ApiService {
                 let res = self.device_retrieve_hostname().await;
                 match res {
                     Ok(device) => {
-                        save_model_json::<Device>(&device, &self.paths.device_json)?;
+                        save_model_json::<models::Device>(&device, &self.paths.device_json)?;
                         info!("Saved model {:?} to {:?}", &device, &self.paths.device_json);
                         Ok(device)
                     }
@@ -217,14 +197,14 @@ impl ApiService {
 
     // read license.json from disk cache @ /var/run/printnanny
     // hydrate cache if license.json not found
-    pub async fn load_license_json(&self) -> Result<License, ServiceError<devices_api::DevicesActiveLicenseRetrieveError>> {
-        let m = read_model_json::<License>(&self.paths.license_json);
+    pub async fn load_license_json(&self) -> Result<models::License, ServiceError<devices_api::DevicesActiveLicenseRetrieveError>> {
+        let m = read_model_json::<models::License>(&self.paths.license_json);
         match m {
             Ok(license) => Ok(license),
             Err(e) => {
                 warn!("Failed to read {:?} - attempting to load license.json from remote", &self.paths.license_json);
                 let license = self.license_retreive_active().await?;
-                save_model_json::<License>(&license, &self.paths.license_json)?;
+                save_model_json::<models::License>(&license, &self.paths.license_json)?;
                 info!("Saved model {:?} to {:?}", &license, &self.paths.license_json);
                 Ok(license)
             }

@@ -1,5 +1,6 @@
 #[macro_use] extern crate rocket;
 
+use std::time::Duration;
 use std::str::FromStr;
 use std::collections::HashMap;
 
@@ -13,28 +14,25 @@ use clap::{
     crate_description
 };
 
+use rocket::http::{Cookie, CookieJar};
 use rocket::response::Redirect;
 use rocket::fs::{FileServer, relative};
-use rocket_auth::{ Users, User };
-use sqlx::sqlite::{ SqlitePool, SqliteConnectOptions};
-use sqlx::prelude::ConnectOptions;
 use rocket_dyn_templates::Template;
+
 
 use printnanny_dash::{Config, Response};
 use printnanny_dash::auth;
 
+
 #[get("/")]
-fn index(option: Option<User>) -> Response {
-    let mut context = HashMap::new();
-    if let Some(user) = option {
-        context.insert("user", user);
-        Response::Template(Template::render("index", context))
-    } else {
-        Response::Redirect(Redirect::to("/login"))
+fn index(jar: &CookieJar<'_>) -> Response {
+    let token = jar.get_private("token");
+    // let mut context = HashMap::new();
+    match token {
+        Some(_) => Response::Template(Template::render("index", {})),
+        None => Response::Redirect(Redirect::to("/login"))
     }
 }
-
-
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -63,26 +61,21 @@ async fn main() -> Result<()> {
     let config = app_m.value_of("config").unwrap();
     let base_url = app_m.value_of("base_url").unwrap();
 
-    SqliteConnectOptions::from_str(&db)?
-        .create_if_missing(true)
-        .connect().await?;
-    let conn = SqlitePool::connect(&db).await?;
-    let users: Users = conn.into();
-    users.create_table().await?;
+    // SqliteConnectOptions::from_str(&db)?
+    //     .create_if_missing(true)
+    //     .connect().await?;
+    // let conn = SqlitePool::connect(&db).await?;
+    // users.create_table().await?;
 
     let config = Config{ path: config.to_string(), base_url: base_url.to_string()};
 
     rocket::build()
         .mount("/", routes![
             index,
-            auth::login_step1,
-            auth::login_step1_submit,
-            auth::login_step2,
-            auth::login_step2_submit
         ])
+        .mount("/login", printnanny_dash::auth::routes())
         .attach(Template::fairing())
         .mount("/", FileServer::from(relative!("/static")))
-        .manage(users)
         .manage(config)
         .launch().await?;
     Ok(())
