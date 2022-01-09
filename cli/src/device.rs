@@ -3,6 +3,7 @@ use clap::arg_enum;
 use log:: { debug };
 
 use services::printnanny_api::ApiService;
+use printnanny_api_client::models;
 
 arg_enum!{
     #[derive(PartialEq, Debug, Clone)]
@@ -25,6 +26,6 @@ impl DeviceCmd {
             DeviceAction::Get => self.service.device_retrieve().await?
         };
         debug!("Success action={} result={:?}", self.action, result);
-        Ok(self.service.to_string_pretty(result)?)
+        Ok(self.service.to_string_pretty::<models::Device>(result)?)
     }    
 }

@@ -51,12 +51,11 @@
               <legend>Step 1: confirm your email address</legend>
               <div class="row">
                 <div class="col-12">
-                {{ m::input(label="Email Address", type="text", name="account.email") }}
+                {{ m::input(label="Email Address", type="text", name="email") }}
                   <!-- required pattern=".*@.*"/> -->
                 </div>
                 <div class="col-12">
-                  {{ m::checkbox(label="I agree to send anonymous debug and analytics info to Print Nanny.", name="account.email") }}
-                    <!-- required pattern=".*@.*"/> -->
+                  {{ m::checkbox(label="I agree to send anonymous debug and analytics info to Print Nanny.", name="analytics", required=true) }}
                   </div>
               </div>
             </fieldset>

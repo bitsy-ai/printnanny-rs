@@ -1,7 +1,11 @@
 #[macro_use] extern crate rocket;
-use std::str::FromStr;
 
-use anyhow::{Error, Result};
+use std::time::Duration;
+use std::str::FromStr;
+use std::collections::HashMap;
+
+use log::{ info };
+use anyhow::{ Result};
 use clap::{ 
     Arg,
     App,
@@ -10,89 +14,24 @@ use clap::{
     crate_description
 };
 
-use rocket::http::{Status, ContentType};
-use rocket::form::{
-    Form,
-    Contextual,
-    FromForm,
-    FromFormField,
-    Context,
-};
-use rocket::fs::{FileServer, TempFile, relative};
-use rocket_auth::{ Users, User };
+use rocket::http::{Cookie, CookieJar};
+use rocket::response::Redirect;
+use rocket::fs::{FileServer, relative};
 use rocket_dyn_templates::Template;
-use sqlx::sqlite::{ SqlitePool, SqliteConnectOptions};
-use sqlx::prelude::ConnectOptions;
-#[derive(Debug, FromForm)]
-struct Password<'v> {
-    #[field(validate = len(6..))]
-    #[field(validate = eq(self.second))]
-    first: &'v str,
-    #[field(validate = eq(self.first))]
-    second: &'v str,
-}
 
-#[derive(Debug, FromFormField)]
-enum Rights {
-    Public,
-    Reserved,
-    Exclusive,
-}
 
-#[derive(Debug, FromFormField)]
-enum Category {
-    Biology,
-    Chemistry,
-    Physics,
-    #[field(value = "CS")]
-    ComputerScience,
-}
-
-#[derive(Debug, FromForm)]
-struct Submission<'v> {
-    #[field(validate = len(1..))]
-    title: &'v str,
-    #[field(validate = len(1..=250))]
-    r#abstract: &'v str,
-    #[field(validate = ext(ContentType::PDF))]
-    file: TempFile<'v>,
-    #[field(validate = len(1..))]
-    category: Vec<Category>,
-    rights: Rights,
-    ready: bool,
-}
-
-#[derive(Debug, FromForm)]
-struct Signup<'v> {
-    #[field(validate = contains('@').or_else(msg!("invalid email address")))]
-    email: &'v str,
-    analytics: bool,
-}
+use printnanny_dash::{Config, Response};
+use printnanny_dash::auth;
 
 
 #[get("/")]
-fn index(option: Option<User>) -> Template {
-    if let Some(user) = option {
-        Template::render("index", user)
-    } else {
-        Template::render("login", &Context::default())
+fn index(jar: &CookieJar<'_>) -> Response {
+    let token = jar.get_private("token");
+    // let mut context = HashMap::new();
+    match token {
+        Some(_) => Response::Template(Template::render("index", {})),
+        None => Response::Redirect(Redirect::to("/login"))
     }
-}
-
-// NOTE: We use `Contextual` here because we want to collect all submitted form
-// fields to re-render forms with submitted values on error. If you have no such
-// need, do not use `Contextual`. Use the equivalent of `Form<Submit<'_>>`.
-#[post("/login", data = "<form>")]
-fn submit<'r>(form: Form<Contextual<'r, Signup<'r>>>) -> (Status, Template) {
-    let template = match form.value {
-        Some(ref submission) => {
-            println!("submission: {:#?}", submission);
-            Template::render("success", &form.context)
-        }
-        None => Template::render("index", &form.context),
-    };
-
-    (form.context.status(), template)
 }
 
 #[tokio::main]
@@ -102,26 +41,42 @@ async fn main() -> Result<()> {
         .version(crate_version!())
         .author(crate_authors!())
         .about(crate_description!())
+        .arg(Arg::new("config")
+        .long("config")
+        .takes_value(true)
+        .help("Path to Print Nanny installation")
+        .default_value("/opt/printnanny"))
         .arg(Arg::new("db")
         .help("Path to sqlite.db")
         .default_value("sqlite://data.db")
-        .takes_value(true));
+        .takes_value(true))
+        .arg(Arg::new("base_url")
+        .long("base-url")
+        .takes_value(true)
+        .help("Base Print Nanny url")
+        .default_value("https://print-nanny.com"));
     
     let app_m = app.get_matches();
     let db = app_m.value_of("db").unwrap();
+    let config = app_m.value_of("config").unwrap();
+    let base_url = app_m.value_of("base_url").unwrap();
 
-    SqliteConnectOptions::from_str(&db)?
-        .create_if_missing(true)
-        .connect().await?;
-    let conn = SqlitePool::connect(&db).await?;
-    let users: Users = conn.into();
-    users.create_table().await?;
+    // SqliteConnectOptions::from_str(&db)?
+    //     .create_if_missing(true)
+    //     .connect().await?;
+    // let conn = SqlitePool::connect(&db).await?;
+    // users.create_table().await?;
+
+    let config = Config{ path: config.to_string(), base_url: base_url.to_string()};
 
     rocket::build()
-        .mount("/", routes![index, submit])
+        .mount("/", routes![
+            index,
+        ])
+        .mount("/login", printnanny_dash::auth::routes())
         .attach(Template::fairing())
         .mount("/", FileServer::from(relative!("/static")))
-        .manage(users)
+        .manage(config)
         .launch().await?;
     Ok(())
 }

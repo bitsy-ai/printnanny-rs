@@ -155,7 +155,7 @@ async fn main() -> Result<()> {
     };
 
     let config = app_m.value_of("config").unwrap();
-    let base_url = app_m.value_of("base-url").unwrap();
+    let base_url = app_m.value_of("base_url").unwrap();
     
     match app_m.subcommand() {
         ("mqtt", Some(sub_m)) => {

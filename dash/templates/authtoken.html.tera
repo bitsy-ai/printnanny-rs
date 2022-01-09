@@ -1,12 +1,9 @@
-{% import "macros" as m %}
-
 <!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width">
-    <title>Setup Print Nanny OS</title>
-
+    <title>Rocket Form Example</title>
     <link rel="stylesheet" href="/chota.min.css">
     <style>
       :root {
@@ -34,6 +31,27 @@
   </head>
   <body>
     <div class="container">
+    <h1>Check your email 💌</h1>
+
+
+      <div class="row">
+        <div class="col-9">
+
+          <form action="/login/{{email}}" method="post" enctype="multipart/form-data">
+            <fieldset>
+              <legend>Step 2: Enter the 6-digit code sent to {{ email }}</legend>
+              <div class="row">
+                <div class="col-12">
+                <input label="Registration code", type="text", name="token" />
+                </div>
+              </div>
+            </fieldset>
+            <br />
+            <input type="submit" value="Finish Setup" class="is-full-width" />
+          </form>
+        </div>
+        <div class="col-3">
+        </div>
     </div>
   </body>
 </html>

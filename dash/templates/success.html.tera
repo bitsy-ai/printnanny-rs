@@ -15,16 +15,6 @@
   </head>
   <body>
     <div class="container">
-    <h1>Success!</h1>
-
-      <h3>Submission Data</h3>
-
-      <ul>
-          {% for key, value in values %}
-              <li><strong>{{ key }}</strong> - {{ value }}</li>
-          {% endfor %}
-      </ul>
-
-      <a href="/">&lt; Submit Another</a>
+    <h1>Success 💌</h1>
   </body>
 </html>

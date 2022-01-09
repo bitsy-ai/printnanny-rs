@@ -23,7 +23,7 @@ impl LicenseCmd{
     }
     pub async fn handle(&self) -> Result<String>{
         let result = match self.action {
-            LicenseAction::Get => self.service.license_retrieve().await?,
+            LicenseAction::Get => self.service.license_retrieve_active().await?,
             LicenseAction::Check => self.service.license_check().await?
         };
         debug!("Success action={} result.updated_dt={:?}", self.action, result.updated_dt);
