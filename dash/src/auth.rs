@@ -55,13 +55,16 @@ pub async fn login_step1_submit<'r>(form: Form<Contextual<'r, EmailForm<'r>>>, c
                         },
                         Err(e) => {
                             error!("{}",e);
-                            form.context.push_error(e.try_into()?);
-                            (Status::new(500),  Response::Template(Template::render("authemail", &form.context)))
+                            let mut context = HashMap::new();
+                            context.insert("errors", format!("Something went wrong {:?}", e));
+                            (Status::new(500),  Response::Template(Template::render("error", context)))
                         }
                     }
                 },
                 Err(e) => {
                     error!("{}",e);
+                    let mut context = HashMap::new();
+                    context.insert("errors", format!("Something went wrong {:?}", e));
                     (Status::new(500), Response::Template(Template::render("error", &form.context)))
                 }
             }
