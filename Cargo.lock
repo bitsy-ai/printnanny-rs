@@ -2274,6 +2274,7 @@ dependencies = [
  "clap 2.34.0",
  "env_logger",
  "log",
+ "printnanny-api-client",
  "services",
  "tokio",
 ]

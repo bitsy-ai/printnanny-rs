@@ -27,9 +27,30 @@ pub struct DashboardCookie {
 }
 
 #[derive(Error, Debug)]
-pub enum ServiceError<T>{
+pub enum ServiceError{
     #[error(transparent)]
-    ApiError(#[from] ApiError<T>),
+    AuthTokenCreateError(#[from] ApiError<auth_api::AuthTokenCreateError>),
+    #[error(transparent)]
+    AuthEmailCreateError(#[from] ApiError<auth_api::AuthEmailCreateError>),
+
+    #[error(transparent)]
+    DevicesRetrieveError(#[from] ApiError<devices_api::DevicesRetrieveError>),
+
+    #[error(transparent)]
+    LicenseActivate(#[from] ApiError<licenses_api::LicenseActivateError>),
+    
+    #[error(transparent)]
+    DevicesActiveLicenseRetrieveError(#[from] ApiError<devices_api::DevicesActiveLicenseRetrieveError>),
+
+    #[error(transparent)]
+    DevicesRetrieveHostnameError(#[from] ApiError<devices_api::DevicesRetrieveHostnameError>),
+
+    #[error(transparent)]
+    TaskCreateError(#[from] ApiError<devices_api::DevicesTasksCreateError>),
+
+    #[error(transparent)]
+    TaskStatusCreateError(#[from] ApiError<devices_api::DevicesTasksStatusCreateError>),
+
     #[error("License fingerprint mismatch (expected {expected:?}, found {active:?})")]
     InvalidLicense {
         expected: String,
@@ -45,7 +66,7 @@ pub enum ServiceError<T>{
     #[error("Signup incomplete - failed to read from {cache:?}")]
     SignupIncomplete{
         cache: PathBuf
-    }
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -70,7 +91,7 @@ fn save_model_json<T:serde::Serialize>(model: &T, path: &PathBuf) -> Result<(), 
 }
 
 impl ApiService {
-    pub async fn new(config: &str, base_url: &str) -> Result<ApiService, ServiceError<()>> {
+    pub async fn new(config: &str, base_url: &str) -> Result<ApiService, ServiceError> {
         let paths = PrintNannyPath::new(config);
 
         // api_config.json cached to /opt/printnanny/data
@@ -83,7 +104,7 @@ impl ApiService {
                     ..Configuration::default()
                 }
             },
-            Err(e) => {
+            Err(_e) => {
                 warn!("Failed to read {:?} - calling api as anonymous user", &paths.api_config_json);
                 Configuration{ 
                     base_path: base_url.to_string(),
@@ -104,7 +125,7 @@ impl ApiService {
         Ok(s)
     }
 
-    pub async fn load_models(&mut self) -> Result<(), ServiceError<()>>{
+    pub async fn load_models(&mut self) -> Result<(), ServiceError>{
         let device = self.load_device_json().await;
         match device {
             Ok(v) => {
@@ -129,34 +150,31 @@ impl ApiService {
     }
 
     // auth APIs
-    pub async fn auth_email_create(&self, email: String) -> Result<models::DetailResponse, ApiError::<auth_api::AuthEmailCreateError>> {
+    pub async fn auth_email_create(&self, email: String) -> Result<models::DetailResponse,  ServiceError> {
         let req = models::EmailAuthRequest{email};
-        auth_api::auth_email_create(&self.request_config, req).await
+        Ok(auth_api::auth_email_create(&self.request_config, req).await?)
     }
-    pub async fn auth_token_validate(&self, email: &str, token: &str) -> Result<models::TokenResponse, ApiError::<auth_api::AuthTokenCreateError>> {
+    pub async fn auth_token_validate(&self, email: &str, token: &str) -> Result<models::TokenResponse,  ServiceError> {
         let req = models::CallbackTokenAuthRequest{email: Some(email.to_string()), token: token.to_string(), mobile: None};
-        auth_api::auth_token_create(&self.request_config, req).await
+        Ok(auth_api::auth_token_create(&self.request_config, req).await?)
     }
     // device API
-    pub async fn device_retrieve(&self) -> Result<models::Device, ServiceError<devices_api::DevicesRetrieveError>> {
+    pub async fn device_retrieve(&self) -> Result<models::Device,  ServiceError> {
         match &self.device {
             Some(device) => Ok(devices_api::devices_retrieve(&self.request_config, device.id).await?),
             None => Err(ServiceError::SignupIncomplete{cache: self.paths.device_json.clone() })
         }
     }
-    pub async fn device_retrieve_hostname(&self) -> Result<models::Device, ServiceError<devices_api::DevicesRetrieveHostnameError>> {
+    pub async fn device_retrieve_hostname(&self) -> Result<models::Device, ServiceError> {
         let hostname = sys_info::hostname()?;
         let res = devices_api::devices_retrieve_hostname(&self.request_config, &hostname).await?;
         Ok(res)
     }
     // license API
-    pub async fn license_activate(&self, license_id: i32) -> Result<models::License, ApiError<licenses_api::LicenseActivateError>> {
-        licenses_api::license_activate(&self.request_config, license_id, None).await
+    pub async fn license_activate(&self, license_id: i32) -> Result<models::License,  ServiceError> {
+        Ok(licenses_api::license_activate(&self.request_config, license_id, None).await?)
     }
-    pub async fn license_retrieve(&self, license_id: i32) -> Result<models::License, ApiError<licenses_api::LicensesRetrieveError>> {
-        licenses_api::licenses_retrieve(&self.request_config, license_id).await
-    }
-    pub async fn license_retreive_active(&self) -> Result<models::License, ServiceError<devices_api::DevicesActiveLicenseRetrieveError>> {
+    pub async fn license_retrieve_active(&self) -> Result<models::License, ServiceError> {
         match &self.device {
             Some(device) => Ok(devices_api::devices_active_license_retrieve(
                 &self.request_config,
@@ -166,21 +184,13 @@ impl ApiService {
         }
     }
 
-    pub async fn license_check(&self) -> Result<(), ServiceError<()>> {
-        // read license from list
-        // create task
-        // check license
-        // update task
-        Ok(())
-    }
-
     // read device.json from disk cache @ /var/run/printnanny
     // hydrate cache if device.json not found
-    pub async fn load_device_json(&self) -> Result<models::Device, ServiceError<devices_api::DevicesRetrieveHostnameError>> {
+    pub async fn load_device_json(&self) -> Result<models::Device, ServiceError> {
         let m = read_model_json::<models::Device>(&self.paths.device_json);
         match m {
             Ok(device) => Ok(device),
-            Err(e) => {
+            Err(_e) => {
                 warn!("Failed to read {:?} - attempting to load device.json from remote", &self.paths.device_json);
                 let res = self.device_retrieve_hostname().await;
                 match res {
@@ -197,18 +207,31 @@ impl ApiService {
 
     // read license.json from disk cache @ /var/run/printnanny
     // hydrate cache if license.json not found
-    pub async fn load_license_json(&self) -> Result<models::License, ServiceError<devices_api::DevicesActiveLicenseRetrieveError>> {
+    pub async fn load_license_json(&self) -> Result<models::License, ServiceError> {
         let m = read_model_json::<models::License>(&self.paths.license_json);
         match m {
-            Ok(license) => Ok(license),
-            Err(e) => {
+            Ok(license) => {
+                info!("Loaded license.json from cache fingerprint={}", license.fingerprint);
+                Ok(license)
+            },
+            Err(_e) => {
                 warn!("Failed to read {:?} - attempting to load license.json from remote", &self.paths.license_json);
-                let license = self.license_retreive_active().await?;
+                let license = self.license_retrieve_active().await?;
                 save_model_json::<models::License>(&license, &self.paths.license_json)?;
                 info!("Saved model {:?} to {:?}", &license, &self.paths.license_json);
                 Ok(license)
             }
         }
+    }
+
+    // ensure cached license.json matches active license on remote
+    pub async fn license_check(&self) -> Result<models::License, ServiceError> {
+        let task = self.task_create(models::TaskType::SystemCheck, Some(models::TaskStatusType::Started), None, None).await?;
+        let license = self.load_license_json().await?;
+        let active_license = self.license_retrieve_active().await?;
+        info!("Retrieved active license for device_id={} {}", active_license.device, active_license.fingerprint);
+
+        Ok(active_license)
     }
     // pub async fn license_check(&self, license: &License) -> Result<License, ServiceError::InvalidLicense> {
     //     match &self.license {
@@ -300,53 +323,53 @@ impl ApiService {
     // }
     // task status API
 
-    // pub async fn task_status_create(
-    //     &self, 
-    //     task_id: i32,
-    //     device_id: i32,
-    //     status: TaskStatusType,
-    //     detail: Option<String>,
-    //     wiki_url: Option<String>,
-    // ) -> Result<Task, Box<dyn std::error::Error>> {
+    pub async fn task_status_create(
+        &self, 
+        task_id: i32,
+        device_id: i32,
+        status: models::TaskStatusType,
+        detail: Option<String>,
+        wiki_url: Option<String>,
+    ) -> Result<models::Task, ServiceError> {
 
-    //     let request = TaskStatusRequest{detail, wiki_url, task: task_id, status};
-    //     info!("Submitting TaskStatusRequest={:?}", request);
-    //     Ok(devices_tasks_status_create(
-    //         &self.request_config,
-    //         device_id,
-    //         task_id,
-    //         request
-    //     ).await
-    // }
+        let request = models::TaskStatusRequest{detail, wiki_url, task: task_id, status};
+        info!("Submitting TaskStatusRequest={:?}", request);
+        let res = devices_api::devices_tasks_status_create(
+            &self.request_config,
+            device_id,
+            task_id,
+            request
+        ).await?;
+        Ok(res)
+    }
 
-    // pub async fn task_create(
-    //     &self, 
-    //     task_type: TaskType, 
-    //     status: Option<TaskStatusType>,
-    //     detail: Option<String>,
-    //     wiki_url: Option<String>
-    // ) -> Result<Task, ServiceError<devices_api::DevicesTasksCreateError>> {
-    //     match &self.device {
-    //         Some(device) => {
-    //             let request = TaskRequest{
-    //                 active: Some(true),
-    //                 task_type: task_type,
-    //                 device: device.id
-    //             };
-    //             let task = devices_tasks_create(&self.request_config, device.id, request).await?;
-    //             info!("Created task={:?}", task);
-    //             let task = match status {
-    //                 Some(s) => self.task_status_create(task.id, s, wiki_url, detail, ).await?,
-    //                 None => task
-    //             };
-    //             Ok(task)
-    //         },
-    //         None => Err(anyhow!("ApiService.task_create called without ApiService.device set"))
-    //     }
-    // }
-    // pub fn to_string_pretty<T: serde::Serialize>(&self, item: T) -> Result<String> {
-    //     Ok(serde_json::to_string_pretty::<T>(&item)?)
-    // }
+    pub async fn task_create(
+        &self, 
+        task_type: models::TaskType, 
+        status: Option<models::TaskStatusType>,
+        detail: Option<String>,
+        wiki_url: Option<String>
+    ) -> Result<models::Task, ServiceError> {
+        match &self.device {
+            Some(device) => {
+                let request = models::TaskRequest{
+                    active: Some(true),
+                    task_type: task_type,
+                    device: device.id
+                };
+                let task = devices_api::devices_tasks_create(&self.request_config, device.id, request).await?;
+                info!("Created task={:?}", task);
+                match status {
+                    Some(s) => Ok(self.task_status_create(task.id, device.id, s, wiki_url, detail ).await?),
+                    None => Ok(task)
+                }
+            },
+            None => Err(ServiceError::SignupIncomplete{ cache: self.paths.device_json.clone() })
+        }
+    }
+    pub fn to_string_pretty<T: serde::Serialize>(&self, item: T) -> serde_json::error::Result<String> {
+        Ok(serde_json::to_string_pretty::<T>(&item)?)
+    }
 }
 
 // #[async_trait]
