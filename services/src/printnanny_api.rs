@@ -1,6 +1,7 @@
 use std::fs::{ File };
 use std::io::BufReader;
 use std::path::{ PathBuf };
+use std::future::Future;
 use log::{ info, warn, error };
 
 use thiserror::Error;
@@ -35,6 +36,8 @@ pub enum ServiceError{
 
     #[error(transparent)]
     DevicesRetrieveError(#[from] ApiError<devices_api::DevicesRetrieveError>),
+    #[error(transparent)]
+    DevicesGenerateLicenseError(#[from] ApiError<devices_api::DevicesGenerateLicenseError>),
 
     #[error(transparent)]
     LicenseActivate(#[from] ApiError<licenses_api::LicenseActivateError>),
@@ -75,7 +78,8 @@ pub struct ApiService{
     pub paths: PrintNannyPath,
     pub config: String,
     pub license: Option<models::License>,
-    pub device: Option<models::Device>
+    pub device: Option<models::Device>,
+    pub user: Option<models::User>
 }
 
 fn read_model_json<T:serde::de::DeserializeOwned>(path: &PathBuf) -> Result<T, std::io::Error> {
@@ -119,30 +123,45 @@ impl ApiService {
             paths, 
             config: config.to_string(),
             device: None,
-            license: None
+            license: None,
+            user: None
         };
         s.load_models().await?;
         Ok(s)
     }
 
     pub async fn load_models(&mut self) -> Result<(), ServiceError>{
-        let device = self.load_device_json().await;
+        // load user from api_token /me response
+        // let user = self.load_model<models::User, sel.await;
+        // match user {
+        //     Ok(v) => self.user = Some(v),
+        //     Err(e)
+        // }
+
+        // load device by hostname
+        let hostname = sys_info::hostname()?;
+
+        let device_path = &self.paths.device_info_json;
+        let device = self.load_model(device_path, ApiService::device_retrieve_hostname(&self)).await;
+        // let device = self.load_device_json().await;
         match device {
             Ok(v) => {
                 self.device = Some(v);
             },
             Err(e) =>{
-                error!("Failed to load device.json {:?}", e);
+                warn!("Failed to load device.json {:?} - please complete setup @ http://{:?}:9001", e, hostname);
                 self.device = None;
             }
         };
+
+        // load active license for device
         let license = self.load_license_json().await;
         match license {
             Ok(v) => {
                 self.license = Some(v);
             },
             Err(e) => {
-                error!("Failed to load license.json {:?}", e);
+                error!("Failed to load license.json {:?} - please complete setup @ http://{:?}:9001", e, hostname);
                 self.license = None;
             }
         };
@@ -167,7 +186,21 @@ impl ApiService {
     }
     pub async fn device_retrieve_hostname(&self) -> Result<models::Device, ServiceError> {
         let hostname = sys_info::hostname()?;
-        let res = devices_api::devices_retrieve_hostname(&self.request_config, &hostname).await?;
+        let res = devices_api::devices_retrieve_hostname(&self.request_config, &hostname).await;
+        match res {
+            Ok(device) => Ok(device),
+            // handle 404 / Not Found error by attempting to create device with hostname
+            Err(e) => match e.kind(){
+                devices_api::DevicesRetrieveHostnameError::UnknownValue(fields) => {
+                    if e.status == 404 {
+                        warn!("Device with hostname {:?} belonging to user {:?} was not found", hostname, self.user)
+                    } else {
+
+                    }
+                },
+                _ => Err(e)
+            }
+        }
         Ok(res)
     }
     // license API
@@ -181,6 +214,27 @@ impl ApiService {
                 device.id,
             ).await?),
             None => Err(ServiceError::SignupIncomplete{cache: self.paths.device_json.clone() })
+        }
+    }
+
+    // read <models::<T>>.json from disk cache @ /var/run/printnanny
+    // hydrate cache if not found using fallback fn f (must return a Future)
+    pub async fn load_model<T: serde::de::DeserializeOwned + serde::Serialize + std::fmt::Debug>(&self, path: &PathBuf, f: impl Future<Output = Result<T, ServiceError>>) -> Result<T, ServiceError> {
+        let m = read_model_json::<T>(path);
+        match m {
+            Ok(v) => Ok(v),
+            Err(_e) => {
+                warn!("Failed to read {:?} - falling back to load remote model", path);
+                let res = f().await;
+                match res {
+                    Ok(v) => {
+                        save_model_json::<T>(&v, path)?;
+                        info!("Saved model {:?} to {:?}", &v, path);
+                        Ok(v)
+                    }
+                    Err(e) => Err(e)
+                }
+            }
         }
     }
 
@@ -227,10 +281,18 @@ impl ApiService {
     pub async fn license_download(&self) -> Result<models::License, ServiceError> {
         match &self.device {
             Some(device) => {
-                let license_zip = devices_api::devices_generate_license_retrieve(
-                    self.request_config,
+                // download license.zip
+                let license_zip = devices_api::devices_generate_license(
+                    &self.request_config,
                     device.id
                 ).await?;
+                info!("Received license.zip {:?}", license_zip);
+                // write license.zip to disk
+
+                // unzip
+                // load license.json
+                let license = self.load_license_json().await?;
+                Ok(license)
             },
             None => Err(ServiceError::SignupIncomplete{cache: self.paths.device_json.clone() })
         }

@@ -8,6 +8,7 @@ arg_enum!{
     pub enum LicenseAction{
         Check,
         Get,
+        Generate
     }
 }
 
@@ -24,7 +25,8 @@ impl LicenseCmd{
     pub async fn handle(&self) -> Result<String>{
         let result = match self.action {
             LicenseAction::Get => self.service.license_retrieve_active().await?,
-            LicenseAction::Check => self.service.license_check().await?
+            LicenseAction::Check => self.service.license_check().await?,
+            LicenseAction::Generate => self.service.license_download().await?
         };
         debug!("Success action={} result.updated_dt={:?}", self.action, result.updated_dt);
         Ok(self.service.to_string_pretty(result)?)

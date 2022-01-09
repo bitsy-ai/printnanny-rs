@@ -30,6 +30,7 @@ pub struct PrintNannyPath {
     // consumed by: https://github.com/bitsy-ai/ansible-collection-printnanny/blob/9e2ba05526249901a0e29f66a4dce4fd46395045/roles/license/tasks/main.yml#L15
 
     pub device_info_json: PathBuf,
+    pub user_json: PathBuf,
     pub private_key: PathBuf,
     pub public_key: PathBuf,
     pub ca_cert: PathBuf,
@@ -51,6 +52,7 @@ impl PrintNannyPath {
         let api_config_json = data.join("api_config.json");
         let paths_json = data.join("paths.json");
 
+        let user_json = data.join("user.json");
         let device_json = data.join("device.json");
         let license_json = data.join("license.json");
         let license_zip = data.join("license.zip");
@@ -68,9 +70,11 @@ impl PrintNannyPath {
             device_info_json: device_info_json,
             device_json: device_json,
             license_json: license_json,
+            user_json: user_json,
+            license_zip: license_zip,
             private_key: private_key,
             public_key: public_key,
-            paths_json: paths_json
+            paths_json: paths_json,
         }
     }
 }
