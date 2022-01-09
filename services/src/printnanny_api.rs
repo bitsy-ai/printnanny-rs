@@ -224,6 +224,18 @@ impl ApiService {
         }
     }
 
+    pub async fn license_download(&self) -> Result<models::License, ServiceError> {
+        match &self.device {
+            Some(device) => {
+                let license_zip = devices_api::devices_generate_license_retrieve(
+                    self.request_config,
+                    device.id
+                ).await?;
+            },
+            None => Err(ServiceError::SignupIncomplete{cache: self.paths.device_json.clone() })
+        }
+    }
+
     // ensure cached license.json matches active license on remote
     pub async fn license_check(&self) -> Result<models::License, ServiceError> {
         let task = self.task_create(models::TaskType::SystemCheck, Some(models::TaskStatusType::Started), None, None).await?;

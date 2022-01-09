@@ -23,6 +23,7 @@ pub struct PrintNannyPath {
     pub device_json: PathBuf,
     // contains secrets, tokens deserialized from printnanny_license.zip
     pub license_json: PathBuf,
+    pub license_zip: PathBuf,
     // immutable view of device, mostly derived from /proc/cpuinfo
     // this file is created after successful license verification, is used to indicate success of license verification in Ansible task set
     // created by: https://github.com/bitsy-ai/printnanny-webapp/blob/55ead2ac638e243a8a5fe6bc046a0120eccd2c78/print_nanny_webapp/devices/api/serializers.py#L152
@@ -52,6 +53,7 @@ impl PrintNannyPath {
 
         let device_json = data.join("device.json");
         let license_json = data.join("license.json");
+        let license_zip = data.join("license.zip");
         let private_key = data.join("ecdsa256_pkcs8.pem");
         let public_key = data.join("ecdsa_public.pem");
 
