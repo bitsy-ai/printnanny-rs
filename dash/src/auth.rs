@@ -93,8 +93,16 @@ async fn login_step2_submit<'r>(email: String, jar: &CookieJar<'_>, form: Form<C
                     let res = s.auth_token_validate(&email, token).await;
                     match res {
                         Ok(token) => {
-                            jar.add_private(Cookie::new("token", token.token));
-                            Ok(Flash::success(Redirect::to("/login/success"), "Verification failed."))
+                            let bearer_access_token = token.token.to_string();
+                            jar.add_private(Cookie::new("printnanny_bearer_access_token", bearer_access_token.clone()));
+                            let save = s.api_config_save(&bearer_access_token);
+                            match save {
+                                Ok(_) =>Ok(Flash::success(Redirect::to("/login/success"), "Verification Success")),
+                                Err(e) => {
+                                    error!("{}",e);
+                                    Err(Flash::error(Redirect::to(format!("/login/{}", &email)), "Failed to save api config. Please try again"))
+                                }
+                            }
                         },
                         Err(e) => {
                             error!("{}",e);

@@ -133,6 +133,13 @@ impl ApiService {
         Ok(s)
     }
 
+    pub fn api_config_save(&self, bearer_access_token: &str) -> Result<(), ServiceError>{
+        let base_path = self.request_config.base_path.to_string();
+        let config = models::PrintNannyApiConfig{ bearer_access_token: bearer_access_token.to_string(), base_path};
+        save_model_json::<models::PrintNannyApiConfig>(&config, &self.paths.api_config_json)?;
+        Ok(())
+    }
+
     pub async fn load_models(&mut self) -> Result<(), ServiceError>{
         // load user from api_token /me response
         // let user = self.load_model<models::User, sel.await;
