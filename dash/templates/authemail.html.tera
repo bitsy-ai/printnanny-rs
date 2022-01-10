@@ -1,71 +1,37 @@
-{% import "macros" as m %}
+{% extends "base" %}
 
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width">
-    <title>Setup Print Nanny OS</title>
+{% block body %}
+<h1>Welcome!</h1>
+<h1>You're just a few steps from using Print Nanny OS.</h1>
 
-    <link rel="stylesheet" href="/chota.min.css">
-    <style>
-      :root {
-          --bg-color: #f1f3fa;
-          --bg-secondary-color: #98a6ad;
-          --color-primary: #727cf5;
-          --color-lightGrey: #dee2e6;
-          --color-grey: #6c757d;
-          --color-darkGrey: #313a46;
-          --color-error: #ff679b;
-          --color-success: #0acf97;
-          --grid-maxWidth: 120rem;
-          --grid-gutter: 2rem;
-          --font-size: 1.6rem;
-          --font-color: #333333;
-          --font-family-sans: sans-serif;
-          --font-family-mono: monaco, "Consolas", "Lucida Console", monospace;
-      }
-      .container {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px 10px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h1>Welcome!</h1>
-      <h1>You're just a few steps from using Print Nanny OS.</h1>
+{% if errors | length > 1 %}
+    <small class="text-error" style="margin-top: -20px">
+        {{ errors | length }} field(s) have errors
+    </small>
+{% endif %}
 
-      {% if errors | length > 1 %}
-          <small class="text-error" style="margin-top: -20px">
-              {{ errors | length }} field(s) have errors
-          </small>
-      {% endif %}
+<div class="row">
+  <div class="col-9">
 
-      <div class="row">
-        <div class="col-9">
-
-          <form action="/login" method="post" enctype="multipart/form-data">
-            <fieldset>
-              <legend>Step 1: confirm your email address</legend>
-              <div class="row">
-                <div class="col-12">
-                {{ m::input(label="Email Address", type="text", name="email") }}
-                  <!-- required pattern=".*@.*"/> -->
-                </div>
-                <div class="col-12">
-                  {{ m::checkbox(label="I agree to send anonymous debug and analytics info to Print Nanny.", name="analytics", required=true) }}
-                  </div>
-              </div>
-            </fieldset>
-            <br />
-            <input type="submit" value="Submit" class="is-full-width" />
-          </form>
+    <form action="/login" method="post" enctype="multipart/form-data">
+      <fieldset>
+        <legend>Step 1: confirm your email address</legend>
+        <div class="row">
+          <div class="col-12">
+          {{ m::input(label="Email Address", type="text", name="email") }}
+            <!-- required pattern=".*@.*"/> -->
+          </div>
+          <div class="col-12">
+            {{ m::checkbox(label="I agree to send anonymous debug and analytics info to Print Nanny.", name="analytics", required=true) }}
+            </div>
         </div>
-        <div class="col-3">
-        <img src="/logo.svg" style="is-full-width" />
-        </div>
-    </div>
-  </body>
-</html>
+      </fieldset>
+      <br />
+      <input type="submit" value="Submit" class="is-full-width" />
+    </form>
+  </div>
+  <div class="col-3">
+  <img src="/logo.svg" style="is-full-width" />
+  </div>
+</div>
+{% endblock body %}
