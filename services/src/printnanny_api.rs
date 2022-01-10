@@ -455,8 +455,8 @@ impl ApiService {
                 info!("Created task={:?}", task);
                 match status {
                     Some(s) => {
-                        let status  = self.task_status_create(task.id, device.id, s, wiki_url, detail ).await?;
-                        Ok(status.task)
+                        let res  = self.task_status_create(task.id, device.id, s, wiki_url, detail ).await?;
+                        Ok(task)
                     },
                     None => Ok(task)
                 }
