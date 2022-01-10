@@ -41,7 +41,7 @@ download_license(){
         "$PRINTNANNY_API_URL/api/devices/$device_id/generate-license/" \
         -H "accept: application/json" \
         -H "Authorization: Bearer $PRINTNANNY_API_TOKEN" \
-        --output $filename \
+        --output $filename
     echo "Created $filename"
 }
 
