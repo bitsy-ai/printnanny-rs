@@ -30,8 +30,13 @@ async fn main() -> Result<()> {
         .arg(Arg::with_name("base_url")
         .long("base-url")
         .takes_value(true)
-        .help("Base Print Nanny url")
+        .help("Base PrintNanny url")
         .default_value("https://print-nanny.com"))
+
+        .arg(Arg::with_name("api_token")
+        .long("api-token")
+        .takes_value(true)
+        .help("Base PrintNanny token"))
 
         .arg(Arg::with_name("config")
         .short("c")
@@ -156,13 +161,17 @@ async fn main() -> Result<()> {
 
     let config = app_m.value_of("config").unwrap();
     let base_url = app_m.value_of("base_url").unwrap();
+    let bearer_access_token = match app_m.value_of("api_token") {
+        Some(api_token) => Some(api_token.to_string()),
+        None => None
+    };
     
     match app_m.subcommand() {
         ("mqtt", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", MqttAction).unwrap_or_else(|e| e.exit());
             match action {
                 MqttAction::Subscribe => {
-                    let worker = MQTTWorker::new(&config, &base_url).await?;
+                    let worker = MQTTWorker::new(&config, &base_url, bearer_access_token).await?;
                     worker.run().await?;
                 },
                 MqttAction::Publish => unimplemented!("mqtt publish is not implemented yet")
@@ -171,13 +180,13 @@ async fn main() -> Result<()> {
 
         ("license", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", LicenseAction).unwrap_or_else(|e| e.exit());
-            let cmd = LicenseCmd::new(action, config, base_url).await?;
+            let cmd = LicenseCmd::new(action, config, base_url, bearer_access_token).await?;
             let result = cmd.handle().await?;
             println!("{}", result)
         },
         ("device", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", DeviceAction).unwrap_or_else(|e| e.exit());
-            let cmd = DeviceCmd::new(action, config, base_url).await?;
+            let cmd = DeviceCmd::new(action, config, base_url, bearer_access_token).await?;
             let result = cmd.handle().await?;
             println!("{}", result)
         }, 

@@ -77,8 +77,8 @@ impl MQTTWorker {
         Ok(mqttoptions)
     }
 
-    pub async fn new(config: &str, base_api_url: &str) -> Result<MQTTWorker> {
-        let service = ApiService::new(config, base_api_url).await?;
+    pub async fn new(config: &str, base_api_url: &str, bearer_access_token: Option<String>) -> Result<MQTTWorker> {
+        let service = ApiService::new(config, base_api_url, bearer_access_token).await?;
         let device = service.device_retrieve().await?;
         let cloudiot_device = device.cloudiot_device.as_ref().unwrap();
         let gcp_project_id: String = cloudiot_device.gcp_project_id.clone();

@@ -86,7 +86,7 @@ async fn login_step2_submit<'r>(email: String, jar: &CookieJar<'_>, form: Form<C
     info!("Received auth email form response {:?}", form);
     match form.value {
         Some(ref v) => {
-            let service = ApiService::new(&config.path, &config.base_url).await;
+            let mut service = ApiService::new(&config.path, &config.base_url).await;
             match service {
                 Ok(s) => {
                     let token = &v.token;
@@ -95,7 +95,7 @@ async fn login_step2_submit<'r>(email: String, jar: &CookieJar<'_>, form: Form<C
                         Ok(token) => {
                             let bearer_access_token = token.token.to_string();
                             jar.add_private(Cookie::new("printnanny_bearer_access_token", bearer_access_token.clone()));
-                            let save = s.api_config_save(&bearer_access_token);
+                            let save = s.device_setup(&bearer_access_token);
                             match save {
                                 Ok(_) =>Ok(Flash::success(Redirect::to("/login/success"), "Verification Success")),
                                 Err(e) => {

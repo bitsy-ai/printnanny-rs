@@ -98,27 +98,13 @@ fn save_model_json<T:serde::Serialize>(model: &T, path: &PathBuf) -> Result<(), 
 }
 
 impl ApiService {
-    pub async fn new(config: &str, base_url: &str) -> Result<ApiService, ServiceError> {
+    // config priority:
+    // args >> api_config.json >> anonymous api usage only
+    pub async fn new(config: &str, base_url: &str, bearer_access_token: Option<String>) -> Result<ApiService, ServiceError> {
         let paths = PrintNannyPath::new(config);
 
         // api_config.json cached to /opt/printnanny/data
-        let read_api_config = read_model_json::<PrintNannyApiConfig>(&paths.api_config_json);
-        let request_config = match read_api_config {
-            Ok(api_config) => {
-                Configuration{ 
-                    base_path: api_config.base_path.clone(),
-                    bearer_access_token: Some(api_config.bearer_access_token.clone()),
-                    ..Configuration::default()
-                }
-            },
-            Err(_e) => {
-                warn!("Failed to read {:?} - calling api as anonymous user", &paths.api_config_json);
-                Configuration{ 
-                    base_path: base_url.to_string(),
-                    ..Configuration::default()
-                }
-            }
-        };
+        let request_config = ApiService::to_reqwest_config(base_url, bearer_access_token, &paths.api_config_json);
 
         // attempt to cache models to /opt/printnanny/data
         let mut s = Self{
@@ -129,8 +115,31 @@ impl ApiService {
             license: None,
             user: None
         };
-        s.load_models().await?;
+        // s.load_models().await?;
         Ok(s)
+    }
+
+    // config priority:
+    // args >> api_config.json >> anonymous api usage only
+    fn to_reqwest_config(base_url: &str, bearer_access_token: Option<String>, api_config_json: &PathBuf) -> Configuration {
+
+        let read_api_config = read_model_json::<PrintNannyApiConfig>(&api_config_json);
+        match read_api_config {
+            Ok(api_config) => {
+                Configuration{ 
+                    base_path: api_config.base_path.clone(),
+                    bearer_access_token: Some(api_config.bearer_access_token.clone()),
+                    ..Configuration::default()
+                }
+            },
+            Err(_e) => {
+                warn!("Failed to read {:?} - calling api as anonymous user", api_config_json);
+                Configuration{ 
+                    base_path: base_url.to_string(),
+                    ..Configuration::default()
+                }
+            }
+        }
     }
 
     pub fn api_config_save(&self, bearer_access_token: &str) -> Result<(), ServiceError>{
@@ -140,43 +149,47 @@ impl ApiService {
         Ok(())
     }
 
-    pub async fn load_models(&mut self) -> Result<(), ServiceError>{
-        // load user from api_token /me response
-        // let user = self.load_model<models::User, sel.await;
-        // match user {
-        //     Ok(v) => self.user = Some(v),
-        //     Err(e)
-        // }
+    // pub async fn load_models(&mut self) -> Result<(), ServiceError>{
+    //     // load user from /me response
+    //     // let user = self.load_model<models::User, sel.await;
+    //     // match user {
+    //     //     Ok(v) => self.user = Some(v),
+    //     //     Err(e)
+    //     // }
 
-        // load device by hostname
-        let hostname = sys_info::hostname()?;
 
-        let device_path = &self.paths.device_info_json;
-        let device = self.load_model(device_path, ApiService::device_retrieve_or_create_hostname(&self)).await;
-        // let device = self.load_device_json().await;
-        match device {
-            Ok(v) => {
-                self.device = Some(v);
-            },
-            Err(e) =>{
-                warn!("Failed to load device.json {:?} - please complete setup @ http://{:?}:9001", e, hostname);
-                self.device = None;
-            }
-        };
+    //     // generate a new license
+    //     // TODO send keys to signing endpoint
 
-        // load active license for device
-        let license = self.load_license_json().await;
-        match license {
-            Ok(v) => {
-                self.license = Some(v);
-            },
-            Err(e) => {
-                error!("Failed to load license.json {:?} - please complete setup @ http://{:?}:9001", e, hostname);
-                self.license = None;
-            }
-        };
-        Ok(())
-    }
+    //     // load device by hostname
+    //     let hostname = sys_info::hostname()?;
+
+    //     let device_path = &self.paths.device_info_json;
+    //     let device = self.load_model(device_path, ApiService::device_retrieve_or_create_hostname(&self)).await;
+    //     // let device = self.load_device_json().await;
+    //     match device {
+    //         Ok(v) => {
+    //             self.device = Some(v);
+    //         },
+    //         Err(e) =>{
+    //             warn!("Failed to load device.json {:?} - please complete setup @ http://{:?}:9001", e, hostname);
+    //             self.device = None;
+    //         }
+    //     };
+
+    //     // load active license for device
+    //     let license = self.load_license_json().await;
+    //     match license {
+    //         Ok(v) => {
+    //             self.license = Some(v);
+    //         },
+    //         Err(e) => {
+    //             error!("Failed to load license.json {:?} - please complete setup @ http://{:?}:9001", e, hostname);
+    //             self.license = None;
+    //         }
+    //     };
+    //     Ok(())
+    // }
 
     // auth APIs
     pub async fn auth_email_create(&self, email: String) -> Result<models::DetailResponse,  ServiceError> {
@@ -187,6 +200,7 @@ impl ApiService {
         let req = models::CallbackTokenAuthRequest{email: Some(email.to_string()), token: token.to_string(), mobile: None};
         Ok(auth_api::auth_token_create(&self.request_config, req).await?)
     }
+
     // device API
 
     pub async fn device_create(&self, hostname: String) -> Result<models::Device, ServiceError> {
@@ -230,6 +244,28 @@ impl ApiService {
             }
         }
     }
+    
+    // do initial device setup after 2fa issues bearer token
+    pub async fn device_setup(&mut self, bearer_access_token: &str) -> Result<(), ServiceError> {
+        // write api_config.json to cache
+        self.api_config_save(bearer_access_token)?;
+        // mutate instance's reqwest configuration ensures api calls made as authenticated user
+        self.request_config = ApiService::to_reqwest_config(
+            &self.request_config.base_path,
+            Some(bearer_access_token.to_string()),
+            &self.paths.api_config_json,
+        );
+        // get or create device by hostname
+        let device = self.device_retrieve_or_create_hostname().await?;
+        self.device = Some(device.clone());
+
+        // download + unzip license to cache
+        self.license_download().await?;
+
+        // start systemd targets
+        Ok(())
+    }
+
     // license API
     pub async fn license_activate(&self, license_id: i32) -> Result<models::License,  ServiceError> {
         Ok(licenses_api::license_activate(&self.request_config, license_id, None).await?)
@@ -306,23 +342,20 @@ impl ApiService {
     }
 
     pub async fn license_download(&self) -> Result<models::License, ServiceError> {
-        match &self.device {
-            Some(device) => {
-                // download license.zip
-                let license_zip = devices_api::devices_generate_license(
-                    &self.request_config,
-                    device.id
-                ).await?;
-                info!("Received license.zip {:?}", license_zip);
-                // write license.zip to disk
+        // download license.zip
+        let device = self.device_retrieve_or_create_hostname().await?;
+        info!("Got device={:?}", device);
+        let license_zip = devices_api::devices_generate_license(
+            &self.request_config,
+            device.id
+        ).await?;
+        info!("Received license.zip {:?}", license_zip);
+        // write license.zip to disk
 
-                // unzip
-                // load license.json
-                let license = self.load_license_json().await?;
-                Ok(license)
-            },
-            None => Err(ServiceError::SignupIncomplete{cache: self.paths.device_json.clone() })
-        }
+        // unzip
+        // load license.json
+        let license = self.load_license_json().await?;
+        Ok(license)
     }
 
     // ensure cached license.json matches active license on remote
