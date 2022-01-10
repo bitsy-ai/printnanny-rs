@@ -54,7 +54,11 @@ async fn main() -> Result<()> {
         .long("base-url")
         .takes_value(true)
         .help("Base Print Nanny url")
-        .default_value("https://print-nanny.com"));
+        .default_value("https://print-nanny.com"))
+        .arg(Arg::new("api_token")
+        .long("api-token")
+        .takes_value(true)
+        .help("Base PrintNanny api token"));
     
     let app_m = app.get_matches();
     let db = app_m.value_of("db").unwrap();
