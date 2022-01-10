@@ -188,9 +188,7 @@ impl ApiService {
             monitoring_active: Some(false),
             release_channel: None
         };
-        // TODO why is OpenAPI's rust generator exporting device_request: Option<crate::models::DeviceRequest> for this method?
-        Ok(devices_api::devices_create(&self.request_config, Some(req)).await?)
-
+        Ok(devices_api::devices_create(&self.request_config,req).await?)
     }
 
     pub async fn device_retrieve(&self) -> Result<models::Device,  ServiceError> {
@@ -426,7 +424,7 @@ impl ApiService {
         status: models::TaskStatusType,
         detail: Option<String>,
         wiki_url: Option<String>,
-    ) -> Result<models::Task, ServiceError> {
+    ) -> Result<models::TaskStatus, ServiceError> {
 
         let request = models::TaskStatusRequest{detail, wiki_url, task: task_id, status};
         info!("Submitting TaskStatusRequest={:?}", request);
@@ -456,7 +454,10 @@ impl ApiService {
                 let task = devices_api::devices_tasks_create(&self.request_config, device.id, request).await?;
                 info!("Created task={:?}", task);
                 match status {
-                    Some(s) => Ok(self.task_status_create(task.id, device.id, s, wiki_url, detail ).await?),
+                    Some(s) => {
+                        let status  = self.task_status_create(task.id, device.id, s, wiki_url, detail ).await?;
+                        Ok(status.task)
+                    },
                     None => Ok(task)
                 }
             },
