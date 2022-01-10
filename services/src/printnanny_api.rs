@@ -452,10 +452,11 @@ impl ApiService {
                     device: device.id
                 };
                 let task = devices_api::devices_tasks_create(&self.request_config, device.id, request).await?;
-                info!("Created task={:?}", task);
+                info!("Success: created task={:?}", task);
                 match status {
                     Some(s) => {
                         let res  = self.task_status_create(task.id, device.id, s, wiki_url, detail ).await?;
+                        info!("Success: created task status={:?}", res);
                         Ok(task)
                     },
                     None => Ok(task)
@@ -468,19 +469,3 @@ impl ApiService {
         Ok(serde_json::to_string_pretty::<T>(&item)?)
     }
 }
-
-// #[async_trait]
-// pub trait ApiModel<T:serde::de::DeserializeOwned + Serialize> {
-//     // async fn create<T, R>(&self, request: R) -> Result<T>;
-//     async fn retrieve(&self, id: i32) -> Result<T>;
-//     // async fn partial_update<T, R>(&self, id: &i32, rquest: R) -> Result<T>;
-//     // async fn update<T, R>(&self, id: &i32, request: R) -> Result<T>;
-
-//     fn read_json(path: &PathBuf) -> Result<T> {
-//         return read_model_json::<T>(path)
-//     }
-
-//     fn to_string_pretty(&self, item: T) -> Result<String> {
-//         Ok(serde_json::to_string_pretty::<T>(&item)?)
-//     }
-// }
