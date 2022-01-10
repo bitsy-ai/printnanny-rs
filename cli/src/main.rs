@@ -32,17 +32,10 @@ async fn main() -> Result<()> {
         .takes_value(true)
         .help("Base PrintNanny url")
         .default_value("https://print-nanny.com"))
-
         .arg(Arg::with_name("api_token")
         .long("api-token")
         .takes_value(true)
-        .help("Base PrintNanny api token")
-
-        .arg(Arg::with_name("api_token")
-        .long("api-token")
-        .takes_value(true)
-        .help("Base PrintNanny token"))
-
+        .help("Base PrintNanny api token"))
         .arg(Arg::with_name("config")
         .short("c")
         .long("config")
