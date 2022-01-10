@@ -119,24 +119,42 @@ impl ApiService {
         Ok(s)
     }
 
+    fn to_reqwest_auth_config(base_path: String, bearer_access_token: String) -> Configuration {
+        Configuration{ 
+            base_path,
+            bearer_access_token: Some(bearer_access_token),
+            ..Configuration::default()
+        }
+    }
+
+    fn to_reqwest_anon_config(base_path: String) -> Configuration {
+        Configuration{ 
+            base_path,
+            ..Configuration::default()
+        }
+    }
+
     // config priority:
     // args >> api_config.json >> anonymous api usage only
     fn to_reqwest_config(base_url: &str, bearer_access_token: Option<String>, api_config_json: &PathBuf) -> Configuration {
-
-        let read_api_config = read_model_json::<PrintNannyApiConfig>(&api_config_json);
-        match read_api_config {
-            Ok(api_config) => {
-                Configuration{ 
-                    base_path: api_config.base_path.clone(),
-                    bearer_access_token: Some(api_config.bearer_access_token.clone()),
-                    ..Configuration::default()
-                }
+        // prefer token passed on command line (if present)
+        match bearer_access_token {
+            Some(token) => {
+                info!("Authenticating with --api-token");
+                ApiService::to_reqwest_auth_config(base_url.to_string(), token)
             },
-            Err(_e) => {
-                warn!("Failed to read {:?} - calling api as anonymous user", api_config_json);
-                Configuration{ 
-                    base_path: base_url.to_string(),
-                    ..Configuration::default()
+            None => {
+                // fall back to api_config.json (if present)
+                let read_api_config = read_model_json::<PrintNannyApiConfig>(&api_config_json);
+                match read_api_config {
+                    Ok(api_config) => {
+                        info!("Authenticating with {:?}", &api_config_json);
+                        ApiService::to_reqwest_auth_config(api_config.base_path, api_config.bearer_access_token)
+                    }
+                    Err(_e) => {
+                        warn!("Failed to read {:?} - calling api as anonymous user", &api_config_json);
+                        ApiService::to_reqwest_anon_config(base_url.to_string())
+                    }
                 }
             }
         }
