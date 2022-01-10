@@ -35,6 +35,9 @@ pub enum ServiceError{
     AuthEmailCreateError(#[from] ApiError<auth_api::AuthEmailCreateError>),
 
     #[error(transparent)]
+    DevicesCreateError(#[from] ApiError<devices_api::DevicesCreateError>),
+
+    #[error(transparent)]
     DevicesRetrieveError(#[from] ApiError<devices_api::DevicesRetrieveError>),
     #[error(transparent)]
     DevicesGenerateLicenseError(#[from] ApiError<devices_api::DevicesGenerateLicenseError>),
@@ -142,7 +145,7 @@ impl ApiService {
         let hostname = sys_info::hostname()?;
 
         let device_path = &self.paths.device_info_json;
-        let device = self.load_model(device_path, ApiService::device_retrieve_hostname(&self)).await;
+        let device = self.load_model(device_path, ApiService::device_retrieve_or_create_hostname(&self)).await;
         // let device = self.load_device_json().await;
         match device {
             Ok(v) => {
@@ -178,6 +181,18 @@ impl ApiService {
         Ok(auth_api::auth_token_create(&self.request_config, req).await?)
     }
     // device API
+
+    pub async fn device_create(&self, hostname: String) -> Result<models::Device, ServiceError> {
+        let req = models::DeviceRequest{
+            hostname: Some(hostname),
+            monitoring_active: Some(false),
+            release_channel: None
+        };
+        // TODO why is OpenAPI's rust generator exporting device_request: Option<crate::models::DeviceRequest> for this method?
+        Ok(devices_api::devices_create(&self.request_config, Some(req)).await?)
+
+    }
+
     pub async fn device_retrieve(&self) -> Result<models::Device,  ServiceError> {
         match &self.device {
             Some(device) => Ok(devices_api::devices_retrieve(&self.request_config, device.id).await?),
@@ -186,22 +201,29 @@ impl ApiService {
     }
     pub async fn device_retrieve_hostname(&self) -> Result<models::Device, ServiceError> {
         let hostname = sys_info::hostname()?;
-        let res = devices_api::devices_retrieve_hostname(&self.request_config, &hostname).await;
+        let res = devices_api::devices_retrieve_hostname(&self.request_config, &hostname).await?;
+        Ok(res)
+    }
+
+    pub async fn device_retrieve_or_create_hostname(&self) -> Result<models::Device, ServiceError>{
+        let hostname = sys_info::hostname()?;
+        let res = self.device_retrieve_hostname().await;
         match res {
             Ok(device) => Ok(device),
             // handle 404 / Not Found error by attempting to create device with hostname
-            Err(e) => match e.kind(){
-                devices_api::DevicesRetrieveHostnameError::UnknownValue(fields) => {
-                    if e.status == 404 {
-                        warn!("Device with hostname {:?} belonging to user {:?} was not found", hostname, self.user)
-                    } else {
-
-                    }
+            Err(e) => match &e {
+                ServiceError::DevicesRetrieveHostnameError(ApiError::ResponseError(content)) => match content.status {
+                    reqwest::StatusCode::NOT_FOUND => {
+                        warn!("Failed retreive device with hostname={} error={:?} - attempting to create device", hostname, e);
+                        let res = self.device_create(hostname.to_string()).await?;
+                        info!("Success! Created device={:?}", res);
+                        Ok(res)
+                    },
+                    _ => Err(e)
                 },
                 _ => Err(e)
             }
         }
-        Ok(res)
     }
     // license API
     pub async fn license_activate(&self, license_id: i32) -> Result<models::License,  ServiceError> {
@@ -225,7 +247,7 @@ impl ApiService {
             Ok(v) => Ok(v),
             Err(_e) => {
                 warn!("Failed to read {:?} - falling back to load remote model", path);
-                let res = f().await;
+                let res = f.await;
                 match res {
                     Ok(v) => {
                         save_model_json::<T>(&v, path)?;
