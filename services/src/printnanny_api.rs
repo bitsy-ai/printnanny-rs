@@ -1,7 +1,9 @@
-use std::fs::{ File };
+use std::fs::File;
+use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::{ PathBuf };
 use std::future::Future;
+use std::process::Command;
 use log::{ info, warn, error };
 
 use thiserror::Error;
@@ -66,6 +68,7 @@ pub enum ServiceError{
     SysInfoError(#[from] sys_info::Error),
     #[error(transparent)]
     IoError(#[from] std::io::Error),
+    
     #[error(transparent)]
     SerdeError(#[from] serde_json::Error),
 
@@ -363,14 +366,26 @@ impl ApiService {
         // download license.zip
         let device = self.device_retrieve_or_create_hostname().await?;
         info!("Got device={:?}", device);
-        let license_zip = devices_api::devices_generate_license(
+        let license_zip_bytes = devices_api::devices_generate_license(
             &self.request_config,
             device.id
         ).await?;
-        info!("Received license.zip {:?}", license_zip);
-        // write license.zip to disk
 
-        // unzip
+        // ensure data cache exists
+        std::fs::create_dir_all(&self.paths.data)?;
+        // write license.zip to disk
+        let mut f = File::create(&self.paths.license_zip)?;
+        f.write_all(&license_zip_bytes)?;
+        info!("Downloaded license.zip to {:?}", &self.paths.license_zip);
+
+        // unarchive
+        let target = self.paths.license_zip.clone().into_os_string().into_string().unwrap();
+        let cmd = Command::new("unzip")
+            .current_dir(&self.paths.data)
+            .args(["-o", &target])
+            .output()
+            .expect("Failed to unzip license");
+        info!("unzip: {:?}", cmd);
         // load license.json
         let license = self.load_license_json().await?;
         Ok(license)

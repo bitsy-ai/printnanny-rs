@@ -34,8 +34,7 @@ pub struct PrintNannyPath {
     pub private_key: PathBuf,
     pub public_key: PathBuf,
     pub ca_cert: PathBuf,
-    pub ca_cert_backup: PathBuf
-
+    pub ca_cert_backup: PathBuf,
 }
 
 impl PrintNannyPath {
