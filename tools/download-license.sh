@@ -37,16 +37,15 @@ download_license(){
     device_id=$(get_test_device_id)
     echo "Fetching license for device_id=$device_id"
     filename="$PRINTNANNY_DATA_DIR/printnanny_license.zip"
-    curl -sX "POST" \
+    curl -sX "GET" \
         "$PRINTNANNY_API_URL/api/devices/$device_id/generate-license/" \
         -H "accept: application/json" \
         -H "Authorization: Bearer $PRINTNANNY_API_TOKEN" \
         --output $filename \
-        -d ""
     echo "Created $filename"
 }
 
 mkdir -p $PRINTNANNY_DATA_DIR
 download_ca_certs
 download_license
-cd "$PRINTNANNY_DATA_DIR" && unzip printnanny_license.zip
+cd "$PRINTNANNY_DATA_DIR" && unzip -o printnanny_license.zip
