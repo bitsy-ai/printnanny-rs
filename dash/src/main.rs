@@ -21,7 +21,7 @@ use rocket_dyn_templates::Template;
 
 
 use printnanny_dash::config::{ Config };
-use printnanny_dash::response::{ Reponse };
+use printnanny_dash::response::{ Response };
 use printnanny_dash::auth;
 
 

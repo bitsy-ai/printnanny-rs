@@ -25,7 +25,23 @@ impl<R> fmt::Display for FlashResponse<R> {
 
 impl From<services::printnanny_api::ServiceError> for FlashResponse<Redirect> {
     fn from(error: services::printnanny_api::ServiceError) -> Self {
-        FlashResponse(Flash::error(Redirect::to(format!("/login/{}", &email)), "Please enter verification code"))
+        let msg = format!("Error communicating with PrintNanny API. Please try again in a few minutes. \n {:?}", error);
+        error!("{}", &msg);
+        Self(Flash::error(Redirect::to("/error"), &msg))
+    }
+}
+
+impl From<serde_json::Error> for FlashResponse<Redirect> {
+    fn from(error: serde_json::Error) -> Self {
+        let msg = format!("Error de/serialzing content {:?}", error);
+        error!("{}", &msg);
+        Self(Flash::error(Redirect::to("/error"), &msg))
+    }
+}
+
+impl<R> From<Flash<R>> for FlashResponse<R> {
+    fn from(call: Flash<R>) -> Self {
+        Self(call)
     }
 }
 
