@@ -1,5 +1,6 @@
 use std::fmt;
 use std::ops::Deref;
+use std::convert::From;
 
 use rocket_dyn_templates::Template;
 use rocket::response::{Flash, Redirect};
@@ -19,6 +20,12 @@ impl<R> Deref for FlashResponse<R> {
 impl<R> fmt::Display for FlashResponse<R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self)
+    }
+}
+
+impl From<services::printnanny_api::ServiceError> for FlashResponse<Redirect> {
+    fn from(error: services::printnanny_api::ServiceError) -> Self {
+        FlashResponse(Flash::error(Redirect::to(format!("/login/{}", &email)), "Please enter verification code"))
     }
 }
 

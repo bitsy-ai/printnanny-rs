@@ -6,10 +6,12 @@ edition = "2018"
 
 [dependencies]
 services = {path = "../services"}
+thiserror = "1.0.30"
 indexmap = "1.8.0"
 printnanny-api-client = "0.39.4"
 log = "0.4" 
 anyhow = "1"
+serde_json = "1.0.74"
 time = { version = "0.3", features = ["macros", "parsing"] }
 tokio = "1.15.0"
 

@@ -19,7 +19,7 @@ pub struct LicenseCmd {
 
 impl LicenseCmd{
     pub async fn new(action: LicenseAction, config: &str, base_url: &str, bearer_access_token: Option<String>) -> Result<Self> {
-        let service = ApiService::new(config, base_url, bearer_access_token).await?;
+        let service = ApiService::new(config, base_url, bearer_access_token)?;
         Ok(Self { service, action })
     }
     pub async fn handle(&self) -> Result<String>{
