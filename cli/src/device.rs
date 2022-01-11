@@ -17,8 +17,8 @@ pub struct DeviceCmd {
     pub service: ApiService
 }
 impl DeviceCmd {
-    pub async fn new(action: DeviceAction, config: &str, base_url: &str) -> Result<Self> {
-        let service = ApiService::new(config, base_url).await?;
+    pub async fn new(action: DeviceAction, config: &str, base_url: &str, bearer_access_token: Option<String>) -> Result<Self> {
+        let service = ApiService::new(config, base_url, bearer_access_token).await?;
         Ok(Self { service, action })
     }
     pub async fn handle(&self) -> Result<String>{

@@ -45,7 +45,7 @@ async fn login_step1_submit<'r>(form: Form<Contextual<'r, EmailForm<'r>>>, confi
     info!("Received auth email form response {:?}", form);
     match form.value {
         Some(ref signup) => {
-            let service = ApiService::new(&config.path, &config.base_url).await;
+            let service = ApiService::new(&config.path, &config.base_url, None).await;
             match service {
                 Ok(s) => {
                     let res = s.auth_email_create(signup.email.to_string()).await;
@@ -86,15 +86,25 @@ async fn login_step2_submit<'r>(email: String, jar: &CookieJar<'_>, form: Form<C
     info!("Received auth email form response {:?}", form);
     match form.value {
         Some(ref v) => {
-            let service = ApiService::new(&config.path, &config.base_url).await;
+            let mut service = ApiService::new(&config.path, &config.base_url, None).await;
             match service {
                 Ok(s) => {
                     let token = &v.token;
                     let res = s.auth_token_validate(&email, token).await;
                     match res {
                         Ok(token) => {
-                            jar.add_private(Cookie::new("token", token.token));
-                            Ok(Flash::success(Redirect::to("/login/success"), "Verification failed."))
+                            let bearer_access_token = token.token.to_string();
+                            let service = ApiService::new(&config.path, &config.base_url, Some(bearer_access_token.clone())).await;
+                            jar.add_private(Cookie::new("printnanny_bearer_access_token", bearer_access_token.clone()));
+                            // let save = service.device_setup(&bearer_access_token).await;
+                            Ok(Flash::success(Redirect::to("/login/success"), "Verification Success"))
+                            // match save {
+                            //     Ok(_) =>Ok(Flash::success(Redirect::to("/login/success"), "Verification Success")),
+                            //     Err(e) => {
+                            //         error!("{}",e);
+                            //         Err(Flash::error(Redirect::to(format!("/login/{}", &email)), "Failed to save api config. Please try again"))
+                            //     }
+                            // }
                         },
                         Err(e) => {
                             error!("{}",e);

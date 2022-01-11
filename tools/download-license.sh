@@ -48,4 +48,4 @@ download_license(){
 mkdir -p $PRINTNANNY_DATA_DIR
 download_ca_certs
 download_license
-cd "$PRINTNANNY_DATA_DIR" && unzip printnanny_license.zip
+cd "$PRINTNANNY_DATA_DIR" && unzip -o printnanny_license.zip

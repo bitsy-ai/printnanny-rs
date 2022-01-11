@@ -1,57 +1,24 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width">
-    <title>Rocket Form Example</title>
-    <link rel="stylesheet" href="/chota.min.css">
-    <style>
-      :root {
-          --bg-color: #f1f3fa;
-          --bg-secondary-color: #98a6ad;
-          --color-primary: #727cf5;
-          --color-lightGrey: #dee2e6;
-          --color-grey: #6c757d;
-          --color-darkGrey: #313a46;
-          --color-error: #ff679b;
-          --color-success: #0acf97;
-          --grid-maxWidth: 120rem;
-          --grid-gutter: 2rem;
-          --font-size: 1.6rem;
-          --font-color: #333333;
-          --font-family-sans: sans-serif;
-          --font-family-mono: monaco, "Consolas", "Lucida Console", monospace;
-      }
-      .container {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px 10px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-    <h1>Check your email 💌</h1>
+{% extends "base" %}
 
+{% block body %}
+<h1>Check your email 💌</h1>
 
-      <div class="row">
-        <div class="col-9">
+<div class="row">
+  <div class="col-9">
 
-          <form action="/login/{{email}}" method="post" enctype="multipart/form-data">
-            <fieldset>
-              <legend>Step 2: Enter the 6-digit code sent to {{ email }}</legend>
-              <div class="row">
-                <div class="col-12">
-                <input label="Registration code", type="text", name="token" />
-                </div>
-              </div>
-            </fieldset>
-            <br />
-            <input type="submit" value="Finish Setup" class="is-full-width" />
-          </form>
+    <form action="/login/{{email}}" method="post" enctype="multipart/form-data">
+      <fieldset>
+        <legend>Step 2: Enter the 6-digit code sent to {{ email }}</legend>
+        <div class="row">
+          <div class="col-12">
+          <input label="Registration code", type="text", name="token" />
+          </div>
         </div>
-        <div class="col-3">
-        </div>
-    </div>
-  </body>
-</html>
+      </fieldset>
+      <br />
+      <input type="submit" value="Finish Setup" class="is-full-width" />
+    </form>
+  </div>
+  <div class="col-3">
+  </div>
+{% endblock body %}

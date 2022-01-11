@@ -1,48 +1,16 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width">
-    <title>Rocket Form Example</title>
-    <link rel="stylesheet" href="/chota.min.css">
-    <style>
-      :root {
-          --bg-color: #f1f3fa;
-          --bg-secondary-color: #98a6ad;
-          --color-primary: #727cf5;
-          --color-lightGrey: #dee2e6;
-          --color-grey: #6c757d;
-          --color-darkGrey: #313a46;
-          --color-error: #ff679b;
-          --color-success: #0acf97;
-          --grid-maxWidth: 120rem;
-          --grid-gutter: 2rem;
-          --font-size: 1.6rem;
-          --font-color: #333333;
-          --font-family-sans: sans-serif;
-          --font-family-mono: monaco, "Consolas", "Lucida Console", monospace;
-      }
-      .container {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px 10px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-    <h1>Oops, something went wrong!</h1>
-    <h3>Email the error(s) below to <a target="_blank" href="mailto:leigh@print-nanny.com">leigh@print-nanny.com</a>for assistance.</h3>
-    <div class="row">
-        <div class="col-9">
+{% extends "base" %}
 
-      {{ errors }}
+{% block body %}
+<h1>Oops, something went wrong!</h1>
+<h3>Email the error(s) below to <a target="_blank" href="mailto:leigh@print-nanny.com">leigh@print-nanny.com</a>for assistance.</h3>
+<div class="row">
+    <div class="col-9">
 
-        </div>
-        <div class="col-3">
-        <img src="/confused.svg" style="is-full-width" />
-        </div>
-      </div>
+  {{ errors }}
+
     </div>
-  </body>
-</html>
+    <div class="col-3">
+    <img src="/confused.svg" style="is-full-width" />
+    </div>
+</div>
+{% endblock body %}
