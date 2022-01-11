@@ -14,7 +14,7 @@ use clap::{
     crate_description
 };
 
-use rocket::http::{Cookie, CookieJar};
+use rocket::http::{CookieJar};
 use rocket::response::Redirect;
 use rocket::fs::{FileServer, relative};
 use rocket_dyn_templates::Template;
@@ -78,7 +78,7 @@ async fn main() -> Result<()> {
         .mount("/", routes![
             index,
         ])
-        .mount("/login", printnanny_dash::auth::routes())
+        .mount("/login", auth::routes())
         .attach(Template::fairing())
         .mount("/", FileServer::from(relative!("/static")))
         .manage(config)

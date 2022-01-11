@@ -4,7 +4,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width">
-    <title>{% block title %}{% endblock title %}
+    <title>{% block title %}Print Nanny{% endblock title %}
     </title>
 
     <link rel="stylesheet" href="/chota.min.css">
@@ -36,6 +36,13 @@
   </head>
   <body>
     <div class="container">
+        <div class"row">
+          {% if flash %}
+            <small class="field-{{flash.0}}-msg">
+               {{ flash.1 }}
+            </small>
+          {% endif %}
+        </div>
         {% block body %}
         {% endblock body %}
     </div>

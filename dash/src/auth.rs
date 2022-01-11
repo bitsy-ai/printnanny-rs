@@ -99,7 +99,7 @@ async fn login_step2_submit<'r>(
             let api_config = handle_token_validate(token, &email, &config.path, &config.base_url).await?;
             let cookie_value = serde_json::to_string(&api_config)?;
             jar.add_private(Cookie::new("printnanny_api_config", cookie_value));
-            Ok(FlashResponse::<Redirect>::from(Flash::success(Redirect::to("/login/success"), "Verification Success")))
+            Ok(FlashResponse::<Redirect>::from(Flash::success(Redirect::to("/"), "Verification Success")))
         },
         None => {
             info!("form.value is empty");
@@ -121,17 +121,11 @@ fn login_step1() -> Template {
     Template::render("authemail", &Context::default())
 }
 
-#[get("/success")]
-fn success() -> Template {
-    Template::render("success", &Context::default())
-}
-
 pub fn routes() -> Vec<rocket::Route> {
     routes![
         login_step1,
         login_step1_submit,
         login_step2,
         login_step2_submit,
-        success
     ]
 }
