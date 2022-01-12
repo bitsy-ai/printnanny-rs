@@ -2,7 +2,7 @@ use anyhow::{ Result };
 use clap::arg_enum;
 use log:: { debug };
 
-use services::printnanny_api::ApiService;
+use printnanny_services::printnanny_api::ApiService;
 use printnanny_api_client::models;
 
 arg_enum!{

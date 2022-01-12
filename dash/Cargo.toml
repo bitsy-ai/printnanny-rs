@@ -5,11 +5,11 @@ authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2018"
 
 [dependencies]
+printnanny-services = {path = "../services"}
+printnanny-api-client = "0.39.4"
 serde = "1.0.133"
-services = {path = "../services"}
 thiserror = "1.0.30"
 indexmap = "1.8.0"
-printnanny-api-client = "0.39.4"
 log = "0.4" 
 anyhow = "1"
 serde_json = "1.0.74"

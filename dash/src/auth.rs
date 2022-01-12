@@ -16,7 +16,7 @@ use rocket::form::{
 };
 use rocket_dyn_templates::Template;
 
-use services::printnanny_api::{ ApiService, ServiceError };
+use printnanny_services::printnanny_api::{ ApiService, ServiceError };
 use printnanny_api_client::models;
 
 use super::config::{ Config };
