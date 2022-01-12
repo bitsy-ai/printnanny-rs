@@ -1,10 +1,13 @@
 use std::fmt;
 use std::ops::Deref;
 use std::convert::From;
+use std::collections::HashMap;
 
 use rocket_dyn_templates::Template;
 use rocket::response::{Flash, Redirect};
 use thiserror::Error;
+
+use crate::error;
 
 #[derive(Error, Debug, Responder)]
 pub struct FlashResponse<R>(Flash<R>);
@@ -23,19 +26,33 @@ impl<R> fmt::Display for FlashResponse<R> {
     }
 }
 
-impl From<services::printnanny_api::ServiceError> for FlashResponse<Redirect> {
+impl From<services::printnanny_api::ServiceError> for FlashResponse<Template> {
     fn from(error: services::printnanny_api::ServiceError) -> Self {
-        let msg = format!("Error communicating with PrintNanny API. Please try again in a few minutes. \n {:?}", error);
+        let msg = format!("{:?}", error);
+        let mut context = HashMap::new();
+        context.insert("errors", &msg);
         error!("{}", &msg);
-        Self(Flash::error(Redirect::to("/error"), &msg))
+        Self(Flash::error(Template::render("error", context), &msg))
     }
 }
 
-impl From<serde_json::Error> for FlashResponse<Redirect> {
+impl From<error::Error> for FlashResponse<Template> {
+    fn from(error: error::Error) -> Self {
+        let msg = format!("{:?}", error);
+        let mut context = HashMap::new();
+        context.insert("errors", &msg);
+        error!("{}", &msg);
+        Self(Flash::error(Template::render("error", context), &msg))
+    }
+}
+
+impl From<serde_json::Error> for FlashResponse<Template> {
     fn from(error: serde_json::Error) -> Self {
         let msg = format!("Error de/serialzing content {:?}", error);
+        let mut context = HashMap::new();
+        context.insert("errors", &msg);
         error!("{}", &msg);
-        Self(Flash::error(Redirect::to("/error"), &msg))
+        Self(Flash::error(Template::render("error", context), &msg))
     }
 }
 

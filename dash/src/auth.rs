@@ -1,7 +1,8 @@
 
+use std::ops::Deref;
 use std::collections::HashMap;
 use std::fmt;
-
+use rocket::serde::{ Serialize, Deserialize };
 use rocket::response::{Flash, Redirect};
 
 use rocket::http::{Cookie, CookieJar};
@@ -19,23 +20,25 @@ use services::printnanny_api::{ ApiService, ServiceError };
 use printnanny_api_client::models;
 
 use super::config::{ Config };
+use super::error;
 use super::response::{ FlashResponse, Response };
 
+pub const COOKIE_API_CONFIG: &str = "printnanny_api_config";
 // generic
-#[derive(Debug)]
-pub enum CookieLookup {
-    PrintNannyApiConfig,
-    PrintNannyUser,
-    PrintNannyDevice,
-    PrintNannyLicense,
-    PrintNannySystemInfo
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DashContext {
+    // api_config: models::PrintNannyApiConfig,
+    user: models::User,
+    license: models::License,
+    device: models::Device,
+    // system_info: models::SystemInfo
 }
 
-impl fmt::Display for CookieLookup {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
+// impl fmt::Display for ContextKey {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "{:?}", self)
+//     }
+// }
 
 #[derive(Debug, FromForm)]
 pub struct EmailForm<'v> {
@@ -50,7 +53,7 @@ pub struct TokenForm<'v> {
     token: &'v str,
 }
 
-async fn handle_step1(form: &EmailForm<'_>, config: &Config) -> Result<Response, FlashResponse<Redirect>> {
+async fn handle_step1(form: &EmailForm<'_>, config: &Config) -> Result<Response, FlashResponse<Template>> {
     let service = ApiService::new(&config.path, &config.base_url, None)?;
     let res = service.auth_email_create(form.email.to_string()).await;
     match res {
@@ -71,7 +74,7 @@ async fn handle_step1(form: &EmailForm<'_>, config: &Config) -> Result<Response,
 // fields to re-render forms with submitted values on error. If you have no such
 // need, do not use `Contextual`. Use the equivalent of `Form<Submit<'_>>`.
 #[post("/", data = "<form>")]
-async fn login_step1_submit<'r>(form: Form<Contextual<'r, EmailForm<'r>>>, config: &State<Config>) ->  Result<Response, FlashResponse<Redirect>> {
+async fn login_step1_submit<'r>(form: Form<Contextual<'r, EmailForm<'r>>>, config: &State<Config>) ->  Result<Response, FlashResponse<Template>> {
     info!("Received auth email form response {:?}", form);
     match &form.value {
         Some(signup) => {
@@ -105,19 +108,19 @@ async fn login_step2_submit<'r>(
     email: String,
     jar: &CookieJar<'_>,
     form: Form<Contextual<'r, TokenForm<'r>>>,
-    config: &State<Config>) -> Result<FlashResponse<Redirect>, FlashResponse<Redirect>> {
+    config: &State<Config>) -> Result<FlashResponse<Redirect>, FlashResponse<Template>> {
     info!("Received auth email form response {:?}", form);
     match form.value {
         Some(ref v) => {
             let token = v.token;
             let api_config = handle_token_validate(token, &email, &config.path, &config.base_url).await?;
             let cookie_value = serde_json::to_string(&api_config)?;
-            jar.add_private(Cookie::new(CookieLookup::PrintNannyApiConfig.to_string(), cookie_value));
+            jar.add_private(Cookie::new(COOKIE_API_CONFIG, cookie_value));
             Ok(FlashResponse::<Redirect>::from(Flash::success(Redirect::to("/"), "Verification Success")))
         },
         None => {
             info!("form.value is empty");
-            Err(FlashResponse::<Redirect>::from(Flash::error(Redirect::to(format!("/login/{}", &email)), "Please enter verification code")))
+            Err(FlashResponse::<Template>::from(error::Error::VerificationFailed{}))
         },
     }
 }
@@ -130,25 +133,14 @@ fn login_step2(email: String) -> Template {
     Template::render("authtoken", context)
 }
 
-pub async fn get_context(config_path: &str, api_config: &models::PrintNannyApiConfig) -> Result<HashMap<String, String>, ServiceError> {
+pub async fn get_context(config_path: &str, api_config: &models::PrintNannyApiConfig) -> Result<DashContext, ServiceError> {
     let mut service = ApiService::new(&config_path, &api_config.base_path, Some(api_config.bearer_access_token.clone()))?;
     service.load_models().await?;
-    let mut context = HashMap::new();
-
     // user into context
-    match service.user {
-        Some(user) => context.insert(CookieLookup::PrintNannyUser.to_string(), serde_json::to_string(&user)?),
-        None => None
-    };
-
-    match service.device {
-        Some(device) => context.insert(CookieLookup::PrintNannyDevice.to_string(), serde_json::to_string(&device)?),
-        None => None
-    };
-
-    match service.license {
-        Some(license) => context.insert(CookieLookup::PrintNannyLicense.to_string(), serde_json::to_string(&license)?),
-        None => None
+    let context = DashContext{
+        user: service.user.unwrap(),
+        device: service.device.unwrap(),
+        license: service.license.unwrap()
     };
 
     Ok(context)
@@ -156,7 +148,7 @@ pub async fn get_context(config_path: &str, api_config: &models::PrintNannyApiCo
 
 #[get("/")]
 async fn login_step1(jar: &CookieJar<'_>) -> Result<Response, FlashResponse<Redirect>> {
-    let get_api_config = jar.get_private(&CookieLookup::PrintNannyApiConfig.to_string());
+    let get_api_config = jar.get_private(COOKIE_API_CONFIG);
     match get_api_config {
         Some(_) => {
             Ok(Response::Redirect(Redirect::to("/")))

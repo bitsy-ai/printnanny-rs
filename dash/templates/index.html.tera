@@ -4,11 +4,27 @@
 
 {% block body %}
 <div class="row">
-    <h1>Setup Complete</h1>
-    <h3>Success! You are logged in as {{ email }} </h3>
+    <div class="col-8">
+        <h1>Print Nanny OS is Ready to Use!</h1>
+        <h3>Logged in as {{user.email}} </h3>
 
-    <div class="col-3">
-        <button target="_blank" href="{{ octoprint_url }}" class="btn btn-success">OctoPrint</button>
+        <a target="_blank" href="http://{{device.hostname}}:5000">
+            <button class="bg-success">Open OctoPrint</button>
+        </a>
+        <a target="_blank" href="https://print-nanny.com{{device.dashboard_url}}">
+            <button >Manage Device</button>
+        </a>
     </div>
+    <div class="col-4">
+        <img src="/logo.svg" style="is-full-width" />
+    </div>
+</div>
+<div class="row">
+        <dl class="row">
+            <dt class="col-4">Hostname</dt>
+            <dd class="col-8">{{device.hostname}}</dd>
+            <dt class="col-4">Fingerprint</dt>
+            <dd class="col-8">{{license.fingerprint}}</dd>
+        </dl>  
 </div>
 {% endblock body %}

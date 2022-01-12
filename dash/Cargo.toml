@@ -5,6 +5,7 @@ authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2018"
 
 [dependencies]
+serde = "1.0.133"
 services = {path = "../services"}
 thiserror = "1.0.30"
 indexmap = "1.8.0"

@@ -2326,6 +2326,7 @@ dependencies = [
  "rocket",
  "rocket_dyn_templates",
  "rocket_sync_db_pools",
+ "serde 1.0.133",
  "serde_json",
  "services",
  "sqlx",
