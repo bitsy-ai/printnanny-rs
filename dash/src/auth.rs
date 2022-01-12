@@ -155,12 +155,10 @@ pub async fn get_context(config_path: &str, api_config: &models::PrintNannyApiCo
 }
 
 #[get("/")]
-async fn login_step1(jar: &CookieJar<'_>, config: &Config) -> Result<Response, ServiceError> {
+async fn login_step1(jar: &CookieJar<'_>) -> Result<Response, FlashResponse<Redirect>> {
     let get_api_config = jar.get_private(&CookieLookup::PrintNannyApiConfig.to_string());
     match get_api_config {
-        Some(cookie) => {
-            let api_config = serde_json::from_str(cookie.value())?;
-            let context = get_context(&config.path, &api_config).await?;
+        Some(_) => {
             Ok(Response::Redirect(Redirect::to("/")))
         },
         None => Ok(Response::Template(Template::render("authemail", &Context::default())))

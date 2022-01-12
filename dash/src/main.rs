@@ -8,24 +8,13 @@ use clap::{
     crate_description
 };
 
-use rocket::http::{CookieJar};
 use rocket::fs::{FileServer, relative};
 use rocket_dyn_templates::Template;
-use rocket::form::Context;
 
 use printnanny_dash::config::{ Config };
-use printnanny_dash::response::{ Response };
+use printnanny_dash::home;
 use printnanny_dash::auth;
 
-
-#[get("/")]
-fn index(jar: &CookieJar<'_>) -> Response {
-    let api_config = jar.get_private(auth::CookieLookup::PrintNannyApiConfig.to_string());
-    match api_config {
-        Some(_) => Response::Template(Template::render("index", &Context::default())),
-        None => Response::Template(Template::render("authemail", &Context::default()))
-    }
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -67,9 +56,7 @@ async fn main() -> Result<()> {
     let config = Config{ path: config.to_string(), base_url: base_url.to_string()};
 
     rocket::build()
-        .mount("/", routes![
-            index,
-        ])
+        .mount("/", home::routes())
         .mount("/login", auth::routes())
         .attach(Template::fairing())
         .mount("/", FileServer::from(relative!("/static")))
