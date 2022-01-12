@@ -16,6 +16,7 @@ use printnanny_api_client::apis::Error as ApiError;
 use printnanny_api_client::apis::auth_api;
 use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::licenses_api;
+use printnanny_api_client::apis::users_api;
 use printnanny_api_client::models;
 
 use crate::paths::{ PrintNannyPath };
@@ -50,6 +51,10 @@ pub enum ServiceError{
 
     #[error(transparent)]
     TaskStatusCreateError(#[from] ApiError<devices_api::DevicesTasksStatusCreateError>),
+
+    #[error(transparent)]
+    UsersRetrieveError(#[from] ApiError<users_api::UsersMeRetrieveError>),
+
 
     #[error("License fingerprint mismatch (expected {expected:?}, found {active:?})")]
     InvalidLicense {
@@ -174,49 +179,31 @@ impl ApiService {
         Ok(())
     }
 
-    // pub async fn load_models(&mut self) -> Result<(), ServiceError>{
-    //     // load user from /me response
-    //     // let user = self.load_model<models::User, sel.await;
-    //     // match user {
-    //     //     Ok(v) => self.user = Some(v),
-    //     //     Err(e)
-    //     // }
+    pub async fn load_models(&mut self) -> Result<(), ServiceError>{
 
+        // load user from /me response
+        let user: models::User = self.load_model(&self.paths.user_json, ApiService::auth_user_retreive(&self)).await?;
+        self.user = Some(user);
 
-    //     // generate a new license
-    //     // TODO send keys to signing endpoint
+        // load device by hostname
+        let hostname = sys_info::hostname()?;
+        let device_path = &self.paths.device_info_json;
+        let device: models::Device = self.load_model(device_path, ApiService::device_retrieve_or_create_hostname(&self)).await?;
+        self.device = Some(device);
 
-    //     // load device by hostname
-    //     let hostname = sys_info::hostname()?;
-
-    //     let device_path = &self.paths.device_info_json;
-    //     let device = self.load_model(device_path, ApiService::device_retrieve_or_create_hostname(&self)).await;
-    //     // let device = self.load_device_json().await;
-    //     match device {
-    //         Ok(v) => {
-    //             self.device = Some(v);
-    //         },
-    //         Err(e) =>{
-    //             warn!("Failed to load device.json {:?} - please complete setup @ http://{:?}:9001", e, hostname);
-    //             self.device = None;
-    //         }
-    //     };
-
-    //     // load active license for device
-    //     let license = self.load_license_json().await;
-    //     match license {
-    //         Ok(v) => {
-    //             self.license = Some(v);
-    //         },
-    //         Err(e) => {
-    //             error!("Failed to load license.json {:?} - please complete setup @ http://{:?}:9001", e, hostname);
-    //             self.license = None;
-    //         }
-    //     };
-    //     Ok(())
-    // }
+        // load active license for device
+        let license: models::License = self.load_license_json().await?;
+        self.license = Some(license);
+        Ok(())
+    }
 
     // auth APIs
+
+    // fetch user associated with auth token
+    pub async fn auth_user_retreive(&self) -> Result<models::User, ServiceError>{
+        Ok(users_api::users_me_retrieve(&self.reqwest_config).await?)
+    }
+
     pub async fn auth_email_create(&self, email: String) -> Result<models::DetailResponse,  ServiceError> {
         let req = models::EmailAuthRequest{email};
         Ok(auth_api::auth_email_create(&self.reqwest_config, req).await?)

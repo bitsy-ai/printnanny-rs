@@ -1,8 +1,8 @@
 {% extends "base" %}
 
 {% block body %}
-<h1>Welcome!</h1>
-<h1>You're just a few steps from using Print Nanny OS.</h1>
+<h1>Welcome! Log into Print Nanny OS</h1>
+<h3>A temporary login code will be sent to your email address</h3>
 
 {% if errors | length > 1 %}
     <small class="text-error" style="margin-top: -20px">
@@ -31,7 +31,7 @@
     </form>
   </div>
   <div class="col-3">
-  <img src="/logo.svg" style="is-full-width" />
+    <img src="/logo.svg" style="is-full-width" />
   </div>
 </div>
 {% endblock body %}

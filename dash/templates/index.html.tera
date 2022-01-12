@@ -1,3 +1,30 @@
 {% import "macros" as m %}
 
 {% extends "base" %}
+
+{% block body %}
+<div class="row">
+    <div class="col-8">
+        <h1>Print Nanny OS is Ready to Use!</h1>
+        <h3>Logged in as {{user.email}} </h3>
+
+        <a target="_blank" href="http://{{device.hostname}}:5000">
+            <button>Open OctoPrint</button>
+        </a>
+        <a target="_blank" href="https://print-nanny.com{{device.dashboard_url}}">
+            <button >Manage Device</button>
+        </a>
+    </div>
+    <div class="col-4">
+        <img src="/logo.svg" style="is-full-width" />
+    </div>
+</div>
+<div class="row">
+        <dl class="row">
+            <dt class="col-4">Hostname</dt>
+            <dd class="col-8">{{device.hostname}}</dd>
+            <dt class="col-4">Fingerprint</dt>
+            <dd class="col-8">{{license.fingerprint}}</dd>
+        </dl>  
+</div>
+{% endblock body %}
