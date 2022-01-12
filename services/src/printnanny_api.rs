@@ -21,14 +21,6 @@ use printnanny_api_client::models;
 use crate::paths::{ PrintNannyPath };
 use crate::msgs;
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct DashboardCookie {
-    api_config: models::PrintNannyApiConfig,
-    user: models::User,
-    device: models::Device,
-    analytics: bool,
-}
-
 #[derive(Error, Debug)]
 pub enum ServiceError{
     #[error(transparent)]
@@ -76,11 +68,13 @@ pub enum ServiceError{
     SignupIncomplete{
         cache: PathBuf
     },
+    #[error("Missing Print Nanny API token")]
+    SetupIncomplete{}
 }
 
 #[derive(Debug, Clone)]
 pub struct ApiService{
-    pub request_config: Configuration,
+    pub reqwest_config: Configuration,
     pub paths: PrintNannyPath,
     pub config: String,
     pub license: Option<models::License>,
@@ -103,23 +97,33 @@ fn save_model_json<T:serde::Serialize>(model: &T, path: &PathBuf) -> Result<(), 
 impl ApiService {
     // config priority:
     // args >> api_config.json >> anonymous api usage only
-    pub async fn new(config: &str, base_url: &str, bearer_access_token: Option<String>) -> Result<ApiService, ServiceError> {
+    pub fn new(config: &str, base_url: &str, bearer_access_token: Option<String>) -> Result<ApiService, ServiceError> {
         let paths = PrintNannyPath::new(config);
 
         // api_config.json cached to /opt/printnanny/data
-        let request_config = ApiService::to_reqwest_config(base_url, bearer_access_token, &paths.api_config_json);
+        let reqwest_config = ApiService::to_reqwest_config(base_url, bearer_access_token, &paths.api_config_json);
 
         // attempt to cache models to /opt/printnanny/data
-        let mut s = Self{
-            request_config,
+        Ok(Self{
+            reqwest_config,
             paths, 
             config: config.to_string(),
             device: None,
             license: None,
             user: None
-        };
-        // s.load_models().await?;
-        Ok(s)
+        })
+    }
+
+    pub fn to_api_config(&self) -> Result<models::PrintNannyApiConfig, ServiceError> {
+        if let Some(bearer_access_token) = &self.reqwest_config.bearer_access_token {
+            let base_path = &self.reqwest_config.base_path;
+            Ok(PrintNannyApiConfig{
+                base_path: base_path.to_string(),
+                bearer_access_token: bearer_access_token.to_string(),
+            })
+        } else {
+            Err(ServiceError::SetupIncomplete{})
+        }
     }
 
     fn to_reqwest_auth_config(base_path: String, bearer_access_token: String) -> Configuration {
@@ -164,7 +168,7 @@ impl ApiService {
     }
 
     pub fn api_config_save(&self, bearer_access_token: &str) -> Result<(), ServiceError>{
-        let base_path = self.request_config.base_path.to_string();
+        let base_path = self.reqwest_config.base_path.to_string();
         let config = models::PrintNannyApiConfig{ bearer_access_token: bearer_access_token.to_string(), base_path};
         save_model_json::<models::PrintNannyApiConfig>(&config, &self.paths.api_config_json)?;
         Ok(())
@@ -215,11 +219,11 @@ impl ApiService {
     // auth APIs
     pub async fn auth_email_create(&self, email: String) -> Result<models::DetailResponse,  ServiceError> {
         let req = models::EmailAuthRequest{email};
-        Ok(auth_api::auth_email_create(&self.request_config, req).await?)
+        Ok(auth_api::auth_email_create(&self.reqwest_config, req).await?)
     }
     pub async fn auth_token_validate(&self, email: &str, token: &str) -> Result<models::TokenResponse,  ServiceError> {
         let req = models::CallbackTokenAuthRequest{email: Some(email.to_string()), token: token.to_string(), mobile: None};
-        Ok(auth_api::auth_token_create(&self.request_config, req).await?)
+        Ok(auth_api::auth_token_create(&self.reqwest_config, req).await?)
     }
 
     // device API
@@ -230,18 +234,18 @@ impl ApiService {
             monitoring_active: Some(false),
             release_channel: None
         };
-        Ok(devices_api::devices_create(&self.request_config,req).await?)
+        Ok(devices_api::devices_create(&self.reqwest_config,req).await?)
     }
 
     pub async fn device_retrieve(&self) -> Result<models::Device,  ServiceError> {
         match &self.device {
-            Some(device) => Ok(devices_api::devices_retrieve(&self.request_config, device.id).await?),
+            Some(device) => Ok(devices_api::devices_retrieve(&self.reqwest_config, device.id).await?),
             None => Err(ServiceError::SignupIncomplete{cache: self.paths.device_json.clone() })
         }
     }
     pub async fn device_retrieve_hostname(&self) -> Result<models::Device, ServiceError> {
         let hostname = sys_info::hostname()?;
-        let res = devices_api::devices_retrieve_hostname(&self.request_config, &hostname).await?;
+        let res = devices_api::devices_retrieve_hostname(&self.reqwest_config, &hostname).await?;
         Ok(res)
     }
 
@@ -265,36 +269,15 @@ impl ApiService {
             }
         }
     }
-    
-    // do initial device setup after 2fa issues bearer token
-    pub async fn device_setup(&mut self, bearer_access_token: &str) -> Result<(), ServiceError> {
-        // write api_config.json to cache
-        self.api_config_save(bearer_access_token)?;
-        // mutate instance's reqwest configuration ensures api calls made as authenticated user
-        self.request_config = ApiService::to_reqwest_config(
-            &self.request_config.base_path,
-            Some(bearer_access_token.to_string()),
-            &self.paths.api_config_json,
-        );
-        // get or create device by hostname
-        let device = self.device_retrieve_or_create_hostname().await?;
-        self.device = Some(device.clone());
-
-        // download + unzip license to cache
-        self.license_download().await?;
-
-        // start systemd targets
-        Ok(())
-    }
 
     // license API
     pub async fn license_activate(&self, license_id: i32) -> Result<models::License,  ServiceError> {
-        Ok(licenses_api::license_activate(&self.request_config, license_id, None).await?)
+        Ok(licenses_api::license_activate(&self.reqwest_config, license_id, None).await?)
     }
     pub async fn license_retrieve_active(&self) -> Result<models::License, ServiceError> {
         match &self.device {
             Some(device) => Ok(devices_api::devices_active_license_retrieve(
-                &self.request_config,
+                &self.reqwest_config,
                 device.id,
             ).await?),
             None => Err(ServiceError::SignupIncomplete{cache: self.paths.device_json.clone() })
@@ -367,7 +350,7 @@ impl ApiService {
         let device = self.device_retrieve_or_create_hostname().await?;
         info!("Got device={:?}", device);
         let license_zip_bytes = devices_api::devices_generate_license(
-            &self.request_config,
+            &self.reqwest_config,
             device.id
         ).await?;
 
@@ -502,7 +485,7 @@ impl ApiService {
         let request = models::TaskStatusRequest{detail, wiki_url, task: task_id, status};
         info!("Submitting TaskStatusRequest={:?}", request);
         let res = devices_api::devices_tasks_status_create(
-            &self.request_config,
+            &self.reqwest_config,
             device_id,
             task_id,
             request
@@ -524,7 +507,7 @@ impl ApiService {
                     task_type: task_type,
                     device: device.id
                 };
-                let task = devices_api::devices_tasks_create(&self.request_config, device.id, request).await?;
+                let task = devices_api::devices_tasks_create(&self.reqwest_config, device.id, request).await?;
                 info!("Success: created task={:?}", task);
                 match status {
                     Some(s) => {

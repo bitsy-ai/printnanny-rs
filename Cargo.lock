@@ -2326,8 +2326,10 @@ dependencies = [
  "rocket",
  "rocket_dyn_templates",
  "rocket_sync_db_pools",
+ "serde_json",
  "services",
  "sqlx",
+ "thiserror",
  "time 0.3.5",
  "tokio",
 ]
