@@ -1,11 +1,9 @@
 
 use std::collections::HashMap;
-use std::convert::TryInto;
+use std::fmt;
 
-use rocket::response::{Flash, Redirect, Responder };
-use rocket::request::{ Request, FlashMessage};
+use rocket::response::{Flash, Redirect};
 
-use rocket::http::Status;
 use rocket::http::{Cookie, CookieJar};
 
 use rocket::State;
@@ -23,7 +21,21 @@ use printnanny_api_client::models;
 use super::config::{ Config };
 use super::response::{ FlashResponse, Response };
 
-pub const AUTH_COOKIE: &str = "printnanny_api_config";
+// generic
+#[derive(Debug)]
+pub enum CookieLookup {
+    PrintNannyApiConfig,
+    PrintNannyUser,
+    PrintNannyDevice,
+    PrintNannyLicense,
+    PrintNannySystemInfo
+}
+
+impl fmt::Display for CookieLookup {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 #[derive(Debug, FromForm)]
 pub struct EmailForm<'v> {
@@ -100,7 +112,7 @@ async fn login_step2_submit<'r>(
             let token = v.token;
             let api_config = handle_token_validate(token, &email, &config.path, &config.base_url).await?;
             let cookie_value = serde_json::to_string(&api_config)?;
-            jar.add_private(Cookie::new(AUTH_COOKIE, cookie_value));
+            jar.add_private(Cookie::new(CookieLookup::PrintNannyApiConfig.to_string(), cookie_value));
             Ok(FlashResponse::<Redirect>::from(Flash::success(Redirect::to("/"), "Verification Success")))
         },
         None => {
@@ -118,12 +130,40 @@ fn login_step2(email: String) -> Template {
     Template::render("authtoken", context)
 }
 
+pub async fn get_context(config_path: &str, api_config: &models::PrintNannyApiConfig) -> Result<HashMap<String, String>, ServiceError> {
+    let mut service = ApiService::new(&config_path, &api_config.base_path, Some(api_config.bearer_access_token.clone()))?;
+    service.load_models().await?;
+    let mut context = HashMap::new();
+
+    // user into context
+    match service.user {
+        Some(user) => context.insert(CookieLookup::PrintNannyUser.to_string(), serde_json::to_string(&user)?),
+        None => None
+    };
+
+    match service.device {
+        Some(device) => context.insert(CookieLookup::PrintNannyDevice.to_string(), serde_json::to_string(&device)?),
+        None => None
+    };
+
+    match service.license {
+        Some(license) => context.insert(CookieLookup::PrintNannyLicense.to_string(), serde_json::to_string(&license)?),
+        None => None
+    };
+
+    Ok(context)
+}
+
 #[get("/")]
-fn login_step1(jar: &CookieJar<'_>) -> Response {
-    let api_config = jar.get_private(AUTH_COOKIE);
-    match api_config {
-        Some(_) => Response::Redirect(Redirect::to("/")),
-        None => Response::Template(Template::render("authemail", &Context::default()))
+async fn login_step1(jar: &CookieJar<'_>, config: &Config) -> Result<Response, ServiceError> {
+    let get_api_config = jar.get_private(&CookieLookup::PrintNannyApiConfig.to_string());
+    match get_api_config {
+        Some(cookie) => {
+            let api_config = serde_json::from_str(cookie.value())?;
+            let context = get_context(&config.path, &api_config).await?;
+            Ok(Response::Redirect(Redirect::to("/")))
+        },
+        None => Ok(Response::Template(Template::render("authemail", &Context::default())))
     }
 }
 

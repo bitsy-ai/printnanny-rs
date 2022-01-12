@@ -1,3 +1,14 @@
 {% import "macros" as m %}
 
 {% extends "base" %}
+
+{% block body %}
+<div class="row">
+    <h1>Setup Complete</h1>
+    <h3>Success! You are logged in as {{ email }} </h3>
+
+    <div class="col-3">
+        <button target="_blank" href="{{ octoprint_url }}" class="btn btn-success">OctoPrint</button>
+    </div>
+</div>
+{% endblock body %}

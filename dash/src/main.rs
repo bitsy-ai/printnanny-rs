@@ -1,10 +1,4 @@
 #[macro_use] extern crate rocket;
-
-use std::time::Duration;
-use std::str::FromStr;
-use std::collections::HashMap;
-
-use log::{ info };
 use anyhow::{ Result};
 use clap::{ 
     Arg,
@@ -15,7 +9,6 @@ use clap::{
 };
 
 use rocket::http::{CookieJar};
-use rocket::response::Redirect;
 use rocket::fs::{FileServer, relative};
 use rocket_dyn_templates::Template;
 use rocket::form::Context;
@@ -27,7 +20,7 @@ use printnanny_dash::auth;
 
 #[get("/")]
 fn index(jar: &CookieJar<'_>) -> Response {
-    let api_config = jar.get_private(auth::AUTH_COOKIE);
+    let api_config = jar.get_private(auth::CookieLookup::PrintNannyApiConfig.to_string());
     match api_config {
         Some(_) => Response::Template(Template::render("index", &Context::default())),
         None => Response::Template(Template::render("authemail", &Context::default()))
