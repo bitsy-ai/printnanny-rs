@@ -23,6 +23,8 @@ use printnanny_api_client::models;
 use super::config::{ Config };
 use super::response::{ FlashResponse, Response };
 
+pub const AUTH_COOKIE: &str = "printnanny_api_config";
+
 #[derive(Debug, FromForm)]
 pub struct EmailForm<'v> {
     #[field(validate = contains('@').or_else(msg!("invalid email address")))]
@@ -98,7 +100,7 @@ async fn login_step2_submit<'r>(
             let token = v.token;
             let api_config = handle_token_validate(token, &email, &config.path, &config.base_url).await?;
             let cookie_value = serde_json::to_string(&api_config)?;
-            jar.add_private(Cookie::new("printnanny_api_config", cookie_value));
+            jar.add_private(Cookie::new(AUTH_COOKIE, cookie_value));
             Ok(FlashResponse::<Redirect>::from(Flash::success(Redirect::to("/"), "Verification Success")))
         },
         None => {
@@ -117,8 +119,12 @@ fn login_step2(email: String) -> Template {
 }
 
 #[get("/")]
-fn login_step1() -> Template {
-    Template::render("authemail", &Context::default())
+fn login_step1(jar: &CookieJar<'_>) -> Response {
+    let api_config = jar.get_private(AUTH_COOKIE);
+    match api_config {
+        Some(_) => Response::Redirect(Redirect::to("/")),
+        None => Response::Template(Template::render("authemail", &Context::default()))
+    }
 }
 
 pub fn routes() -> Vec<rocket::Route> {

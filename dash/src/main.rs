@@ -18,7 +18,7 @@ use rocket::http::{CookieJar};
 use rocket::response::Redirect;
 use rocket::fs::{FileServer, relative};
 use rocket_dyn_templates::Template;
-
+use rocket::form::Context;
 
 use printnanny_dash::config::{ Config };
 use printnanny_dash::response::{ Response };
@@ -27,11 +27,10 @@ use printnanny_dash::auth;
 
 #[get("/")]
 fn index(jar: &CookieJar<'_>) -> Response {
-    let token = jar.get_private("token");
-    // let mut context = HashMap::new();
-    match token {
-        Some(_) => Response::Template(Template::render("index", {})),
-        None => Response::Redirect(Redirect::to("/login"))
+    let api_config = jar.get_private(auth::AUTH_COOKIE);
+    match api_config {
+        Some(_) => Response::Template(Template::render("index", &Context::default())),
+        None => Response::Template(Template::render("authemail", &Context::default()))
     }
 }
 
