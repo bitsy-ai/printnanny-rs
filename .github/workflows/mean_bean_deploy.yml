@@ -2,10 +2,14 @@ on:
   release:
     # Sequence of patterns matched against refs/tags
     types: [ published ]
+  workflow_dispatch:
+    input:
+      tag: req
 
-name: Mean Bean Deploy
+name: Publish
 env:
-  BIN: printnanny
+  CLI_BIN: printnanny-cli 
+  DASH_BIN: printnanny-dash
 
 jobs:
   # This job downloads and stores `cross` as an artifact, so that it can be
@@ -175,7 +179,8 @@ jobs:
 
       - run: tools/ci/set_rust_version.bash stable ${{ matrix.target }}
       - run: tools/ci/build.bash /tmp/cross ${{ matrix.target }} RELEASE
-      - run: tar -czvf ${{ env.BIN }}.tar.gz --directory=target/${{ matrix.target }}/release ${{ env.BIN }}
+      - run: |
+          tar -czvf ${{ env.CLI_BIN }}.tar.gz --directory=target/${{ matrix.target }}/release ${{ env.CLI_BIN }}; done
       - name: Upload Release Asset
         id: upload-release-asset
         uses: actions/upload-release-asset@v1
@@ -183,8 +188,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ env.BIN }}.tar.gz
-          asset_name: ${{ env.BIN }}-${{ matrix.target }}.tar.gz
+          asset_path: ${{ env.CLI_BIN }}.tar.gz
+          asset_name: ${{ env.CLI_BIN }}-${{ matrix.target }}.tar.gz
+          asset_content_type: application/gzip
+      - run: |
+          tar -czvf ${{ env.DASH_BIN }}.tar.gz --directory=target/${{ matrix.target }}/release ${{ env.DASH_BIN }}; done
+      - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ env.DASH_BIN }}.tar.gz
+          asset_name: ${{ env.DASH_BIN }}-${{ matrix.target }}.tar.gz
           asset_content_type: application/gzip
 
   discord:
