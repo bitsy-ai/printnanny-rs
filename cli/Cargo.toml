@@ -2,7 +2,7 @@
 name = "printnanny-cli"
 description = "Print Nanny Command-line Interface"
 license = "GNU Affero General Public License version 3"
-version = "0.10.1"
+version = "0.10.2"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2018"
 
