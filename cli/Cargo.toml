@@ -1,11 +1,11 @@
 [package]
-name = "printnanny"
+name = "printnanny-cli"
 version = "0.9.4"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2018"
 
 [dependencies]
-services = {path = "../services"}
+printnanny-services = {path = "../services"}
 printnanny-api-client = "0.39.4"
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 clap = "2.3.7"

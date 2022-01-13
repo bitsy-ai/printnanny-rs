@@ -1,7 +1,7 @@
 use anyhow::{ Result };
 use clap::arg_enum;
 use log:: { debug };
-use services::printnanny_api::{ ApiService };
+use printnanny_services::printnanny_api::{ ApiService };
 
 arg_enum!{
     #[derive(PartialEq, Debug, Clone)]
