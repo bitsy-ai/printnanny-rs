@@ -193,12 +193,30 @@ jobs:
       - run: |
           tar -czvf ${{ env.TAR }}.tar.gz --directory=target/${{ matrix.target }}/release ${{ env.BIN }}
       - name: Upload Release Asset
+        if: ${{ github.event.release.upload_url }}
         id: upload-release-asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ env.TAR }}.tar.gz
+          asset_name: ${{ env.TAR }}-${{ matrix.target }}.tar.gz
+          asset_content_type: application/gzip
+      - uses: cardinalby/git-get-release-action@v1.1
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag: '1.2.3'    
+      - name: Upload Release Asset
+        if: ${{ inputs.tag }}
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.release.outputs.upload_url }}
           asset_path: ${{ env.TAR }}.tar.gz
           asset_name: ${{ env.TAR }}-${{ matrix.target }}.tar.gz
           asset_content_type: application/gzip
