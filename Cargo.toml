@@ -4,16 +4,20 @@ members = [
     "dash",
     "cli",
 ]
+
+[workspace.metadata.release]
+verify = true
+
 [package]
 name = "printnanny"
-version = "0.9.4"
+version = "0.10.5"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2018"
-
+license = "AGPL-3.0-or-later"
+description = "Print Nanny root package crate"
 [dependencies]
-printnanny-services = { path = "services"}
-printnanny-cli = { path = "cli"}
-printnanny-dash = { path = "dash" }
+printnanny-cli = { path = "cli", version = "0.10.4"}
+printnanny-dash = { path = "dash", version = "0.10.4" }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.dev]
 panic = "abort"
