@@ -4,6 +4,10 @@ members = [
     "dash",
     "cli",
 ]
+
+[workspace.metadata.release]
+verify = true
+
 [package]
 name = "printnanny"
 version = "0.9.4"
@@ -11,7 +15,7 @@ authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2018"
 
 [dependencies]
-printnanny-cli = { path = "cli"}
+printnanny-cli = { path = "cli" }
 printnanny-dash = { path = "dash" }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.dev]
