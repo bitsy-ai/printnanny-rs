@@ -1,0 +1,21 @@
+name: Mean Bean CI
+
+on:
+  push:
+    branches:
+      - main
+      - devel
+  pull_request:
+
+jobs:
+  cratesio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            override: true
+            components: rustfmt, clippy
+      - run: cargo clippy --workspace
