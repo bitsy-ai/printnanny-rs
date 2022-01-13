@@ -2,7 +2,7 @@
 name = "printnanny-dash"
 description = "Print Nanny Device Management Dashboard"
 license = "GNU Affero General Public License version 3"
-version = "0.10.1"
+version = "0.10.2"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2018"
 
