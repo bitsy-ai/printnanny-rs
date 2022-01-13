@@ -13,6 +13,7 @@ name = "printnanny"
 version = "0.10.1"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2018"
+license = "GNU Affero General Public License version 3"
 
 [dependencies]
 printnanny-cli = { path = "cli" }
