@@ -76,7 +76,7 @@ async fn login_step1_submit<'r>(form: Form<Contextual<'r, EmailForm<'r>>>, confi
     info!("Received auth email form response {:?}", form);
     match &form.value {
         Some(signup) => {
-            let result = handle_step1(signup, &config).await?;
+            let result = handle_step1(signup, config).await?;
             Ok(result)
         },
         None => {
@@ -91,12 +91,12 @@ async fn login_step1_submit<'r>(form: Form<Contextual<'r, EmailForm<'r>>>, confi
 // need, do not use `Contextual`. Use the equivalent of `Form<Submit<'_>>`.
 
 async fn handle_token_validate(token: &str, email: &str, config_path: &str, base_url: &str) -> Result< models::PrintNannyApiConfig, ServiceError>{
-    let service = ApiService::new(&config_path, &base_url, None)?;
-    let res = service.auth_token_validate(&email, token).await?;
+    let service = ApiService::new(config_path, base_url, None)?;
+    let res = service.auth_token_validate(email, token).await?;
     let bearer_access_token = res.token.to_string();
-    let service = ApiService::new(&config_path, base_url, Some(bearer_access_token.clone()))?;
+    let service = ApiService::new(config_path, base_url, Some(bearer_access_token.clone()))?;
     service.license_download().await?;
-    let service = ApiService::new(&config_path, base_url, Some(bearer_access_token.clone()))?;
+    let service = ApiService::new(config_path, base_url, Some(bearer_access_token.clone()))?;
     let api_config = service.to_api_config()?;
     Ok(api_config)
 }
@@ -132,7 +132,7 @@ fn login_step2(email: String) -> Template {
 }
 
 pub async fn get_context(config_path: &str, api_config: &models::PrintNannyApiConfig) -> Result<DashContext, ServiceError> {
-    let mut service = ApiService::new(&config_path, &api_config.base_path, Some(api_config.bearer_access_token.clone()))?;
+    let mut service = ApiService::new(config_path, &api_config.base_path, Some(api_config.bearer_access_token.clone()))?;
     service.load_models().await?;
     // user into context
     let context = DashContext{

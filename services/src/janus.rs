@@ -33,7 +33,7 @@ impl JanusAdminEndpoint {
             JanusAdminEndpoint::ListTokens => "list_tokens",
             JanusAdminEndpoint::TestStun => "test_stun",
         };
-        format!("{}", action)
+        action.to_string()
     }
 }
 #[derive(Debug, Clone)]
