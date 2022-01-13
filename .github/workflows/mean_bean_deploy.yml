@@ -25,7 +25,7 @@ jobs:
             override: true
             components: rustfmt, clippy
       - run: cargo install cargo-release
-      - run: cargo release --workspace --publish --execute --no-confirm
+      - run: cargo release --no-tag --no-push --workspace --publish --execute --no-confirm
   install-cross:
     runs-on: ubuntu-latest
     steps:
