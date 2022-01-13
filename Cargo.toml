@@ -10,7 +10,7 @@ verify = true
 
 [package]
 name = "printnanny"
-version = "0.10.1"
+version = "0.10.2"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2018"
 license = "GNU Affero General Public License version 3"
