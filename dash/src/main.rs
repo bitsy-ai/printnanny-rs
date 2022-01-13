@@ -1,4 +1,3 @@
-#[macro_use] extern crate rocket;
 use anyhow::{ Result};
 use clap::{ 
     Arg,
@@ -43,7 +42,6 @@ async fn main() -> Result<()> {
         .help("Base PrintNanny api token"));
     
     let app_m = app.get_matches();
-    let db = app_m.value_of("db").unwrap();
     let config = app_m.value_of("config").unwrap();
     let base_url = app_m.value_of("base_url").unwrap();
 

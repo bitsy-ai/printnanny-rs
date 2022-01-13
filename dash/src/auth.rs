@@ -1,7 +1,5 @@
 
-use std::ops::Deref;
 use std::collections::HashMap;
-use std::fmt;
 use rocket::serde::{ Serialize, Deserialize };
 use rocket::response::{Flash, Redirect};
 
