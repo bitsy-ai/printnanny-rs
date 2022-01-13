@@ -2325,7 +2325,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-dash"
-version = "0.1.0"
+version = "0.9.4"
 dependencies = [
  "anyhow",
  "clap 3.0.5",
@@ -2346,7 +2346,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-services"
-version = "0.1.0"
+version = "0.9.4"
 dependencies = [
  "anyhow",
  "assert_cmd",
