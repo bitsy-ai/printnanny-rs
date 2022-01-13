@@ -14,10 +14,18 @@ env:
   CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
 jobs:
-  # This job downloads and stores `cross` as an artifact, so that it can be
-  # redownloaded across all of the jobs. Currently this copied pasted between
-  # `mean_bean_ci.yml` and `mean_bean_deploy.yml`. Make sure to update both places when making
-  # changes.
+  cratesio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            override: true
+            components: rustfmt, clippy
+      - run: cargo install cargo-release
+      - run: cargo release --workspace --publish --execute --no-confirm
   install-cross:
     runs-on: ubuntu-latest
     steps:
