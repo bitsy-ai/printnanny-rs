@@ -7,7 +7,7 @@ members = [
 
 [workspace.metadata.release]
 verify = true
-no-tag = true
+tag = false
 
 [package]
 name = "printnanny"
