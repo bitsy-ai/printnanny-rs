@@ -2,7 +2,7 @@
 name = "printnanny-services"
 description = "Library of MQTT, API, and other services used by Print Nanny"
 license = "GNU Affero General Public License version 3"
-version = "0.10.1"
+version = "0.10.2"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2018"
 
