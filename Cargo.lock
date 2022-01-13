@@ -2292,7 +2292,6 @@ version = "0.9.4"
 dependencies = [
  "printnanny-cli",
  "printnanny-dash",
- "printnanny-services",
 ]
 
 [[package]]
