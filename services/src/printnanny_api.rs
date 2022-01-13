@@ -7,7 +7,6 @@ use std::process::Command;
 use log::{ info, warn, error };
 
 use thiserror::Error;
-use serde::{Serialize, Deserialize};
 
 use printnanny_api_client::models::print_nanny_api_config::PrintNannyApiConfig;
 use printnanny_api_client::apis::configuration::Configuration;
@@ -20,7 +19,6 @@ use printnanny_api_client::apis::users_api;
 use printnanny_api_client::models;
 
 use crate::paths::{ PrintNannyPath };
-use crate::msgs;
 
 #[derive(Error, Debug)]
 pub enum ServiceError{
@@ -186,7 +184,6 @@ impl ApiService {
         self.user = Some(user);
 
         // load device by hostname
-        let hostname = sys_info::hostname()?;
         let device_path = &self.paths.device_info_json;
         let device: models::Device = self.load_model(device_path, ApiService::device_retrieve_or_create_hostname(&self)).await?;
         self.device = Some(device);
@@ -363,8 +360,8 @@ impl ApiService {
 
     // ensure cached license.json matches active license on remote
     pub async fn license_check(&self) -> Result<models::License, ServiceError> {
-        let task = self.task_create(models::TaskType::SystemCheck, Some(models::TaskStatusType::Started), None, None).await?;
-        let license = self.load_license_json().await?;
+        // let task = self.task_create(models::TaskType::SystemCheck, Some(models::TaskStatusType::Started), None, None).await?;
+        // let license = self.load_license_json().await?;
         let active_license = self.license_retrieve_active().await?;
         info!("Retrieved active license for device_id={} {}", active_license.device, active_license.fingerprint);
 
