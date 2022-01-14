@@ -193,12 +193,12 @@ jobs:
       - run: |
           tar -czvf ${{ env.TAR }}.tar.gz --directory=target/${{ matrix.target }}/release ${{ env.BIN }}
       - uses: cardinalby/git-get-release-action@v1.1
-        if: ${{ inputs.tag }} != undefined
+        if: ${{ github.event.inputs.tag }} != undefined
         id: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag: ${{ inputs.tag }} 
+          tag: ${{ github.event.inputs.tag }}
       - name: Upload Release Asset
         id: upload-release-asset
         uses: actions/upload-release-asset@v1
