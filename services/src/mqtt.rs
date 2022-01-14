@@ -85,16 +85,16 @@ impl MQTTWorker {
 
         let iat = chrono::offset::Utc::now().timestamp(); // issued at (seconds since epoch)
         let exp = iat + 86400; // 24 hours later
-        let claims = Claims { iat: iat, exp: exp, aud: gcp_project_id };
+        let claims = Claims { iat, exp, aud: gcp_project_id };
         let token = encode_jwt(&service.paths.private_key, &claims)?;
         let mqttoptions = MQTTWorker::mqttoptions(&cloudiot_device, &service.paths, &token)?;
 
         let result = MQTTWorker{
-            service: service,
-            claims: claims,
+            service,
+            claims,
             config_topic: cloudiot_device.config_topic.clone(),
             task_topic: cloudiot_device.task_topic.clone(),
-            mqttoptions: mqttoptions,
+            mqttoptions,
         };
         Ok(result)
     }

@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
-use std::path::{ PathBuf };
+use std::path::{ PathBuf, Path };
 use std::future::Future;
 use std::process::Command;
 use log::{ info, warn, error };
@@ -180,12 +180,12 @@ impl ApiService {
     pub async fn load_models(&mut self) -> Result<(), ServiceError>{
 
         // load user from /me response
-        let user: models::User = self.load_model(&self.paths.user_json, ApiService::auth_user_retreive(&self)).await?;
+        let user: models::User = self.load_model(&self.paths.user_json, ApiService::auth_user_retreive(self)).await?;
         self.user = Some(user);
 
         // load device by hostname
         let device_path = &self.paths.device_info_json;
-        let device: models::Device = self.load_model(device_path, ApiService::device_retrieve_or_create_hostname(&self)).await?;
+        let device: models::Device = self.load_model(device_path, ApiService::device_retrieve_or_create_hostname(self)).await?;
         self.device = Some(device);
 
         // load active license for device
@@ -488,7 +488,7 @@ impl ApiService {
             Some(device) => {
                 let request = models::TaskRequest{
                     active: Some(true),
-                    task_type: task_type,
+                    task_type,
                     device: device.id
                 };
                 let task = devices_api::devices_tasks_create(&self.reqwest_config, device.id, request).await?;
@@ -506,6 +506,6 @@ impl ApiService {
         }
     }
     pub fn to_string_pretty<T: serde::Serialize>(&self, item: T) -> serde_json::error::Result<String> {
-        Ok(serde_json::to_string_pretty::<T>(&item)?)
+        serde_json::to_string_pretty::<T>(&item)
     }
 }

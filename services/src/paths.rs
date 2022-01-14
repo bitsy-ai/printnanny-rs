@@ -59,21 +59,21 @@ impl PrintNannyPath {
         let public_key = data.join("ecdsa_public.pem");
 
         Self { 
-            api_config_json: api_config_json,
-            backups:backups,
-            base: base,
-            ca_cert_backup: ca_cert_backup,
-            ca_cert: ca_cert,
-            ca_certs: ca_certs,
-            data: data,
-            device_info_json: device_info_json,
-            device_json: device_json,
-            license_json: license_json,
-            user_json: user_json,
-            license_zip: license_zip,
-            private_key: private_key,
-            public_key: public_key,
-            paths_json: paths_json,
+            api_config_json,
+            backups,
+            base,
+            ca_cert_backup,
+            ca_cert,
+            ca_certs,
+            data,
+            device_info_json,
+            device_json,
+            license_json,
+            license_zip,
+            paths_json,
+            private_key,
+            public_key,
+            user_json,
         }
     }
 }

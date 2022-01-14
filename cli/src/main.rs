@@ -159,17 +159,14 @@ async fn main() -> Result<()> {
 
     let config = app_m.value_of("config").unwrap();
     let base_url = app_m.value_of("base_url").unwrap();
-    let bearer_access_token = match app_m.value_of("api_token") {
-        Some(api_token) => Some(api_token.to_string()),
-        None => None
-    };
+    let bearer_access_token = app_m.value_of("api_token").map(|api_token| api_token.to_string());
     
     match app_m.subcommand() {
         ("mqtt", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", MqttAction).unwrap_or_else(|e| e.exit());
             match action {
                 MqttAction::Subscribe => {
-                    let worker = MQTTWorker::new(&config, &base_url, bearer_access_token).await?;
+                    let worker = MQTTWorker::new(config, base_url, bearer_access_token).await?;
                     worker.run().await?;
                 },
                 MqttAction::Publish => unimplemented!("mqtt publish is not implemented yet")
