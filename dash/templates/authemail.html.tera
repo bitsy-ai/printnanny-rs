@@ -31,7 +31,7 @@
     </form>
   </div>
   <div class="col-3">
-    <img src="/logo.svg" style="is-full-width" />
+    <img src="https://cdn.print-nanny.com/www/device-dash/logo.svg" style="is-full-width" />
   </div>
 </div>
 {% endblock body %}
