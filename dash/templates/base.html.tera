@@ -7,7 +7,7 @@
     <title>{% block title %}Print Nanny{% endblock title %}
     </title>
 
-    <link rel="stylesheet" href="/chota.min.css">
+    <link rel="stylesheet" href="https://cdn.print-nanny.com/www/device-dash/chota.min.css">
     <style>
       :root {
           --bg-color: #f1f3fa;
