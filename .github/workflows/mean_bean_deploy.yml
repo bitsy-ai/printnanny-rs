@@ -196,7 +196,7 @@ jobs:
           gzip -9 < ${{ env.TAR }}.tar  > ${{ env.TAR }}.tar.gz
 
       - uses: cardinalby/git-get-release-action@v1.1
-        if: ${{ github.event.inputs.tag }} != undefined
+        if: ${{ github.event.release.upload_url == undefined }}
         id: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
