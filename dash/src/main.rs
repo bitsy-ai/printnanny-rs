@@ -7,7 +7,6 @@ use clap::{
     crate_description
 };
 
-use rocket::fs::{FileServer, relative};
 use rocket_dyn_templates::Template;
 
 use printnanny_dash::config::{ Config };
@@ -57,7 +56,6 @@ async fn main() -> Result<()> {
         .mount("/", home::routes())
         .mount("/login", auth::routes())
         .attach(Template::fairing())
-        .mount("/", FileServer::from(relative!("/static")))
         .manage(config)
         .launch().await?;
     Ok(())
