@@ -191,9 +191,12 @@ jobs:
       - run: tools/ci/set_rust_version.bash stable ${{ matrix.target }}
       - run: tools/ci/build.bash /tmp/cross ${{ matrix.target }} RELEASE
       - run: |
-          tar -czvf ${{ env.TAR }}.tar.gz --directory=target/${{ matrix.target }}/release ${{ env.BIN }}
+          tar -cvf ${{ env.TAR }}.tar --directory=target/${{ matrix.target }}/release ${{ env.BIN }}
+          tar -rvf ${{ env.TAR }}.tar --directory=dash templates
+          gzip -9 < ${{ env.TAR }}.tar  > ${{ env.TAR }}.tar.gz
+
       - uses: cardinalby/git-get-release-action@v1.1
-        if: ${{ github.event.inputs.tag }} != undefined
+        if: ${{ github.event.release.upload_url == undefined }}
         id: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -221,4 +224,4 @@ jobs:
         with:
           args: |
               🦀 **Published** {{ EVENT_PAYLOAD.repository.full_name }}@{{ GITHUB_SHA }}
-              **Release Notes** ${{ github.event.release.html_url }}
+              **Release Notes** ${{ github.event.release.html_url || steps.release.outputs.html_url }}
