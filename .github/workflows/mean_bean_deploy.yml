@@ -224,4 +224,4 @@ jobs:
         with:
           args: |
               🦀 **Published** {{ EVENT_PAYLOAD.repository.full_name }}@{{ GITHUB_SHA }}
-              **Release Notes** ${{ github.event.release.html_url }}
+              **Release Notes** ${{ github.event.release.html_url || steps.release.outputs.html_url }}
