@@ -1,6 +1,5 @@
 use std::convert::TryFrom;
 use std::fs;
-use std::path::{ PathBuf };
 use std::time::Duration;
 
 use chrono;
@@ -12,9 +11,8 @@ use serde::{Serialize, Deserialize};
 use jsonwebtoken::{encode, Header, Algorithm, EncodingKey};
 
 use printnanny_api_client::models::{ CloudiotDevice };
-use crate::paths::PrintNannyPath;
 
-use super::printnanny_api::{ ApiService };
+use super::printnanny_api::{ ApiConfig, ApiService };
 
 arg_enum!{
     pub enum MqttAction {
@@ -40,18 +38,18 @@ pub struct MQTTWorker {
     mqttoptions: MqttOptions, 
 }
 
-fn encode_jwt(keypath: &PathBuf, claims: &Claims) -> Result<String> {
-    let contents = fs::read(keypath)
-        .context(format!("Failed to read file {:?}", keypath))?;
+fn encode_jwt(private_key :&str, claims: &Claims) -> Result<String> {
+    let contents = fs::read(private_key)
+        .context(format!("Failed to read file {:?}", private_key))?;
     let key = EncodingKey::from_ec_pem(&contents)
-        .context(format!("Failed to encode EC pem from {:#?}", &keypath))?;
+        .context(format!("Failed to encode EC pem from {:#?}", private_key))?;
     let result = encode(&Header::new(Algorithm::ES256), &claims, &key)?;
     Ok(result)
 }
 
 impl MQTTWorker {
 
-    fn mqttoptions(cloudiot_device: &CloudiotDevice, paths: &PrintNannyPath, token: &str) -> Result<MqttOptions> {
+    fn mqttoptions(cloudiot_device: &CloudiotDevice, private_key: &str, public_key: &str, ca_certs: &str, token: &str) -> Result<MqttOptions> {
         let mqtt_port = u16::try_from(cloudiot_device.mqtt_bridge_port)?;
 
         let mut mqttoptions = MqttOptions::new(
@@ -60,12 +58,12 @@ impl MQTTWorker {
             mqtt_port
         );
         mqttoptions.set_keep_alive(Duration::new(5, 0));
-        mqttoptions.set_credentials("unused", &token);
+        mqttoptions.set_credentials("unused", token);
 
         let mut roots = rustls::RootCertStore::empty();
-
-        let root_ca_bytes =  std::fs::read(&paths.ca_cert)
-            .context(format!("Failed to read file {:?}", &paths.ca_cert))?;
+        
+        let root_ca_bytes =  std::fs::read(ca_certs)
+            .context(format!("Failed to read file {:?}", ca_certs))?;
 
         let root_cert = rustls::Certificate(root_ca_bytes);
         roots.add(&root_cert)?;
@@ -77,8 +75,14 @@ impl MQTTWorker {
         Ok(mqttoptions)
     }
 
-    pub async fn new(config: &str, base_api_url: &str, bearer_access_token: Option<String>) -> Result<MQTTWorker> {
-        let service = ApiService::new(config, base_api_url, bearer_access_token)?;
+    pub async fn new(
+        api_config: ApiConfig,
+        data_dir: &str, 
+        private_key: &str,
+        public_key: &str,
+        ca_certs: &str
+    ) -> Result<MQTTWorker> {
+        let service = ApiService::new(api_config, data_dir)?;
         let device = service.device_retrieve().await?;
         let cloudiot_device = device.cloudiot_device.as_ref().unwrap();
         let gcp_project_id: String = cloudiot_device.gcp_project_id.clone();
@@ -86,8 +90,8 @@ impl MQTTWorker {
         let iat = chrono::offset::Utc::now().timestamp(); // issued at (seconds since epoch)
         let exp = iat + 86400; // 24 hours later
         let claims = Claims { iat, exp, aud: gcp_project_id };
-        let token = encode_jwt(&service.paths.private_key, &claims)?;
-        let mqttoptions = MQTTWorker::mqttoptions(&cloudiot_device, &service.paths, &token)?;
+        let token = encode_jwt(private_key, &claims)?;
+        let mqttoptions = MQTTWorker::mqttoptions(&cloudiot_device, private_key, public_key, ca_certs, &token)?;
 
         let result = MQTTWorker{
             service,

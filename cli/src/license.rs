@@ -1,7 +1,7 @@
 use anyhow::{ Result };
 use clap::arg_enum;
 use log:: { debug };
-use printnanny_services::printnanny_api::{ ApiService };
+use printnanny_services::printnanny_api::{ ApiService, ApiConfig };
 
 arg_enum!{
     #[derive(PartialEq, Debug, Clone)]
@@ -18,8 +18,8 @@ pub struct LicenseCmd {
 }
 
 impl LicenseCmd{
-    pub async fn new(action: LicenseAction, config: &str, base_url: &str, bearer_access_token: Option<String>) -> Result<Self> {
-        let service = ApiService::new(config, base_url, bearer_access_token)?;
+    pub async fn new(action: LicenseAction, api_config: ApiConfig, data_dir: &str) -> Result<Self> {
+        let service = ApiService::new(api_config, data_dir)?;
         Ok(Self { service, action })
     }
     pub async fn handle(&self) -> Result<String>{
