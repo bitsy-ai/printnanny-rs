@@ -1,4 +1,5 @@
-use std::fs::File;
+use std::fs::{ File, read_to_string };
+use std::convert::TryInto;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::{ PathBuf };
@@ -18,6 +19,7 @@ use printnanny_api_client::apis::users_api;
 use printnanny_api_client::models;
 
 use crate::paths::{ PrintNannyPath };
+use crate::cpuinfo::RpiCpuInfo;
 
 #[derive(Error, Debug)]
 pub enum ServiceError{
@@ -31,11 +33,6 @@ pub enum ServiceError{
 
     #[error(transparent)]
     DevicesRetrieveError(#[from] ApiError<devices_api::DevicesRetrieveError>),
-    #[error(transparent)]
-    DevicesGenerateLicenseError(#[from] ApiError<devices_api::DevicesGenerateLicenseError>),
-
-    #[error(transparent)]
-    DevicesActiveLicenseRetrieveError(#[from] ApiError<devices_api::DevicesActiveLicenseRetrieveError>),
 
     #[error(transparent)]
     DevicesRetrieveHostnameError(#[from] ApiError<devices_api::DevicesRetrieveHostnameError>),
@@ -55,6 +52,10 @@ pub enum ServiceError{
         expected: String,
         active: String,
     },
+
+    #[error(transparent)]
+    ProcfsError(#[from] procfs::ProcError),
+
     #[error(transparent)]
     SysInfoError(#[from] sys_info::Error),
     #[error(transparent)]
@@ -178,7 +179,7 @@ impl ApiService {
         let device_path = &self.paths.device_info_json;
         let device: models::Device = self.load_model(device_path, ApiService::device_retrieve_or_create_hostname(self)).await?;
         self.device = Some(device);
-
+        Ok(())
     }
 
     // auth APIs
@@ -238,6 +239,50 @@ impl ApiService {
                 _ => Err(e)
             }
         }
+    }
+
+    pub async fn device_setup(&self) -> Result<models::Device, ServiceError>{
+        // get or create device with matching hostname
+        let device = self.device_retrieve_or_create_hostname().await?;
+        // create SystemInfo
+        self.device_system_info_create(device.id).await?;
+
+        // create JanusAuth
+
+        // create PublicKey
+        Ok(device)
+    }
+
+    async fn device_system_info_create(&self, device: i32) -> Result<(), ServiceError> {
+        let machine_id: String = read_to_string("/etc/machine-id")?;
+
+        // hacky parsing of rpi-specific /proc/cpuinfo
+        let rpi_cpuinfo = RpiCpuInfo::new();
+        let hardware = rpi_cpuinfo.hardware.unwrap_or("Unknown".to_string());
+        let model = rpi_cpuinfo.model.unwrap_or("Unknown".to_string());
+        let serial = rpi_cpuinfo.serial.unwrap_or("Unknown".to_string());
+        let revision = rpi_cpuinfo.revision.unwrap_or("Unknown".to_string());
+
+        let cpuinfo = procfs::CpuInfo::new()?;
+        let cores: i32 = cpuinfo.num_cores().try_into().unwrap();
+
+        let meminfo = procfs::Meminfo::new()?;
+        let ram = meminfo.mem_total.try_into().unwrap();
+
+        let image_version = read_to_string("/boot/image_version.txt").unwrap_or("Failed to parse /boot/image_version.txt".to_string());
+
+        let request = models::SystemInfoRequest{
+            machine_id,
+            hardware,
+            serial,
+            revision,
+            model,
+            cores,
+            ram,
+            image_version,
+            device
+        };
+        Ok(())
     }
 
     // read <models::<T>>.json from disk cache @ /var/run/printnanny
