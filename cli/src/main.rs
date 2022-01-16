@@ -36,12 +36,12 @@ async fn main() -> Result<()> {
         .long("api-token")
         .takes_value(true)
         .help("Base PrintNanny api token"))
-        .arg(Arg::with_name("config")
+        .arg(Arg::with_name("api_config")
         .short("c")
-        .long("config")
+        .long("api-config")
         .takes_value(true)
         .help("Path to Print Nanny installation")
-        .default_value("/opt/printnanny"))
+        .default_value("/opt/printnanny/data/api_config.json"))
         // janusadmin
         .subcommand(SubCommand::with_name("janus-admin")
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token")
@@ -130,9 +130,24 @@ async fn main() -> Result<()> {
             ))
         // mqtt <subscribe|publish>
         .subcommand(SubCommand::with_name("mqtt")
+            .arg(Arg::with_name("ca_certs")
+                .long("ca-certs")
+                .takes_value(true)
+                .required(true)
+                .env("MQTT_CA_CERTS"))
+            .arg(Arg::with_name("private_key")
+                .long("private-key")
+                .takes_value(true)
+                .required(true)
+                .env("MQTT_PRIVATE_KEY"))
+            .arg(Arg::with_name("public_key")
+                .long("public-key")
+                .takes_value(true)
+                .required(true)
+                .env("MQTT_PUBLIC_KEY"))
             .arg(Arg::with_name("action")
-            .possible_values(&MqttAction::variants())
-            .case_insensitive(true)
+                .possible_values(&MqttAction::variants())
+                .case_insensitive(true)
             ))
 
         .subcommand(SubCommand::with_name("monitor")
@@ -157,16 +172,26 @@ async fn main() -> Result<()> {
         _ => builder.filter_level(LevelFilter::Trace).init(),
     };
 
-    let config = app_m.value_of("config").unwrap();
+    let api_config = app_m.value_of("api_config").unwrap();
     let base_url = app_m.value_of("base_url").unwrap();
     let bearer_access_token = app_m.value_of("api_token").map(|api_token| api_token.to_string());
     
     match app_m.subcommand() {
         ("mqtt", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", MqttAction).unwrap_or_else(|e| e.exit());
+            let private_key = sub_m.value_of("public_key").unwrap();
+            let public_key = sub_m.value_of("private_key").unwrap();
+            let ca_certs = sub_m.value_of("ca_certs").unwrap();
             match action {
                 MqttAction::Subscribe => {
-                    let worker = MQTTWorker::new(config, base_url, bearer_access_token).await?;
+                    let worker = MQTTWorker::new(
+                        api_config, 
+                        base_url, 
+                        bearer_access_token,
+                        private_key,
+                        public_key,
+                        ca_certs
+                    ).await?;
                     worker.run().await?;
                 },
                 MqttAction::Publish => unimplemented!("mqtt publish is not implemented yet")
@@ -175,13 +200,13 @@ async fn main() -> Result<()> {
 
         ("license", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", LicenseAction).unwrap_or_else(|e| e.exit());
-            let cmd = LicenseCmd::new(action, config, base_url, bearer_access_token).await?;
+            let cmd = LicenseCmd::new(action, api_config, base_url, bearer_access_token).await?;
             let result = cmd.handle().await?;
             println!("{}", result)
         },
         ("device", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", DeviceAction).unwrap_or_else(|e| e.exit());
-            let cmd = DeviceCmd::new(action, config, base_url, bearer_access_token).await?;
+            let cmd = DeviceCmd::new(action, api_config, base_url, bearer_access_token).await?;
             let result = cmd.handle().await?;
             println!("{}", result)
         }, 
