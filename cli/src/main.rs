@@ -181,8 +181,8 @@ async fn main() -> Result<()> {
         _ => builder.filter_level(LevelFilter::Trace).init(),
     };
 
-    let data_dir = app_m.value_of("data-dir").unwrap();
-    let base_path = app_m.value_of("base_url").unwrap();
+    let data_dir = app_m.value_of("data_dir").unwrap();
+    let base_path = app_m.value_of("api_url").unwrap();
     let bearer_access_token = app_m.value_of("api_token").map(|api_token| api_token.to_string());
 
     let api_config: ApiConfig = match app_m.value_of("api_config"){
