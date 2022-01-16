@@ -13,7 +13,6 @@ use printnanny_services::printnanny_api::{ ApiConfig, read_model_json };
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker, MqttAction };
 use printnanny_cli::device::{DeviceCmd, DeviceAction };
-use printnanny_cli::license::{ LicenseCmd, LicenseAction};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -210,13 +209,6 @@ async fn main() -> Result<()> {
                 },
                 MqttAction::Publish => unimplemented!("mqtt publish is not implemented yet")
             }
-        },
-
-        ("license", Some(sub_m)) => {
-            let action = value_t!(sub_m, "action", LicenseAction).unwrap_or_else(|e| e.exit());
-            let cmd = LicenseCmd::new(action, api_config, data_dir).await?;
-            let result = cmd.handle().await?;
-            println!("{}", result)
         },
         ("device", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", DeviceAction).unwrap_or_else(|e| e.exit());
