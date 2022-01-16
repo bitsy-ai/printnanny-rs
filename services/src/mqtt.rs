@@ -83,7 +83,7 @@ impl MQTTWorker {
         ca_certs: &str
     ) -> Result<MQTTWorker> {
         let service = ApiService::new(api_config, data_dir)?;
-        let device = service.device_retrieve().await?;
+        let device = service.device_retrieve_hostname().await?;
         let cloudiot_device = device.cloudiot_device.as_ref().unwrap();
         let gcp_project_id: String = cloudiot_device.gcp_project_id.clone();
 

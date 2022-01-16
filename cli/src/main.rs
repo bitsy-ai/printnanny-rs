@@ -122,20 +122,6 @@ async fn main() -> Result<()> {
                 .long("output")
                 .takes_value(true)
             ))
-        // license
-        .subcommand(SubCommand::with_name("license")
-            .about("Interact with device REST API")
-            // model
-            .arg(Arg::with_name("action")
-                .possible_values(&LicenseAction::variants())
-                .case_insensitive(true)
-                .required(true)
-            )
-            .arg(Arg::with_name("output")
-                .short("o")
-                .long("output")
-                .takes_value(true)
-            ))
         // mqtt <subscribe|publish>
         .subcommand(SubCommand::with_name("mqtt")
             .arg(Arg::with_name("ca_certs")

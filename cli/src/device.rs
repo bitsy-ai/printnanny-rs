@@ -24,7 +24,7 @@ impl DeviceCmd {
     }
     pub async fn handle(&self) -> Result<String>{
         let result = match self.action {
-            DeviceAction::Get => self.service.device_retrieve().await?,
+            DeviceAction::Get => self.service.device_retrieve_hostname().await?,
             DeviceAction::Setup => self.service.device_setup().await?,
         };
         debug!("Success action={} result={:?}", self.action, result);
