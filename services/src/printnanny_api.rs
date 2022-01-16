@@ -238,7 +238,7 @@ impl ApiService {
             Err(e) => match &e {
                 ServiceError::DevicesRetrieveHostnameError(ApiError::ResponseError(content)) => match content.status {
                     reqwest::StatusCode::NOT_FOUND => {
-                        warn!("Failed retreive device with hostname={} error={:?} - attempting to create device", hostname, e);
+                        warn!("Failed retreive device with error={:?} - attempting to create device", e);
                         let res = self.device_create().await?;
                         info!("Success! Created device={:?}", res);
                         Ok(res)
