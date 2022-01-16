@@ -1,3 +1,5 @@
+#[macro_use] extern crate clap;
+
 use std::process::{ Command, Stdio };
 use std::path::{ PathBuf};
 
@@ -5,8 +7,7 @@ use anyhow::{ Result };
 use env_logger::Builder;
 use log::LevelFilter;
 use clap::{ 
-    Arg, App, AppSettings, SubCommand, 
-    value_t, crate_version, crate_authors, crate_description
+    Arg, App, AppSettings
 };
 
 use printnanny_services::printnanny_api::{ ApiConfig, read_model_json };
@@ -24,50 +25,52 @@ async fn main() -> Result<()> {
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .author(crate_authors!())
         .about(crate_description!())
-        .arg(Arg::with_name("v")
-        .short("v")
-        .multiple(true)
+        .arg(Arg::new("v")
+        .short('v')
+        .multiple_occurrences(true)
         .help("Sets the level of verbosity"))
-        .arg(Arg::with_name("api_config")
+        .arg(Arg::new("api_config")
             .long("api-config")
             .takes_value(true)
-            .help("Path to api_config.json")
-            .default_value("https://print-nanny.com"))
-        .arg(Arg::with_name("api_url")
+            .required(true)
+            .help("Path to api_config.json"))
+        .arg(Arg::new("api_url")
             .long("api-url")
             .takes_value(true)
             .conflicts_with("api_config")
             .help("Base PrintNanny url")
-            .default_value("https://print-nanny.com"))
-        .arg(Arg::with_name("api_token")
+            .default_value("https://print-nanny.com")
+            .default_value_if("api_config", None, None))
+        .arg(Arg::new("api_token")
             .long("api-token")
             .takes_value(true)
             .conflicts_with("api_config")
+            .required(true)
             .help("Base PrintNanny api token"))
-        .arg(Arg::with_name("data-dir")
-            .short("d")
-            .long("data-dir")
+        .arg(Arg::new("prefix")
+            .short('p')
+            .long("prefix")
             .takes_value(true)
-            .help("Path to Print Nanny installation")
-            .default_value("/opt/printnanny/data"))
+            .help("Path to Print Nanny installation (used to specify alternate install path)")
+            .default_value("/opt/printnanny"))
         // janusadmin
-        .subcommand(SubCommand::with_name("janus-admin")
+        .subcommand(App::new("janus-admin")
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token")
-            .arg(Arg::with_name("host")
+            .arg(Arg::new("host")
                 .long("host")
-                .short("h")
+                .short('h')
                 .takes_value(true)
                 .default_value("http://localhost:7088/admin"))
-            .arg(Arg::with_name("endpoint")
-                .possible_values(&JanusAdminEndpoint::variants())
+            .arg(Arg::new("endpoint")
+                .possible_values(JanusAdminEndpoint::possible_values())
                 .help("Janus admin/monitoring API endpoint")
                 .default_value("janus.plugin.echotest,janus.plugin.streaming")
-                .case_insensitive(true)
+                .ignore_case(true)
             ) 
-            .arg(Arg::with_name("plugins")
+            .arg(Arg::new("plugins")
                 .long("plugins")
                 .takes_value(true)
-                .required_ifs(&[
+                .required_if_eq_any(&[
                     ("endpoint", "addtoken"),
                     ("endpoint", "AddToken"),
                 ])
@@ -75,11 +78,11 @@ async fn main() -> Result<()> {
                 .help("Commaseparated list of plugins used to scope token access.")
                 .default_value("janus.plugin.echotest,janus.plugin.streaming")
                     )
-            .arg(Arg::with_name("token")
+            .arg(Arg::new("token")
                 .hide_env_values(true)
                 .long("token")
                 .takes_value(true)
-                .required_ifs(&[
+                .required_if_eq_any(&[
                     ("endpoint", "addtoken"),
                     ("endpoint", "AddToken"),
                     ("endpoint", "removetoken"),
@@ -87,11 +90,11 @@ async fn main() -> Result<()> {
                 ])
                 .env("JANUS_TOKEN")
             )
-            .arg(Arg::with_name("admin_secret")
+            .arg(Arg::new("admin_secret")
                 .hide_env_values(true)
                 .long("adminsecret")
                 .takes_value(true)
-                .required_ifs(&[
+                .required_if_eq_any(&[
                     ("endpoint", "addtoken"),
                     ("endpoint", "AddToken"),
                     ("endpoint", "removetoken"),
@@ -102,55 +105,55 @@ async fn main() -> Result<()> {
                 .env("JANUS_ADMIN_SECRET")
             ))
         // api endpoints (used by ansible facts.d)
-        .subcommand(SubCommand::with_name("factsd")
+        .subcommand(App::new("factsd")
             .about("REST API JSON for Ansible facts.d")
-            .arg(Arg::with_name("output")
-                .short("o")
+            .arg(Arg::new("output")
+                .short('o')
                 .long("output")
                 .takes_value(true)
             ))
         // device
-        .subcommand(SubCommand::with_name("device")
+        .subcommand(App::new("device")
             .about("Interact with device REST API")
             // model
-            .arg(Arg::with_name("action")
-                .possible_values(&DeviceAction::variants())
-                .case_insensitive(true)
+            .arg(Arg::new("action")
+                .possible_values(DeviceAction::possible_values())
+                .ignore_case(true)
             )
-            .arg(Arg::with_name("output")
-                .short("o")
+            .arg(Arg::new("output")
+                .short('o')
                 .long("output")
                 .takes_value(true)
             ))
         // mqtt <subscribe|publish>
-        .subcommand(SubCommand::with_name("mqtt")
-            .arg(Arg::with_name("ca_certs")
+        .subcommand(App::new("mqtt")
+            .arg(Arg::new("ca_certs")
                 .long("ca-certs")
                 .takes_value(true)
                 .required(true)
                 .env("MQTT_CA_CERTS"))
-            .arg(Arg::with_name("private_key")
+            .arg(Arg::new("private_key")
                 .long("private-key")
                 .takes_value(true)
                 .required(true)
                 .env("MQTT_PRIVATE_KEY"))
-            .arg(Arg::with_name("public_key")
+            .arg(Arg::new("public_key")
                 .long("public-key")
                 .takes_value(true)
                 .required(true)
                 .env("MQTT_PUBLIC_KEY"))
-            .arg(Arg::with_name("action")
-                .possible_values(&MqttAction::variants())
-                .case_insensitive(true)
+            .arg(Arg::new("action")
+                .possible_values(MqttAction::possible_values())
+                .ignore_case(true)
             ))
 
-        .subcommand(SubCommand::with_name("monitor")
+        .subcommand(App::new("monitor")
             .setting(AppSettings::SubcommandRequiredElseHelp)
             .subcommand(
-                SubCommand::with_name("start")
+                App::new("start")
                 .about("Start Print Nanny monitoring service"))
             .subcommand(
-                SubCommand::with_name("stop")
+                App::new("stop")
                 .about("Stop Print Nanny monitoring service"))
         );
     
@@ -166,19 +169,24 @@ async fn main() -> Result<()> {
         _ => builder.filter_level(LevelFilter::Trace).init(),
     };
 
-    let data_dir = app_m.value_of("data_dir").unwrap();
-    let base_path = app_m.value_of("api_url").unwrap();
+    let prefix = match app_m.value_of("prefix"){
+        Some(v) => v,
+        None => panic!("--prefix is required")
+    };
     let bearer_access_token = app_m.value_of("api_token").map(|api_token| api_token.to_string());
 
     let api_config: ApiConfig = match app_m.value_of("api_config"){
         Some(config_file) => read_model_json::<ApiConfig>(&PathBuf::from(config_file))?,
-        None => ApiConfig{ base_path: base_path.to_string(), bearer_access_token }
+        None => {
+            let base_path = app_m.value_of("api_url").unwrap();
+            ApiConfig{ base_path: base_path.to_string(), bearer_access_token }
+        }
     };
 
     
     match app_m.subcommand() {
-        ("mqtt", Some(sub_m)) => {
-            let action = value_t!(sub_m, "action", MqttAction).unwrap_or_else(|e| e.exit());
+        Some(("mqtt", sub_m)) => {
+            let action: MqttAction = sub_m.value_of_t("action").unwrap_or_else(|e| e.exit());
             let private_key = sub_m.value_of("public_key").unwrap();
             let public_key = sub_m.value_of("private_key").unwrap();
             let ca_certs = sub_m.value_of("ca_certs").unwrap();
@@ -186,7 +194,7 @@ async fn main() -> Result<()> {
                 MqttAction::Subscribe => {
                     let worker = MQTTWorker::new(
                         api_config,
-                        data_dir,
+                        prefix,
                         private_key,
                         public_key,
                         ca_certs
@@ -196,14 +204,14 @@ async fn main() -> Result<()> {
                 MqttAction::Publish => unimplemented!("mqtt publish is not implemented yet")
             }
         },
-        ("device", Some(sub_m)) => {
-            let action = value_t!(sub_m, "action", DeviceAction).unwrap_or_else(|e| e.exit());
-            let cmd = DeviceCmd::new(action, api_config, data_dir).await?;
+        Some(("device", sub_m)) => {
+            let action: DeviceAction = sub_m.value_of_t("action").unwrap_or_else(|e| e.exit());
+            let cmd = DeviceCmd::new(action, api_config, prefix).await?;
             let result = cmd.handle().await?;
             println!("{}", result)
         }, 
-        ("janus-admin", Some(sub_m)) => {
-            let endpoint = value_t!(sub_m, "endpoint", JanusAdminEndpoint).unwrap_or_else(|e| e.exit());
+        Some(("janus-admin", sub_m)) => {
+            let endpoint: JanusAdminEndpoint = sub_m.value_of_t("endpoint").unwrap_or_else(|e| e.exit());
             let token = sub_m.value_of("token");
             let admin_secret = sub_m.value_of("admin_secret");
             let host = sub_m.value_of("host").unwrap();
@@ -217,15 +225,15 @@ async fn main() -> Result<()> {
 
         },
 
-        ("monitor", Some(sub_m)) => {
+        Some(("monitor", sub_m)) => {
             match sub_m.subcommand() {
-                ("start", Some(_)) => println!("Starting Print Nanny monitoring"),
-                ("stop", Some(_)) => println!("Stopping Print Nanny monitoring"),
+                Some(("start", _)) => println!("Starting Print Nanny monitoring"),
+                Some(("stop", _)) => println!("Stopping Print Nanny monitoring"),
                 _ => panic!("Received unrecognized subcommand")
             };
         }
 
-        ("system-update", Some(_sub_m)) => {
+        Some(("system-update", _sub_m)) => {
             let mut cmd =
             Command::new("systemctl")
             .args(&["start", "printnannyupdater"])

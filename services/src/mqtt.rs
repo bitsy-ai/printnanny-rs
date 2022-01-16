@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use chrono;
 use log::{ debug, info };
-use clap::arg_enum;
+use clap::ArgEnum;
 use rumqttc::{MqttOptions, AsyncClient, QoS, Transport, Event, Packet, Outgoing };
 use anyhow::{ Context, Result };
 use serde::{Serialize, Deserialize};
@@ -14,12 +14,33 @@ use printnanny_api_client::models::{ CloudiotDevice };
 
 use super::printnanny_api::{ ApiConfig, ApiService };
 
-arg_enum!{
-    pub enum MqttAction {
-        Publish,
-        Subscribe,
+#[derive(Copy, Eq, PartialEq, Debug, Clone, ArgEnum)]
+pub enum MqttAction {
+    Publish,
+    Subscribe,
+}
+
+impl MqttAction {
+    pub fn possible_values() -> impl Iterator<Item = clap::PossibleValue<'static>> {
+        MqttAction::value_variants()
+            .iter()
+            .filter_map(clap::ArgEnum::to_possible_value)
     }
 }
+
+impl std::str::FromStr for MqttAction {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        for variant in Self::value_variants() {
+            if variant.to_possible_value().unwrap().matches(s, false) {
+                return Ok(*variant);
+            }
+        }
+        Err(format!("Invalid variant: {}", s))
+    }
+}
+
 
 /// Our claims struct, it needs to derive `Serialize` and/or `Deserialize`
 #[derive(Debug, Serialize, Deserialize, Clone)]
