@@ -27,7 +27,6 @@ pub const COOKIE_API_CONFIG: &str = "printnanny_api_config";
 pub struct DashContext {
     // api_config: models::PrintNannyApiConfig,
     user: models::User,
-    license: models::License,
     device: models::Device,
     // system_info: models::SystemInfo
 }
@@ -100,7 +99,7 @@ async fn handle_token_validate(token: &str, email: &str, config_path: &str, base
 
     let api_config = ApiConfig{base_path: base_url.to_string(), bearer_access_token: Some(bearer_access_token)};
     let service = ApiService::new(api_config.clone(), config_path)?;
-    service.license_download().await?;
+    service.device_setup().await?;
     Ok(api_config)
 }
 
@@ -136,12 +135,10 @@ fn login_step2(email: String) -> Template {
 
 pub async fn get_context(config_path: &str, api_config: &ApiConfig) -> Result<DashContext, ServiceError> {
     let mut service = ApiService::new(api_config.clone(), config_path)?;
-    service.load_models().await?;
     // user into context
     let context = DashContext{
         user: service.user.unwrap(),
         device: service.device.unwrap(),
-        license: service.license.unwrap()
     };
 
     Ok(context)

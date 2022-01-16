@@ -1,4 +1,5 @@
-use std::fs::File;
+use std::fs::{ File, read_to_string };
+use std::convert::TryInto;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::{ PathBuf };
@@ -14,11 +15,11 @@ use printnanny_api_client::apis::configuration::Configuration;
 use printnanny_api_client::apis::Error as ApiError;
 use printnanny_api_client::apis::auth_api;
 use printnanny_api_client::apis::devices_api;
-use printnanny_api_client::apis::licenses_api;
 use printnanny_api_client::apis::users_api;
 use printnanny_api_client::models;
 
 use crate::paths::{ PrintNannyPath };
+use crate::cpuinfo::RpiCpuInfo;
 
 #[derive(Error, Debug)]
 pub enum ServiceError{
@@ -32,17 +33,15 @@ pub enum ServiceError{
 
     #[error(transparent)]
     DevicesRetrieveError(#[from] ApiError<devices_api::DevicesRetrieveError>),
-    #[error(transparent)]
-    DevicesGenerateLicenseError(#[from] ApiError<devices_api::DevicesGenerateLicenseError>),
-
-    #[error(transparent)]
-    LicenseActivate(#[from] ApiError<licenses_api::LicenseActivateError>),
-    
-    #[error(transparent)]
-    DevicesActiveLicenseRetrieveError(#[from] ApiError<devices_api::DevicesActiveLicenseRetrieveError>),
 
     #[error(transparent)]
     DevicesRetrieveHostnameError(#[from] ApiError<devices_api::DevicesRetrieveHostnameError>),
+
+    #[error(transparent)]
+    JanusAuthCreateError(#[from] ApiError<devices_api::DevicesJanusCreateError>),
+
+    #[error(transparent)]
+    SystemInfoCreateError(#[from] ApiError<devices_api::DevicesSystemInfoCreateError>),
 
     #[error(transparent)]
     TaskCreateError(#[from] ApiError<devices_api::DevicesTasksCreateError>),
@@ -53,12 +52,18 @@ pub enum ServiceError{
     #[error(transparent)]
     UsersRetrieveError(#[from] ApiError<users_api::UsersMeRetrieveError>),
 
+    #[error(transparent)]
+    Utf8Error(#[from] std::str::Utf8Error),
 
     #[error("License fingerprint mismatch (expected {expected:?}, found {active:?})")]
     InvalidLicense {
         expected: String,
         active: String,
     },
+
+    #[error(transparent)]
+    ProcfsError(#[from] procfs::ProcError),
+
     #[error(transparent)]
     SysInfoError(#[from] sys_info::Error),
     #[error(transparent)]
@@ -86,7 +91,6 @@ pub struct ApiService{
     pub reqwest_config: Configuration,
     pub paths: PrintNannyPath,
     pub api_config: ApiConfig,
-    pub license: Option<models::License>,
     pub device: Option<models::Device>,
     pub user: Option<models::User>
 }
@@ -118,7 +122,6 @@ impl ApiService {
             paths, 
             api_config,
             device: None,
-            license: None,
             user: None
         })
     }
@@ -174,23 +177,6 @@ impl ApiService {
         Ok(())
     }
 
-    pub async fn load_models(&mut self) -> Result<(), ServiceError>{
-
-        // load user from /me response
-        let user: models::User = self.load_model(&self.paths.user_json, ApiService::auth_user_retreive(self)).await?;
-        self.user = Some(user);
-
-        // load device by hostname
-        let device_path = &self.paths.device_info_json;
-        let device: models::Device = self.load_model(device_path, ApiService::device_retrieve_or_create_hostname(self)).await?;
-        self.device = Some(device);
-
-        // load active license for device
-        let license: models::License = self.load_license_json().await?;
-        self.license = Some(license);
-        Ok(())
-    }
-
     // auth APIs
 
     // fetch user associated with auth token
@@ -218,12 +204,6 @@ impl ApiService {
         Ok(devices_api::devices_create(&self.reqwest_config,req).await?)
     }
 
-    pub async fn device_retrieve(&self) -> Result<models::Device,  ServiceError> {
-        match &self.device {
-            Some(device) => Ok(devices_api::devices_retrieve(&self.reqwest_config, device.id).await?),
-            None => Err(ServiceError::SignupIncomplete{cache: self.paths.device_json.clone() })
-        }
-    }
     pub async fn device_retrieve_hostname(&self) -> Result<models::Device, ServiceError> {
         let hostname = sys_info::hostname()?;
         let res = devices_api::devices_retrieve_hostname(&self.reqwest_config, &hostname).await?;
@@ -250,18 +230,89 @@ impl ApiService {
         }
     }
 
-    // license API
-    pub async fn license_activate(&self, license_id: i32) -> Result<models::License,  ServiceError> {
-        Ok(licenses_api::license_activate(&self.reqwest_config, license_id, None).await?)
+    pub async fn device_setup(&self) -> Result<models::Device, ServiceError>{
+        // get or create device with matching hostname
+        let device = self.device_retrieve_or_create_hostname().await?;
+        // create SystemInfo
+        self.device_system_info_create(device.id).await?;
+        // create JanusAuth
+        self.device_janus_auth_create(device.id).await?;
+        // create PublicKey
+        self.device_public_key_create(device.id).await?;
+        Ok(device)
     }
-    pub async fn license_retrieve_active(&self) -> Result<models::License, ServiceError> {
-        match &self.device {
-            Some(device) => Ok(devices_api::devices_active_license_retrieve(
-                &self.reqwest_config,
-                device.id,
-            ).await?),
-            None => Err(ServiceError::SignupIncomplete{cache: self.paths.device_json.clone() })
-        }
+
+    async fn device_public_key_create(&self, device: i32) -> Result<(), ServiceError>{
+        let pem = read_to_string(&self.paths.public_key)?;
+        let cipher = models::CipherEnum::Ecdsa;
+        let length = 256;
+        let output = Command::new("ssh-keygen")
+            .args([
+                "-l",
+                "-E",
+                "md5",
+                "-f",
+                &format!("{:?}", &self.paths.public_key)
+            ])
+            .output()
+            .expect("Failed to get fingerprint");
+        let fingerprint = output.stdout;
+
+        let req = models::PublicKeyRequest{
+            fingerprint: std::str::from_utf8(&fingerprint)?.to_string(),
+            pem,
+            cipher,
+            length,
+            device
+        };
+
+        Ok(())
+    }
+
+    async fn device_janus_auth_create(&self, device: i32) -> Result<models::JanusAuth, ServiceError>{
+        let janus_admin_secret = read_to_string(&self.paths.janus_admin_secret)?;
+        let janus_token = read_to_string(&self.paths.janus_token)?;
+        let req = models::JanusAuthRequest{
+            janus_token,
+            janus_admin_secret,
+            device
+        };
+        let res = devices_api::devices_janus_create(
+            &self.reqwest_config, device, req).await?;
+        Ok(res)
+    }
+
+    async fn device_system_info_create(&self, device: i32) -> Result<models::SystemInfo, ServiceError> {
+        let machine_id: String = read_to_string("/etc/machine-id")?;
+
+        // hacky parsing of rpi-specific /proc/cpuinfo
+        let rpi_cpuinfo = RpiCpuInfo::new();
+        let hardware = rpi_cpuinfo.hardware.unwrap_or("Unknown".to_string());
+        let model = rpi_cpuinfo.model.unwrap_or("Unknown".to_string());
+        let serial = rpi_cpuinfo.serial.unwrap_or("Unknown".to_string());
+        let revision = rpi_cpuinfo.revision.unwrap_or("Unknown".to_string());
+
+        let cpuinfo = procfs::CpuInfo::new()?;
+        let cores: i32 = cpuinfo.num_cores().try_into().unwrap();
+
+        let meminfo = procfs::Meminfo::new()?;
+        let ram = meminfo.mem_total.try_into().unwrap();
+
+        let image_version = read_to_string("/boot/image_version.txt").unwrap_or("Failed to parse /boot/image_version.txt".to_string());
+
+        let request = models::SystemInfoRequest{
+            machine_id,
+            hardware,
+            serial,
+            revision,
+            model,
+            cores,
+            ram,
+            image_version,
+            device
+        };
+        let res = devices_api::devices_system_info_create(&self.reqwest_config, device, request).await?;
+        Ok(res)
     }
 
     // read <models::<T>>.json from disk cache @ /var/run/printnanny
@@ -287,171 +338,24 @@ impl ApiService {
 
     // read device.json from disk cache @ /var/run/printnanny
     // hydrate cache if device.json not found
-    pub async fn load_device_json(&self) -> Result<models::Device, ServiceError> {
-        let m = read_model_json::<models::Device>(&self.paths.device_json);
-        match m {
-            Ok(device) => Ok(device),
-            Err(_e) => {
-                warn!("Failed to read {:?} - attempting to load device.json from remote", &self.paths.device_json);
-                let res = self.device_retrieve_hostname().await;
-                match res {
-                    Ok(device) => {
-                        save_model_json::<models::Device>(&device, &self.paths.device_json)?;
-                        info!("Saved model {:?} to {:?}", &device, &self.paths.device_json);
-                        Ok(device)
-                    }
-                    Err(e) => Err(e)
-                }
-            }
-        }
-    }
-
-    // read license.json from disk cache @ /var/run/printnanny
-    // hydrate cache if license.json not found
-    pub async fn load_license_json(&self) -> Result<models::License, ServiceError> {
-        let m = read_model_json::<models::License>(&self.paths.license_json);
-        match m {
-            Ok(license) => {
-                info!("Loaded license.json from cache fingerprint={}", license.fingerprint);
-                Ok(license)
-            },
-            Err(_e) => {
-                warn!("Failed to read {:?} - attempting to load license.json from remote", &self.paths.license_json);
-                let license = self.license_retrieve_active().await?;
-                save_model_json::<models::License>(&license, &self.paths.license_json)?;
-                info!("Saved model {:?} to {:?}", &license, &self.paths.license_json);
-                Ok(license)
-            }
-        }
-    }
-
-    pub async fn license_download(&self) -> Result<models::License, ServiceError> {
-        // download license.zip
-        let device = self.device_retrieve_or_create_hostname().await?;
-        info!("Got device={:?}", device);
-        let license_zip_bytes = devices_api::devices_generate_license(
-            &self.reqwest_config,
-            device.id
-        ).await?;
-
-        // ensure data cache exists
-        std::fs::create_dir_all(&self.paths.data)?;
-        // write license.zip to disk
-        let mut f = File::create(&self.paths.license_zip)?;
-        f.write_all(&license_zip_bytes)?;
-        info!("Downloaded license.zip to {:?}", &self.paths.license_zip);
-
-        // unarchive
-        let target = self.paths.license_zip.clone().into_os_string().into_string().unwrap();
-        let cmd = Command::new("unzip")
-            .current_dir(&self.paths.data)
-            .args(["-o", &target])
-            .output()
-            .expect("Failed to unzip license");
-        info!("unzip: {:?}", cmd);
-        // load license.json
-        let license = self.load_license_json().await?;
-        Ok(license)
-    }
-
-    // ensure cached license.json matches active license on remote
-    pub async fn license_check(&self) -> Result<models::License, ServiceError> {
-        // let task = self.task_create(models::TaskType::SystemCheck, Some(models::TaskStatusType::Started), None, None).await?;
-        // let license = self.load_license_json().await?;
-        let active_license = self.license_retrieve_active().await?;
-        info!("Retrieved active license for device_id={} {}", active_license.device, active_license.fingerprint);
-
-        Ok(active_license)
-    }
-    // pub async fn license_check(&self, license: &License) -> Result<License, ServiceError::InvalidLicense> {
-    //     match &self.license {
-    //         Some(license) => {
-    //             // get active license from remote
-    //             info!("Checking validity of local license.json {}", license.fingerprint);
-    //             let active_license = self.license_retreive_active().await?;
-    //             info!("Retrieved active license for device_id={} {}", active_license.device, active_license.fingerprint);
-
-    //             // handle various pending/running/failed/success states of last check task
-    //             // return active license check task in running state
-    //             let task = match &active_license.last_check_task {
-    //                 // check state of last task
-    //                 Some(last_check_task) => {
-    //                     match &last_check_task.last_status {
-    //                         Some(last_status) => {
-    //                             // assume failed state if task status can't be read
-    //                             match last_status.status {
-    //                                 // task state is already started, no update needed
-    //                                 TaskStatusType::Started => {
-    //                                     info!("Task is already in Started state, skipping update {:?}", last_check_task);
-    //                                     None
-    //                                 },
-    //                                 // task state is pending, awaiting acknowledgement from device. update to started to ack.
-    //                                 TaskStatusType::Pending => {
-    //                                     info!("Task is Pending state, sending Started status update {:?}", last_check_task);
-    //                                     Some(self.task_status_create(last_check_task.id, TaskStatusType::Started, None, None).await?)
-    //                                 },
-    //                                 // for Failed, Success, and Timeout states create a new task
-    //                                 _ => {
-    //                                     info!("No active task found, creating task {:?} ", TaskType::SystemCheck);
-    //                                     Some(self.task_create(
-    //                                         TaskType::SystemCheck,
-    //                                         Some(TaskStatusType::Started),
-    //                                         Some(msgs::LICENSE_ACTIVATE_STARTED_MSG.to_string()),
-    //                                         None
-    //                                     ).await?)
-    //                                 }
-    //                             }
-    //                         },
-    //                         None => {
-    //                             info!("No active task found, creating task {:?} ", TaskType::SystemCheck);
-    //                             Some(self.task_create(TaskType::SystemCheck, Some(TaskStatusType::Started), None, None).await?)
-    //                         }
-    //                     }
-    //                 },
-    //                 // no license check task found, create one in a running state
-    //                 None => {
-    //                     info!("No active task found, creating task {:?} ", TaskType::SystemCheck);
-    //                     Some(self.task_create(TaskType::SystemCheck, Some(TaskStatusType::Started), None, None).await?)
+    // pub async fn load_device_json(&self) -> Result<models::Device, ServiceError> {
+    //     let m = read_model_json::<models::Device>(&self.paths.device_json);
+    //     match m {
+    //         Ok(device) => Ok(device),
+    //         Err(_e) => {
+    //             warn!("Failed to read {:?} - attempting to load device.json from remote", &self.paths.device_json);
+    //             let res = self.device_retrieve_hostname().await;
+    //             match res {
+    //                 Ok(device) => {
+    //                     save_model_json::<models::Device>(&device, &self.paths.device_json)?;
+    //                     info!("Saved model {:?} to {:?}", &device, &self.paths.device_json);
+    //                     Ok(device)
     //                 }
-    //             };
-
-    //             info!("Updated task {:?}", task);
-
-
-    //             let task_id = match task{
-    //                 Some(t) => t.id,
-    //                 None => active_license.last_check_task.as_ref().unwrap().id
-    //             };
-
-    //             // check license ids and fingerprints
-    //             if (license.id != active_license.id) || (license.fingerprint != active_license.fingerprint) {
-    //                 self.task_status_create(
-    //                     task_id, 
-    //                     TaskStatusType::Failed,
-    //                     Some(msgs::LICENSE_ACTIVATE_FAILED_MSG.to_string()),
-    //                     Some(msgs::LICENSE_ACTIVATE_FAILED_HELP.to_string())
-    //                     ).await?;
-    //                 return Err(anyhow!(
-    //                     "License mismatch local={} active={}", 
-    //                     license.id, &active_license.id
-    //                 ))
+    //                 Err(e) => Err(e)
     //             }
-    //             // ensure license marked activated
-    //             else {
-    //                 let result = self.license_activate().await?;
-    //                 self.task_status_create(
-    //                     task_id, 
-    //                     TaskStatusType::Success,
-    //                     Some(msgs::LICENSE_ACTIVATE_SUCCESS_MSG.to_string()),
-    //                     Some(msgs::LICENSE_ACTIVATE_SUCCESS_HELP.to_string())
-    //                     ).await?;
-    //                 return Ok(result)
-    //             }
-    //         },
-    //         None => Err(anyhow!("ApiService.license_retreive_active called without ApiService.device set"))
+    //         }
     //     }
     // }
-    // task status API
 
     pub async fn task_status_create(
         &self, 
@@ -473,34 +377,34 @@ impl ApiService {
         Ok(res)
     }
 
-    pub async fn task_create(
-        &self, 
-        task_type: models::TaskType, 
-        status: Option<models::TaskStatusType>,
-        detail: Option<String>,
-        wiki_url: Option<String>
-    ) -> Result<models::Task, ServiceError> {
-        match &self.device {
-            Some(device) => {
-                let request = models::TaskRequest{
-                    active: Some(true),
-                    task_type,
-                    device: device.id
-                };
-                let task = devices_api::devices_tasks_create(&self.reqwest_config, device.id, request).await?;
-                info!("Success: created task={:?}", task);
-                match status {
-                    Some(s) => {
-                        let res  = self.task_status_create(task.id, device.id, s, wiki_url, detail ).await?;
-                        info!("Success: created task status={:?}", res);
-                        Ok(task)
-                    },
-                    None => Ok(task)
-                }
-            },
-            None => Err(ServiceError::SignupIncomplete{ cache: self.paths.device_json.clone() })
-        }
-    }
+    // pub async fn task_create(
+    //     &self, 
+    //     task_type: models::TaskType, 
+    //     status: Option<models::TaskStatusType>,
+    //     detail: Option<String>,
+    //     wiki_url: Option<String>
+    // ) -> Result<models::Task, ServiceError> {
+    //     match &self.device {
+    //         Some(device) => {
+    //             let request = models::TaskRequest{
+    //                 active: Some(true),
+    //                 task_type,
+    //                 device: device.id
+    //             };
+    //             let task = devices_api::devices_tasks_create(&self.reqwest_config, device.id, request).await?;
+    //             info!("Success: created task={:?}", task);
+    //             match status {
+    //                 Some(s) => {
+    //                     let res  = self.task_status_create(task.id, device.id, s, wiki_url, detail ).await?;
+    //                     info!("Success: created task status={:?}", res);
+    //                     Ok(task)
+    //                 },
+    //                 None => Ok(task)
+    //             }
+    //         },
+    //         None => Err(ServiceError::SignupIncomplete{ cache: self.paths.device_json.clone() })
+    //     }
+    // }
     pub fn to_string_pretty<T: serde::Serialize>(&self, item: T) -> serde_json::error::Result<String> {
         serde_json::to_string_pretty::<T>(&item)
     }

@@ -2296,9 +2296,9 @@ dependencies = [
 
 [[package]]
 name = "printnanny-api-client"
-version = "0.39.4"
+version = "0.42.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd3021f6b65e37aaf8e085f6928ddff284d00b497e80c56838c5160de62e6890"
+checksum = "5fda492374ddf3fbe3a0b5f28871a35ced1e1abcc3b62e4a3fa973e500c1ca8e"
 dependencies = [
  "bytes",
  "reqwest",
@@ -2430,9 +2430,9 @@ dependencies = [
 
 [[package]]
 name = "procfs"
-version = "0.11.1"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7718b88dae7b9b9be183ee274b10554b9aded035539230245275d7bc543fc0a4"
+checksum = "0941606b9934e2d98a3677759a971756eb821f75764d0e0d26946d08e74d9104"
 dependencies = [
  "bitflags",
  "byteorder",
