@@ -1,4 +1,5 @@
 use std::process::{ Command, Stdio };
+use std::path::{ PathBuf};
 
 use anyhow::{ Result };
 use env_logger::Builder;
@@ -8,7 +9,7 @@ use clap::{
     value_t, crate_version, crate_authors, crate_description
 };
 
-use printnanny_services::printnanny_api::ApiConfig;
+use printnanny_services::printnanny_api::{ ApiConfig, read_model_json };
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker, MqttAction };
 use printnanny_cli::device::{DeviceCmd, DeviceAction };
@@ -28,22 +29,28 @@ async fn main() -> Result<()> {
         .short("v")
         .multiple(true)
         .help("Sets the level of verbosity"))
-        .arg(Arg::with_name("base_url")
-        .long("base-url")
-        .takes_value(true)
-        .help("Base PrintNanny url")
-        .default_value("https://print-nanny.com"))
+        .arg(Arg::with_name("api_config")
+            .long("api-config")
+            .takes_value(true)
+            .help("Path to api_config.json")
+            .default_value("https://print-nanny.com"))
+        .arg(Arg::with_name("api_url")
+            .long("api-url")
+            .takes_value(true)
+            .conflicts_with("api_config")
+            .help("Base PrintNanny url")
+            .default_value("https://print-nanny.com"))
         .arg(Arg::with_name("api_token")
-        .long("api-token")
-        .takes_value(true)
-        .help("Base PrintNanny api token"))
-        .help("Path to Print Nanny installation")
+            .long("api-token")
+            .takes_value(true)
+            .conflicts_with("api_config")
+            .help("Base PrintNanny api token"))
         .arg(Arg::with_name("data-dir")
-        .short("d")
-        .long("data-dir")
-        .takes_value(true)
-        .help("Path to Print Nanny installation")
-        .default_value("/opt/printnanny/data"))
+            .short("d")
+            .long("data-dir")
+            .takes_value(true)
+            .help("Path to Print Nanny installation")
+            .default_value("/opt/printnanny/data"))
         // janusadmin
         .subcommand(SubCommand::with_name("janus-admin")
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token")
@@ -174,11 +181,14 @@ async fn main() -> Result<()> {
         _ => builder.filter_level(LevelFilter::Trace).init(),
     };
 
-    let data_dir = app_m.value_of("data-dir").unwrap();
-    let base_path = app_m.value_of("base_url").unwrap();
+    let data_dir = app_m.value_of("data_dir").unwrap();
+    let base_path = app_m.value_of("api_url").unwrap();
     let bearer_access_token = app_m.value_of("api_token").map(|api_token| api_token.to_string());
 
-    let api_config = ApiConfig{ base_path: base_path.to_string(), bearer_access_token };
+    let api_config: ApiConfig = match app_m.value_of("api_config"){
+        Some(config_file) => read_model_json::<ApiConfig>(&PathBuf::from(config_file))?,
+        None => ApiConfig{ base_path: base_path.to_string(), bearer_access_token }
+    };
 
     
     match app_m.subcommand() {
