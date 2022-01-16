@@ -7,7 +7,7 @@ use std::process::Command;
 use log::{ info, warn, error };
 
 use thiserror::Error;
-
+use serde::{Serialize, Deserialize};
 use printnanny_api_client::models::print_nanny_api_config::PrintNannyApiConfig;
 use printnanny_api_client::apis::configuration::Configuration;
 
@@ -75,11 +75,17 @@ pub enum ServiceError{
     SetupIncomplete{}
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiConfig {
+    pub base_path: String,
+    pub bearer_access_token: Option<String>
+}
+
 #[derive(Debug, Clone)]
 pub struct ApiService{
     pub reqwest_config: Configuration,
     pub paths: PrintNannyPath,
-    pub config: String,
+    pub api_config: ApiConfig,
     pub license: Option<models::License>,
     pub device: Option<models::Device>,
     pub user: Option<models::User>
@@ -100,17 +106,17 @@ fn save_model_json<T:serde::Serialize>(model: &T, path: &PathBuf) -> Result<(), 
 impl ApiService {
     // config priority:
     // args >> api_config.json >> anonymous api usage only
-    pub fn new(config: &str, base_url: &str, bearer_access_token: Option<String>) -> Result<ApiService, ServiceError> {
-        let paths = PrintNannyPath::new(config);
+    pub fn new(api_config: ApiConfig, data_dir: &str) -> Result<ApiService, ServiceError> {
+        let paths = PrintNannyPath::new(data_dir);
 
         // api_config.json cached to /opt/printnanny/data
-        let reqwest_config = ApiService::to_reqwest_config(base_url, bearer_access_token, &paths.api_config_json);
+        let reqwest_config = ApiService::to_reqwest_config(&api_config);
 
         // attempt to cache models to /opt/printnanny/data
         Ok(Self{
             reqwest_config,
             paths, 
-            config: config.to_string(),
+            api_config,
             device: None,
             license: None,
             user: None
@@ -129,43 +135,34 @@ impl ApiService {
         }
     }
 
-    fn to_reqwest_auth_config(base_path: String, bearer_access_token: String) -> Configuration {
+    fn to_reqwest_auth_config(api_config: &ApiConfig) -> Configuration {
         Configuration{ 
-            base_path,
-            bearer_access_token: Some(bearer_access_token),
+            base_path: api_config.base_path.to_string(),
+            bearer_access_token: api_config.bearer_access_token.clone(),
             ..Configuration::default()
         }
     }
 
-    fn to_reqwest_anon_config(base_path: String) -> Configuration {
+    fn to_reqwest_anon_config(api_config: &ApiConfig) -> Configuration {
         Configuration{ 
-            base_path,
+            base_path: api_config.base_path.to_string(),
             ..Configuration::default()
         }
     }
 
     // config priority:
     // args >> api_config.json >> anonymous api usage only
-    fn to_reqwest_config(base_url: &str, bearer_access_token: Option<String>, api_config_json: &PathBuf) -> Configuration {
+    fn to_reqwest_config(api_config: &ApiConfig) -> Configuration {
         // prefer token passed on command line (if present)
-        match bearer_access_token {
+        match &api_config.bearer_access_token {
             Some(token) => {
                 info!("Authenticating with --api-token");
-                ApiService::to_reqwest_auth_config(base_url.to_string(), token)
+                ApiService::to_reqwest_auth_config(api_config)
             },
             None => {
-                // fall back to api_config.json (if present)
-                let read_api_config = read_model_json::<PrintNannyApiConfig>(&api_config_json);
-                match read_api_config {
-                    Ok(api_config) => {
-                        info!("Authenticating with {:?}", &api_config_json);
-                        ApiService::to_reqwest_auth_config(api_config.base_path, api_config.bearer_access_token)
-                    }
-                    Err(_e) => {
-                        warn!("Failed to read {:?} - calling api as anonymous user", &api_config_json);
-                        ApiService::to_reqwest_anon_config(base_url.to_string())
-                    }
-                }
+                warn!("No token set in api_config - calling API as anonymous user");
+                ApiService::to_reqwest_anon_config(api_config)
+            
             }
         }
     }

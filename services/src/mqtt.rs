@@ -12,7 +12,7 @@ use jsonwebtoken::{encode, Header, Algorithm, EncodingKey};
 
 use printnanny_api_client::models::{ CloudiotDevice };
 
-use super::printnanny_api::{ ApiService };
+use super::printnanny_api::{ ApiConfig, ApiService };
 
 arg_enum!{
     pub enum MqttAction {
@@ -76,14 +76,13 @@ impl MQTTWorker {
     }
 
     pub async fn new(
-        config: &str, 
-        base_api_url: &str, 
-        bearer_access_token: Option<String>,
+        api_config: ApiConfig,
+        data_dir: &str, 
         private_key: &str,
         public_key: &str,
         ca_certs: &str
     ) -> Result<MQTTWorker> {
-        let service = ApiService::new(config, base_api_url, bearer_access_token)?;
+        let service = ApiService::new(api_config, data_dir)?;
         let device = service.device_retrieve().await?;
         let cloudiot_device = device.cloudiot_device.as_ref().unwrap();
         let gcp_project_id: String = cloudiot_device.gcp_project_id.clone();

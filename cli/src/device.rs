@@ -2,7 +2,7 @@ use anyhow::{ Result };
 use clap::arg_enum;
 use log:: { debug };
 
-use printnanny_services::printnanny_api::ApiService;
+use printnanny_services::printnanny_api::{ ApiConfig, ApiService};
 use printnanny_api_client::models;
 
 arg_enum!{
@@ -17,8 +17,8 @@ pub struct DeviceCmd {
     pub service: ApiService
 }
 impl DeviceCmd {
-    pub async fn new(action: DeviceAction, config: &str, base_url: &str, bearer_access_token: Option<String>) -> Result<Self> {
-        let service = ApiService::new(config, base_url, bearer_access_token)?;
+    pub async fn new(action: DeviceAction, api_config: ApiConfig, data_dir: &str) -> Result<Self> {
+        let service = ApiService::new(api_config, data_dir)?;
         Ok(Self { service, action })
     }
     pub async fn handle(&self) -> Result<String>{

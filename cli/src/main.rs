@@ -8,6 +8,7 @@ use clap::{
     value_t, crate_version, crate_authors, crate_description
 };
 
+use printnanny_services::printnanny_api::ApiConfig;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker, MqttAction };
 use printnanny_cli::device::{DeviceCmd, DeviceAction };
@@ -36,12 +37,13 @@ async fn main() -> Result<()> {
         .long("api-token")
         .takes_value(true)
         .help("Base PrintNanny api token"))
-        .arg(Arg::with_name("api_config")
-        .short("c")
-        .long("api-config")
+        .help("Path to Print Nanny installation")
+        .arg(Arg::with_name("data-dir")
+        .short("d")
+        .long("data-dir")
         .takes_value(true)
         .help("Path to Print Nanny installation")
-        .default_value("/opt/printnanny/data/api_config.json"))
+        .default_value("/opt/printnanny/data"))
         // janusadmin
         .subcommand(SubCommand::with_name("janus-admin")
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token")
@@ -172,9 +174,12 @@ async fn main() -> Result<()> {
         _ => builder.filter_level(LevelFilter::Trace).init(),
     };
 
-    let api_config = app_m.value_of("api_config").unwrap();
-    let base_url = app_m.value_of("base_url").unwrap();
+    let data_dir = app_m.value_of("data-dir").unwrap();
+    let base_path = app_m.value_of("base_url").unwrap();
     let bearer_access_token = app_m.value_of("api_token").map(|api_token| api_token.to_string());
+
+    let api_config = ApiConfig{ base_path: base_path.to_string(), bearer_access_token };
+
     
     match app_m.subcommand() {
         ("mqtt", Some(sub_m)) => {
@@ -185,9 +190,8 @@ async fn main() -> Result<()> {
             match action {
                 MqttAction::Subscribe => {
                     let worker = MQTTWorker::new(
-                        api_config, 
-                        base_url, 
-                        bearer_access_token,
+                        api_config,
+                        data_dir,
                         private_key,
                         public_key,
                         ca_certs
@@ -200,13 +204,13 @@ async fn main() -> Result<()> {
 
         ("license", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", LicenseAction).unwrap_or_else(|e| e.exit());
-            let cmd = LicenseCmd::new(action, api_config, base_url, bearer_access_token).await?;
+            let cmd = LicenseCmd::new(action, api_config, data_dir).await?;
             let result = cmd.handle().await?;
             println!("{}", result)
         },
         ("device", Some(sub_m)) => {
             let action = value_t!(sub_m, "action", DeviceAction).unwrap_or_else(|e| e.exit());
-            let cmd = DeviceCmd::new(action, api_config, base_url, bearer_access_token).await?;
+            let cmd = DeviceCmd::new(action, api_config, data_dir).await?;
             let result = cmd.handle().await?;
             println!("{}", result)
         }, 
