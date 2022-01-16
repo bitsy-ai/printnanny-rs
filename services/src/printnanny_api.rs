@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
-use std::path::{ PathBuf, Path };
+use std::path::{ PathBuf };
 use std::future::Future;
 use std::process::Command;
 use log::{ info, warn, error };
@@ -91,14 +91,14 @@ pub struct ApiService{
     pub user: Option<models::User>
 }
 
-fn read_model_json<T:serde::de::DeserializeOwned>(path: &PathBuf) -> Result<T, std::io::Error> {
+pub fn read_model_json<T:serde::de::DeserializeOwned>(path: &PathBuf) -> Result<T, std::io::Error> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
     let result: T = serde_json::from_reader(reader)?;
     Ok(result)
 }
 
-fn save_model_json<T:serde::Serialize>(model: &T, path: &PathBuf) -> Result<(),  std::io::Error> {
+pub fn save_model_json<T:serde::Serialize>(model: &T, path: &PathBuf) -> Result<(),  std::io::Error> {
     serde_json::to_writer(&File::create(path)?, model)?;
     Ok(())
 }
@@ -208,8 +208,8 @@ impl ApiService {
     }
 
     // device API
-
-    pub async fn device_create(&self, hostname: String) -> Result<models::Device, ServiceError> {
+    pub async fn device_create(&self) -> Result<models::Device, ServiceError> {
+        let hostname = sys_info::hostname()?;
         let req = models::DeviceRequest{
             hostname: Some(hostname),
             monitoring_active: Some(false),
@@ -231,7 +231,6 @@ impl ApiService {
     }
 
     pub async fn device_retrieve_or_create_hostname(&self) -> Result<models::Device, ServiceError>{
-        let hostname = sys_info::hostname()?;
         let res = self.device_retrieve_hostname().await;
         match res {
             Ok(device) => Ok(device),
@@ -240,7 +239,7 @@ impl ApiService {
                 ServiceError::DevicesRetrieveHostnameError(ApiError::ResponseError(content)) => match content.status {
                     reqwest::StatusCode::NOT_FOUND => {
                         warn!("Failed retreive device with hostname={} error={:?} - attempting to create device", hostname, e);
-                        let res = self.device_create(hostname.to_string()).await?;
+                        let res = self.device_create().await?;
                         info!("Success! Created device={:?}", res);
                         Ok(res)
                     },
