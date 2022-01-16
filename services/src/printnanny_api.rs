@@ -1,6 +1,5 @@
 use std::fs::{ File, read_to_string };
 use std::convert::TryInto;
-use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::{ PathBuf };
 use std::future::Future;
@@ -158,7 +157,7 @@ impl ApiService {
     fn to_reqwest_config(api_config: &ApiConfig) -> Configuration {
         // prefer token passed on command line (if present)
         match &api_config.bearer_access_token {
-            Some(token) => {
+            Some(_) => {
                 info!("Authenticating with --api-token");
                 ApiService::to_reqwest_auth_config(api_config)
             },

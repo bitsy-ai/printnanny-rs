@@ -5,24 +5,28 @@ use rand::distributions::Alphanumeric;
 
 use anyhow::{ Result, anyhow };
 use log::{ debug };
-use clap::arg_enum;
+use clap::ArgEnum;
+
 use reqwest;
 
-arg_enum!{
-    #[derive(PartialEq, Debug, Clone)]
-    pub enum JanusAdminEndpoint {
-        GetStatus,
-        Info,
-        Ping,
-        AddToken,
-        RemoveToken,
-        ListTokens,
-        TestStun
-    }    
-}
+#[derive(PartialEq, Debug, Clone, Copy, ArgEnum)]
+pub enum JanusAdminEndpoint {
+    GetStatus,
+    Info,
+    Ping,
+    AddToken,
+    RemoveToken,
+    ListTokens,
+    TestStun
+}    
+
 
 impl JanusAdminEndpoint {
-
+    pub fn possible_values() -> impl Iterator<Item = clap::PossibleValue<'static>> {
+        JanusAdminEndpoint::value_variants()
+            .iter()
+            .filter_map(clap::ArgEnum::to_possible_value)
+    }
     pub fn to_action(&self) -> String {
         let action = match self {
             JanusAdminEndpoint::GetStatus => "get_status",
@@ -36,6 +40,24 @@ impl JanusAdminEndpoint {
         action.to_string()
     }
 }
+
+impl std::str::FromStr for JanusAdminEndpoint {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        for variant in Self::value_variants() {
+            if variant.to_possible_value().unwrap().matches(s, false) {
+                return Ok(*variant);
+            }
+        }
+        Err(format!("Invalid variant: {}", s))
+    }
+}
+
+
+
+
+
 #[derive(Debug, Clone)]
 pub struct JanusAdminService {
     pub host: String,
@@ -46,7 +68,7 @@ pub struct JanusAdminService {
 fn validate_request_field(endpoint: &JanusAdminEndpoint, field: &str, value: Option<String>) -> Result<String> {
     match value {
         Some(t) => Ok(t),
-        None => Err(anyhow!("{} is required by {}", field, endpoint))
+        None => Err(anyhow!("{} is required by {:?}", field, endpoint))
     }
 }
 
@@ -60,7 +82,7 @@ fn build_request_body(endpoint: &JanusAdminEndpoint, token: Option<String>, admi
     let mut map = HashMap::new();
     map.insert(String::from("transaction"), transaction);
     map.insert(String::from("janus"), action);
-    debug!("Building Janus Admin API {} request body {:?}", &endpoint, &map);
+    debug!("Building Janus Admin API {:?} request body {:?}", &endpoint, &map);
     match endpoint {
         JanusAdminEndpoint::AddToken => {
             map.insert(String::from("token"), validate_request_field(&endpoint, "token", token)?);
@@ -82,7 +104,7 @@ fn build_request_body(endpoint: &JanusAdminEndpoint, token: Option<String>, admi
         }
         _ => {}
     };
-    debug!("Building Janus Admin API {} request body {:?}", &endpoint, &map);
+    debug!("Building Janus Admin API {:?} request body {:?}", &endpoint, &map);
 
     Ok(map)
 }

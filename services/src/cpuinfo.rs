@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::Read};
+use std::{io::Read};
 use std::fs::{ File };
 
 /// Represents the data from `/proc/cpuinfo`.

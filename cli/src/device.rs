@@ -1,17 +1,38 @@
 use anyhow::{ Result };
-use clap::arg_enum;
 use log:: { debug };
+use clap::ArgEnum;
 
 use printnanny_services::printnanny_api::{ ApiConfig, ApiService};
 use printnanny_api_client::models;
 
-arg_enum!{
-    #[derive(PartialEq, Debug, Clone)]
-    pub enum DeviceAction{
-        Get,
-        Setup
+#[derive(Copy, Eq, PartialEq, Debug, Clone, clap::ArgEnum)]
+pub enum DeviceAction {
+    Get,
+    Setup,
+}
+
+impl DeviceAction {
+    pub fn possible_values() -> impl Iterator<Item = clap::PossibleValue<'static>> {
+        DeviceAction::value_variants()
+            .iter()
+            .filter_map(clap::ArgEnum::to_possible_value)
     }
 }
+
+impl std::str::FromStr for DeviceAction {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        for variant in Self::value_variants() {
+            if variant.to_possible_value().unwrap().matches(s, false) {
+                return Ok(*variant);
+            }
+        }
+        Err(format!("Invalid variant: {}", s))
+    }
+}
+
+
 
 pub struct DeviceCmd {
     pub action: DeviceAction,
@@ -27,7 +48,7 @@ impl DeviceCmd {
             DeviceAction::Get => self.service.device_retrieve_hostname().await?,
             DeviceAction::Setup => self.service.device_setup().await?,
         };
-        debug!("Success action={} result={:?}", self.action, result);
+        debug!("Success action={:?} result={:?}", self.action, result);
         Ok(self.service.to_string_pretty::<models::Device>(result)?)
     }    
 }

@@ -40,7 +40,6 @@ impl PrintNannyPath {
         let ca_cert= ca_certs.join("gtsltsr.crt");
         let ca_cert_backup = ca_certs.join("GSR4.crt");
 
-        let device_info_json = data.join("device_info.json");
         let api_config_json = data.join("api_config.json");
         let paths_json = data.join("paths.json");
 
