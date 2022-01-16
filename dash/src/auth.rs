@@ -14,7 +14,7 @@ use rocket::form::{
 };
 use rocket_dyn_templates::Template;
 
-use printnanny_services::printnanny_api::{ ApiService, ServiceError };
+use printnanny_services::printnanny_api::{ ApiConfig, ApiService, ServiceError };
 use printnanny_api_client::models;
 
 use super::config::{ Config };
@@ -52,7 +52,8 @@ pub struct TokenForm<'v> {
 }
 
 async fn handle_step1(form: &EmailForm<'_>, config: &Config) -> Result<Response, FlashResponse<Template>> {
-    let service = ApiService::new(&config.path, &config.base_url, None)?;
+    let api_config = ApiConfig{base_path: config.base_url.to_string(), bearer_access_token: None};
+    let service = ApiService::new(api_config, &config.path)?;
     let res = service.auth_email_create(form.email.to_string()).await;
     match res {
         Ok(_) => {
@@ -90,14 +91,16 @@ async fn login_step1_submit<'r>(form: Form<Contextual<'r, EmailForm<'r>>>, confi
 // fields to re-render forms with submitted values on error. If you have no such
 // need, do not use `Contextual`. Use the equivalent of `Form<Submit<'_>>`.
 
-async fn handle_token_validate(token: &str, email: &str, config_path: &str, base_url: &str) -> Result< models::PrintNannyApiConfig, ServiceError>{
-    let service = ApiService::new(config_path, base_url, None)?;
+async fn handle_token_validate(token: &str, email: &str, config_path: &str, base_url: &str) -> Result<ApiConfig, ServiceError>{
+    let api_config = ApiConfig{base_path: base_url.to_string(), bearer_access_token: None};
+    
+    let service = ApiService::new(api_config, config_path)?;
     let res = service.auth_token_validate(email, token).await?;
     let bearer_access_token = res.token.to_string();
-    let service = ApiService::new(config_path, base_url, Some(bearer_access_token.clone()))?;
+
+    let api_config = ApiConfig{base_path: base_url.to_string(), bearer_access_token: Some(bearer_access_token)};
+    let service = ApiService::new(api_config.clone(), config_path)?;
     service.license_download().await?;
-    let service = ApiService::new(config_path, base_url, Some(bearer_access_token.clone()))?;
-    let api_config = service.to_api_config()?;
     Ok(api_config)
 }
 
@@ -131,8 +134,8 @@ fn login_step2(email: String) -> Template {
     Template::render("authtoken", context)
 }
 
-pub async fn get_context(config_path: &str, api_config: &models::PrintNannyApiConfig) -> Result<DashContext, ServiceError> {
-    let mut service = ApiService::new(config_path, &api_config.base_path, Some(api_config.bearer_access_token.clone()))?;
+pub async fn get_context(config_path: &str, api_config: &ApiConfig) -> Result<DashContext, ServiceError> {
+    let mut service = ApiService::new(api_config.clone(), config_path)?;
     service.load_models().await?;
     // user into context
     let context = DashContext{
