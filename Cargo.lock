@@ -2288,7 +2288,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny"
-version = "0.10.7"
+version = "0.11.0"
 dependencies = [
  "printnanny-cli",
  "printnanny-dash",
