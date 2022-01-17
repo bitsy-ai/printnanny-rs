@@ -26,8 +26,8 @@ impl<R> fmt::Display for FlashResponse<R> {
     }
 }
 
-impl From<sys_info::Error> for FlashResponse<Redirect> {
-    fn from(error: sys_info::Error) -> Self {
+impl From<serde_json::Error> for FlashResponse<Redirect> {
+    fn from(error: serde_json::Error) -> Self {
         let msg = format!("{:?}", error);
         let mut context = HashMap::new();
         context.insert("errors", &msg);

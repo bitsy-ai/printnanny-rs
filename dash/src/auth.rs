@@ -31,12 +31,6 @@ pub struct DashContext {
     // system_info: models::SystemInfo
 }
 
-// impl fmt::Display for ContextKey {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "{:?}", self)
-//     }
-// }
-
 #[derive(Debug, FromForm)]
 pub struct EmailForm<'v> {
     #[field(validate = contains('@').or_else(msg!("invalid email address")))]
@@ -116,7 +110,7 @@ async fn login_step2_submit<'r>(
             let api_config = handle_token_validate(token, &email, &config.path, &config.base_url).await?;
             let cookie_value = serde_json::to_string(&api_config)?;
             jar.add_private(Cookie::new(COOKIE_API_CONFIG, cookie_value));
-            Ok(FlashResponse::<Redirect>::from(Flash::success(Redirect::to("/"), "Verification Success")))
+            Ok(FlashResponse::<Redirect>::from(Flash::success(Redirect::to("/onboarding"), "Verification Success")))
         },
         None => {
             info!("form.value is empty");
@@ -125,6 +119,18 @@ async fn login_step2_submit<'r>(
     }
 }
 
+#[get("/onboarding")]
+fn login_step3(jar: &CookieJar<'_>, config: &State<Config>) ->  Result<Response, FlashResponse<Redirect>>{
+    let get_api_config = jar.get_private(COOKIE_API_CONFIG);
+    match get_api_config {
+        Some(cookie) => {
+            let api_config: ApiConfig = serde_json::from_str(cookie.value())?;
+            let service = ApiService::new(api_config, &config.path);
+            Ok(Response::Template(Template::render("onoarding", &Context::default())))
+        },
+        None => Ok(Response::Template(Template::render("authemail", &Context::default())))
+    }
+}
 
 #[get("/<email>")]
 fn login_step2(email: String) -> Template {
