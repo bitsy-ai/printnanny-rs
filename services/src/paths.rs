@@ -18,7 +18,6 @@ pub struct PrintNannyPath {
     // api config
     pub api_config_json: PathBuf,
     
-    pub janus_config: PathBuf,
     pub janus_admin_secret: PathBuf,
     pub janus_token: PathBuf,
 
@@ -43,12 +42,11 @@ impl PrintNannyPath {
         let api_config_json = data.join("api_config.json");
         let paths_json = data.join("paths.json");
 
-        let private_key = data.join("ecdsa256_pkcs8.pem");
-        let public_key = data.join("ecdsa_public.pem");
+        let private_key = keys.join("id_ecdsa");
+        let public_key = keys.join("id_ecdsa.pub");
 
-        let janus_config = PathBuf::from("/etc/janus");
-        let janus_admin_secret = janus_config.join("janus_admin_secret");
-        let janus_token = janus_config.join("janus_token");
+        let janus_admin_secret = keys.join("janus_admin_secret");
+        let janus_token = keys.join("janus_token");
 
         Self { 
             api_config_json,
@@ -63,7 +61,6 @@ impl PrintNannyPath {
             private_key,
             public_key,
             janus_admin_secret,
-            janus_config,
             janus_token
         }
     }

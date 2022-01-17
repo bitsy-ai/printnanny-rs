@@ -2,7 +2,7 @@
 
 {% block body %}
 <h1>Oops, something went wrong!</h1>
-<h3>Email the error(s) below to <a target="_blank" href="mailto:leigh@print-nanny.com">leigh@print-nanny.com</a>for assistance.</h3>
+<h3>Email the error(s) below to <a target="_blank" href="mailto:leigh@print-nanny.com">leigh@print-nanny.com</a> for assistance.</h3>
 <div class="row">
     <div class="col-9">
 

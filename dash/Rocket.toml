@@ -1,7 +1,10 @@
 [default]
-limits.data-form = "2MiB"
+limits.data-form = "20MiB"
 template_dir = "templates/"
 port = 9001
+
+[debug]
+secret_key = "bv0+qeQW27radD2lQ/O0HLiA93KOyP1N/XvJdFYPgP0="
 
 [global.databases]
 sqlite = { url = "db.sqlite" }

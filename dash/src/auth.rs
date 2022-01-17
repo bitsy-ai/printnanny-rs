@@ -31,12 +31,6 @@ pub struct DashContext {
     // system_info: models::SystemInfo
 }
 
-// impl fmt::Display for ContextKey {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "{:?}", self)
-//     }
-// }
-
 #[derive(Debug, FromForm)]
 pub struct EmailForm<'v> {
     #[field(validate = contains('@').or_else(msg!("invalid email address")))]
@@ -92,13 +86,14 @@ async fn login_step1_submit<'r>(form: Form<Contextual<'r, EmailForm<'r>>>, confi
 
 async fn handle_token_validate(token: &str, email: &str, config_path: &str, base_url: &str) -> Result<ApiConfig, ServiceError>{
     let api_config = ApiConfig{base_path: base_url.to_string(), bearer_access_token: None};
-    
     let service = ApiService::new(api_config, config_path)?;
     let res = service.auth_token_validate(email, token).await?;
     let bearer_access_token = res.token.to_string();
+    info!("Success! Authenticated and received bearer token");
 
     let api_config = ApiConfig{base_path: base_url.to_string(), bearer_access_token: Some(bearer_access_token)};
     let service = ApiService::new(api_config.clone(), config_path)?;
+    info!("Setting up device");
     service.device_setup().await?;
     Ok(api_config)
 }
@@ -116,7 +111,7 @@ async fn login_step2_submit<'r>(
             let api_config = handle_token_validate(token, &email, &config.path, &config.base_url).await?;
             let cookie_value = serde_json::to_string(&api_config)?;
             jar.add_private(Cookie::new(COOKIE_API_CONFIG, cookie_value));
-            Ok(FlashResponse::<Redirect>::from(Flash::success(Redirect::to("/"), "Verification Success")))
+            Ok(FlashResponse::<Redirect>::from(Flash::success(Redirect::to("/login/welcome"), "Verification Success")))
         },
         None => {
             info!("form.value is empty");
@@ -125,6 +120,18 @@ async fn login_step2_submit<'r>(
     }
 }
 
+#[get("/welcome")]
+async fn login_step3(jar: &CookieJar<'_>, config: &State<Config>) ->  Result<Response, FlashResponse<Template>>{
+    let get_api_config = jar.get_private(COOKIE_API_CONFIG);
+    match get_api_config {
+        Some(cookie) => {
+            let api_config: ApiConfig = serde_json::from_str(cookie.value())?;
+            let context = get_context(&config.path, &api_config).await?;
+            Ok(Response::Template(Template::render("welcome", context)))
+        },
+        None => Ok(Response::Template(Template::render("authemail", &Context::default())))
+    }
+}
 
 #[get("/<email>")]
 fn login_step2(email: String) -> Template {
@@ -134,11 +141,11 @@ fn login_step2(email: String) -> Template {
 }
 
 pub async fn get_context(config_path: &str, api_config: &ApiConfig) -> Result<DashContext, ServiceError> {
-    let mut service = ApiService::new(api_config.clone(), config_path)?;
-    // user into context
+    let service = ApiService::new(api_config.clone(), config_path)?;
+    let device = service.device_retrieve_hostname().await?;
+    let user = service.auth_user_retreive().await?;
     let context = DashContext{
-        user: service.user.unwrap(),
-        device: service.device.unwrap(),
+        user, device
     };
 
     Ok(context)
@@ -161,5 +168,6 @@ pub fn routes() -> Vec<rocket::Route> {
         login_step1_submit,
         login_step2,
         login_step2_submit,
+        login_step3
     ]
 }

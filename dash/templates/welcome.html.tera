@@ -1,0 +1,19 @@
+{% extends "base" %}
+
+{% block body %}
+<div class="row">
+  <div class="col=8">
+    <h1>Success! Print Nanny is ready to use</h1>
+    <p>Linked <strong>{{ device.hostname}}</strong> to account <strong>{{ user.email }}</strong></p>
+    <p>Redirecting back to <a href="https://print-nanny.com">https://print-nanny.com</a></p>
+  </div>
+  <div class="col-4">
+    <img src="https://cdn.print-nanny.com/www/device-dash/logo.svg" style="is-full-width" />
+  </div>
+</div>
+<script>
+setTimeout(() => {
+  window.location = "https://print-nanny.com/devices/welcome/{{device.id}}";
+}, 3000);
+</script>
+{% endblock body %}
