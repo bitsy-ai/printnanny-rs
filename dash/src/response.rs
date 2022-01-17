@@ -36,6 +36,16 @@ impl From<serde_json::Error> for FlashResponse<Redirect> {
     }  
 }
 
+// impl From<printnanny_services::printnanny_api::ServiceError> for FlashResponse<Redirect> {
+//     fn from(error: printnanny_services::printnanny_api::ServiceError) -> Self {
+//         let msg = format!("{:?}", error);
+//         let mut context = HashMap::new();
+//         context.insert("errors", &msg);
+//         error!("{}", &msg);
+//         Self(Flash::error(Redirect::to("/"), &msg))
+//     }
+// }
+
 impl From<printnanny_services::printnanny_api::ServiceError> for FlashResponse<Template> {
     fn from(error: printnanny_services::printnanny_api::ServiceError) -> Self {
         let msg = format!("{:?}", error);

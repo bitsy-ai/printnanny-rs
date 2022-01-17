@@ -120,13 +120,14 @@ async fn login_step2_submit<'r>(
 }
 
 #[get("/onboarding")]
-fn login_step3(jar: &CookieJar<'_>, config: &State<Config>) ->  Result<Response, FlashResponse<Redirect>>{
+async fn login_step3(jar: &CookieJar<'_>, config: &State<Config>) ->  Result<Response, FlashResponse<Template>>{
     let get_api_config = jar.get_private(COOKIE_API_CONFIG);
     match get_api_config {
         Some(cookie) => {
             let api_config: ApiConfig = serde_json::from_str(cookie.value())?;
-            let service = ApiService::new(api_config, &config.path);
-            Ok(Response::Template(Template::render("onoarding", &Context::default())))
+            let service = ApiService::new(api_config, &config.path)?;
+            let device = service.device_retrieve_hostname().await?;
+            Ok(Response::Template(Template::render("onoarding", device)))
         },
         None => Ok(Response::Template(Template::render("authemail", &Context::default())))
     }
@@ -167,5 +168,6 @@ pub fn routes() -> Vec<rocket::Route> {
         login_step1_submit,
         login_step2,
         login_step2_submit,
+        login_step3
     ]
 }
