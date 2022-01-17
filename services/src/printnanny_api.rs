@@ -41,6 +41,15 @@ pub enum ServiceError{
 
     #[error(transparent)]
     SystemInfoCreateError(#[from] ApiError<devices_api::DevicesSystemInfoCreateError>),
+    #[error(transparent)]
+    SystemInfoUpdateOrCreateError(#[from] ApiError<devices_api::SystemInfoUpdateOrCreateError>),
+
+    #[error(transparent)]
+    PublicKeyUpdateOrCreate(#[from] ApiError<devices_api::PublicKeyUpdateOrCreateError>),
+
+    #[error(transparent)]
+    JanusAuthUpdateOrCreate(#[from] ApiError<devices_api::JanusAuthUpdateOrCreateError>),
+
 
     #[error(transparent)]
     TaskCreateError(#[from] ApiError<devices_api::DevicesTasksCreateError>),
@@ -233,15 +242,15 @@ impl ApiService {
         // get or create device with matching hostname
         let device = self.device_retrieve_or_create_hostname().await?;
         // create SystemInfo
-        self.device_system_info_create(device.id).await?;
+        self.device_system_info_update_or_create(device.id).await?;
         // create JanusAuth
-        self.device_janus_auth_create(device.id).await?;
+        self.device_janus_auth_update_or_create(device.id).await?;
         // create PublicKey
-        self.device_public_key_create(device.id).await?;
+        self.device_public_key_update_or_create(device.id).await?;
         Ok(device)
     }
 
-    async fn device_public_key_create(&self, device: i32) -> Result<(), ServiceError>{
+    async fn device_public_key_update_or_create(&self, device: i32) -> Result<models::PublicKey, ServiceError>{
         let pem = read_to_string(&self.paths.public_key)?;
         let cipher = models::CipherEnum::Ecdsa;
         let length = 256;
@@ -265,10 +274,13 @@ impl ApiService {
             device
         };
 
-        Ok(())
+        let res = devices_api::public_key_update_or_create(
+            &self.reqwest_config, device, req).await?;
+
+        Ok(res)
     }
 
-    async fn device_janus_auth_create(&self, device: i32) -> Result<models::JanusAuth, ServiceError>{
+    async fn device_janus_auth_update_or_create(&self, device: i32) -> Result<models::JanusAuth, ServiceError>{
         let janus_admin_secret = read_to_string(&self.paths.janus_admin_secret)?;
         let janus_token = read_to_string(&self.paths.janus_token)?;
         let req = models::JanusAuthRequest{
@@ -276,12 +288,12 @@ impl ApiService {
             janus_admin_secret,
             device
         };
-        let res = devices_api::devices_janus_create(
+        let res = devices_api::janus_auth_update_or_create(
             &self.reqwest_config, device, req).await?;
         Ok(res)
     }
 
-    async fn device_system_info_create(&self, device: i32) -> Result<models::SystemInfo, ServiceError> {
+    async fn device_system_info_update_or_create(&self, device: i32) -> Result<models::SystemInfo, ServiceError> {
         let machine_id: String = read_to_string("/etc/machine-id")?;
 
         // hacky parsing of rpi-specific /proc/cpuinfo
@@ -310,7 +322,7 @@ impl ApiService {
             image_version,
             device
         };
-        let res = devices_api::devices_system_info_create(&self.reqwest_config, device, request).await?;
+        let res = devices_api::system_info_update_or_create(&self.reqwest_config, device, request).await?;
         Ok(res)
     }
 
