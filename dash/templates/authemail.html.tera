@@ -1,9 +1,7 @@
 {% extends "base" %}
 
 {% block body %}
-<h1>Welcome! Log into Print Nanny OS</h1>
-<h3>A temporary login code will be sent to your email address</h3>
-
+<h1>Welcome to Print Nanny OS!</h1>
 {% if errors | length > 1 %}
     <small class="text-error" style="margin-top: -20px">
         {{ errors | length }} field(s) have errors
@@ -11,11 +9,11 @@
 {% endif %}
 
 <div class="row">
-  <div class="col-9">
+  <div class="col-8">
 
     <form action="/login" method="post" enctype="multipart/form-data">
       <fieldset>
-        <legend>Step 1: confirm your email address</legend>
+        <legend>Confirm your email to link your account</legend>
         <div class="row">
           <div class="col-12">
           {{ m::input(label="Email Address", type="text", name="email") }}
@@ -23,14 +21,17 @@
           </div>
           <div class="col-12">
             {{ m::checkbox(label="I agree to send anonymous debug and analytics info to Print Nanny.", name="analytics", required=true) }}
+            <a target="_blank" href='https://help.print-nanny.com/topic/privacy-policy-legal/'>View the Privacy Policy</a>
             </div>
         </div>
       </fieldset>
       <br />
+      <p>A temporary login code will be sent to your email address</p>
+
       <input type="submit" value="Submit" class="is-full-width" />
     </form>
   </div>
-  <div class="col-3">
+  <div class="col-4">
     <img src="https://cdn.print-nanny.com/www/device-dash/logo.svg" style="is-full-width" />
   </div>
 </div>

@@ -2,6 +2,7 @@
 limits.data-form = "2MiB"
 template_dir = "templates/"
 port = 9001
+log_level = "debug"
 
 [global.databases]
 sqlite = { url = "db.sqlite" }

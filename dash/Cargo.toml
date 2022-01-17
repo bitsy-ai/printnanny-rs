@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 printnanny-services = {path = "../services", version = "^0.11.0"}
 printnanny-api-client = "0.42.1"
+sys-info = "0.9"
 serde = "1.0.133"
 thiserror = "1.0.30"
 indexmap = "1.8.0"
