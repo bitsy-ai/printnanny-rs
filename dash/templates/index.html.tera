@@ -24,7 +24,7 @@
             <dt class="col-4">Hostname</dt>
             <dd class="col-8">{{device.hostname}}</dd>
             <dt class="col-4">Fingerprint</dt>
-            <dd class="col-8">{{license.fingerprint}}</dd>
+            <dd class="col-8">{{device.public_key.fingerprint}}</dd>
         </dl>  
 </div>
 {% endblock body %}

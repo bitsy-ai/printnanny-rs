@@ -3,7 +3,7 @@
 {% block body %}
 <div class="row">
     <h1>Success!</h1>
-    <h2>Redirecting back to {{ device.url }}</h2>
+    <h2>Redirecting back to {{ device }}</h2>
   <div class="col-4">
     <img src="https://cdn.print-nanny.com/www/device-dash/logo.svg" style="is-full-width" />
   </div>

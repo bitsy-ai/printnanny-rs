@@ -50,6 +50,8 @@ pub enum ServiceError{
     #[error(transparent)]
     JanusAuthUpdateOrCreate(#[from] ApiError<devices_api::JanusAuthUpdateOrCreateError>),
 
+    #[error(transparent)]
+    FromUtf8Error(#[from] std::string::FromUtf8Error),
 
     #[error(transparent)]
     TaskCreateError(#[from] ApiError<devices_api::DevicesTasksCreateError>),
@@ -69,11 +71,18 @@ pub enum ServiceError{
         active: String,
     },
 
+    #[error("Failed to fingerprint {path:?} got stderr {stderr:?}")]
+    FingerprintError {
+        path: PathBuf,
+        stderr: String
+    },
+
     #[error(transparent)]
     ProcfsError(#[from] procfs::ProcError),
 
     #[error(transparent)]
     SysInfoError(#[from] sys_info::Error),
+
     #[error(transparent)]
     IoError(#[from] std::io::Error),
     
@@ -181,6 +190,7 @@ impl ApiService {
     pub fn api_config_save(&self, bearer_access_token: &str) -> Result<(), ServiceError>{
         let base_path = self.reqwest_config.base_path.to_string();
         let config = models::PrintNannyApiConfig{ bearer_access_token: bearer_access_token.to_string(), base_path};
+        info!("Saving api_config to {:?}", &self.paths.api_config_json);
         save_model_json::<models::PrintNannyApiConfig>(&config, &self.paths.api_config_json)?;
         Ok(())
     }
@@ -241,47 +251,65 @@ impl ApiService {
     pub async fn device_setup(&self) -> Result<models::Device, ServiceError>{
         // get or create device with matching hostname
         let device = self.device_retrieve_or_create_hostname().await?;
+        info!("Success! Registered device: {:?}", device);
         // create SystemInfo
-        self.device_system_info_update_or_create(device.id).await?;
+        let system_info = self.device_system_info_update_or_create(device.id).await?;
+        info!("Success! Updated SystemInfo {:?}", system_info);
+
         // create JanusAuth
         self.device_janus_auth_update_or_create(device.id).await?;
+        info!("Success! Updated JanusAuth");
         // create PublicKey
-        self.device_public_key_update_or_create(device.id).await?;
+        let public_key = self.device_public_key_update_or_create(device.id).await?;
+        info!("Success! Updated PublicKey: {:?}", public_key);
         Ok(device)
     }
 
     async fn device_public_key_update_or_create(&self, device: i32) -> Result<models::PublicKey, ServiceError>{
+        info!("Reading public key from {:?}", &self.paths.public_key);
         let pem = read_to_string(&self.paths.public_key)?;
         let cipher = models::CipherEnum::Ecdsa;
         let length = 256;
-        let output = Command::new("ssh-keygen")
+        info!("Calculating fingerprint for {:?}", &self.paths.public_key);
+        let output = Command::new("openssl")
             .args([
-                "-l",
-                "-E",
-                "md5",
-                "-f",
-                &format!("{:?}", &self.paths.public_key)
+                "sha3-256",
+                "-c",
+                &self.paths.public_key.as_os_str().to_str().unwrap()
             ])
             .output()
             .expect("Failed to get fingerprint");
-        let fingerprint = output.stdout;
+        if output.status.success() {
+            let fingerprint: String = String::from_utf8(output.stdout)?;
+            info!("Calculated fingerprint {:?}", fingerprint);
+    
+            let req = models::PublicKeyRequest{
+                fingerprint,
+                pem,
+                cipher,
+                length,
+                device
+            };
+    
+            let res = devices_api::public_key_update_or_create(
+                &self.reqwest_config, device, req).await?;
+    
+            Ok(res)
+        } else {
+            error!("Error calculating fingerprint {:?}", output);
 
-        let req = models::PublicKeyRequest{
-            fingerprint: std::str::from_utf8(&fingerprint)?.to_string(),
-            pem,
-            cipher,
-            length,
-            device
-        };
-
-        let res = devices_api::public_key_update_or_create(
-            &self.reqwest_config, device, req).await?;
-
-        Ok(res)
+            error!("Error calculating fingerprint {:?}", output.stderr);
+            Err(ServiceError::FingerprintError{
+                path: self.paths.public_key.clone(),
+                stderr: std::str::from_utf8(&output.stderr)?.to_string()
+            })
+        }
     }
 
     async fn device_janus_auth_update_or_create(&self, device: i32) -> Result<models::JanusAuth, ServiceError>{
+        info!("Reading janus_admin_secret from {:?}", &self.paths.janus_admin_secret);
         let janus_admin_secret = read_to_string(&self.paths.janus_admin_secret)?;
+        info!("Reading janus_token from {:?}", &self.paths.janus_token);
         let janus_token = read_to_string(&self.paths.janus_token)?;
         let req = models::JanusAuthRequest{
             janus_token,
