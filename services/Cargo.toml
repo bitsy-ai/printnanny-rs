@@ -47,3 +47,4 @@ tempdir = "0.3.7"
 figment = { version = "0.10", features = ["env", "json", "toml", "test"] }
 test-log = "0.2.8" 
 env_logger = "*"
+env_logger = "0.9"
