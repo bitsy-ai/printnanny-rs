@@ -5,12 +5,12 @@ use std::path::{ PathBuf};
 
 use anyhow::{ Result };
 use env_logger::Builder;
-use log::LevelFilter;
+use log::{ info, warn, error, LevelFilter};
 use clap::{ 
     Arg, App, AppSettings
 };
 
-use printnanny_services::printnanny_api::{ ApiConfig, read_model_json };
+use printnanny_services::config::{ ApiConfig, PrintNannyConfig};
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker, MqttAction };
 use printnanny_cli::device::{DeviceCmd, DeviceAction };
@@ -29,36 +29,18 @@ async fn main() -> Result<()> {
         .short('v')
         .multiple_occurrences(true)
         .help("Sets the level of verbosity"))
-        .arg(Arg::new("api_config")
-            .long("api-config")
+        .arg(Arg::new("config")
+            .long("config")
+            .short('c')
             .takes_value(true)
             .required(true)
-            .help("Path to api_config.json"))
-        .arg(Arg::new("api_url")
-            .long("api-url")
-            .takes_value(true)
-            .conflicts_with("api_config")
-            .help("Base PrintNanny url")
-            .default_value("https://print-nanny.com")
-            .default_value_if("api_config", None, None))
-        .arg(Arg::new("api_token")
-            .long("api-token")
-            .takes_value(true)
-            .conflicts_with("api_config")
-            .required(true)
-            .help("Base PrintNanny api token"))
-        .arg(Arg::new("prefix")
-            .short('p')
-            .long("prefix")
-            .takes_value(true)
-            .help("Path to Print Nanny installation (used to specify alternate install path)")
-            .default_value("/opt/printnanny"))
+            .help("Path to Config.toml (see env/ for examples)"))
         // janusadmin
         .subcommand(App::new("janus-admin")
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token")
             .arg(Arg::new("host")
                 .long("host")
-                .short('h')
+                .short('H')
                 .takes_value(true)
                 .default_value("http://localhost:7088/admin"))
             .arg(Arg::new("endpoint")
@@ -158,6 +140,11 @@ async fn main() -> Result<()> {
         );
     
     let app_m = app.get_matches();
+    info!("testing");
+
+    let conf_file = app_m.value_of("config");
+
+    let config: PrintNannyConfig = PrintNannyConfig::new(conf_file)?;
 
     // Vary the output based on how many times the user used the "verbose" flag
     // (i.e. 'printnanny v v v' or 'printnanny vvv' vs 'printnanny v'
@@ -169,21 +156,6 @@ async fn main() -> Result<()> {
         _ => builder.filter_level(LevelFilter::Trace).init(),
     };
 
-    let prefix = match app_m.value_of("prefix"){
-        Some(v) => v,
-        None => panic!("--prefix is required")
-    };
-    let bearer_access_token = app_m.value_of("api_token").map(|api_token| api_token.to_string());
-
-    let api_config: ApiConfig = match app_m.value_of("api_config"){
-        Some(config_file) => read_model_json::<ApiConfig>(&PathBuf::from(config_file))?,
-        None => {
-            let base_path = app_m.value_of("api_url").unwrap();
-            ApiConfig{ base_path: base_path.to_string(), bearer_access_token }
-        }
-    };
-
-    
     match app_m.subcommand() {
         Some(("mqtt", sub_m)) => {
             let action: MqttAction = sub_m.value_of_t("action").unwrap_or_else(|e| e.exit());
@@ -193,8 +165,7 @@ async fn main() -> Result<()> {
             match action {
                 MqttAction::Subscribe => {
                     let worker = MQTTWorker::new(
-                        api_config,
-                        prefix,
+                        config,
                         private_key,
                         public_key,
                         ca_certs
@@ -206,7 +177,7 @@ async fn main() -> Result<()> {
         },
         Some(("device", sub_m)) => {
             let action: DeviceAction = sub_m.value_of_t("action").unwrap_or_else(|e| e.exit());
-            let cmd = DeviceCmd::new(action, api_config, prefix).await?;
+            let cmd = DeviceCmd::new(action, config).await?;
             let result = cmd.handle().await?;
             println!("{}", result)
         }, 

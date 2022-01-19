@@ -11,7 +11,7 @@ $(TMP_DIR):
 
 test-license: $(TMP_DIR)/printnanny_license.zip
 
-clean:
+clean:d
 	rm -rf $(TMP_DIR)
 
 images:

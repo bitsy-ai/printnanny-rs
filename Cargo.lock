@@ -838,8 +838,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "790b4292c72618abbab50f787a477014fe15634f96291de45672ce46afe122df"
 dependencies = [
  "atomic",
+ "parking_lot",
  "pear",
  "serde 1.0.133",
+ "serde_json",
+ "tempfile",
  "toml",
  "uncased",
  "version_check",
@@ -2362,6 +2365,8 @@ dependencies = [
  "console",
  "dialoguer",
  "dirs",
+ "env_logger",
+ "figment",
  "glob",
  "http",
  "jsonwebtoken",
@@ -2382,9 +2387,11 @@ dependencies = [
  "sha2",
  "sys-info",
  "tempdir",
+ "test-log",
  "thiserror",
  "tokio",
  "tokio-rustls",
+ "toml",
  "warp",
 ]
 
@@ -3514,6 +3521,17 @@ name = "termtree"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "507e9898683b6c43a9aa55b64259b721b52ba226e0f3779137e50ad114a4c90b"
+
+[[package]]
+name = "test-log"
+version = "0.2.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb78caec569a40f42c078c798c0e35b922d9054ec28e166f0d6ac447563d91a4"
+dependencies = [
+ "proc-macro2 1.0.36",
+ "quote 1.0.14",
+ "syn 1.0.85",
+]
 
 [[package]]
 name = "textwrap"
