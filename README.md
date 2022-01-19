@@ -28,7 +28,7 @@ This workspace contains the following tools used in Print Nanny OS:
 ## printnanny-cli
 
 ```
-printnanny 0.11.2
+printnanny
 Leigh Johnson <leigh@bitsy.ai>
 Print Nanny Command-line Interface
 
@@ -53,7 +53,7 @@ SUBCOMMANDS:
 ### Device commands
 
 ```
-printnanny-cli-device 0.11.2
+printnanny-cli-device
 Leigh Johnson <leigh@bitsy.ai>
 Interact with device REST API
 
@@ -72,7 +72,7 @@ OPTIONS:
 ### Ansible facts.d commands
 
 ```
-printnanny-cli-factsd 0.11.2
+printnanny-cli-factsd
 Leigh Johnson <leigh@bitsy.ai>
 Config serializer (JSON) intended for use with Ansible facts.d
 
@@ -88,7 +88,7 @@ OPTIONS:
 ### Janus Gateway admin commands
 
 ```
-printnanny-cli-janus-admin 0.11.2
+printnanny-cli-janus-admin
 Leigh Johnson <leigh@bitsy.ai>
 Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token
 
@@ -111,7 +111,7 @@ OPTIONS:
 ### Print Nanny monitoring commands
 
 ```
-printnanny-cli-monitor 0.11.2
+printnanny-cli-monitor
 Leigh Johnson <leigh@bitsy.ai>
 Interact with Print Nanny monitoring service
 
@@ -130,7 +130,7 @@ SUBCOMMANDS:
 
 ### MQTT pub/sub commands
 ```
-printnanny-cli-mqtt 0.11.2
+printnanny-cli-mqtt
 Leigh Johnson <leigh@bitsy.ai>
 Interact with MQTT pub/sub service
 
