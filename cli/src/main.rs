@@ -21,7 +21,6 @@ async fn main() -> Result<()> {
     let app_name = "printnanny";
 
     let app = App::new(app_name)
-        .version(crate_version!())
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .author(crate_authors!())
         .about(crate_description!())
@@ -37,6 +36,9 @@ async fn main() -> Result<()> {
             .help("Path to Config.toml (see env/ for examples)"))
         // janusadmin
         .subcommand(App::new("janus-admin")
+            .author(crate_authors!())
+            .about(crate_description!())
+            .version(crate_version!())
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token")
             .arg(Arg::new("host")
                 .long("host")
@@ -88,7 +90,10 @@ async fn main() -> Result<()> {
             ))
         // api endpoints (used by ansible facts.d)
         .subcommand(App::new("factsd")
-            .about("REST API JSON for Ansible facts.d")
+            .author(crate_authors!())
+            .about(crate_description!())
+            .version(crate_version!())
+            .about("Config serializer (JSON) intended for use with Ansible facts.d")
             .arg(Arg::new("output")
                 .short('o')
                 .long("output")
@@ -96,6 +101,9 @@ async fn main() -> Result<()> {
             ))
         // device
         .subcommand(App::new("device")
+            .author(crate_authors!())
+            .about(crate_description!())
+            .version(crate_version!())
             .about("Interact with device REST API")
             // model
             .arg(Arg::new("action")
@@ -109,6 +117,10 @@ async fn main() -> Result<()> {
             ))
         // mqtt <subscribe|publish>
         .subcommand(App::new("mqtt")
+            .author(crate_authors!())
+            .about(crate_description!())
+            .version(crate_version!())
+            .about("Interact with MQTT pub/sub service")
             .arg(Arg::new("ca_certs")
                 .long("ca-certs")
                 .takes_value(true)
@@ -130,6 +142,10 @@ async fn main() -> Result<()> {
             ))
 
         .subcommand(App::new("monitor")
+            .author(crate_authors!())
+            .about(crate_description!())
+            .version(crate_version!())
+            .about("Interact with Print Nanny monitoring service")
             .setting(AppSettings::SubcommandRequiredElseHelp)
             .subcommand(
                 App::new("start")
