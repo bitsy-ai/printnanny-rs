@@ -5,7 +5,7 @@ use std::path::{ PathBuf};
 
 use anyhow::{ Result };
 use env_logger::Builder;
-use log::LevelFilter;
+use log::{ info, warn, error, LevelFilter};
 use clap::{ 
     Arg, App, AppSettings
 };
@@ -14,7 +14,6 @@ use printnanny_services::config::{ ApiConfig, PrintNannyConfig};
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker, MqttAction };
 use printnanny_cli::device::{DeviceCmd, DeviceAction };
-use printnanny_cli::profile::ProfileAction;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -41,7 +40,7 @@ async fn main() -> Result<()> {
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token")
             .arg(Arg::new("host")
                 .long("host")
-                .short('h')
+                .short('H')
                 .takes_value(true)
                 .default_value("http://localhost:7088/admin"))
             .arg(Arg::new("endpoint")
@@ -141,17 +140,12 @@ async fn main() -> Result<()> {
         );
     
     let app_m = app.get_matches();
+    info!("testing");
 
-    match app_m.value_of("config") {
-        // config argument passed, set environment variable (equivalent to Figment global)
-        Some(c) => {
-            std::env::set_var("PRINTNANNY_CONFIG", c)
-        },
-        None => ()
-    }
+    let conf_file = app_m.value_of("config");
 
-    let figment = PrintNannyConfig::figment();
-    let config: PrintNannyConfig = figment.extract()?;
+    let config: PrintNannyConfig = PrintNannyConfig::new(conf_file)?;
+    // let config: PrintNannyConfig = figment.extract()?;
 
     // Vary the output based on how many times the user used the "verbose" flag
     // (i.e. 'printnanny v v v' or 'printnanny vvv' vs 'printnanny v'

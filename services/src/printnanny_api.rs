@@ -1,4 +1,4 @@
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use std::convert::TryInto;
 use std::fs::{read_to_string, File};
 use std::future::Future;
@@ -118,6 +118,7 @@ impl ApiService {
     // config priority:
     // args >> api_config.json >> anonymous api usage only
     pub fn new(config: PrintNannyConfig) -> Result<ApiService, ServiceError> {
+        debug!("Initializing ApiService from config: {:?}", config);
         let paths = PrintNannyPath::new(&config.path);
         let reqwest = ReqwestConfig::from(&config.api);
         Ok(Self {

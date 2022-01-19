@@ -1,3 +1,6 @@
+use std::convert::TryFrom;
+use std::error::Error;
+
 use figment::error::Result;
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map, Value};
@@ -53,7 +56,16 @@ impl Default for PrintNannyConfig {
 impl PrintNannyConfig {
     // See example: https://docs.rs/figment/latest/figment/index.html#extracting-and-profiles
     // Note the `nested` option on both `file` providers. This makes each
-    // top-level dictionary act as a profile.
+    // top-level dictionary act as a profile
+    pub fn new(config: Option<&str>) -> Result<Self> {
+        let figment = match config {
+            Some(c) => PrintNannyConfig::figment().merge(Toml::file(c)),
+            None => PrintNannyConfig::figment(),
+        };
+        let result = figment.extract()?;
+        info!("Initialized config {:?}", result);
+        Ok(result)
+    }
     pub fn figment() -> Figment {
         // let profile = Profile::from_env_or("PRINTNANNY_PROFILE", Self::DEFAULT_PROFILE);
         let mut result = Figment::from(Self {

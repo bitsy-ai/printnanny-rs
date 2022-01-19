@@ -1,8 +1,8 @@
-use std::path::{ PathBuf };
-use std::fs::{ OpenOptions };
+use std::fs::OpenOptions;
+use std::path::PathBuf;
 
-use anyhow::{ Result };
-use serde::{ Serialize, Deserialize };
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrintNannyPath {
@@ -17,7 +17,6 @@ pub struct PrintNannyPath {
 
     // api config
     pub api_config_json: PathBuf,
-    
     pub janus_admin_secret: PathBuf,
     pub janus_token: PathBuf,
 
@@ -30,17 +29,16 @@ pub struct PrintNannyPath {
 impl PrintNannyPath {
     pub fn new(base_str: &str) -> Self {
         let base = PathBuf::from(base_str);
- 
         let backups = base.join("backups");
         let data = base.join("data");
         let keys = base.join("keys");
 
         let ca_certs = base.join("ca-certificates");
-        let ca_cert= ca_certs.join("gtsltsr.crt");
+        let ca_cert = ca_certs.join("gtsltsr.crt");
         let ca_cert_backup = ca_certs.join("GSR4.crt");
 
-        let api_config_json = data.join("api_config.json");
-        let paths_json = data.join("paths.json");
+        let api_config_json = data.join("api_config.toml");
+        let paths_json = data.join("paths.toml");
 
         let private_key = keys.join("id_ecdsa");
         let public_key = keys.join("id_ecdsa.pub");
@@ -48,7 +46,7 @@ impl PrintNannyPath {
         let janus_admin_secret = keys.join("janus_admin_secret");
         let janus_token = keys.join("janus_token");
 
-        Self { 
+        Self {
             api_config_json,
             backups,
             base,
@@ -61,18 +59,7 @@ impl PrintNannyPath {
             private_key,
             public_key,
             janus_admin_secret,
-            janus_token
+            janus_token,
         }
-    }
-}
-
-impl PrintNannyPath {
-    pub fn save(&self) -> Result<()>{
-        let file = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .open(&self.paths_json)?;
-        serde_json::to_writer(&file, &self)?;
-        Ok(())
     }
 }
