@@ -2,19 +2,19 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use anyhow::{ Result };
-use log:: { debug };
+use anyhow::Result;
 use clap::ArgEnum;
+use log::debug;
 
-use printnanny_services::config::Config;
-use printnanny_services::printnanny_api::{ ApiConfig, ApiService};
 use printnanny_api_client::models;
+use printnanny_services::config::PrintNannyConfig;
+use printnanny_services::printnanny_api::ApiService;
 
 #[derive(Copy, Eq, PartialEq, Debug, Clone, clap::ArgEnum)]
 pub enum ProfileAction {
     List,
     Create,
-    Activate
+    Activate,
 }
 
 impl ProfileAction {
@@ -40,14 +40,16 @@ impl std::str::FromStr for ProfileAction {
 
 pub struct ProfileCmd {
     pub action: ProfileAction,
-    pub config: Config
+    pub config: PrintNannyConfig,
 }
 
 impl ProfileCmd {
     pub fn new(action: ProfileAction, path: String) -> Result<Self> {
-
-        let config = Config{ path, ..Config::default()};
-        Ok(Self{action, config})
+        let config = PrintNannyConfig {
+            path,
+            ..PrintNannyConfig::default()
+        };
+        Ok(Self { action, config })
     }
     pub fn handle(&self) -> Result<()> {
         // let figment
@@ -57,8 +59,6 @@ impl ProfileCmd {
         //     },
         //     _ => "".to_string()
         // };
-        
         Ok(())
     }
-
 }

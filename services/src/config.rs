@@ -1,55 +1,64 @@
 use figment::error::Result;
 use figment::providers::{Env, Format, Json, Serialized, Toml};
-use figment::value::{magic::RelativePathBuf, Dict, Map, Value};
-use figment::{Error as FigmentError, Figment, Metadata, Profile, Provider};
+use figment::value::{Dict, Map, Value};
+use figment::{Figment, Metadata, Profile, Provider};
 use glob::glob;
 use log::{debug, error, info};
-use printnanny_api_client::models;
 use serde::{Deserialize, Serialize};
-use std::any::TypeId;
-use std::fs;
-use std::path::PathBuf;
-use thiserror::Error;
 
-use crate::paths::PrintNannyPath;
-use crate::printnanny_api::ApiConfig;
+use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
+use printnanny_api_client::models;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ApiConfig {
+    pub base_path: String,
+    pub bearer_access_token: Option<String>,
+}
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct Config {
-    pub api_config: ApiConfig,
+pub struct PrintNannyConfig {
+    pub api: ApiConfig,
     pub path: String,
     pub device: Option<models::Device>,
     pub user: Option<models::User>,
-    pub port: i32,
 }
 pub struct ConfigError {}
 
-impl Default for Config {
-    fn default() -> Self {
-        let api_config = ApiConfig {
-            base_path: "https://print-nanny.com".into(),
-            bearer_access_token: None,
-        };
-        let path = "/opt/printnanny/default".into();
-        Config {
-            api_config,
-            path,
-            device: None,
-            user: None,
-            port: 9001,
+impl From<&ApiConfig> for ReqwestConfig {
+    fn from(api: &ApiConfig) -> ReqwestConfig {
+        ReqwestConfig {
+            base_path: api.base_path.to_string(),
+            bearer_access_token: api.bearer_access_token.clone(),
+            ..ReqwestConfig::default()
         }
     }
 }
 
-impl Config {
+impl Default for PrintNannyConfig {
+    fn default() -> Self {
+        let api = ApiConfig {
+            base_path: "https://print-nanny.com".into(),
+            bearer_access_token: None,
+        };
+        let path = "/opt/printnanny/default".into();
+        PrintNannyConfig {
+            api,
+            path,
+            device: None,
+            user: None,
+        }
+    }
+}
+
+impl PrintNannyConfig {
     // See example: https://docs.rs/figment/latest/figment/index.html#extracting-and-profiles
     // Note the `nested` option on both `file` providers. This makes each
     // top-level dictionary act as a profile.
     pub fn figment() -> Figment {
         // let profile = Profile::from_env_or("PRINTNANNY_PROFILE", Self::DEFAULT_PROFILE);
-        let mut result = Figment::from(Config {
+        let mut result = Figment::from(Self {
             // profile,
-            ..Config::default()
+            ..Self::default()
         })
         .merge(Toml::file(Env::var_or(
             "PRINTNANNY_CONFIG",
@@ -60,15 +69,15 @@ impl Config {
         info!("Loaded config from profile {:?}", result.profile());
         let path: String = result
             .find_value("path")
-            .unwrap_or(Value::from(Config::default().path))
+            .unwrap_or(Value::from(Self::default().path))
             .deserialize::<String>()
             .unwrap();
 
         let toml_glob = format!("{}/*.toml", &path);
         let json_glob = format!("{}/*.json", &path);
 
-        let result = Config::read_path_glob::<Json>(&json_glob, result);
-        let result = Config::read_path_glob::<Toml>(&toml_glob, result);
+        let result = Self::read_path_glob::<Json>(&json_glob, result);
+        let result = Self::read_path_glob::<Toml>(&toml_glob, result);
 
         result
     }
@@ -116,7 +125,7 @@ impl Config {
     }
 }
 
-impl Provider for Config {
+impl Provider for PrintNannyConfig {
     fn metadata(&self) -> Metadata {
         Metadata::named("Print Nanny Config")
     }
@@ -143,10 +152,10 @@ mod tests {
             base_path = "https://print-nanny.com"
             "#,
             )?;
-            let figment = Config::figment();
-            let config: Config = figment.extract()?;
+            let figment = PrintNannyConfig::figment();
+            let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
-                config.api_config,
+                config.api,
                 ApiConfig {
                     base_path: "https://print-nanny.com".into(),
                     bearer_access_token: None
@@ -154,8 +163,8 @@ mod tests {
             );
 
             jail.set_env("PRINTNANNY_API_CONFIG.BEARER_ACCESS_TOKEN", "secret");
-            let figment = Config::figment();
-            let config: Config = figment.extract()?;
+            let figment = PrintNannyConfig::figment();
+            let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
                 config.api_config,
                 ApiConfig {
@@ -182,8 +191,8 @@ mod tests {
             )?;
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
 
-            let figment = Config::figment();
-            let config: Config = figment.extract()?;
+            let figment = PrintNannyConfig::figment();
+            let config: PrintNannyConfig = figment.extract()?;
 
             let base_path = "http://aurora:8000".into();
             let path: String = "/home/leigh/projects/print-nanny-cli/.tmp".into();
@@ -191,7 +200,7 @@ mod tests {
             assert_eq!(config.api_config.base_path, base_path);
 
             assert_eq!(
-                config.api_config,
+                config.api,
                 ApiConfig {
                     base_path: base_path,
                     bearer_access_token: None
@@ -229,13 +238,13 @@ mod tests {
             // "#,
             // )?;
             jail.set_env("PRINTNANNY_CONFIG", "Base.toml");
-            let figment = Config::figment();
-            let config: Config = figment.extract()?;
+            let figment = PrintNannyConfig::figment();
+            let config: PrintNannyConfig = figment.extract()?;
             info!("Read config {:?}", config);
             // assert_eq!(config.api_config.bearer_access_token, "local");
             // assert_eq!(config.device.unwrap().id, 1);
             assert_eq!(
-                config.api_config,
+                config.api,
                 ApiConfig {
                     base_path: "http://aurora:8000".into(),
                     bearer_access_token: Some("abc123".into())

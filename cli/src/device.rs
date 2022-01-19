@@ -1,9 +1,10 @@
-use anyhow::{ Result };
-use log:: { debug };
+use anyhow::Result;
 use clap::ArgEnum;
+use log::debug;
 
-use printnanny_services::printnanny_api::{ ApiConfig, ApiService};
 use printnanny_api_client::models;
+use printnanny_services::config::PrintNannyConfig;
+use printnanny_services::printnanny_api::ApiService;
 
 #[derive(Copy, Eq, PartialEq, Debug, Clone, clap::ArgEnum)]
 pub enum DeviceAction {
@@ -32,23 +33,21 @@ impl std::str::FromStr for DeviceAction {
     }
 }
 
-
-
 pub struct DeviceCmd {
     pub action: DeviceAction,
-    pub service: ApiService
+    pub service: ApiService,
 }
 impl DeviceCmd {
-    pub async fn new(action: DeviceAction, api_config: ApiConfig, data_dir: &str) -> Result<Self> {
-        let service = ApiService::new(api_config, data_dir)?;
+    pub async fn new(action: DeviceAction, config: PrintNannyConfig) -> Result<Self> {
+        let service = ApiService::new(config)?;
         Ok(Self { service, action })
     }
-    pub async fn handle(&self) -> Result<String>{
+    pub async fn handle(&self) -> Result<String> {
         let result = match self.action {
             DeviceAction::Get => self.service.device_retrieve_hostname().await?,
             DeviceAction::Setup => self.service.device_setup().await?,
         };
         debug!("Success action={:?} result={:?}", self.action, result);
         Ok(self.service.to_string_pretty::<models::Device>(result)?)
-    }    
+    }
 }
