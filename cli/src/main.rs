@@ -14,6 +14,7 @@ use printnanny_services::printnanny_api::{ ApiConfig, read_model_json };
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker, MqttAction };
 use printnanny_cli::device::{DeviceCmd, DeviceAction };
+use printnanny_cli::profile::ProfileAction;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -53,6 +54,16 @@ async fn main() -> Result<()> {
             .takes_value(true)
             .help("Path to Print Nanny installation (used to specify alternate install path)")
             .default_value("/opt/printnanny"))
+        // profiles
+        .subcommand(App::new("profile")
+            .setting(AppSettings::SubcommandRequiredElseHelp)
+            .about("Print Nanny configuration profiles")
+            .arg(Arg::new("action")
+                .possible_values(ProfileAction::possible_values())
+                .ignore_case(true)
+            )
+        )
+
         // janusadmin
         .subcommand(App::new("janus-admin")
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token")
