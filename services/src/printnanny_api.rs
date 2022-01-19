@@ -97,7 +97,7 @@ pub enum ServiceError{
     SetupIncomplete{}
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ApiConfig {
     pub base_path: String,
     pub bearer_access_token: Option<String>

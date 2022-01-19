@@ -44,16 +44,19 @@ pub struct ProfileCmd {
 }
 
 impl ProfileCmd {
-    pub fn new(action: ProfileAction, prefix: String) -> Result<Self> {
+    pub fn new(action: ProfileAction, path: String) -> Result<Self> {
 
-        let config = Config{ prefix, ..Config.default()};
+        let config = Config{ path, ..Config::default()};
         Ok(Self{action, config})
     }
     pub fn handle(&self) -> Result<()> {
-        let (profiles, active_profile) = match self.action {
-            ProfileAction::List => self.config.list_profiles(),
-            _ => Ok(())
-        };
+        // let figment
+        // let result = match self.action {
+        //     ProfileAction::List => {
+
+        //     },
+        //     _ => "".to_string()
+        // };
         
         Ok(())
     }

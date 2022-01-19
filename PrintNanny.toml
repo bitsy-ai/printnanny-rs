@@ -1,0 +1,20 @@
+[default]
+name = "default"
+path = "/opt/printnanny/default"
+
+[default.api_config]
+base_path = "https://print-nanny.com"
+
+[local]
+name = "local"
+path = "/home/leigh/projects/print-nanny-cli/.tmp"
+
+[local.api_config]
+base_path = "http://aurora:8000"
+
+[sandbox]
+name = "local"
+path = "/opt/printnanny/sandbox"
+
+[sandbox.api_config]
+base_path = "https://webapp.sandbox.print-nanny.com"

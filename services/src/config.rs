@@ -1,101 +1,207 @@
-use serde::Deserialize;
-use std::path::PathBuf;
-use figment::{Figment, providers::{Format, Json, Env}};
-
-use thiserror::Error;
+use figment::error::Result;
+use figment::value::{magic::RelativePathBuf, Dict, Map};
+use figment::{
+    providers::{Env, Format, Json, Serialized, Toml},
+    Error as FigmentError, Figment, Metadata, Profile, Provider,
+};
+use glob::glob;
+use log::{error, info};
 use printnanny_api_client::models;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::PathBuf;
+use thiserror::Error;
 
-use crate::printnanny_api::ApiConfig;
 use crate::paths::PrintNannyPath;
+use crate::printnanny_api::ApiConfig;
 
-#[derive(Debug, PartialEq, Deserialize)]
-struct Config {
-    api_config: ApiConfig,
-    prefix: String
-    profile: String,
-    device: Option<models::Device>,
-    user: Option<models::User>,
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Config {
+    pub api_config: ApiConfig,
+    pub profile: Profile,
+    pub path: String,
+    pub device: Option<models::Device>,
+    pub user: Option<models::User>,
 }
-
-struct ActiveProfile(String);
-
-struct Profile {
-    dir: PathBuf,
-    name: String,
-    active: bool
-}
-
-struct ConfigError {
-
-    #[error("Expected 1 active profile, but found {count:?}, profiles marked active: {profiles:?}")]
-    TooManyActiveProfiles {
-        profiles: Vec<Profiles>,
-        count: i32
-    }
-}
+pub struct ConfigError {}
 
 impl Default for Config {
     fn default() -> Self {
-        let api_config = ApiConfig{
+        let api_config = ApiConfig {
             base_path: "https://print-nanny.com".into(),
             bearer_access_token: None,
+        };
+        let path = "/opt/printnanny/default".into();
+        let profile = "default".into();
+        Config {
+            api_config,
+            profile,
+            path,
+            device: None,
+            user: None,
         }
-        let profile = "/opt/printnanny/default".into();
-        let prefix = "/opt/printnanny".into()
-        Config { api_config, profile, prefix, device: None, user: None }
     }
 }
 
 impl Config {
-    // Allow the configuration to be extracted from any `Provider`.
-    fn from<T: Provider>(provider: T) -> Result<Config, Error> {
-        Figment::from(provider).extract()
-    }
+    pub const LOCAL_PROFILE: Profile = Profile::const_new("local");
+    pub const SANDBOX_PROFILE: Profile = Profile::const_new("sandbox");
+    pub const DEFAULT_PROFILE: Profile = Profile::const_new("default");
+    // See example: https://docs.rs/figment/latest/figment/index.html#extracting-and-profiles
+    // Note the `nested` option on both `file` providers. This makes each
+    // top-level dictionary act as a profile.
+    pub fn figment() -> Figment {
+        let profile = Profile::from_env_or("PRINTNANNY_PROFILE", Self::DEFAULT_PROFILE);
+        let result = Figment::from(Config {
+            profile,
+            ..Config::default()
+        })
+        .merge(Toml::file(Env::var_or("PRINTNANNY_CONFIG", "PrintNanny.toml")).nested())
+        .merge(Env::prefixed("PRINTNANNY_").ignore(&["PROFILE"]).global())
+        .select(Profile::from_env_or(
+            "PRINTNANNY_PROFILE",
+            Self::DEFAULT_PROFILE,
+        ));
+        info!("Using profile: {:?}", result.profile());
 
-    // Provide a default provider, a `Figment`.
-    fn figment() -> Figment {
-        use figment::providers::Env;
+        let toml_glob = format!("{}/*.toml", &result.profile());
+        let json_glob = format!("{}/*.json", &result.profile());
 
-        // In reality, whatever the library desires.
-        Figment::from(Config::default()).merge(Env::prefixed("PRINTNANNY_"))
-    }
-
-    fn list_profiles(&self) -> Result<(Vec<Profile>, ActiveProfile> {
-        let path = Path::new(&self.prefix);
-        let prefix_path = fs::read_dir(path)?;
-        let mut profiles = Vec::new();
-        let mut active_profile = ActiveProfile("default");
-
-        // read base directory, assumes all subdirectories are profiles
-        // an optional flag file .active indicates a profile is active
-        for p in prefix_path {
-            if p.is_dir(){
-                let active = match fs::read_dir(format!("{}/.active", p.path())) {
-                    Err(_) => false,
-                    Some(_) => true
-                }
-                if active {
-                    active_profile = ActiveProfile(p.filename());
-                }
-                let profile = Profile{
-                    active,
-                    dir: p.path(),
-                    name: p.file_name(),
-                }
-                profiles.push(profile)
-            } else {
-                warn!("Ignoring file outside of profile directory: {:?} - move file into profile to use", p.path())
+        for entry in glob(&toml_glob).expect("Failed to read glob pattern") {
+            match entry {
+                Ok(path) => println!("{:?}", path.display()),
+                Err(e) => println!("{:?}", e),
             }
         }
-        // only one profile should be active
-        let active_profile = profiles.iter().filter(|p| p.active);
-        if active_profile.count() != 1 {
-            Err(ConfigError::TooManyActiveProfiles{
-                profiles: active_profile,
-                count: active_profile.count()
-            })
-        } else {
-            Ok(profiles, active_profile)
-        }
+        result
+    }
+
+    /// Extract a `Config` from `provider`, panicking if extraction fails.
+    ///
+    /// # Panics
+    ///
+    /// If extraction fails, prints an error message indicating the failure and
+    /// panics. For a version that doesn't panic, use [`Config::try_from()`].
+    ///
+    /// # Example
+    pub fn from<T: Provider>(provider: T) -> Self {
+        Self::try_from(provider).unwrap_or_else(|e| {
+            error!("{:?}", e);
+            panic!("aborting due to configuration error(s)")
+        })
+    }
+
+    /// Attempts to extract a `Config` from `provider`, returning the result.
+    ///
+    /// # Example
+    pub fn try_from<T: Provider>(provider: T) -> Result<Self> {
+        let figment = Figment::from(provider);
+        let mut config = figment.extract::<Self>()?;
+        config.profile = figment.profile().clone();
+        Ok(config)
+    }
+}
+
+impl Provider for Config {
+    fn metadata(&self) -> Metadata {
+        Metadata::named("Print Nanny Config")
+    }
+
+    fn data(&self) -> Result<Map<Profile, Dict>> {
+        let map: Map<Profile, Dict> = Serialized::defaults(self).data()?;
+        Ok(map)
+    }
+
+    fn profile(&self) -> Option<Profile> {
+        Some(self.profile.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test_log::test]
+    fn test_default_profiles_env_merged() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_file(
+                "PrintNanny.toml",
+                r#"
+            [default]
+            name = "default"
+            path = "/opt/printnanny/default"
+            
+            [default.api_config]
+            base_path = "https://print-nanny.com"
+            
+            [local]
+            name = "local"
+            path = "/home/leigh/projects/print-nanny-cli/.tmp"
+            
+            [local.api_config]
+            base_path = "http://aurora:8000"
+            "#,
+            )?;
+            jail.set_env("PRINTNANNY_API_CONFIG.API_URL", "http://localhost:8000");
+            let figment = Config::figment();
+            let config: Config = figment.extract()?;
+            assert_eq!(config.profile, "default");
+            assert_eq!(
+                config.api_config,
+                ApiConfig {
+                    base_path: "https://print-nanny.com".into(),
+                    bearer_access_token: None
+                }
+            );
+
+            jail.set_env("PRINTNANNY_API_CONFIG.BEARER_ACCESS_TOKEN", "secret");
+            let figment = Config::figment();
+            let config: Config = figment.extract()?;
+            assert_eq!(config.profile, "default");
+            assert_eq!(
+                config.api_config,
+                ApiConfig {
+                    base_path: "https://print-nanny.com".into(),
+                    bearer_access_token: Some("secret".into())
+                }
+            );
+            Ok(())
+        });
+    }
+
+    #[test_log::test]
+    fn test_custom_profile_selected() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_file(
+                "PrintNanny.toml",
+                r#"
+            [default]
+            name = "default"
+            path = "/opt/printnanny/default"
+            
+            [default.api_config]
+            base_path = "https://print-nanny.com"
+            
+            [local]
+            name = "local"
+            path = "/home/leigh/projects/print-nanny-cli/.tmp"
+            
+            [local.api_config]
+            base_path = "http://aurora:8000"
+            "#,
+            )?;
+            jail.set_env("PRINTNANNY_API_CONFIG.API_URL", "http://localhost:8000");
+            jail.set_env("PRINTNANNY_PROFILE", "local");
+            let figment = Config::figment();
+            let config: Config = figment.extract()?;
+            assert_eq!(config.profile, "local");
+            assert_eq!(
+                config.api_config,
+                ApiConfig {
+                    base_path: "http://aurora:8000".into(),
+                    bearer_access_token: None
+                }
+            );
+            Ok(())
+        });
     }
 }
