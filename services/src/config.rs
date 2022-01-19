@@ -58,17 +58,19 @@ impl PrintNannyConfig {
     // Note the `nested` option on both `file` providers. This makes each
     // top-level dictionary act as a profile
     pub fn new(config: Option<&str>) -> Result<Self> {
-        let figment = match config {
-            Some(c) => PrintNannyConfig::figment().merge(Toml::file(c)),
-            None => PrintNannyConfig::figment(),
-        };
+        let figment = Self::figment(config);
         let result = figment.extract()?;
         info!("Initialized config {:?}", result);
         Ok(result)
     }
-    pub fn figment() -> Figment {
-        // let profile = Profile::from_env_or("PRINTNANNY_PROFILE", Self::DEFAULT_PROFILE);
-        let mut result = Figment::from(Self {
+
+    // intended for use with Rocket's figmment
+    pub fn from_figment(config: Option<&str>, figment: Figment) -> Figment {
+        return figment.merge(Self::figment(config));
+    }
+
+    pub fn figment(config: Option<&str>) -> Figment {
+        let result = Figment::from(Self {
             // profile,
             ..Self::default()
         })
@@ -77,6 +79,11 @@ impl PrintNannyConfig {
             "PrintNanny.toml",
         )))
         .merge(Env::prefixed("PRINTNANNY_").global());
+
+        let result = match config {
+            Some(c) => result.clone().merge(Toml::file(c)),
+            None => result,
+        };
 
         info!("Loaded config from profile {:?}", result.profile());
         let path: String = result

@@ -1,29 +1,33 @@
-use log::{info};
-use rocket::http::{CookieJar};
-use rocket_dyn_templates::Template;
+use log::info;
 use rocket::form::Context;
+use rocket::http::CookieJar;
 use rocket::State;
+use rocket_dyn_templates::Template;
 
 use super::auth;
-use super::config::{ Config };
-use super::response::{ Response, FlashResponse };
+use super::response::{FlashResponse, Response};
+use printnanny_services::config::{ApiConfig, PrintNannyConfig};
 
 #[get("/")]
-async fn index(jar: &CookieJar<'_>, config: &State<Config>) -> Result<Response, FlashResponse<Template>> {
+async fn index(
+    jar: &CookieJar<'_>,
+    config: &State<PrintNannyConfig>,
+) -> Result<Response, FlashResponse<Template>> {
     let api_config = jar.get_private(auth::COOKIE_API_CONFIG);
     match api_config {
         Some(cookie) => {
             let api_config = serde_json::from_str(cookie.value())?;
-            let context = auth::get_context(&config.path, &api_config).await?;
+            let context = auth::get_context(config).await?;
             info!("Attaching context to view {:?}", context);
             Ok(Response::Template(Template::render("index", context)))
-        },
-        None => Ok(Response::Template(Template::render("authemail", &Context::default())))
+        }
+        None => Ok(Response::Template(Template::render(
+            "authemail",
+            &Context::default(),
+        ))),
     }
 }
 
 pub fn routes() -> Vec<rocket::Route> {
-    routes![
-        index
-    ]
+    routes![index]
 }

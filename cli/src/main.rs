@@ -145,7 +145,6 @@ async fn main() -> Result<()> {
     let conf_file = app_m.value_of("config");
 
     let config: PrintNannyConfig = PrintNannyConfig::new(conf_file)?;
-    // let config: PrintNannyConfig = figment.extract()?;
 
     // Vary the output based on how many times the user used the "verbose" flag
     // (i.e. 'printnanny v v v' or 'printnanny vvv' vs 'printnanny v'
