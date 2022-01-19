@@ -167,11 +167,11 @@ mod tests {
             name = "default"
             path = "/opt/printnanny/default"
             
-            [api_config]
+            [api]
             base_path = "https://print-nanny.com"
             "#,
             )?;
-            let figment = PrintNannyConfig::figment();
+            let figment = PrintNannyConfig::figment(None);
             let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
                 config.api,
@@ -181,11 +181,11 @@ mod tests {
                 }
             );
 
-            jail.set_env("PRINTNANNY_API_CONFIG.BEARER_ACCESS_TOKEN", "secret");
-            let figment = PrintNannyConfig::figment();
+            jail.set_env("PRINTNANNY_API.BEARER_ACCESS_TOKEN", "secret");
+            let figment = PrintNannyConfig::figment(None);
             let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
-                config.api_config,
+                config.api,
                 ApiConfig {
                     base_path: "https://print-nanny.com".into(),
                     bearer_access_token: Some("secret".into())
@@ -204,19 +204,19 @@ mod tests {
             name = "local"
             path = "/home/leigh/projects/print-nanny-cli/.tmp"
             
-            [api_config]
+            [api]
             base_path = "http://aurora:8000"
             "#,
             )?;
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
 
-            let figment = PrintNannyConfig::figment();
+            let figment = PrintNannyConfig::figment(None);
             let config: PrintNannyConfig = figment.extract()?;
 
             let base_path = "http://aurora:8000".into();
             let path: String = "/home/leigh/projects/print-nanny-cli/.tmp".into();
             assert_eq!(config.path, path);
-            assert_eq!(config.api_config.base_path, base_path);
+            assert_eq!(config.api.base_path, base_path);
 
             assert_eq!(
                 config.api,
@@ -237,7 +237,7 @@ mod tests {
                 r#"
             path = ".tmp"
             
-            [api_config]
+            [api]
             base_path = "https://print-nanny.com"
             "#,
             )?;
@@ -246,7 +246,7 @@ mod tests {
             jail.create_file(
                 ".tmp/ApiConfig.toml",
                 r#"
-            [api_config]
+            [api]
             base_path = "http://aurora:8000"
             bearer_access_token = "abc123"
             "#,
@@ -257,7 +257,7 @@ mod tests {
             // "#,
             // )?;
             jail.set_env("PRINTNANNY_CONFIG", "Base.toml");
-            let figment = PrintNannyConfig::figment();
+            let figment = PrintNannyConfig::figment(None);
             let config: PrintNannyConfig = figment.extract()?;
             info!("Read config {:?}", config);
             // assert_eq!(config.api_config.bearer_access_token, "local");
