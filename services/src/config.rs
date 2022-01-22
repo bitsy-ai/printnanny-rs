@@ -121,15 +121,15 @@ impl PrintNannyConfig {
         result
     }
 
-    pub fn save(self) -> Result<String> {
-        let content = toml::to_string(&self)?;
+    pub fn save(self) -> String {
+        let content = toml::to_string(&self).expect(format!("Failed to serialize {:?}", &self));
         let filename = format!("{}/{}", &self.path, "License.toml");
         fs::write("/tmp/foo", content).expect(format!("Unable to write file: {}", &filename));
         info!(
             "Wrote user={:?} device={:?} config to {}",
             &self.device, &self.user, &filename
         );
-        Ok(filename.to_string())
+        filename.to_string()
     }
 
     /// Extract a `Config` from `provider`, panicking if extraction fails.

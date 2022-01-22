@@ -70,7 +70,7 @@ pub enum ServiceError {
     FingerprintError { path: PathBuf, stderr: String },
 
     #[error(transparent)]
-    ProcfsError(#[from] procfs::ProcError),
+    FigmentError(#[from] procfs::ProcError),
 
     #[error(transparent)]
     SysInfoError(#[from] sys_info::Error),
