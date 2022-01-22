@@ -227,7 +227,7 @@ impl ApiService {
         config.device = Some(device);
         config.user = Some(user);
         config.system_info = Some(system_info);
-        config.save()?;
+        config.save();
         Ok(())
     }
 
