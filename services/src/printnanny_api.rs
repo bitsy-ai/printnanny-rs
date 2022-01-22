@@ -70,7 +70,7 @@ pub enum ServiceError {
     FingerprintError { path: PathBuf, stderr: String },
 
     #[error(transparent)]
-    ProcfsError(#[from] procfs::ProcError),
+    FigmentError(#[from] procfs::ProcError),
 
     #[error(transparent)]
     SysInfoError(#[from] sys_info::Error),
@@ -219,6 +219,15 @@ impl ApiService {
         // create PublicKey
         let public_key = self.device_public_key_update_or_create(device.id).await?;
         info!("Success! Updated PublicKey: {:?}", public_key);
+
+        // get user
+        let user = self.auth_user_retreive().await?;
+        // save License.toml with user/device info
+        let mut config = self.config.clone();
+        config.device = Some(device.clone());
+        config.user = Some(user);
+        config.system_info = Some(system_info);
+        config.save();
         Ok(device)
     }
 
