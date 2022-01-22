@@ -12,8 +12,6 @@ use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::users_api;
 use printnanny_api_client::apis::Error as ApiError;
 use printnanny_api_client::models;
-use printnanny_api_client::models::print_nanny_api_config::PrintNannyApiConfig;
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::config::PrintNannyConfig;

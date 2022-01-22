@@ -1,7 +1,5 @@
-use std::fs::OpenOptions;
 use std::path::PathBuf;
 
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

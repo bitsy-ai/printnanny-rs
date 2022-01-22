@@ -1,12 +1,9 @@
-use std::convert::TryFrom;
-use std::error::Error;
-
 use figment::error::Result;
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map, Value};
 use figment::{Figment, Metadata, Profile, Provider};
 use glob::glob;
-use log::{debug, error, info};
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
