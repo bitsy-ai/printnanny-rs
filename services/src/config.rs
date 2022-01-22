@@ -51,6 +51,7 @@ impl Default for PrintNannyConfig {
             path,
             device: None,
             user: None,
+            system_info: None,
         }
     }
 }
