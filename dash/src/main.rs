@@ -4,6 +4,7 @@ use clap::{crate_authors, crate_description, crate_version, App, Arg};
 use rocket_dyn_templates::Template;
 
 use printnanny_dash::auth;
+use printnanny_dash::debug;
 use printnanny_dash::home;
 use printnanny_services::config::{ApiConfig, PrintNannyConfig};
 
@@ -28,6 +29,7 @@ async fn main() -> Result<()> {
 
     rocket::build()
         .mount("/", home::routes())
+        .mount("/debug", debug::routes())
         .mount("/login", auth::routes())
         .attach(Template::fairing())
         .manage(config)

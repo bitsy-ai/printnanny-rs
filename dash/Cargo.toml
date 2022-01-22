@@ -24,7 +24,7 @@ features = ["cargo"]
 
 [dependencies.rocket]
 version = "0.5.0-rc.1"
-features = ["secrets"]
+features = ["json","secrets"]
 
 [dependencies.sqlx]
 version = "0.5"

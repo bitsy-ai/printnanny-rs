@@ -6,7 +6,7 @@ use rocket_dyn_templates::Template;
 
 use super::auth;
 use super::response::{FlashResponse, Response};
-use printnanny_services::config::{ApiConfig, PrintNannyConfig};
+use printnanny_services::config::PrintNannyConfig;
 
 #[get("/")]
 async fn index(

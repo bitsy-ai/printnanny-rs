@@ -2750,6 +2750,7 @@ dependencies = [
  "rocket_codegen",
  "rocket_http",
  "serde 1.0.133",
+ "serde_json",
  "state",
  "tempfile",
  "time 0.2.27",
