@@ -5,6 +5,7 @@ use figment::{Figment, Metadata, Profile, Provider};
 use glob::glob;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
+use std::fs;
 
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::models;
@@ -19,8 +20,12 @@ pub struct ApiConfig {
 pub struct PrintNannyConfig {
     pub api: ApiConfig,
     pub path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<models::Device>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<models::User>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub system_info: Option<models::SystemInfo>,
 }
 pub struct ConfigError {}
 
@@ -114,6 +119,17 @@ impl PrintNannyConfig {
             }
         }
         result
+    }
+
+    pub fn save(self) -> Result<String> {
+        let content = toml::to_string(&self)?;
+        let filename = format!("{}/{}", &self.path, "License.toml");
+        fs::write("/tmp/foo", content).expect(format!("Unable to write file: {}", &filename));
+        info!(
+            "Wrote user={:?} device={:?} config to {}",
+            &self.device, &self.user, &filename
+        );
+        Ok(filename.to_string())
     }
 
     /// Extract a `Config` from `provider`, panicking if extraction fails.
