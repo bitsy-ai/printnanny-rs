@@ -1,16 +1,15 @@
 #[macro_use] extern crate clap;
 
 use std::process::{ Command, Stdio };
-use std::path::{ PathBuf};
 
 use anyhow::{ Result };
 use env_logger::Builder;
-use log::{ info, warn, error, LevelFilter};
+use log::{ info, LevelFilter};
 use clap::{ 
     Arg, App, AppSettings
 };
 
-use printnanny_services::config::{ ApiConfig, PrintNannyConfig};
+use printnanny_services::config::{ PrintNannyConfig};
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker, MqttAction };
 use printnanny_cli::device::{DeviceCmd, DeviceAction };
@@ -24,6 +23,7 @@ async fn main() -> Result<()> {
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .author(crate_authors!())
         .about(crate_description!())
+        .version(crate_version!())
         .arg(Arg::new("v")
         .short('v')
         .multiple_occurrences(true)
