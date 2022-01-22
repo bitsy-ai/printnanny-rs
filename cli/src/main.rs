@@ -24,6 +24,7 @@ async fn main() -> Result<()> {
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .author(crate_authors!())
         .about(crate_description!())
+        .version(crate_version!())
         .arg(Arg::new("v")
         .short('v')
         .multiple_occurrences(true)
