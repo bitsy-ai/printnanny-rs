@@ -15,18 +15,18 @@ env:
   CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
 jobs:
-  cratesio:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install latest nightly
-        uses: actions-rs/toolchain@v1
-        with:
-            toolchain: stable
-            override: true
-            components: rustfmt, clippy
-      - run: cargo install cargo-release
-      - run: cargo release --no-tag --no-push --workspace --publish --execute --no-confirm
+  # cratesio:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Install latest nightly
+  #       uses: actions-rs/toolchain@v1
+  #       with:
+  #           toolchain: stable
+  #           override: true
+  #           components: rustfmt, clippy
+  #     - run: cargo install cargo-release
+  #     - run: cargo release --no-tag --no-push --workspace --publish --execute --no-confirm
   install-cross:
     runs-on: ubuntu-latest
     steps:
@@ -226,4 +226,4 @@ jobs:
         with:
           args: |
               🦀 **Published** {{ EVENT_PAYLOAD.repository.full_name }}@{{ GITHUB_SHA }}
-              **Release Notes** ${{ github.event.release.url || steps.release.outputs.url }}
+              **Release Notes** ${{ github.event.release.html_url || steps.release.outputs.url }}
