@@ -32,7 +32,6 @@ async fn main() -> Result<()> {
             .long("config")
             .short('c')
             .takes_value(true)
-            .required(true)
             .help("Path to Config.toml (see env/ for examples)"))
         // janusadmin
         .subcommand(App::new("janus-admin")
