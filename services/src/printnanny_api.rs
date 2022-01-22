@@ -205,7 +205,7 @@ impl ApiService {
         }
     }
 
-    pub async fn device_setup(&self) -> Result<(), ServiceError> {
+    pub async fn device_setup(&self) -> Result<models::Device, ServiceError> {
         // get or create device with matching hostname
         let device = self.device_retrieve_or_create_hostname().await?;
         info!("Success! Registered device: {:?}", device);
@@ -224,11 +224,11 @@ impl ApiService {
         let user = self.auth_user_retreive().await?;
         // save License.toml with user/device info
         let mut config = self.config.clone();
-        config.device = Some(device);
+        config.device = Some(device.clone());
         config.user = Some(user);
         config.system_info = Some(system_info);
         config.save();
-        Ok(())
+        Ok(device)
     }
 
     async fn device_public_key_update_or_create(

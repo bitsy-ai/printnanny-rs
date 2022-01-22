@@ -123,9 +123,11 @@ impl PrintNannyConfig {
     }
 
     pub fn save(self) -> String {
-        let content = toml::to_string(&self).expect(format!("Failed to serialize {:?}", &self));
+        let msg = format!("Failed to serialize {:?}", &self);
+        let content = toml::to_string(&self).expect(&msg);
         let filename = format!("{}/{}", &self.path, "License.toml");
-        fs::write("/tmp/foo", content).expect(format!("Unable to write file: {}", &filename));
+        let msg = format!("Unable to write file: {}", &filename);
+        fs::write("/tmp/foo", content).expect(&msg);
         info!(
             "Wrote user={:?} device={:?} config to {}",
             &self.device, &self.user, &filename
