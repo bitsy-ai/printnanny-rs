@@ -277,13 +277,8 @@ impl ApiService {
         &self,
         device: i32,
     ) -> Result<models::JanusAuth, ServiceError> {
-        info!(
-            "Reading janus_admin_secret from {:?}",
-            &self.paths.janus_admin_secret
-        );
-        let janus_admin_secret = read_to_string(&self.paths.janus_admin_secret)?;
-        info!("Reading janus_token from {:?}", &self.paths.janus_token);
-        let janus_token = read_to_string(&self.paths.janus_token)?;
+        let janus_token = self.config.janus.token.clone();
+        let janus_admin_secret = self.config.janus.admin_secret.clone();
         let req = models::JanusAuthRequest {
             janus_token,
             janus_admin_secret,
