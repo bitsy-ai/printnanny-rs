@@ -39,15 +39,10 @@ async fn main() -> Result<()> {
             .about(crate_description!())
             .version(crate_version!())
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token")
-            .arg(Arg::new("host")
-                .long("host")
-                .short('H')
-                .takes_value(true)
-                .default_value("http://localhost:7088/admin"))
             .arg(Arg::new("endpoint")
                 .possible_values(JanusAdminEndpoint::possible_values())
                 .help("Janus admin/monitoring API endpoint")
-                .default_value("janus.plugin.echotest,janus.plugin.streaming")
+                .default_value("add-token")
                 .ignore_case(true)
             ) 
             .arg(Arg::new("plugins")
@@ -55,38 +50,13 @@ async fn main() -> Result<()> {
                 .takes_value(true)
                 .required_if_eq_any(&[
                     ("endpoint", "addtoken"),
+                    ("endpoint", "add-token"),
                     ("endpoint", "AddToken"),
                 ])
                 .use_delimiter(true)
                 .help("Commaseparated list of plugins used to scope token access.")
                 .default_value("janus.plugin.echotest,janus.plugin.streaming")
-                    )
-            .arg(Arg::new("token")
-                .hide_env_values(true)
-                .long("token")
-                .takes_value(true)
-                .required_if_eq_any(&[
-                    ("endpoint", "addtoken"),
-                    ("endpoint", "AddToken"),
-                    ("endpoint", "removetoken"),
-                    ("endpoint", "RemoveToken")
-                ])
-                .env("JANUS_TOKEN")
-            )
-            .arg(Arg::new("admin_secret")
-                .hide_env_values(true)
-                .long("adminsecret")
-                .takes_value(true)
-                .required_if_eq_any(&[
-                    ("endpoint", "addtoken"),
-                    ("endpoint", "AddToken"),
-                    ("endpoint", "removetoken"),
-                    ("endpoint", "RemoveToken"),
-                    ("endpoint", "listtokens"),
-                    ("endpoint", "ListTokens"),
-                ])
-                .env("JANUS_ADMIN_SECRET")
-            ))
+                    ))
         // api endpoints (used by ansible facts.d)
         .subcommand(App::new("factsd")
             .author(crate_authors!())
@@ -198,14 +168,10 @@ async fn main() -> Result<()> {
         }, 
         Some(("janus-admin", sub_m)) => {
             let endpoint: JanusAdminEndpoint = sub_m.value_of_t("endpoint").unwrap_or_else(|e| e.exit());
-            let token = sub_m.value_of("token");
-            let admin_secret = sub_m.value_of("admin_secret");
-            let host = sub_m.value_of("host").unwrap();
+            let janus_config = config.janus;
             let res = janus_admin_api_call(
-                host.to_string(), 
                 endpoint,
-                token.map(|s| s.into()),
-                admin_secret.map(|s| s.into()),
+                &janus_config
             ).await?;
             println!("{}", res);
 

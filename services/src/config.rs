@@ -43,6 +43,29 @@ impl Default for JanusConfig {
     }
 }
 
+impl JanusConfig {
+    pub fn admin_http_url(&self) -> String {
+        format!(
+            "http://localhost:{}{}",
+            self.admin_http_port, self.admin_base_path
+        )
+    }
+    pub fn admin_https_url(&self) -> String {
+        let hostname = sys_info::hostname().unwrap_or("localhost".into());
+        format!(
+            "https://{}:{}{}",
+            hostname, self.admin_https_port, self.admin_base_path
+        )
+    }
+    pub fn http_url(&self) -> String {
+        format!("http://localhost:{}{}", self.http_port, self.base_path)
+    }
+    pub fn https_url(&self) -> String {
+        let hostname = sys_info::hostname().unwrap_or("localhost".into());
+        format!("https://{}:{}{}", hostname, self.https_port, self.base_path)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
     pub api: ApiConfig,

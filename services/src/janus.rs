@@ -5,6 +5,7 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
 
+use crate::config::JanusConfig;
 use reqwest;
 
 #[derive(PartialEq, Debug, Clone, Copy, ArgEnum)]
@@ -61,7 +62,7 @@ pub struct JanusAdminService {
 fn validate_request_field(
     endpoint: &JanusAdminEndpoint,
     field: &str,
-    value: Option<String>,
+    value: String,
 ) -> Result<String> {
     match value {
         Some(t) => Ok(t),
@@ -71,8 +72,7 @@ fn validate_request_field(
 
 fn build_request_body(
     endpoint: &JanusAdminEndpoint,
-    token: Option<String>,
-    admin_secret: Option<String>,
+    janus_config: &JanusConfig,
 ) -> Result<HashMap<String, String>> {
     let transaction: String = thread_rng()
         .sample_iter(&Alphanumeric)
@@ -89,46 +89,22 @@ fn build_request_body(
     );
     match endpoint {
         JanusAdminEndpoint::AddToken => {
-            map.insert(
-                String::from("token"),
-                validate_request_field(&endpoint, "token", token)?,
-            );
-            map.insert(
-                String::from("admin_secret"),
-                validate_request_field(&endpoint, "admin_secret", admin_secret)?,
-            );
+            map.insert(String::from("token"), janus_config.token);
+            map.insert(String::from("admin_secret"), janus_config.admin_secret);
         }
         JanusAdminEndpoint::RemoveToken => {
-            map.insert(
-                String::from("token"),
-                validate_request_field(&endpoint, "token", token)?,
-            );
-            map.insert(
-                String::from("admin_secret"),
-                validate_request_field(&endpoint, "admin_secret", admin_secret)?,
-            );
+            map.insert(String::from("token"), janus_config.token);
+            map.insert(String::from("admin_secret"), janus_config.admin_secret);
         }
         JanusAdminEndpoint::ListTokens => {
-            map.insert(
-                String::from("admin_secret"),
-                validate_request_field(&endpoint, "admin_secret", admin_secret)?,
-            );
+            map.insert(String::from("admin_secret"), janus_config.admin_secret);
         }
         JanusAdminEndpoint::GetStatus => {
-            map.insert(
-                String::from("token"),
-                validate_request_field(&endpoint, "token", token)?,
-            );
-            map.insert(
-                String::from("admin_secret"),
-                validate_request_field(&endpoint, "admin_secret", admin_secret)?,
-            );
+            map.insert(String::from("token"), janus_config.token);
+            map.insert(String::from("admin_secret"), janus_config.admin_secret);
         }
         JanusAdminEndpoint::TestStun => {
-            map.insert(
-                String::from("admin_secret"),
-                validate_request_field(&endpoint, "admin_secret", admin_secret)?,
-            );
+            map.insert(String::from("admin_secret"), janus_config.admin_secret);
         }
         _ => {}
     };
@@ -141,13 +117,12 @@ fn build_request_body(
 }
 
 pub async fn janus_admin_api_call(
-    host: String,
     endpoint: JanusAdminEndpoint,
-    token: Option<String>,
-    admin_secret: Option<String>,
+    janus_config: &JanusConfig,
 ) -> Result<String> {
-    let body = build_request_body(&endpoint, token, admin_secret)?;
+    let body = build_request_body(&endpoint, janus_config)?;
     let client = reqwest::Client::new();
+    let host = janus_config.admin_http_url();
     let res = client.post(host).json(&body).send().await?.text().await?;
     Ok(res)
 }
