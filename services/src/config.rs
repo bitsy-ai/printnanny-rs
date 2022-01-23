@@ -16,9 +16,60 @@ pub struct ApiConfig {
     pub bearer_access_token: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct JanusConfig {
+    pub admin_secret: String,
+    pub token: String,
+    pub admin_base_path: String,
+    pub admin_http_port: i32,
+    pub admin_https_port: i32,
+    pub base_path: String,
+    pub http_port: i32,
+    pub https_port: i32,
+}
+
+impl Default for JanusConfig {
+    fn default() -> Self {
+        Self {
+            admin_secret: "".into(),
+            token: "".into(),
+            admin_base_path: "/admin".into(),
+            admin_http_port: 7088,
+            admin_https_port: 7089,
+            base_path: "/janus".into(),
+            http_port: 8088,
+            https_port: 8089,
+        }
+    }
+}
+
+impl JanusConfig {
+    pub fn admin_http_url(&self) -> String {
+        format!(
+            "http://localhost:{}{}",
+            self.admin_http_port, self.admin_base_path
+        )
+    }
+    pub fn admin_https_url(&self) -> String {
+        let hostname = sys_info::hostname().unwrap_or("localhost".into());
+        format!(
+            "https://{}:{}{}",
+            hostname, self.admin_https_port, self.admin_base_path
+        )
+    }
+    pub fn http_url(&self) -> String {
+        format!("http://localhost:{}{}", self.http_port, self.base_path)
+    }
+    pub fn https_url(&self) -> String {
+        let hostname = sys_info::hostname().unwrap_or("localhost".into());
+        format!("https://{}:{}{}", hostname, self.https_port, self.base_path)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
     pub api: ApiConfig,
+    pub janus: JanusConfig,
     pub path: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<models::Device>,
@@ -46,8 +97,10 @@ impl Default for PrintNannyConfig {
             bearer_access_token: None,
         };
         let path = "/opt/printnanny/default".into();
+        let janus = JanusConfig::default();
         PrintNannyConfig {
             api,
+            janus,
             path,
             device: None,
             user: None,
