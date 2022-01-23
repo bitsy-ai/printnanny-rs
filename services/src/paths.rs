@@ -41,8 +41,9 @@ impl PrintNannyPath {
         let private_key = keys.join("id_ecdsa");
         let public_key = keys.join("id_ecdsa.pub");
 
-        let janus_admin_secret = keys.join("janus_admin_secret");
-        let janus_token = keys.join("janus_token");
+        let janus_config = PathBuf::from("/etc/janus");
+        let janus_admin_secret = janus_config.join("janus_admin_secret");
+        let janus_token = janus_config.join("janus_token");
 
         Self {
             api_config_json,
