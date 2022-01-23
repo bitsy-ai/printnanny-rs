@@ -59,17 +59,6 @@ pub struct JanusAdminService {
     pub token: Option<String>,
 }
 
-fn validate_request_field(
-    endpoint: &JanusAdminEndpoint,
-    field: &str,
-    value: String,
-) -> Result<String> {
-    match value {
-        Some(t) => Ok(t),
-        None => Err(anyhow!("{} is required by {:?}", field, endpoint)),
-    }
-}
-
 fn build_request_body(
     endpoint: &JanusAdminEndpoint,
     janus_config: &JanusConfig,
@@ -89,22 +78,37 @@ fn build_request_body(
     );
     match endpoint {
         JanusAdminEndpoint::AddToken => {
-            map.insert(String::from("token"), janus_config.token);
-            map.insert(String::from("admin_secret"), janus_config.admin_secret);
+            map.insert(String::from("token"), janus_config.token.clone());
+            map.insert(
+                String::from("admin_secret"),
+                janus_config.admin_secret.clone(),
+            );
         }
         JanusAdminEndpoint::RemoveToken => {
-            map.insert(String::from("token"), janus_config.token);
-            map.insert(String::from("admin_secret"), janus_config.admin_secret);
+            map.insert(String::from("token"), janus_config.token.clone());
+            map.insert(
+                String::from("admin_secret"),
+                janus_config.admin_secret.clone(),
+            );
         }
         JanusAdminEndpoint::ListTokens => {
-            map.insert(String::from("admin_secret"), janus_config.admin_secret);
+            map.insert(
+                String::from("admin_secret"),
+                janus_config.admin_secret.clone(),
+            );
         }
         JanusAdminEndpoint::GetStatus => {
-            map.insert(String::from("token"), janus_config.token);
-            map.insert(String::from("admin_secret"), janus_config.admin_secret);
+            map.insert(String::from("token"), janus_config.token.clone());
+            map.insert(
+                String::from("admin_secret"),
+                janus_config.admin_secret.clone(),
+            );
         }
         JanusAdminEndpoint::TestStun => {
-            map.insert(String::from("admin_secret"), janus_config.admin_secret);
+            map.insert(
+                String::from("admin_secret"),
+                janus_config.admin_secret.clone(),
+            );
         }
         _ => {}
     };
