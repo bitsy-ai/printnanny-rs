@@ -106,7 +106,8 @@ async fn handle_token_validate(
     auth_config.api = api_config;
     let service = ApiService::new(auth_config)?;
     info!("Setting up device");
-    service.device_setup().await?;
+    let device = service.device_setup().await?;
+    info!("Success! Device updated: {:?}", device);
     Ok(service.config.api)
 }
 
