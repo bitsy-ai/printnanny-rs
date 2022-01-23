@@ -93,19 +93,18 @@ async fn handle_token_validate(
     email: &str,
     config: PrintNannyConfig,
 ) -> Result<ApiConfig, ServiceError> {
-    let mut service = ApiService::new(config)?;
-    service.config.api = ApiConfig {
-        base_path: service.config.api.base_path,
-        bearer_access_token: None,
-    };
+    let mut auth_config = config.clone();
+    let service = ApiService::new(config)?;
     let res = service.auth_token_validate(email, token).await?;
     let bearer_access_token = res.token.to_string();
     info!("Success! Authenticated and received bearer token");
 
-    service.config.api = ApiConfig {
+    let api_config = ApiConfig {
         base_path: service.config.api.base_path,
         bearer_access_token: Some(bearer_access_token),
     };
+    auth_config.api = api_config;
+    let service = ApiService::new(auth_config)?;
     info!("Setting up device");
     service.device_setup().await?;
     Ok(service.config.api)
