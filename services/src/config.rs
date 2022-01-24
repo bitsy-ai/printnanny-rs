@@ -28,6 +28,31 @@ pub struct JanusConfig {
     pub https_port: i32,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MQTTConfig {
+    pub ca_certs: String,
+    pub private_key: String,
+    pub public_key: String,
+    pub fingerprint: String,
+    pub fingerprint_algorithm: String,
+    pub cipher: String,
+    pub length: i32,
+}
+
+impl Default for MQTTConfig {
+    fn default() -> Self {
+        Self {
+            private_key: "/opt/printnanny/default/keys/ec_private.pem".into(),
+            public_key: "/opt/printnanny/default/keys/ec_public.pem".into(),
+            fingerprint: "".into(),
+            fingerprint_algorithm: "md5".into(),
+            ca_certs: "/opt/printnanny/default/ca-certificates".into(),
+            cipher: "secp256r1".into(),
+            length: 4096,
+        }
+    }
+}
+
 impl Default for JanusConfig {
     fn default() -> Self {
         Self {
@@ -70,6 +95,7 @@ impl JanusConfig {
 pub struct PrintNannyConfig {
     pub api: ApiConfig,
     pub janus: JanusConfig,
+    pub mqtt: MQTTConfig,
     pub path: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<models::Device>,
@@ -98,9 +124,11 @@ impl Default for PrintNannyConfig {
         };
         let path = "/opt/printnanny/default".into();
         let janus = JanusConfig::default();
+        let mqtt = MQTTConfig::default();
         PrintNannyConfig {
             api,
             janus,
+            mqtt,
             path,
             device: None,
             user: None,

@@ -235,42 +235,17 @@ impl ApiService {
         &self,
         device: i32,
     ) -> Result<models::PublicKey, ServiceError> {
-        info!("Reading public key from {:?}", &self.paths.public_key);
-        let pem = read_to_string(&self.paths.public_key)?;
-        let cipher = models::CipherEnum::Ecdsa;
-        let length = 256;
-        info!("Calculating fingerprint for {:?}", &self.paths.public_key);
-        let output = Command::new("openssl")
-            .args([
-                "sha3-256",
-                "-c",
-                &self.paths.public_key.as_os_str().to_str().unwrap(),
-            ])
-            .output()
-            .expect("Failed to get fingerprint");
-        if output.status.success() {
-            let fingerprint: String = String::from_utf8(output.stdout)?;
-            info!("Calculated fingerprint {:?}", fingerprint);
-
-            let req = models::PublicKeyRequest {
-                fingerprint,
-                pem,
-                cipher,
-                length,
-                device,
-            };
-
-            let res = devices_api::public_key_update_or_create(&self.reqwest, device, req).await?;
-            Ok(res)
-        } else {
-            error!("Error calculating fingerprint {:?}", output);
-
-            error!("Error calculating fingerprint {:?}", output.stderr);
-            Err(ServiceError::FingerprintError {
-                path: self.paths.public_key.clone(),
-                stderr: std::str::from_utf8(&output.stderr)?.to_string(),
-            })
-        }
+        info!("Reading public key from {:?}", &self.config.mqtt.public_key);
+        let pem = read_to_string(&self.config.mqtt.public_key)?;
+        let req = models::PublicKeyRequest {
+            fingerprint: self.config.mqtt.fingerprint.clone(),
+            pem,
+            device,
+            cipher: self.config.mqtt.cipher.clone(),
+            length: self.config.mqtt.length.clone(),
+        };
+        let res = devices_api::public_key_update_or_create(&self.reqwest, device, req).await?;
+        Ok(res)
     }
 
     async fn device_janus_auth_update_or_create(
