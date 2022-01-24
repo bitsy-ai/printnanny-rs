@@ -30,10 +30,13 @@ pub struct JanusConfig {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MQTTConfig {
+    pub ca_certs: String,
     pub private_key: String,
     pub public_key: String,
     pub fingerprint: String,
     pub fingerprint_algorithm: String,
+    pub cipher: String,
+    pub length: i32,
 }
 
 impl Default for MQTTConfig {
@@ -43,6 +46,9 @@ impl Default for MQTTConfig {
             public_key: "/opt/printnanny/default/keys/ec_public.pem".into(),
             fingerprint: "".into(),
             fingerprint_algorithm: "md5".into(),
+            ca_certs: "/opt/printnanny/default/ca-certificates".into(),
+            cipher: "secp256r1",
+            length: 4096,
         }
     }
 }

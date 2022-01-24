@@ -99,13 +99,8 @@ impl MQTTWorker {
         Ok(mqttoptions)
     }
 
-    pub async fn new(
-        config: PrintNannyConfig,
-        private_key: &str,
-        public_key: &str,
-        ca_certs: &str,
-    ) -> Result<MQTTWorker> {
-        let service = ApiService::new(config)?;
+    pub async fn new(config: PrintNannyConfig) -> Result<MQTTWorker> {
+        let service = ApiService::new(config.clone())?;
         let device = service.device_retrieve_hostname().await?;
         let cloudiot_device = device.cloudiot_device.as_ref().unwrap();
         let gcp_project_id: String = cloudiot_device.gcp_project_id.clone();
@@ -117,9 +112,14 @@ impl MQTTWorker {
             exp,
             aud: gcp_project_id,
         };
-        let token = encode_jwt(private_key, &claims)?;
-        let mqttoptions =
-            MQTTWorker::mqttoptions(&cloudiot_device, private_key, public_key, ca_certs, &token)?;
+        let token = encode_jwt(&config.mqtt.private_key, &claims)?;
+        let mqttoptions = MQTTWorker::mqttoptions(
+            &cloudiot_device,
+            &config.mqtt.private_key,
+            &config.mqtt.public_key,
+            &config.mqtt.ca_certs,
+            &token,
+        )?;
 
         let result = MQTTWorker {
             service,

@@ -90,21 +90,6 @@ async fn main() -> Result<()> {
             .about(crate_description!())
             .version(crate_version!())
             .about("Interact with MQTT pub/sub service")
-            .arg(Arg::new("ca_certs")
-                .long("ca-certs")
-                .takes_value(true)
-                .required(true)
-                .env("MQTT_CA_CERTS"))
-            .arg(Arg::new("private_key")
-                .long("private-key")
-                .takes_value(true)
-                .required(true)
-                .env("MQTT_PRIVATE_KEY"))
-            .arg(Arg::new("public_key")
-                .long("public-key")
-                .takes_value(true)
-                .required(true)
-                .env("MQTT_PUBLIC_KEY"))
             .arg(Arg::new("action")
                 .possible_values(MqttAction::possible_values())
                 .ignore_case(true)
@@ -144,16 +129,10 @@ async fn main() -> Result<()> {
     match app_m.subcommand() {
         Some(("mqtt", sub_m)) => {
             let action: MqttAction = sub_m.value_of_t("action").unwrap_or_else(|e| e.exit());
-            let private_key = sub_m.value_of("public_key").unwrap();
-            let public_key = sub_m.value_of("private_key").unwrap();
-            let ca_certs = sub_m.value_of("ca_certs").unwrap();
             match action {
                 MqttAction::Subscribe => {
                     let worker = MQTTWorker::new(
                         config,
-                        private_key,
-                        public_key,
-                        ca_certs
                     ).await?;
                     worker.run().await?;
                 },
