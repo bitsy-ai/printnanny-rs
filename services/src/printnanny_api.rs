@@ -4,7 +4,6 @@ use std::fs::{read_to_string, File};
 use std::future::Future;
 use std::io::BufReader;
 use std::path::PathBuf;
-use std::process::Command;
 
 use printnanny_api_client::apis::auth_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
@@ -16,7 +15,6 @@ use thiserror::Error;
 
 use crate::config::PrintNannyConfig;
 use crate::cpuinfo::RpiCpuInfo;
-use crate::paths::PrintNannyPath;
 
 #[derive(Error, Debug)]
 pub enum ServiceError {
@@ -89,7 +87,6 @@ pub enum ServiceError {
 #[derive(Debug, Clone)]
 pub struct ApiService {
     pub reqwest: ReqwestConfig,
-    pub paths: PrintNannyPath,
     pub config: PrintNannyConfig,
     pub device: Option<models::Device>,
     pub user: Option<models::User>,
@@ -117,30 +114,15 @@ impl ApiService {
     // args >> api_config.json >> anonymous api usage only
     pub fn new(config: PrintNannyConfig) -> Result<ApiService, ServiceError> {
         debug!("Initializing ApiService from config: {:?}", config);
-        let paths = PrintNannyPath::new(&config.path);
         let reqwest = ReqwestConfig::from(&config.api);
         Ok(Self {
             reqwest,
-            paths,
             config,
             device: None,
             user: None,
         })
     }
-
-    pub fn api_config_save(&self, bearer_access_token: &str) -> Result<(), ServiceError> {
-        let base_path = self.reqwest.base_path.to_string();
-        let config = models::PrintNannyApiConfig {
-            bearer_access_token: bearer_access_token.to_string(),
-            base_path,
-        };
-        info!("Saving api_config to {:?}", &self.paths.api_config_json);
-        save_model_json::<models::PrintNannyApiConfig>(&config, &self.paths.api_config_json)?;
-        Ok(())
-    }
-
     // auth APIs
-
     // fetch user associated with auth token
     pub async fn auth_user_retreive(&self) -> Result<models::User, ServiceError> {
         Ok(users_api::users_me_retrieve(&self.reqwest).await?)
@@ -328,27 +310,6 @@ impl ApiService {
         }
     }
 
-    // read device.json from disk cache @ /var/run/printnanny
-    // hydrate cache if device.json not found
-    // pub async fn load_device_json(&self) -> Result<models::Device, ServiceError> {
-    //     let m = read_model_json::<models::Device>(&self.paths.device_json);
-    //     match m {
-    //         Ok(device) => Ok(device),
-    //         Err(_e) => {
-    //             warn!("Failed to read {:?} - attempting to load device.json from remote", &self.paths.device_json);
-    //             let res = self.device_retrieve_hostname().await;
-    //             match res {
-    //                 Ok(device) => {
-    //                     save_model_json::<models::Device>(&device, &self.paths.device_json)?;
-    //                     info!("Saved model {:?} to {:?}", &device, &self.paths.device_json);
-    //                     Ok(device)
-    //                 }
-    //                 Err(e) => Err(e)
-    //             }
-    //         }
-    //     }
-    // }
-
     pub async fn task_status_create(
         &self,
         task_id: i32,
@@ -369,35 +330,6 @@ impl ApiService {
                 .await?;
         Ok(res)
     }
-
-    // pub async fn task_create(
-    //     &self,
-    //     task_type: models::TaskType,
-    //     status: Option<models::TaskStatusType>,
-    //     detail: Option<String>,
-    //     wiki_url: Option<String>
-    // ) -> Result<models::Task, ServiceError> {
-    //     match &self.device {
-    //         Some(device) => {
-    //             let request = models::TaskRequest{
-    //                 active: Some(true),
-    //                 task_type,
-    //                 device: device.id
-    //             };
-    //             let task = devices_api::devices_tasks_create(&self.reqwest, device.id, request).await?;
-    //             info!("Success: created task={:?}", task);
-    //             match status {
-    //                 Some(s) => {
-    //                     let res  = self.task_status_create(task.id, device.id, s, wiki_url, detail ).await?;
-    //                     info!("Success: created task status={:?}", res);
-    //                     Ok(task)
-    //                 },
-    //                 None => Ok(task)
-    //             }
-    //         },
-    //         None => Err(ServiceError::SignupIncomplete{ cache: self.paths.device_json.clone() })
-    //     }
-    // }
     pub fn to_string_pretty<T: serde::Serialize>(
         &self,
         item: T,
