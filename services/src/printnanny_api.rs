@@ -238,11 +238,11 @@ impl ApiService {
         info!("Reading public key from {:?}", &self.config.mqtt.public_key);
         let pem = read_to_string(&self.config.mqtt.public_key)?;
         let req = models::PublicKeyRequest {
-            fingerprint: self.config.mqtt.fingerprint,
+            fingerprint: self.config.mqtt.fingerprint.clone(),
             pem,
             device,
-            cipher: &self.config.mqtt.cipher,
-            length: &self.config.mqtt.length,
+            cipher: self.config.mqtt.cipher.clone(),
+            length: self.config.mqtt.length.clone(),
         };
         let res = devices_api::public_key_update_or_create(&self.reqwest, device, req).await?;
         Ok(res)

@@ -47,7 +47,7 @@ impl Default for MQTTConfig {
             fingerprint: "".into(),
             fingerprint_algorithm: "md5".into(),
             ca_certs: "/opt/printnanny/default/ca-certificates".into(),
-            cipher: "secp256r1",
+            cipher: "secp256r1".into(),
             length: 4096,
         }
     }
