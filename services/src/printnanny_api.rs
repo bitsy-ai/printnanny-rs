@@ -206,9 +206,9 @@ impl ApiService {
         let user = self.auth_user_retreive().await?;
         // save License.toml with user/device info
         let mut config = self.config.clone();
+        let device = self.device_retrieve_hostname().await?;
         config.device = Some(device.clone());
         config.user = Some(user);
-        config.system_info = Some(system_info);
         config.save();
         Ok(device)
     }
