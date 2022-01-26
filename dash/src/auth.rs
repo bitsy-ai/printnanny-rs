@@ -15,7 +15,7 @@ use printnanny_services::printnanny_api::{ApiService, ServiceError};
 use super::error;
 use super::response::{FlashResponse, Response};
 
-pub const COOKIE_API_CONFIG: &str = "printnanny_api_config";
+pub const COOKIE_CONFIG: &str = "printnanny_config";
 // generic
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DashContext {
@@ -92,7 +92,7 @@ async fn handle_token_validate(
     token: &str,
     email: &str,
     config: PrintNannyConfig,
-) -> Result<ApiConfig, ServiceError> {
+) -> Result<PrintNannyConfig, ServiceError> {
     let mut auth_config = config.clone();
     let service = ApiService::new(config)?;
     let res = service.auth_token_validate(email, token).await?;
@@ -108,7 +108,7 @@ async fn handle_token_validate(
     info!("Setting up device");
     let device = service.device_setup().await?;
     info!("Success! Device updated: {:?}", device);
-    Ok(service.config.api)
+    Ok(service.config)
 }
 
 #[post("/<email>", data = "<form>")]
@@ -123,9 +123,9 @@ async fn login_step2_submit<'r>(
     match form.value {
         Some(ref v) => {
             let token = v.token;
-            let api_config = handle_token_validate(token, &email, c).await?;
+            let api_config: PrintNannyConfig = handle_token_validate(token, &email, c).await?;
             let cookie_value = serde_json::to_string(&api_config)?;
-            jar.add_private(Cookie::new(COOKIE_API_CONFIG, cookie_value));
+            jar.add_private(Cookie::new(COOKIE_CONFIG, cookie_value));
             Ok(FlashResponse::<Redirect>::from(Flash::success(
                 Redirect::to("/login/welcome"),
                 "Verification Success",
@@ -141,14 +141,11 @@ async fn login_step2_submit<'r>(
 }
 
 #[get("/welcome")]
-async fn login_step3(
-    jar: &CookieJar<'_>,
-    config: &State<PrintNannyConfig>,
-) -> Result<Response, FlashResponse<Template>> {
-    let get_api_config = jar.get_private(COOKIE_API_CONFIG);
+async fn login_step3(jar: &CookieJar<'_>) -> Result<Response, FlashResponse<Template>> {
+    let get_api_config = jar.get_private(COOKIE_CONFIG);
     match get_api_config {
         Some(cookie) => {
-            let api_config: ApiConfig = serde_json::from_str(cookie.value())?;
+            let config: PrintNannyConfig = serde_json::from_str(cookie.value())?;
             let context = get_context(config).await?;
             Ok(Response::Template(Template::render("welcome", context)))
         }
@@ -166,9 +163,8 @@ fn login_step2(email: String) -> Template {
     Template::render("authtoken", context)
 }
 
-pub async fn get_context(config: &State<PrintNannyConfig>) -> Result<DashContext, ServiceError> {
-    let c = config.inner().clone();
-    let service = ApiService::new(c)?;
+pub async fn get_context(config: PrintNannyConfig) -> Result<DashContext, ServiceError> {
+    let service = ApiService::new(config.clone())?;
     let device = service.device_retrieve_hostname().await?;
     let user = service.auth_user_retreive().await?;
     let context = DashContext { user, device };
@@ -178,7 +174,7 @@ pub async fn get_context(config: &State<PrintNannyConfig>) -> Result<DashContext
 
 #[get("/")]
 async fn login_step1(jar: &CookieJar<'_>) -> Result<Response, FlashResponse<Redirect>> {
-    let get_api_config = jar.get_private(COOKIE_API_CONFIG);
+    let get_api_config = jar.get_private(COOKIE_CONFIG);
     match get_api_config {
         Some(_) => Ok(Response::Redirect(Redirect::to("/"))),
         None => Ok(Response::Template(Template::render(

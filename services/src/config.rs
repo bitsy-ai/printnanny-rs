@@ -93,16 +93,14 @@ impl JanusConfig {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
+    pub path: String,
     pub api: ApiConfig,
     pub janus: JanusConfig,
     pub mqtt: MQTTConfig,
-    pub path: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<models::Device>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<models::User>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub system_info: Option<models::SystemInfo>,
 }
 pub struct ConfigError {}
 
@@ -132,7 +130,6 @@ impl Default for PrintNannyConfig {
             path,
             device: None,
             user: None,
-            system_info: None,
         }
     }
 }
@@ -205,8 +202,8 @@ impl PrintNannyConfig {
 
     pub fn save(self) -> String {
         let msg = format!("Failed to serialize {:?}", &self);
-        let content = toml::to_string(&self).expect(&msg);
-        let filename = format!("{}/{}", &self.path, "License.toml");
+        let content = serde_json::to_string(&self).expect(&msg);
+        let filename = format!("{}/{}", &self.path, "License.json");
         let msg = format!("Unable to write file: {}", &filename);
         fs::write("/tmp/foo", content).expect(&msg);
         info!(
