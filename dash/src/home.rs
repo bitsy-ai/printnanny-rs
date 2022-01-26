@@ -1,6 +1,7 @@
 use log::info;
 use rocket::form::Context;
 use rocket::http::CookieJar;
+use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
 
@@ -21,10 +22,7 @@ async fn index(
             info!("Attaching context to view {:?}", context);
             Ok(Response::Template(Template::render("index", context)))
         }
-        None => Ok(Response::Template(Template::render(
-            "authemail",
-            &Context::default(),
-        ))),
+        None => Ok(Response::Redirect(Redirect::to("/login"))),
     }
 }
 

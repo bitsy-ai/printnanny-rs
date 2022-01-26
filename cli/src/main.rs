@@ -1,5 +1,6 @@
 #[macro_use] extern crate clap;
-
+#[macro_use]
+extern crate rocket;
 use std::process::{ Command, Stdio };
 
 use anyhow::{ Result };

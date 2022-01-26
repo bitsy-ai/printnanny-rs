@@ -1,16 +1,16 @@
+use indexmap::indexmap;
 use rocket::response::{Flash, Redirect};
 use rocket::serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use rocket::http::{Cookie, CookieJar};
-
-use rocket::form::{Context, Contextual, Form, FromForm};
-use rocket::State;
-use rocket_dyn_templates::Template;
-
 use printnanny_api_client::models;
 use printnanny_services::config::{ApiConfig, PrintNannyConfig};
 use printnanny_services::printnanny_api::{ApiService, ServiceError};
+use rocket::form::{Context, Contextual, Form, FromForm, ValueField};
+use rocket::http::{Cookie, CookieJar};
+use rocket::State;
+use rocket_dyn_templates::tera;
+use rocket_dyn_templates::Template;
 
 use super::error;
 use super::response::{FlashResponse, Response};
@@ -25,7 +25,7 @@ pub struct DashContext {
     // system_info: models::SystemInfo
 }
 
-#[derive(Debug, FromForm)]
+#[derive(Debug, FromForm, Serialize, Deserialize)]
 pub struct EmailForm<'v> {
     #[field(validate = contains('@').or_else(msg!("invalid email address")))]
     email: &'v str,
@@ -172,6 +172,21 @@ pub async fn get_context(config: PrintNannyConfig) -> Result<DashContext, Servic
     Ok(context)
 }
 
+#[get("/?<email>")]
+async fn login_step1_email_prepopulated(
+    email: &str,
+    jar: &CookieJar<'_>,
+) -> Result<Response, FlashResponse<Redirect>> {
+    let get_api_config = jar.get_private(COOKIE_CONFIG);
+    let mut c = HashMap::new();
+    c.insert("values", indexmap! {"email" => vec![email]});
+    c.insert("errors", indexmap! {});
+    match get_api_config {
+        Some(_) => Ok(Response::Redirect(Redirect::to("/"))),
+        None => Ok(Response::Template(Template::render("authemail", c))),
+    }
+}
+
 #[get("/")]
 async fn login_step1(jar: &CookieJar<'_>) -> Result<Response, FlashResponse<Redirect>> {
     let get_api_config = jar.get_private(COOKIE_CONFIG);
@@ -179,7 +194,7 @@ async fn login_step1(jar: &CookieJar<'_>) -> Result<Response, FlashResponse<Redi
         Some(_) => Ok(Response::Redirect(Redirect::to("/"))),
         None => Ok(Response::Template(Template::render(
             "authemail",
-            &Context::default(),
+            Context::default(),
         ))),
     }
 }
@@ -187,6 +202,7 @@ async fn login_step1(jar: &CookieJar<'_>) -> Result<Response, FlashResponse<Redi
 pub fn routes() -> Vec<rocket::Route> {
     routes![
         login_step1,
+        login_step1_email_prepopulated,
         login_step1_submit,
         login_step2,
         login_step2_submit,
