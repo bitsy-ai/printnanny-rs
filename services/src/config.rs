@@ -56,8 +56,8 @@ impl Default for MQTTConfig {
 impl Default for JanusConfig {
     fn default() -> Self {
         Self {
-            admin_secret: "".into(),
-            token: "".into(),
+            admin_secret: "debug".into(),
+            token: "debug".into(),
             admin_base_path: "/admin".into(),
             admin_http_port: 7088,
             admin_https_port: 7089,

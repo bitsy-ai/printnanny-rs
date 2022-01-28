@@ -88,6 +88,16 @@ async fn login_step1_submit<'r>(
 // fields to re-render forms with submitted values on error. If you have no such
 // need, do not use `Contextual`. Use the equivalent of `Form<Submit<'_>>`.
 
+pub async fn handle_device_update(
+    config: PrintNannyConfig,
+) -> Result<PrintNannyConfig, ServiceError> {
+    info!("Sending device info using config {:?}", &config);
+    let service = ApiService::new(config)?;
+    let device = service.device_setup().await?;
+    info!("Success! Device info updated: {:?}", device);
+    Ok(service.config)
+}
+
 async fn handle_token_validate(
     token: &str,
     email: &str,
@@ -104,11 +114,9 @@ async fn handle_token_validate(
         bearer_access_token: Some(bearer_access_token),
     };
     auth_config.api = api_config;
-    let service = ApiService::new(auth_config)?;
-    info!("Setting up device");
-    let device = service.device_setup().await?;
-    info!("Success! Device updated: {:?}", device);
-    Ok(service.config)
+    let updated_config = handle_device_update(auth_config).await?;
+    info!("Success! Config updated: {:?}", updated_config);
+    Ok(updated_config)
 }
 
 #[post("/<email>", data = "<form>")]
@@ -164,7 +172,10 @@ fn login_step2(email: String) -> Template {
 }
 
 pub async fn get_context(config: PrintNannyConfig) -> Result<DashContext, ServiceError> {
-    let service = ApiService::new(config.clone())?;
+    info!("Sending device info using config {:?}", &config);
+    let service = ApiService::new(config)?;
+    let device = service.device_setup().await?;
+    info!("Success! Device info updated: {:?}", device);
     let device = service.device_retrieve_hostname().await?;
     let user = service.auth_user_retreive().await?;
     let context = DashContext { user, device };

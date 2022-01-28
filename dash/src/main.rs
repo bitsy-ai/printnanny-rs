@@ -6,7 +6,7 @@ use rocket_dyn_templates::Template;
 use printnanny_dash::auth;
 use printnanny_dash::debug;
 use printnanny_dash::home;
-use printnanny_services::config::{ApiConfig, PrintNannyConfig};
+use printnanny_services::config::PrintNannyConfig;
 
 #[tokio::main]
 async fn main() -> Result<()> {
