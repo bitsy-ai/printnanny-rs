@@ -203,9 +203,9 @@ impl PrintNannyConfig {
     pub fn save(self) -> String {
         let msg = format!("Failed to serialize {:?}", &self);
         let content = serde_json::to_string(&self).expect(&msg);
-        let filename = format!("{}/{}", &self.path, "License.json");
+        let filename = format!("{}/{}", &self.path, "license.json");
         let msg = format!("Unable to write file: {}", &filename);
-        fs::write("/tmp/foo", content).expect(&msg);
+        fs::write(&filename, content).expect(&msg);
         info!(
             "Wrote user={:?} device={:?} config to {}",
             &self.device, &self.user, &filename
