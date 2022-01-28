@@ -54,7 +54,9 @@ pub struct MQTTWorker {
     service: ApiService,
     claims: Claims,
     config_topic: String,
-    task_topic: String,
+    event_topic: String,
+    command_topic: String,
+    state_topic: String,
     mqttoptions: MqttOptions,
 }
 
@@ -124,8 +126,10 @@ impl MQTTWorker {
         let result = MQTTWorker {
             service,
             claims,
+            state_topic: cloudiot_device.state_topic.clone(),
+            command_topic: cloudiot_device.command_topic.clone(),
             config_topic: cloudiot_device.config_topic.clone(),
-            task_topic: cloudiot_device.task_topic.clone(),
+            event_topic: cloudiot_device.event_topic.clone(),
             mqttoptions,
         };
         Ok(result)
