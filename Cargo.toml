@@ -11,7 +11,7 @@ tag = false
 
 [package]
 name = "printnanny"
-version = "0.12.11"
+version = "0.12.12"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2018"
 license = "AGPL-3.0-or-later"
