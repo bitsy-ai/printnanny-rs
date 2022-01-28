@@ -103,7 +103,11 @@ impl MQTTWorker {
 
     pub async fn new(config: PrintNannyConfig) -> Result<MQTTWorker> {
         let service = ApiService::new(config.clone())?;
-        let device = service.device_retrieve_hostname().await?;
+        let device = service.device_setup().await?;
+        info!(
+            "Initializing subscription from cloudiotdevice {:?}",
+            device.cloudiot_device
+        );
         let cloudiot_device = device.cloudiot_device.as_ref().unwrap();
         let gcp_project_id: String = cloudiot_device.gcp_project_id.clone();
 
@@ -142,7 +146,11 @@ impl MQTTWorker {
             .await
             .unwrap();
         client
-            .subscribe(&self.task_topic, QoS::AtLeastOnce)
+            .subscribe(&self.command_topic, QoS::AtLeastOnce)
+            .await
+            .unwrap();
+        client
+            .subscribe(&self.state_topic, QoS::AtLeastOnce)
             .await
             .unwrap();
         loop {

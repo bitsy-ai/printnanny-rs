@@ -2314,9 +2314,9 @@ dependencies = [
 
 [[package]]
 name = "printnanny-api-client"
-version = "0.45.6"
+version = "0.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48e8ee3db804227b3b947ee28801329440de6934cf2c1dcf43d9cda1343df03a"
+checksum = "fec05209e6d3e91b96eb4ff68702a201303f5c81d5f8d9008fe65e210db11bd7"
 dependencies = [
  "bytes",
  "reqwest",
