@@ -2,7 +2,7 @@
 name = "printnanny-services"
 description = "Library of MQTT, API, and other services used by Print Nanny"
 license = "AGPL-3.0-or-later"
-version = "0.12.12"
+version = "0.12.13"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2018"
 
