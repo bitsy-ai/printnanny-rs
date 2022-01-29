@@ -83,7 +83,7 @@ impl MQTTWorker {
             &cloudiot_device.mqtt_bridge_hostname,
             mqtt_port,
         );
-        mqttoptions.set_keep_alive(Duration::new(5, 0));
+        mqttoptions.set_keep_alive(Duration::new(config.keepalive, 0));
         mqttoptions.set_credentials("unused", token);
 
         let mut roots = rustls::RootCertStore::empty();

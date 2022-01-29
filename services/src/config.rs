@@ -37,6 +37,7 @@ pub struct MQTTConfig {
     pub fingerprint_algorithm: String,
     pub cipher: String,
     pub length: i32,
+    pub keepalive: u64,
 }
 
 impl Default for MQTTConfig {
@@ -49,6 +50,7 @@ impl Default for MQTTConfig {
             ca_certs: vec!["/opt/printnanny/default/ca-certificates".into()],
             cipher: "secp256r1".into(),
             length: 4096,
+            keepalive: 300, // seconds
         }
     }
 }
