@@ -149,25 +149,19 @@ impl MQTTWorker {
 
     fn handle_ping(&self, event: models::TestEvent) -> Result<()> {
         // mark ping as received
-        let req = models::TestEventRequest {
-            status: Some(models::EventStatus::Ack),
-            ..event
-        };
+        // let req = models::TestEventRequest {
+        //     status: Some(models::EventStatus::Ack),
+        // };
 
         Ok(())
     }
 
     async fn handle_command(&self, event: &Publish) -> Result<()> {
         let data = self.deserialize_event(event)?;
-        match data {
-            PolymorphicEvent::TestEvent { event_type, .. } => match event_type {
-                models::TestEventType::Ping => {
-                    self.handle_ping(data)?;
-                }
-                _ => warn!("No handler configured for command, ignoring {:?}", data),
-            },
-            _ => warn!("No handler configured for command, ignoring {:?}", data),
-        };
+        // match data {
+        //     PolymorphicEvent::TestEvent(ref mut e) => {}
+        //     _ => warn!("No handler configured for command, ignoring {:?}", data),
+        // };
         Ok(())
     }
 
