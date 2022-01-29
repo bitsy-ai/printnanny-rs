@@ -6,12 +6,15 @@ use anyhow::{Context, Result};
 use chrono;
 use clap::ArgEnum;
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-use log::{debug, info};
-use rumqttc::{AsyncClient, Event, MqttOptions, Outgoing, Packet, QoS, Transport};
+use log::{debug, error, info, warn};
+use rumqttc::{
+    AsyncClient, Event, Incoming, MqttOptions, Outgoing, Packet, Publish, QoS, Transport,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::config::{MQTTConfig, PrintNannyConfig};
-use printnanny_api_client::models::CloudiotDevice;
+use printnanny_api_client::models;
+use printnanny_api_client::models::PolymorphicEvent;
 
 use super::printnanny_api::ApiService;
 #[derive(Copy, Eq, PartialEq, Debug, Clone, ArgEnum)]
@@ -72,7 +75,7 @@ fn encode_jwt(private_key: &str, claims: &Claims) -> Result<String> {
 
 impl MQTTWorker {
     fn mqttoptions(
-        cloudiot_device: &CloudiotDevice,
+        cloudiot_device: &models::CloudiotDevice,
         config: &MQTTConfig,
         token: &str,
     ) -> Result<MqttOptions> {
@@ -106,7 +109,7 @@ impl MQTTWorker {
         let service = ApiService::new(config.clone())?;
         let device = service.device_setup().await?;
         info!(
-            "Initializing subscription from cloudiotdevice {:?}",
+            "Initializing subscription from models::CloudiotDevice {:?}",
             device.cloudiot_device
         );
         let cloudiot_device = device.cloudiot_device.as_ref().unwrap();
@@ -135,6 +138,59 @@ impl MQTTWorker {
         Ok(result)
     }
 
+    fn deserialize_event(&self, event: &Publish) -> Result<PolymorphicEvent> {
+        let data = serde_json::from_slice::<PolymorphicEvent>(event.payload.as_ref())?;
+        info!(
+            "Deserialized command data={:?} from event={:?}",
+            data, event
+        );
+        Ok(data)
+    }
+
+    fn handle_ping(&self, event: models::TestEvent) -> Result<()> {
+        // mark ping as received
+        let req = models::TestEventRequest {
+            status: Some(models::EventStatus::Ack),
+            ..event
+        };
+
+        Ok(())
+    }
+
+    async fn handle_command(&self, event: &Publish) -> Result<()> {
+        let data = self.deserialize_event(event)?;
+        match data {
+            PolymorphicEvent::TestEvent { event_type, .. } => match event_type {
+                models::TestEventType::Ping => {
+                    self.handle_ping(data)?;
+                }
+                _ => warn!("No handler configured for command, ignoring {:?}", data),
+            },
+            _ => warn!("No handler configured for command, ignoring {:?}", data),
+        };
+        Ok(())
+    }
+
+    async fn handle_event(&self, event: &Publish) -> Result<()> {
+        info!("Handling event {:?}", event);
+        match &event.topic {
+            _ if &event.topic == &self.config_topic => {
+                warn!("Ignored msg on config topic {:?}", event)
+            }
+            _ if &event.topic == &self.event_topic => {
+                warn!("Ignored msg on event topic {:?}", event)
+            }
+            _ if &event.topic == &self.state_topic => {
+                warn!("Ignored msg on state topic {:?}", event)
+            }
+            _ if self.command_topic.contains(&event.topic) => {
+                self.handle_command(event).await?;
+            }
+            _ => warn!("Ignored published event {:?}", event),
+        };
+        Ok(())
+    }
+
     pub async fn run(self) -> Result<()> {
         let (client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 64);
         client
@@ -151,14 +207,15 @@ impl MQTTWorker {
             .unwrap();
         loop {
             let notification = eventloop.poll().await?;
-            match notification {
+            match &notification {
                 Event::Incoming(Packet::PingResp) => {
-                    debug!("Received = {:?}", notification)
+                    debug!("Received = {:?}", &notification)
                 }
                 Event::Outgoing(Outgoing::PingReq) => {
-                    debug!("Received = {:?}", notification)
+                    debug!("Received = {:?}", &notification)
                 }
-                _ => info!("Received = {:?}", notification),
+                Event::Incoming(Incoming::Publish(e)) => self.handle_event(&e).await?,
+                _ => info!("Received = {:?}", &notification),
             }
         }
     }
