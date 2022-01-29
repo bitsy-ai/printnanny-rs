@@ -24,6 +24,11 @@ pub enum ServiceError {
     AuthEmailCreateError(#[from] ApiError<auth_api::AuthEmailCreateError>),
 
     #[error(transparent)]
+    CloudiotDeviceUpdateOrCreateError(
+        #[from] ApiError<devices_api::CloudiotDeviceUpdateOrCreateError>,
+    ),
+
+    #[error(transparent)]
     DevicesCreateError(#[from] ApiError<devices_api::DevicesCreateError>),
 
     #[error(transparent)]
@@ -165,6 +170,16 @@ impl ApiService {
         Ok(res)
     }
 
+    pub async fn cloudiot_device_update_or_create(
+        &self,
+        device: i32,
+        public_key: i32,
+    ) -> Result<models::CloudiotDevice, ServiceError> {
+        let req = models::CloudiotDeviceRequest { public_key };
+        let res = devices_api::cloudiot_device_update_or_create(&self.reqwest, device, req).await?;
+        Ok(res)
+    }
+
     pub async fn device_retrieve_or_create_hostname(&self) -> Result<models::Device, ServiceError> {
         let res = self.device_retrieve_hostname().await;
         match res {
@@ -202,6 +217,9 @@ impl ApiService {
         let public_key = self.device_public_key_update_or_create(device.id).await?;
         info!("Success! Updated PublicKey: {:?}", public_key);
 
+        let cloudiot_device = self
+            .cloudiot_device_update_or_create(device.id, public_key.id)
+            .await?;
         // get user
         let user = self.auth_user_retreive().await?;
         // save License.toml with user/device info

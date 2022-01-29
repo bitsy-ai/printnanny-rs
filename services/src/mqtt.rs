@@ -10,7 +10,7 @@ use log::{debug, info};
 use rumqttc::{AsyncClient, Event, MqttOptions, Outgoing, Packet, QoS, Transport};
 use serde::{Deserialize, Serialize};
 
-use crate::config::{ApiConfig, PrintNannyConfig};
+use crate::config::{MQTTConfig, PrintNannyConfig};
 use printnanny_api_client::models::CloudiotDevice;
 
 use super::printnanny_api::ApiService;
@@ -52,9 +52,12 @@ struct Claims {
 #[derive(Debug, Clone)]
 pub struct MQTTWorker {
     service: ApiService,
+    config: PrintNannyConfig,
     claims: Claims,
     config_topic: String,
-    task_topic: String,
+    event_topic: String,
+    command_topic: String,
+    state_topic: String,
     mqttoptions: MqttOptions,
 }
 
@@ -70,9 +73,7 @@ fn encode_jwt(private_key: &str, claims: &Claims) -> Result<String> {
 impl MQTTWorker {
     fn mqttoptions(
         cloudiot_device: &CloudiotDevice,
-        private_key: &str,
-        public_key: &str,
-        ca_certs: &str,
+        config: &MQTTConfig,
         token: &str,
     ) -> Result<MqttOptions> {
         let mqtt_port = u16::try_from(cloudiot_device.mqtt_bridge_port)?;
@@ -87,10 +88,12 @@ impl MQTTWorker {
 
         let mut roots = rustls::RootCertStore::empty();
 
-        let root_ca_bytes =
-            std::fs::read(ca_certs).context(format!("Failed to read file {:?}", ca_certs))?;
-        let root_cert = rustls::Certificate(root_ca_bytes);
-        roots.add(&root_cert)?;
+        for cert in config.ca_certs.iter() {
+            let root_ca_bytes =
+                std::fs::read(cert).context(format!("Failed to read file {:?}", cert))?;
+            let root_cert = rustls::Certificate(root_ca_bytes);
+            roots.add(&root_cert)?;
+        }
 
         let mut client_config = rumqttc::ClientConfig::new();
         client_config.root_store = roots;
@@ -101,7 +104,11 @@ impl MQTTWorker {
 
     pub async fn new(config: PrintNannyConfig) -> Result<MQTTWorker> {
         let service = ApiService::new(config.clone())?;
-        let device = service.device_retrieve_hostname().await?;
+        let device = service.device_setup().await?;
+        info!(
+            "Initializing subscription from cloudiotdevice {:?}",
+            device.cloudiot_device
+        );
         let cloudiot_device = device.cloudiot_device.as_ref().unwrap();
         let gcp_project_id: String = cloudiot_device.gcp_project_id.clone();
 
@@ -113,19 +120,16 @@ impl MQTTWorker {
             aud: gcp_project_id,
         };
         let token = encode_jwt(&config.mqtt.private_key, &claims)?;
-        let mqttoptions = MQTTWorker::mqttoptions(
-            &cloudiot_device,
-            &config.mqtt.private_key,
-            &config.mqtt.public_key,
-            &config.mqtt.ca_certs,
-            &token,
-        )?;
+        let mqttoptions = MQTTWorker::mqttoptions(&cloudiot_device, &config.mqtt, &token)?;
 
         let result = MQTTWorker {
             service,
             claims,
+            config,
+            state_topic: cloudiot_device.state_topic.clone(),
+            command_topic: cloudiot_device.command_topic.clone(),
             config_topic: cloudiot_device.config_topic.clone(),
-            task_topic: cloudiot_device.task_topic.clone(),
+            event_topic: cloudiot_device.event_topic.clone(),
             mqttoptions,
         };
         Ok(result)
@@ -138,7 +142,11 @@ impl MQTTWorker {
             .await
             .unwrap();
         client
-            .subscribe(&self.task_topic, QoS::AtLeastOnce)
+            .subscribe(&self.command_topic, QoS::AtLeastOnce)
+            .await
+            .unwrap();
+        client
+            .subscribe(&self.state_topic, QoS::AtLeastOnce)
             .await
             .unwrap();
         loop {
