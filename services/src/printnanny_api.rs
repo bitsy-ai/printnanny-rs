@@ -160,6 +160,7 @@ impl ApiService {
             hostname: Some(hostname),
             monitoring_active: Some(false),
             release_channel: None,
+            setup_complete: Some(false),
         };
         Ok(devices_api::devices_create(&self.reqwest, req).await?)
     }
