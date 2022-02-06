@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use chrono;
 use clap::ArgEnum;
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-use log::{debug, error, info, warn};
+use log::{debug, info, warn};
 use rumqttc::{
     AsyncClient, Event, Incoming, MqttOptions, Outgoing, Packet, Publish, QoS, Transport,
 };
@@ -147,7 +147,7 @@ impl MQTTWorker {
         Ok(data)
     }
 
-    fn handle_ping(&self, event: models::TestEvent) -> Result<()> {
+    pub fn handle_ping(&self, _event: models::TestEvent) -> Result<()> {
         // mark ping as received
         // let req = models::TestEventRequest {
         //     status: Some(models::EventStatus::Ack),
@@ -157,7 +157,7 @@ impl MQTTWorker {
     }
 
     async fn handle_command(&self, event: &Publish) -> Result<()> {
-        let data = self.deserialize_event(event)?;
+        let _data = self.deserialize_event(event)?;
         // match data {
         //     PolymorphicEvent::TestEvent(ref mut e) => {}
         //     _ => warn!("No handler configured for command, ignoring {:?}", data),
