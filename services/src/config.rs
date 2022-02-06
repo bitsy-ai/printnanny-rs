@@ -17,6 +17,21 @@ pub struct ApiConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DashConfig {
+    pub base_path: String,
+    pub port: i32,
+}
+
+impl Default for DashConfig {
+    fn default() -> Self {
+        Self {
+            base_path: "/".into(),
+            port: 9001,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct JanusConfig {
     pub admin_secret: String,
     pub token: String,
@@ -97,6 +112,7 @@ impl JanusConfig {
 pub struct PrintNannyConfig {
     pub path: String,
     pub api: ApiConfig,
+    pub dash: DashConfig,
     pub janus: JanusConfig,
     pub mqtt: MQTTConfig,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -125,8 +141,10 @@ impl Default for PrintNannyConfig {
         let path = "/opt/printnanny/default".into();
         let janus = JanusConfig::default();
         let mqtt = MQTTConfig::default();
+        let dash = DashConfig::default();
         PrintNannyConfig {
             api,
+            dash,
             janus,
             mqtt,
             path,

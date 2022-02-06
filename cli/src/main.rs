@@ -12,6 +12,7 @@ use printnanny_services::config::{ PrintNannyConfig};
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker, MqttAction };
 use printnanny_cli::device::{DeviceCmd, DeviceAction };
+use printnanny_cli::config::{ConfigAction};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -37,6 +38,7 @@ async fn main() -> Result<()> {
             .author(crate_authors!())
             .about(crate_description!())
             .version(crate_version!())
+            .setting(AppSettings::ArgRequiredElseHelp)
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token")
             .arg(Arg::new("endpoint")
                 .possible_values(JanusAdminEndpoint::possible_values())
@@ -61,17 +63,31 @@ async fn main() -> Result<()> {
             .author(crate_authors!())
             .about(crate_description!())
             .version(crate_version!())
+            .setting(AppSettings::ArgRequiredElseHelp)
             .about("Config serializer (JSON) intended for use with Ansible facts.d")
             .arg(Arg::new("output")
                 .short('o')
                 .long("output")
                 .takes_value(true)
             ))
+
+        // config
+        .subcommand(App::new("config")
+            .author(crate_authors!())
+            .about(crate_description!())
+            .version(crate_version!())
+            .setting(AppSettings::ArgRequiredElseHelp)
+            .about("Show PrintNanny config")
+            .arg(Arg::new("action")
+                .possible_values(ConfigAction::possible_values())
+                .ignore_case(true)
+            ))
         // device
         .subcommand(App::new("device")
             .author(crate_authors!())
             .about(crate_description!())
             .version(crate_version!())
+            .setting(AppSettings::ArgRequiredElseHelp)
             .about("Interact with device REST API")
             // model
             .arg(Arg::new("action")
@@ -89,6 +105,7 @@ async fn main() -> Result<()> {
             .about(crate_description!())
             .version(crate_version!())
             .about("Interact with MQTT pub/sub service")
+            .setting(AppSettings::ArgRequiredElseHelp)
             .arg(Arg::new("action")
                 .possible_values(MqttAction::possible_values())
                 .ignore_case(true)
@@ -137,6 +154,9 @@ async fn main() -> Result<()> {
                 },
                 MqttAction::Publish => unimplemented!("mqtt publish is not implemented yet")
             }
+        },
+        Some(("config", _)) => {
+            println!("{}",serde_json::to_string_pretty(&config)?);
         },
         Some(("device", sub_m)) => {
             let action: DeviceAction = sub_m.value_of_t("action").unwrap_or_else(|e| e.exit());

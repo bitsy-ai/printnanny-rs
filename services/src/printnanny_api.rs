@@ -218,7 +218,7 @@ impl ApiService {
         let public_key = self.device_public_key_update_or_create(device.id).await?;
         info!("Success! Updated PublicKey: {:?}", public_key);
 
-        let cloudiot_device = self
+        let _cloudiot_device = self
             .cloudiot_device_update_or_create(device.id, public_key.id)
             .await?;
         // get user
