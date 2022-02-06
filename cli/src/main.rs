@@ -67,6 +67,13 @@ async fn main() -> Result<()> {
                 .long("output")
                 .takes_value(true)
             ))
+
+        // config
+        .subcommand(App::new("config")
+            .author(crate_authors!())
+            .about(crate_description!())
+            .version(crate_version!())
+            .about("Show PrintNanny config"))
         // device
         .subcommand(App::new("device")
             .author(crate_authors!())
@@ -137,6 +144,9 @@ async fn main() -> Result<()> {
                 },
                 MqttAction::Publish => unimplemented!("mqtt publish is not implemented yet")
             }
+        },
+        Some(("config", _)) => {
+            println!("{}",serde_json::to_string_pretty(&config)?);
         },
         Some(("device", sub_m)) => {
             let action: DeviceAction = sub_m.value_of_t("action").unwrap_or_else(|e| e.exit());

@@ -2337,6 +2337,7 @@ dependencies = [
  "log",
  "printnanny-api-client",
  "printnanny-services",
+ "serde_json",
  "tokio",
 ]
 
