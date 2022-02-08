@@ -125,7 +125,7 @@ async fn login_step2_submit<'r>(
     jar: &CookieJar<'_>,
     form: Form<Contextual<'r, TokenForm<'r>>>,
     config: &State<PrintNannyConfig>,
-) -> Result<FlashResponse<Redirect>, FlashResponse<Template>> {
+) -> Result<Response, FlashResponse<Template>> {
     info!("Received auth email form response {:?}", form);
     let c = config.inner().clone();
     match form.value {
@@ -134,10 +134,7 @@ async fn login_step2_submit<'r>(
             let api_config: PrintNannyConfig = handle_token_validate(token, &email, c).await?;
             let cookie_value = serde_json::to_string(&api_config)?;
             jar.add_private(Cookie::new(COOKIE_CONFIG, cookie_value));
-            Ok(FlashResponse::<Redirect>::from(Flash::success(
-                Redirect::to("/login/welcome"),
-                "Verification Success",
-            )))
+            Ok(Response::Redirect(Redirect::to("/")))
         }
         None => {
             info!("form.value is empty");
