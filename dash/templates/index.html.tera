@@ -7,7 +7,11 @@
     <div class="col-8">
         <h1>Print Nanny OS is Ready to Use!</h1>
         <h3>Logged in as {{user.email}} </h3>
-
+        {% if not device.setup_complete %}
+        <a target="_blank" href="https://print-nanny.com/welcome/{{device.id}}?step=2">
+            <button>Finish Setup</button>
+        </a>
+        {% endif %}
         <a target="_blank" href="http://{{device.hostname}}:5000">
             <button>Open OctoPrint</button>
         </a>
