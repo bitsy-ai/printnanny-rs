@@ -3,7 +3,6 @@ use rocket::response::Redirect;
 use rocket::serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use printnanny_api_client::models;
 use printnanny_services::config::{ApiConfig, PrintNannyConfig};
 use printnanny_services::printnanny_api::{ApiService, ServiceError};
 use rocket::form::{Context, Contextual, Form, FromForm};
@@ -15,14 +14,6 @@ use super::error;
 use super::response::{FlashResponse, Response};
 
 pub const COOKIE_CONFIG: &str = "printnanny_config";
-// generic
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DashContext {
-    api_config: models::PrintNannyApiConfig,
-    user: models::User,
-    device: models::Device,
-    // system_info: models::SystemInfo
-}
 
 #[derive(Debug, FromForm, Serialize, Deserialize)]
 pub struct EmailForm<'v> {
@@ -148,7 +139,6 @@ async fn login_step3(jar: &CookieJar<'_>) -> Result<Response, FlashResponse<Temp
     match get_api_config {
         Some(cookie) => {
             let config: PrintNannyConfig = serde_json::from_str(cookie.value())?;
-            // let context = get_context(config).await?;
             Ok(Response::Template(Template::render("welcome", config)))
         }
         None => Ok(Response::Template(Template::render(
@@ -164,18 +154,6 @@ fn login_step2(email: String) -> Template {
     context.insert("email", email);
     Template::render("authtoken", context)
 }
-
-// pub async fn get_context(config: PrintNannyConfig) -> Result<DashContext, ServiceError> {
-//     info!("Sending device info using config {:?}", &config);
-//     let service = ApiService::new(config)?;
-//     let device = service.device_setup().await?;
-//     info!("Success! Device info updated: {:?}", device);
-//     let device = service.device_retrieve_hostname().await?;
-//     let user = service.auth_user_retreive().await?;
-//     let context = DashContext { user, device, api };
-
-//     Ok(context)
-// }
 
 #[get("/?<email>")]
 async fn login_step1_email_prepopulated(

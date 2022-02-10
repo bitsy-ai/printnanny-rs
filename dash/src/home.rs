@@ -13,7 +13,6 @@ async fn index(jar: &CookieJar<'_>) -> Result<Response, FlashResponse<Template>>
     match api_config {
         Some(cookie) => {
             let config: PrintNannyConfig = serde_json::from_str(cookie.value())?;
-            // let context = auth::get_context(config).await?;
             info!("Attaching context to view {:?}", config);
             Ok(Response::Template(Template::render("index", config)))
         }
