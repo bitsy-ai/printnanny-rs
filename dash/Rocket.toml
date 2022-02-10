@@ -2,3 +2,4 @@
 limits.data-form = "20MiB"
 template_dir = "templates/"
 port = 9001
+loglevel="debug"

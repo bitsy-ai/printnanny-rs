@@ -73,7 +73,10 @@ pub enum ServiceError {
     FingerprintError { path: PathBuf, stderr: String },
 
     #[error(transparent)]
-    FigmentError(#[from] procfs::ProcError),
+    ProcError(#[from] procfs::ProcError),
+
+    #[error(transparent)]
+    FigmentError(#[from] figment::Error),
 
     #[error(transparent)]
     SysInfoError(#[from] sys_info::Error),
@@ -203,7 +206,7 @@ impl ApiService {
         }
     }
 
-    pub async fn device_setup(&self) -> Result<models::Device, ServiceError> {
+    pub async fn device_setup(&self) -> Result<PrintNannyConfig, ServiceError> {
         // get or create device with matching hostname
         let device = self.device_retrieve_or_create_hostname().await?;
         info!("Success! Registered device: {:?}", device);
@@ -228,8 +231,8 @@ impl ApiService {
         let device = self.device_retrieve_hostname().await?;
         config.device = Some(device.clone());
         config.user = Some(user);
-        config.save();
-        Ok(device)
+        config.save()?;
+        Ok(config)
     }
 
     async fn device_public_key_update_or_create(

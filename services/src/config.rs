@@ -185,6 +185,10 @@ impl PrintNannyConfig {
             Some(c) => result.clone().merge(Toml::file(c)),
             None => result,
         };
+        info!(
+            "Initialized PrintNannyConfig from PRINTNANNY_CONFIG and PRINTANNY_ env vars: \n {:?}",
+            &result
+        );
 
         info!("Loaded config from profile {:?}", result.profile());
         let path: String = result
@@ -196,9 +200,11 @@ impl PrintNannyConfig {
         let toml_glob = format!("{}/*.toml", &path);
         let json_glob = format!("{}/*.json", &path);
 
+        info!("Merging PrintNannyConfig from {}", &json_glob);
         let result = Self::read_path_glob::<Json>(&json_glob, result);
+        info!("Merging PrintNannyConfig from {}", &toml_glob);
         let result = Self::read_path_glob::<Toml>(&toml_glob, result);
-
+        info!("Finalized PrintNannyConfig: \n {:?}", result);
         result
     }
 
@@ -223,7 +229,7 @@ impl PrintNannyConfig {
     pub fn save(&self) -> Result<()> {
         // save api_config.json
         let msg = format!("Failed to serialize {:?}", self.api);
-        let content = serde_json::to_string(&self.api).expect(&msg);
+        let content = serde_json::to_string_pretty(&self.api).expect(&msg);
         let filename = format!("{}/{}", &self.path, "api.json");
         let msg = format!("Unable to write file: {}", &filename);
         fs::write(&filename, content).expect(&msg);
@@ -231,7 +237,7 @@ impl PrintNannyConfig {
 
         // save dash.json
         let msg = format!("Failed to serialize {:?}", self.dash);
-        let content = serde_json::to_string(&self.dash).expect(&msg);
+        let content = serde_json::to_string_pretty(&self.dash).expect(&msg);
         let filename = format!("{}/{}", &self.path, "dash.json");
         let msg = format!("Unable to write file: {}", &filename);
         fs::write(&filename, content).expect(&msg);
@@ -239,7 +245,7 @@ impl PrintNannyConfig {
 
         // save janus.json
         let msg = format!("Failed to serialize {:?}", self.janus);
-        let content = serde_json::to_string(&self.janus).expect(&msg);
+        let content = serde_json::to_string_pretty(&self.janus).expect(&msg);
         let filename = format!("{}/{}", &self.path, "janus.json");
         let msg = format!("Unable to write file: {}", &filename);
         fs::write(&filename, content).expect(&msg);
@@ -247,7 +253,7 @@ impl PrintNannyConfig {
 
         // save mqtt.json
         let msg = format!("Failed to serialize {:?}", self.mqtt);
-        let content = serde_json::to_string(&self.mqtt).expect(&msg);
+        let content = serde_json::to_string_pretty(&self.mqtt).expect(&msg);
         let filename = format!("{}/{}", &self.path, "mqtt.json");
         let msg = format!("Unable to write file: {}", &filename);
         fs::write(&filename, content).expect(&msg);
@@ -255,7 +261,7 @@ impl PrintNannyConfig {
 
         // save device.json
         let msg = format!("Failed to serialize {:?}", self.device);
-        let content = serde_json::to_string(&self.device).expect(&msg);
+        let content = serde_json::to_string_pretty(&self.device).expect(&msg);
         let filename = format!("{}/{}", &self.path, "device.json");
         let msg = format!("Unable to write file: {}", &filename);
         fs::write(&filename, content).expect(&msg);
@@ -263,7 +269,7 @@ impl PrintNannyConfig {
 
         // save user.json
         let msg = format!("Failed to serialize {:?}", self.user);
-        let content = serde_json::to_string(&self.user).expect(&msg);
+        let content = serde_json::to_string_pretty(&self.user).expect(&msg);
         let filename = format!("{}/{}", &self.path, "user.json");
         let msg = format!("Unable to write file: {}", &filename);
         fs::write(&filename, content).expect(&msg);

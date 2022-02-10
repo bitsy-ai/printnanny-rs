@@ -8,14 +8,14 @@
         <h1>Welcome to Print Nanny OS!</h1>
         <h3>Logged in as {{user.email}} </h3>
         {% if not device.setup_complete %}
-        <a target="_blank" href="{{ api.base_url }}{{ device.video_test_url }}">
-            <button>Test Remote Video</button>
+        <a target="_blank" href="{{ api.base_path }}{{ device.video_test_url }}">
+            <button>Test Video</button>
         </a>
         {% endif %}
         <a target="_blank" href="http://{{device.hostname}}:5000">
             <button>Open OctoPrint</button>
         </a>
-        <a target="_blank" href="{{ api.base_url }}{{device.dashboard_url}}">
+        <a target="_blank" href="{{ api.base_path }}{{device.dashboard_url}}">
             <button>Manage Device</button>
         </a>
     </div>
