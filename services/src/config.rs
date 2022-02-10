@@ -220,17 +220,56 @@ impl PrintNannyConfig {
         result
     }
 
-    pub fn save(self) -> String {
-        let msg = format!("Failed to serialize {:?}", &self);
-        let content = serde_json::to_string(&self).expect(&msg);
-        let filename = format!("{}/{}", &self.path, "license.json");
+    pub fn save(&self) -> Result<()> {
+        // save api_config.json
+        let msg = format!("Failed to serialize {:?}", self.api);
+        let content = serde_json::to_string(&self.api).expect(&msg);
+        let filename = format!("{}/{}", &self.path, "api.json");
         let msg = format!("Unable to write file: {}", &filename);
         fs::write(&filename, content).expect(&msg);
-        info!(
-            "Wrote user={:?} device={:?} config to {}",
-            &self.device, &self.user, &filename
-        );
-        filename.to_string()
+        info!("Success! Wrote {}", &filename);
+
+        // save dash.json
+        let msg = format!("Failed to serialize {:?}", self.dash);
+        let content = serde_json::to_string(&self.dash).expect(&msg);
+        let filename = format!("{}/{}", &self.path, "dash.json");
+        let msg = format!("Unable to write file: {}", &filename);
+        fs::write(&filename, content).expect(&msg);
+        info!("Success! Wrote {}", &filename);
+
+        // save janus.json
+        let msg = format!("Failed to serialize {:?}", self.janus);
+        let content = serde_json::to_string(&self.janus).expect(&msg);
+        let filename = format!("{}/{}", &self.path, "janus.json");
+        let msg = format!("Unable to write file: {}", &filename);
+        fs::write(&filename, content).expect(&msg);
+        info!("Success! Wrote {}", &filename);
+
+        // save mqtt.json
+        let msg = format!("Failed to serialize {:?}", self.mqtt);
+        let content = serde_json::to_string(&self.mqtt).expect(&msg);
+        let filename = format!("{}/{}", &self.path, "mqtt.json");
+        let msg = format!("Unable to write file: {}", &filename);
+        fs::write(&filename, content).expect(&msg);
+        info!("Success! Wrote {}", &filename);
+
+        // save device.json
+        let msg = format!("Failed to serialize {:?}", self.device);
+        let content = serde_json::to_string(&self.device).expect(&msg);
+        let filename = format!("{}/{}", &self.path, "device.json");
+        let msg = format!("Unable to write file: {}", &filename);
+        fs::write(&filename, content).expect(&msg);
+        info!("Success! Wrote {}", &filename);
+
+        // save user.json
+        let msg = format!("Failed to serialize {:?}", self.user);
+        let content = serde_json::to_string(&self.user).expect(&msg);
+        let filename = format!("{}/{}", &self.path, "user.json");
+        let msg = format!("Unable to write file: {}", &filename);
+        fs::write(&filename, content).expect(&msg);
+        info!("Success! Wrote {}", &filename);
+
+        Ok(())
     }
 
     /// Extract a `Config` from `provider`, panicking if extraction fails.
