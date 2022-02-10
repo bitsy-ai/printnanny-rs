@@ -45,7 +45,12 @@ impl DeviceCmd {
     pub async fn handle(&self) -> Result<String> {
         let result = match self.action {
             DeviceAction::Get => self.service.device_retrieve_hostname().await?,
-            DeviceAction::Setup => self.service.device_setup().await?.device,
+            DeviceAction::Setup => self
+                .service
+                .device_setup()
+                .await?
+                .device
+                .expect("Failed to setup device"),
         };
         debug!("Success action={:?} result={:?}", self.action, result);
         Ok(self.service.to_string_pretty::<models::Device>(result)?)
