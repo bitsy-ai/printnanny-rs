@@ -73,7 +73,10 @@ pub enum ServiceError {
     FingerprintError { path: PathBuf, stderr: String },
 
     #[error(transparent)]
-    FigmentError(#[from] procfs::ProcError),
+    ProcError(#[from] procfs::ProcError),
+
+    #[error(transparent)]
+    FigmentError(#[from] figment::Error),
 
     #[error(transparent)]
     SysInfoError(#[from] sys_info::Error),
@@ -228,7 +231,7 @@ impl ApiService {
         let device = self.device_retrieve_hostname().await?;
         config.device = Some(device.clone());
         config.user = Some(user);
-        config.save();
+        config.save()?;
         Ok(device)
     }
 
