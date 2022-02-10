@@ -1,15 +1,14 @@
 use indexmap::indexmap;
-use rocket::response::{Flash, Redirect};
+use rocket::response::Redirect;
 use rocket::serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use printnanny_api_client::models;
 use printnanny_services::config::{ApiConfig, PrintNannyConfig};
 use printnanny_services::printnanny_api::{ApiService, ServiceError};
-use rocket::form::{Context, Contextual, Form, FromForm, ValueField};
+use rocket::form::{Context, Contextual, Form, FromForm};
 use rocket::http::{Cookie, CookieJar};
 use rocket::State;
-use rocket_dyn_templates::tera;
 use rocket_dyn_templates::Template;
 
 use super::error;
@@ -67,8 +66,6 @@ async fn login_step1_submit<'r>(
     config: &State<PrintNannyConfig>,
 ) -> Result<Response, FlashResponse<Template>> {
     info!("Received auth email form response {:?}", form);
-    let c = config.inner().clone();
-
     match &form.value {
         Some(signup) => {
             let result = handle_step1(signup, config).await?;

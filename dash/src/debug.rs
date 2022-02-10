@@ -1,9 +1,7 @@
-use rocket::serde::json::Json;
-use rocket::State;
-use std::convert::TryInto;
-
 use crate::response::Response;
 use printnanny_services::config::PrintNannyConfig;
+use rocket::serde::json::Json;
+use rocket::State;
 
 #[get("/")]
 fn get_config(config: &State<PrintNannyConfig>) -> Response {
