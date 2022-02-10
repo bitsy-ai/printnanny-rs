@@ -9,7 +9,7 @@
         <h3>Logged in as {{user.email}} </h3>
         {% if not device.setup_complete %}
         <a target="_blank" href="{{ api.base_path }}{{ device.video_test_url }}">
-            <button>Test Remote Video</button>
+            <button>Test Video</button>
         </a>
         {% endif %}
         <a target="_blank" href="http://{{device.hostname}}:5000">

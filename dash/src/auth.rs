@@ -90,9 +90,9 @@ pub async fn handle_device_update(
 ) -> Result<PrintNannyConfig, ServiceError> {
     info!("Sending device info using config {:?}", &config);
     let service = ApiService::new(config)?;
-    let device = service.device_setup().await?;
-    info!("Success! Device info updated: {:?}", device);
-    Ok(service.config)
+    let new_config = service.device_setup().await?;
+    info!("Success! Config updated: {:?}", &new_config);
+    Ok(new_config)
 }
 
 async fn handle_token_validate(

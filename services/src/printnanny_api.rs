@@ -206,7 +206,7 @@ impl ApiService {
         }
     }
 
-    pub async fn device_setup(&self) -> Result<models::Device, ServiceError> {
+    pub async fn device_setup(&self) -> Result<PrintNannyConfig, ServiceError> {
         // get or create device with matching hostname
         let device = self.device_retrieve_or_create_hostname().await?;
         info!("Success! Registered device: {:?}", device);
@@ -232,7 +232,7 @@ impl ApiService {
         config.device = Some(device.clone());
         config.user = Some(user);
         config.save()?;
-        Ok(device)
+        Ok(config)
     }
 
     async fn device_public_key_update_or_create(
