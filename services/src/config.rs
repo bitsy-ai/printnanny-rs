@@ -185,6 +185,10 @@ impl PrintNannyConfig {
             Some(c) => result.clone().merge(Toml::file(c)),
             None => result,
         };
+        info!(
+            "Initialized PrintNannyConfig from PRINTNANNY_CONFIG and PRINTANNY_ env vars: \n {:?}",
+            &result
+        );
 
         info!("Loaded config from profile {:?}", result.profile());
         let path: String = result
@@ -196,9 +200,11 @@ impl PrintNannyConfig {
         let toml_glob = format!("{}/*.toml", &path);
         let json_glob = format!("{}/*.json", &path);
 
+        info!("Merging PrintNannyConfig from {}", &json_glob);
         let result = Self::read_path_glob::<Json>(&json_glob, result);
+        info!("Merging PrintNannyConfig from {}", &toml_glob);
         let result = Self::read_path_glob::<Toml>(&toml_glob, result);
-
+        info!("Finalized PrintNannyConfig: \n {:?}", result);
         result
     }
 
