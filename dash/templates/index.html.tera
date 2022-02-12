@@ -6,29 +6,36 @@
 <div class="row">
     <div class="col-8">
         <h1>Welcome to Print Nanny OS!</h1>
-        <h3>Logged in as {{user.email}} </h3>
-        {% if not device.setup_complete %}
-        <a target="_blank" href="{{ api.base_path }}{{ device.video_test_url }}">
-            <button>Test Video</button>
-        </a>
-        {% endif %}
-        <a target="_blank" href="http://{{device.hostname}}:5000">
-            <button>Open OctoPrint</button>
-        </a>
-        <a target="_blank" href="{{ api.base_path }}{{device.dashboard_url}}">
-            <button>Manage Device</button>
-        </a>
+        <dl class="row">
+            <dt class="col-4">Username</dt>
+            <dd class="col-8">{{user.email}}</dd> 
+            <dt class="col-4">Hostname</dt>
+            <dd class="col-8">{{device.hostname}}</dd>
+            <dt class="col-4">Fingerprint</dt>
+            <dd class="col-8">{{device.public_key.fingerprint}}</dd>
+        </dl>
     </div>
     <div class="col-4">
-        <img src="https://cdn.print-nanny.com/www/device-dash/logo.svg" style="is-full-width" />
+        <img class="pull-right" src="https://cdn.print-nanny.com/www/device-dash/logo.png" style="is-full-width" />
     </div>
 </div>
 <div class="row">
-    <dl class="row">
-        <dt class="col-4">Hostname</dt>
-        <dd class="col-8">{{device.hostname}}</dd>
-        <dt class="col-4">Fingerprint</dt>
-        <dd class="col-8">{{device.public_key.fingerprint}}</dd>
-    </dl>
+    <div class="col-12">
+        <a target="_blank" href="http://{{device.hostname}}:5000">
+            <button>OctoPrint</button>
+        </a>
+        <a target="_blank" href="{{ api.base_path }}{{device.dashboard_url}}">
+            <button>PrintNanny Cloud</button>
+        </a>
+        <a target="_blank" href="{{ api.base_path }}{{ device.video_test_url }}">
+            <button>Test Video</button>
+        </a>
+        <a target="_blank" href="/debug">
+            <button>Debug Settings</button>
+        </a>
+    </div>
+</div>
+<div class="row">
+
 </div>
 {% endblock body %}
