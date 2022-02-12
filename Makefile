@@ -30,3 +30,12 @@ images:
 		-t bitsyai/cross:x86_64-unknown-linux-gnu-$(VERSION) \
 		docker
 	docker push bitsyai/cross:x86_64-unknown-linux-gnu-$(VERSION)
+
+patch:
+	cargo release patch --workspace --execute --tag
+
+minor:
+	cargo release minor --workspace --execute --tag
+
+major:
+	cargo release major --workspace --execute --tag		
