@@ -13,6 +13,9 @@ use rocket_dyn_templates::Template;
 use super::error;
 use super::response::{FlashResponse, Response};
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct PrintNannyConfigFile(pub Option<String>);
+
 pub const COOKIE_CONFIG: &str = "printnanny_config";
 
 #[derive(Debug, FromForm, Serialize, Deserialize)]
@@ -30,10 +33,9 @@ pub struct TokenForm<'v> {
 
 async fn handle_step1(
     form: &EmailForm<'_>,
-    config: &State<PrintNannyConfig>,
+    config: PrintNannyConfig,
 ) -> Result<Response, FlashResponse<Template>> {
-    let c = config.inner().clone();
-    let service = ApiService::new(c)?;
+    let service = ApiService::new(config)?;
     let res = service.auth_email_create(form.email.to_string()).await;
     match res {
         Ok(_) => {
@@ -54,9 +56,10 @@ async fn handle_step1(
 #[post("/", data = "<form>")]
 async fn login_step1_submit<'r>(
     form: Form<Contextual<'r, EmailForm<'r>>>,
-    config: &State<PrintNannyConfig>,
+    config_file: &State<PrintNannyConfigFile>,
 ) -> Result<Response, FlashResponse<Template>> {
     info!("Received auth email form response {:?}", form);
+    let config = PrintNannyConfig::new(config_file.0.as_deref())?;
     match &form.value {
         Some(signup) => {
             let result = handle_step1(signup, config).await?;
@@ -112,14 +115,14 @@ async fn login_step2_submit<'r>(
     email: String,
     jar: &CookieJar<'_>,
     form: Form<Contextual<'r, TokenForm<'r>>>,
-    config: &State<PrintNannyConfig>,
+    config_file: &State<PrintNannyConfigFile>,
 ) -> Result<Response, FlashResponse<Template>> {
     info!("Received auth email form response {:?}", form);
-    let c = config.inner().clone();
+    let config = PrintNannyConfig::new(config_file.0.as_deref())?;
     match form.value {
         Some(ref v) => {
             let token = v.token;
-            let api_config: PrintNannyConfig = handle_token_validate(token, &email, c).await?;
+            let api_config: PrintNannyConfig = handle_token_validate(token, &email, config).await?;
             let cookie_value = serde_json::to_string(&api_config)?;
             jar.add_private(Cookie::new(COOKIE_CONFIG, cookie_value));
             Ok(Response::Redirect(Redirect::to("/")))

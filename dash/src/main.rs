@@ -6,7 +6,6 @@ use rocket_dyn_templates::Template;
 use printnanny_dash::auth;
 use printnanny_dash::debug;
 use printnanny_dash::home;
-use printnanny_services::config::PrintNannyConfig;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -23,16 +22,14 @@ async fn main() -> Result<()> {
                 .help("Path to Config.toml (see env/ for examples)"),
         );
     let app_m = app.get_matches();
-    let config = app_m.value_of("config");
-
-    let config = PrintNannyConfig::new(config)?;
-
+    let config_arg = app_m.value_of("config");
+    let config_file = auth::PrintNannyConfigFile(config_arg.map(str::to_string));
     rocket::build()
         .mount("/", home::routes())
         .mount("/debug", debug::routes())
         .mount("/login", auth::routes())
         .attach(Template::fairing())
-        .manage(config)
+        .manage(config_file)
         .launch()
         .await?;
     Ok(())
