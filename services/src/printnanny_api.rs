@@ -35,6 +35,9 @@ pub enum ServiceError {
     DevicesRetrieveError(#[from] ApiError<devices_api::DevicesRetrieveError>),
 
     #[error(transparent)]
+    DevicesPartialUpdateError(#[from] ApiError<devices_api::DevicesPartialUpdateError>),
+
+    #[error(transparent)]
     DevicesRetrieveHostnameError(#[from] ApiError<devices_api::DevicesRetrieveHostnameError>),
 
     #[error(transparent)]
@@ -206,6 +209,20 @@ impl ApiService {
         }
     }
 
+    pub async fn device_patch(
+        &self,
+        device_id: i32,
+        request: models::PatchedDeviceRequest,
+    ) -> Result<models::Device, ServiceError> {
+        let res =
+            devices_api::devices_partial_update(&self.reqwest, device_id, Some(request)).await?;
+        info!(
+            "Success! Patched device_id={} with response={:?}",
+            device_id, res
+        );
+        Ok(res)
+    }
+
     pub async fn device_setup(&self) -> Result<PrintNannyConfig, ServiceError> {
         // get or create device with matching hostname
         let device = self.device_retrieve_or_create_hostname().await?;
@@ -228,7 +245,13 @@ impl ApiService {
         let user = self.auth_user_retreive().await?;
         // save License.toml with user/device info
         let mut config = self.config.clone();
-        let device = self.device_retrieve_hostname().await?;
+        let patched = models::PatchedDeviceRequest {
+            setup_complete: Some(true),
+            monitoring_active: None,
+            release_channel: None,
+            hostname: None,
+        };
+        let device = self.device_patch(device.id, patched).await?;
         config.device = Some(device.clone());
         config.user = Some(user);
         config.save()?;
