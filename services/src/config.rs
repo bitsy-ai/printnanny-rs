@@ -34,7 +34,7 @@ impl Default for DashConfig {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct JanusConfig {
     pub auth: models::JanusAuth,
-    pub stream: models::JanusStreamConfig,
+    pub stream: models::JanusStream,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -64,50 +64,13 @@ impl Default for MQTTConfig {
     }
 }
 
-impl Default for JanusConfig {
-    fn default() -> Self {
-        Self {
-            admin_secret: "debug".into(),
-            token: "debug".into(),
-            admin_base_path: "/admin".into(),
-            admin_http_port: 7088,
-            admin_https_port: 7089,
-            base_path: "/janus".into(),
-            http_port: 8088,
-            https_port: 8089,
-        }
-    }
-}
-
-impl JanusConfig {
-    pub fn admin_http_url(&self) -> String {
-        format!(
-            "http://localhost:{}{}",
-            self.admin_http_port, self.admin_base_path
-        )
-    }
-    pub fn admin_https_url(&self) -> String {
-        let hostname = sys_info::hostname().unwrap_or("localhost".into());
-        format!(
-            "https://{}:{}{}",
-            hostname, self.admin_https_port, self.admin_base_path
-        )
-    }
-    pub fn http_url(&self) -> String {
-        format!("http://localhost:{}{}", self.http_port, self.base_path)
-    }
-    pub fn https_url(&self) -> String {
-        let hostname = sys_info::hostname().unwrap_or("localhost".into());
-        format!("https://{}:{}{}", hostname, self.https_port, self.base_path)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
     pub path: String,
     pub api: ApiConfig,
     pub dash: DashConfig,
-    pub janus: JanusConfig,
+    pub janus_local: Option<JanusConfig>,
+    pub janus_cloud: Option<JanusConfig>,
     pub mqtt: MQTTConfig,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<models::Device>,
@@ -133,17 +96,17 @@ impl Default for PrintNannyConfig {
             bearer_access_token: None,
         };
         let path = "/opt/printnanny/default".into();
-        let janus = JanusConfig::default();
         let mqtt = MQTTConfig::default();
         let dash = DashConfig::default();
         PrintNannyConfig {
             api,
             dash,
-            janus,
             mqtt,
             path,
             device: None,
             user: None,
+            janus_cloud: None,
+            janus_local: None,
         }
     }
 }
