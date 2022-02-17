@@ -33,14 +33,11 @@ impl Default for DashConfig {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct JanusConfig {
-    pub admin_secret: String,
-    pub token: String,
-    pub admin_base_path: String,
-    pub admin_http_port: i32,
-    pub admin_https_port: i32,
-    pub base_path: String,
-    pub http_port: i32,
-    pub https_port: i32,
+    pub admin_secret: Option<String>,
+    pub api_token: String,
+    pub admin_url: String,
+    pub api_url: String,
+    pub ws_url: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
