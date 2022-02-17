@@ -32,12 +32,6 @@ impl Default for DashConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct JanusConfig {
-    pub auth: models::JanusAuth,
-    pub stream: models::JanusStream,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MQTTConfig {
     pub ca_certs: Vec<String>,
     pub private_key: String,
@@ -69,9 +63,11 @@ pub struct PrintNannyConfig {
     pub path: String,
     pub api: ApiConfig,
     pub dash: DashConfig,
-    pub janus_local: Option<JanusConfig>,
-    pub janus_cloud: Option<JanusConfig>,
     pub mqtt: MQTTConfig,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub janus_local: Option<models::JanusStream>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub janus_cloud: Option<models::JanusStream>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<models::Device>,
     #[serde(skip_serializing_if = "Option::is_none")]

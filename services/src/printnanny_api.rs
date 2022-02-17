@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use printnanny_api_client::apis::auth_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::apis::devices_api;
+use printnanny_api_client::apis::janus_api;
 use printnanny_api_client::apis::users_api;
 use printnanny_api_client::apis::Error as ApiError;
 use printnanny_api_client::models;
@@ -231,9 +232,11 @@ impl ApiService {
         let system_info = self.device_system_info_update_or_create(device.id).await?;
         info!("Success! Updated SystemInfo {:?}", system_info);
 
-        // create JanusAuth
-        self.device_janus_auth_update_or_create(device.id).await?;
-        info!("Success! Updated JanusAuth");
+        // get or create cloud JanusAuth
+        let janus_cloud = self
+            .janus_stream_get_or_create(device.id, models::JanusConfigType::Cloud)
+            .await?;
+        info!("Success! Retreived JanusStream {:?}", janus_cloud);
         // create PublicKey
         let public_key = self.device_public_key_update_or_create(device.id).await?;
         info!("Success! Updated PublicKey: {:?}", public_key);
@@ -241,7 +244,7 @@ impl ApiService {
         let _cloudiot_device = self
             .cloudiot_device_update_or_create(device.id, public_key.id)
             .await?;
-        // get user
+        // refresh user
         let user = self.auth_user_retreive().await?;
         // save License.toml with user/device info
         let mut config = self.config.clone();
@@ -254,6 +257,7 @@ impl ApiService {
         let device = self.device_patch(device.id, patched).await?;
         config.device = Some(device.clone());
         config.user = Some(user);
+        config.janus_cloud = Some(janus_cloud);
         config.save()?;
         Ok(config)
     }
@@ -275,18 +279,21 @@ impl ApiService {
         Ok(res)
     }
 
-    async fn device_janus_auth_update_or_create(
+    async fn janus_stream_get_or_create(
         &self,
         device: i32,
-    ) -> Result<models::JanusAuth, ServiceError> {
-        let janus_token = self.config.janus.token.clone();
-        let janus_admin_secret = self.config.janus.admin_secret.clone();
-        let req = models::JanusAuthRequest {
-            janus_token,
-            janus_admin_secret,
-            device,
+        config_type: models::JanusConfigType,
+    ) -> Result<models::JanusStream, ServiceError> {
+        // None fields will be generated server-side
+        let req = models::JanusStreamRequest {
+            config_type: Some(config_type),
+            active: Some(false),
+            secret: None,
+            pin: None,
+            info: None,
         };
-        let res = devices_api::janus_auth_update_or_create(&self.reqwest, device, req).await?;
+        let res =
+            janus_api::devices_janus_stream_get_or_create(&self.reqwest, device, Some(req)).await?;
         Ok(res)
     }
 
@@ -363,12 +370,7 @@ impl ApiService {
         detail: Option<String>,
         wiki_url: Option<String>,
     ) -> Result<models::TaskStatus, ServiceError> {
-        let request = models::TaskStatusRequest {
-            detail,
-            wiki_url,
-            task: task_id,
-            status,
-        };
+        let request = models::TaskStatusRequest { status };
         info!("Submitting TaskStatusRequest={:?}", request);
         let res =
             devices_api::devices_tasks_status_create(&self.reqwest, device_id, task_id, request)
