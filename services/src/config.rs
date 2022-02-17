@@ -197,9 +197,9 @@ impl PrintNannyConfig {
         info!("Success! Wrote {}", &filename);
 
         // save janus.json
-        let msg = format!("Failed to serialize {:?}", self.janus);
-        let content = serde_json::to_string_pretty(&self.janus).expect(&msg);
-        let filename = format!("{}/{}", &self.path, "janus.json");
+        let msg = format!("Failed to serialize {:?}", self.janus_cloud);
+        let content = serde_json::to_string_pretty(&self.janus_cloud).expect(&msg);
+        let filename = format!("{}/{}", &self.path, "janus_cloud.json");
         let msg = format!("Unable to write file: {}", &filename);
         fs::write(&filename, content).expect(&msg);
         info!("Success! Wrote {}", &filename);

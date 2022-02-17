@@ -42,7 +42,7 @@ pub enum ServiceError {
     DevicesRetrieveHostnameError(#[from] ApiError<devices_api::DevicesRetrieveHostnameError>),
 
     #[error(transparent)]
-    JanusAuthCreateError(#[from] ApiError<devices_api::DevicesJanusCreateError>),
+    JanusStreamGetOrCreateError(#[from] ApiError<janus_api::DevicesJanusStreamGetOrCreateError>),
 
     #[error(transparent)]
     SystemInfoCreateError(#[from] ApiError<devices_api::DevicesSystemInfoCreateError>),
@@ -51,9 +51,6 @@ pub enum ServiceError {
 
     #[error(transparent)]
     PublicKeyUpdateOrCreate(#[from] ApiError<devices_api::PublicKeyUpdateOrCreateError>),
-
-    #[error(transparent)]
-    JanusAuthUpdateOrCreate(#[from] ApiError<devices_api::JanusAuthUpdateOrCreateError>),
 
     #[error(transparent)]
     FromUtf8Error(#[from] std::string::FromUtf8Error),
