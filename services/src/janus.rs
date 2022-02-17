@@ -5,7 +5,7 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
 
-use crate::config::JanusConfig;
+use printnanny_api_client::models;
 use reqwest;
 
 #[derive(PartialEq, Debug, Clone, Copy, ArgEnum)]
@@ -61,7 +61,7 @@ pub struct JanusAdminService {
 
 fn build_request_body(
     endpoint: &JanusAdminEndpoint,
-    janus_config: &JanusConfig,
+    janus_config: &models::JanusStream,
 ) -> Result<HashMap<String, String>> {
     let transaction: String = thread_rng()
         .sample_iter(&Alphanumeric)
@@ -78,36 +78,101 @@ fn build_request_body(
     );
     match endpoint {
         JanusAdminEndpoint::AddToken => {
-            map.insert(String::from("token"), janus_config.token.clone());
+            map.insert(
+                String::from("token"),
+                janus_config
+                    .auth
+                    .as_ref()
+                    .expect("auth not set")
+                    .api_token
+                    .as_ref()
+                    .expect("api_token not set")
+                    .clone(),
+            );
             map.insert(
                 String::from("admin_secret"),
-                janus_config.admin_secret.clone(),
+                janus_config
+                    .auth
+                    .as_ref()
+                    .expect("auth not set")
+                    .admin_secret
+                    .as_ref()
+                    .expect("admin_secret not set")
+                    .clone(),
             );
         }
         JanusAdminEndpoint::RemoveToken => {
-            map.insert(String::from("token"), janus_config.token.clone());
+            map.insert(
+                String::from("token"),
+                janus_config
+                    .auth
+                    .as_ref()
+                    .expect("auth not set")
+                    .api_token
+                    .as_ref()
+                    .expect("api_token not set")
+                    .clone(),
+            );
             map.insert(
                 String::from("admin_secret"),
-                janus_config.admin_secret.clone(),
+                janus_config
+                    .auth
+                    .as_ref()
+                    .expect("auth not set")
+                    .admin_secret
+                    .as_ref()
+                    .expect("admin_secret not set")
+                    .clone(),
             );
         }
         JanusAdminEndpoint::ListTokens => {
             map.insert(
                 String::from("admin_secret"),
-                janus_config.admin_secret.clone(),
+                janus_config
+                    .auth
+                    .as_ref()
+                    .expect("auth not set")
+                    .admin_secret
+                    .as_ref()
+                    .expect("admin_secret not set")
+                    .clone(),
             );
         }
         JanusAdminEndpoint::GetStatus => {
-            map.insert(String::from("token"), janus_config.token.clone());
+            map.insert(
+                String::from("token"),
+                janus_config
+                    .auth
+                    .as_ref()
+                    .expect("auth not set")
+                    .api_token
+                    .as_ref()
+                    .expect("api_token not set")
+                    .clone(),
+            );
             map.insert(
                 String::from("admin_secret"),
-                janus_config.admin_secret.clone(),
+                janus_config
+                    .auth
+                    .as_ref()
+                    .expect("auth not set")
+                    .admin_secret
+                    .as_ref()
+                    .expect("admin_secret not set")
+                    .clone(),
             );
         }
         JanusAdminEndpoint::TestStun => {
             map.insert(
                 String::from("admin_secret"),
-                janus_config.admin_secret.clone(),
+                janus_config
+                    .auth
+                    .as_ref()
+                    .expect("auth not set")
+                    .admin_secret
+                    .as_ref()
+                    .expect("admin_secret not set")
+                    .clone(),
             );
         }
         _ => {}
@@ -122,11 +187,15 @@ fn build_request_body(
 
 pub async fn janus_admin_api_call(
     endpoint: JanusAdminEndpoint,
-    janus_config: &JanusConfig,
+    janus_config: &models::JanusStream,
 ) -> Result<String> {
     let body = build_request_body(&endpoint, janus_config)?;
     let client = reqwest::Client::new();
-    let host = janus_config.admin_http_url();
+    let host = &janus_config
+        .auth
+        .as_ref()
+        .expect("JanusAuth was not defined")
+        .admin_url;
     let res = client.post(host).json(&body).send().await?.text().await?;
     Ok(res)
 }
