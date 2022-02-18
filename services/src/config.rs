@@ -120,7 +120,7 @@ impl PrintNannyConfig {
 
     // intended for use with Rocket's figmment
     pub fn from_figment(config: Option<&str>, figment: Figment) -> Figment {
-        return figment.merge(Self::figment(config));
+        figment.merge(Self::figment(config))
     }
 
     pub fn figment(config: Option<&str>) -> Figment {
@@ -135,7 +135,7 @@ impl PrintNannyConfig {
         .merge(Env::prefixed("PRINTNANNY_").global());
 
         let result = match config {
-            Some(c) => result.clone().merge(Toml::file(c)),
+            Some(c) => result.merge(Toml::file(c)),
             None => result,
         };
         info!(
@@ -146,7 +146,7 @@ impl PrintNannyConfig {
         info!("Loaded config from profile {:?}", result.profile());
         let path: String = result
             .find_value("path")
-            .unwrap_or(Value::from(Self::default().path))
+            .unwrap_or_else(|_| Value::from(Self::default().path))
             .deserialize::<String>()
             .unwrap();
 
@@ -166,8 +166,8 @@ impl PrintNannyConfig {
         figment: Figment,
     ) -> Figment {
         info!("Merging config from {:?}", &pattern);
-        let mut result = figment.clone();
-        for entry in glob(&pattern).expect("Failed to read glob pattern") {
+        let mut result = figment;
+        for entry in glob(pattern).expect("Failed to read glob pattern") {
             match entry {
                 Ok(path) => {
                     info!("Merging config from {:?}", &path);

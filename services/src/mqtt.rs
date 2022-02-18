@@ -127,7 +127,7 @@ impl MQTTWorker {
             aud: gcp_project_id,
         };
         let token = encode_jwt(&config.mqtt.private_key, &claims)?;
-        let mqttoptions = MQTTWorker::mqttoptions(&cloudiot_device, &config.mqtt, &token)?;
+        let mqttoptions = MQTTWorker::mqttoptions(cloudiot_device, &config.mqtt, &token)?;
 
         let result = MQTTWorker {
             service,
@@ -172,13 +172,13 @@ impl MQTTWorker {
     async fn handle_event(&self, event: &Publish) -> Result<()> {
         info!("Handling event {:?}", event);
         match &event.topic {
-            _ if &event.topic == &self.config_topic => {
+            _ if event.topic == self.config_topic => {
                 warn!("Ignored msg on config topic {:?}", event)
             }
-            _ if &event.topic == &self.event_topic => {
+            _ if event.topic == self.event_topic => {
                 warn!("Ignored msg on event topic {:?}", event)
             }
-            _ if &event.topic == &self.state_topic => {
+            _ if event.topic == self.state_topic => {
                 warn!("Ignored msg on state topic {:?}", event)
             }
             _ if self.command_topic.contains(&event.topic) => {
@@ -212,7 +212,7 @@ impl MQTTWorker {
                 Event::Outgoing(Outgoing::PingReq) => {
                     debug!("Received = {:?}", &notification)
                 }
-                Event::Incoming(Incoming::Publish(e)) => self.handle_event(&e).await?,
+                Event::Incoming(Incoming::Publish(e)) => self.handle_event(e).await?,
                 _ => info!("Received = {:?}", &notification),
             }
         }
