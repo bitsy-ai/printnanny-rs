@@ -9,7 +9,7 @@ use printnanny_services::config::PrintNannyConfig;
 
 #[get("/")]
 async fn index(jar: &CookieJar<'_>) -> Result<Response, Response> {
-    let api_config = jar.get_private(auth::COOKIE_CONFIG);
+    let api_config = jar.get_private(auth::COOKIE_USER);
     match api_config {
         Some(cookie) => {
             let config: PrintNannyConfig = serde_json::from_str(cookie.value())?;
@@ -18,8 +18,8 @@ async fn index(jar: &CookieJar<'_>) -> Result<Response, Response> {
         }
         None => {
             warn!(
-                "Failed to read auth::COOKIE_CONFIG={:?}, redirecting to /login",
-                auth::COOKIE_CONFIG
+                "Failed to read auth::COOKIE_USER={:?}, redirecting to /login",
+                auth::COOKIE_USER
             );
             Ok(Response::Redirect(Redirect::to("/login")))
         }

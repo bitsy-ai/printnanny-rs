@@ -15,7 +15,7 @@ use super::response::Response;
 #[derive(Debug, PartialEq, Clone)]
 pub struct PrintNannyConfigFile(pub Option<String>);
 
-pub const COOKIE_CONFIG: &str = "printnanny_config";
+pub const COOKIE_USER &str = "printnanny_user";
 
 #[derive(Debug, FromForm, Serialize, Deserialize)]
 pub struct EmailForm<'v> {
@@ -122,12 +122,12 @@ async fn login_step2_submit<'r>(
         Some(ref v) => {
             let token = v.token;
             let api_config: PrintNannyConfig = handle_token_validate(token, &email, config).await?;
-            let cookie_value = serde_json::to_string(&api_config)?;
+            let cookie_value = serde_json::to_string(&api_config.user.expect("Failed to read user"))?;
             info!(
-                "Saving COOKIE_CONFIG={} value={}",
-                &COOKIE_CONFIG, &cookie_value
+                "Saving COOKIE_USER={} value={}",
+                &COOKIE_USER, &cookie_value
             );
-            jar.add_private(Cookie::new(COOKIE_CONFIG, cookie_value));
+            jar.add_private(Cookie::new(COOKIE_USER, cookie_value));
             Ok(Response::Redirect(Redirect::to("/")))
         }
         None => {
@@ -149,7 +149,7 @@ async fn login_step1_email_prepopulated(
     email: &str,
     jar: &CookieJar<'_>,
 ) -> Result<Response, Response> {
-    let get_api_config = jar.get_private(COOKIE_CONFIG);
+    let get_api_config = jar.get_private(COOKIE_USER);
     let mut c = HashMap::new();
     c.insert("values", indexmap! {"email" => vec![email]});
     c.insert("errors", indexmap! {});
@@ -161,7 +161,7 @@ async fn login_step1_email_prepopulated(
 
 #[get("/")]
 async fn login_step1(jar: &CookieJar<'_>) -> Result<Response, Response> {
-    let get_api_config = jar.get_private(COOKIE_CONFIG);
+    let get_api_config = jar.get_private(COOKIE_USER);
     match get_api_config {
         Some(_) => Ok(Response::Redirect(Redirect::to("/"))),
         None => Ok(Response::Template(Template::render(
