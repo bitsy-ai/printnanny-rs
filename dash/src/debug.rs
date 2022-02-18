@@ -3,7 +3,6 @@ use crate::response::Response;
 use printnanny_services::config::PrintNannyConfig;
 use rocket::serde::json::Json;
 use rocket::State;
-use rocket_dyn_templates::Template;
 
 #[get("/")]
 fn get_config(config_file: &State<PrintNannyConfigFile>) -> Result<Response, Response> {

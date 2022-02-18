@@ -10,7 +10,6 @@ use rocket::http::{Cookie, CookieJar};
 use rocket::State;
 use rocket_dyn_templates::Template;
 
-use super::error;
 use super::response::Response;
 
 #[derive(Debug, PartialEq, Clone)]

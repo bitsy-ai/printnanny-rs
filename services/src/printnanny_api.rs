@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use std::fs::{read_to_string, File};
 use std::future::Future;
 use std::io::BufReader;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use printnanny_api_client::apis::auth_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
@@ -101,19 +101,14 @@ pub struct ApiService {
     pub user: Option<models::User>,
 }
 
-pub fn read_model_json<T: serde::de::DeserializeOwned>(
-    path: &PathBuf,
-) -> Result<T, std::io::Error> {
+pub fn read_model_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, std::io::Error> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
     let result: T = serde_json::from_reader(reader)?;
     Ok(result)
 }
 
-pub fn save_model_json<T: serde::Serialize>(
-    model: &T,
-    path: &PathBuf,
-) -> Result<(), std::io::Error> {
+pub fn save_model_json<T: serde::Serialize>(model: &T, path: &Path) -> Result<(), std::io::Error> {
     serde_json::to_writer(&File::create(path)?, model)?;
     Ok(())
 }
@@ -252,9 +247,9 @@ impl ApiService {
             hostname: None,
         };
         let device = self.device_patch(device.id, patched).await?;
-        config.device = Some(device.clone());
-        config.user = Some(user.clone());
-        config.janus_cloud = Some(janus_cloud.clone());
+        config.device = Some(device);
+        config.user = Some(user);
+        config.janus_cloud = Some(janus_cloud);
         config.save()?;
         Ok(config)
     }
@@ -270,7 +265,7 @@ impl ApiService {
             pem,
             device,
             cipher: self.config.mqtt.cipher.clone(),
-            length: self.config.mqtt.length.clone(),
+            length: self.config.mqtt.length,
         };
         let res = devices_api::public_key_update_or_create(&self.reqwest, device, req).await?;
         Ok(res)
@@ -302,10 +297,14 @@ impl ApiService {
 
         // hacky parsing of rpi-specific /proc/cpuinfo
         let rpi_cpuinfo = RpiCpuInfo::new();
-        let hardware = rpi_cpuinfo.hardware.unwrap_or("Unknown".to_string());
-        let model = rpi_cpuinfo.model.unwrap_or("Unknown".to_string());
-        let serial = rpi_cpuinfo.serial.unwrap_or("Unknown".to_string());
-        let revision = rpi_cpuinfo.revision.unwrap_or("Unknown".to_string());
+        let hardware = rpi_cpuinfo
+            .hardware
+            .unwrap_or_else(|| "Unknown".to_string());
+        let model = rpi_cpuinfo.model.unwrap_or_else(|| "Unknown".to_string());
+        let serial = rpi_cpuinfo.serial.unwrap_or_else(|| "Unknown".to_string());
+        let revision = rpi_cpuinfo
+            .revision
+            .unwrap_or_else(|| "Unknown".to_string());
 
         let cpuinfo = procfs::CpuInfo::new()?;
         let cores: i32 = cpuinfo.num_cores().try_into().unwrap();
@@ -314,7 +313,7 @@ impl ApiService {
         let ram = meminfo.mem_total.try_into().unwrap();
 
         let image_version = read_to_string("/boot/image_version.txt")
-            .unwrap_or("Failed to parse /boot/image_version.txt".to_string());
+            .unwrap_or_else(|_| "Failed to parse /boot/image_version.txt".to_string());
 
         let request = models::SystemInfoRequest {
             machine_id,
@@ -335,7 +334,7 @@ impl ApiService {
     // hydrate cache if not found using fallback fn f (must return a Future)
     pub async fn load_model<T: serde::de::DeserializeOwned + serde::Serialize + std::fmt::Debug>(
         &self,
-        path: &PathBuf,
+        path: &Path,
         f: impl Future<Output = Result<T, ServiceError>>,
     ) -> Result<T, ServiceError> {
         let m = read_model_json::<T>(path);
