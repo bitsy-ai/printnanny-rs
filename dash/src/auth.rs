@@ -15,7 +15,7 @@ use super::response::Response;
 #[derive(Debug, PartialEq, Clone)]
 pub struct PrintNannyConfigFile(pub Option<String>);
 
-pub const COOKIE_USER &str = "printnanny_user";
+pub const COOKIE_USER: &str = "printnanny_user";
 
 #[derive(Debug, FromForm, Serialize, Deserialize)]
 pub struct EmailForm<'v> {
@@ -122,7 +122,8 @@ async fn login_step2_submit<'r>(
         Some(ref v) => {
             let token = v.token;
             let api_config: PrintNannyConfig = handle_token_validate(token, &email, config).await?;
-            let cookie_value = serde_json::to_string(&api_config.user.expect("Failed to read user"))?;
+            let cookie_value =
+                serde_json::to_string(&api_config.user.expect("Failed to read user"))?;
             info!(
                 "Saving COOKIE_USER={} value={}",
                 &COOKIE_USER, &cookie_value
