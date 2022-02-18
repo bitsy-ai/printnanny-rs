@@ -1,15 +1,10 @@
 use std::collections::HashMap;
 use std::convert::From;
-use std::fmt;
-use std::ops::Deref;
 
 use printnanny_services::config::PrintNannyConfig;
-use rocket::response::{Flash, Redirect};
+use rocket::response::Redirect;
 use rocket::serde::json::Json;
 use rocket_dyn_templates::Template;
-use thiserror::Error;
-
-use crate::error;
 
 impl From<serde_json::Error> for Response {
     fn from(error: serde_json::Error) -> Self {
