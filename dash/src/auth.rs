@@ -11,7 +11,7 @@ use rocket::State;
 use rocket_dyn_templates::Template;
 
 use super::error;
-use super::response::{FlashResponse, Response};
+use super::response::Response;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct PrintNannyConfigFile(pub Option<String>);
@@ -34,7 +34,7 @@ pub struct TokenForm<'v> {
 async fn handle_step1(
     form: &EmailForm<'_>,
     config: PrintNannyConfig,
-) -> Result<Response, FlashResponse<Template>> {
+) -> Result<Response, Response> {
     let service = ApiService::new(config)?;
     let res = service.auth_email_create(form.email.to_string()).await;
     match res {
@@ -57,7 +57,7 @@ async fn handle_step1(
 async fn login_step1_submit<'r>(
     form: Form<Contextual<'r, EmailForm<'r>>>,
     config_file: &State<PrintNannyConfigFile>,
-) -> Result<Response, FlashResponse<Template>> {
+) -> Result<Response, Response> {
     info!("Received auth email form response {:?}", form);
     let config = PrintNannyConfig::new(config_file.0.as_deref())?;
     match &form.value {
@@ -116,7 +116,7 @@ async fn login_step2_submit<'r>(
     jar: &CookieJar<'_>,
     form: Form<Contextual<'r, TokenForm<'r>>>,
     config_file: &State<PrintNannyConfigFile>,
-) -> Result<Response, FlashResponse<Template>> {
+) -> Result<Response, Response> {
     info!("Received auth email form response {:?}", form);
     let config = PrintNannyConfig::new(config_file.0.as_deref())?;
     match form.value {
@@ -124,30 +124,17 @@ async fn login_step2_submit<'r>(
             let token = v.token;
             let api_config: PrintNannyConfig = handle_token_validate(token, &email, config).await?;
             let cookie_value = serde_json::to_string(&api_config)?;
+            info!(
+                "Saving COOKIE_CONFIG={} value={}",
+                &COOKIE_CONFIG, &cookie_value
+            );
             jar.add_private(Cookie::new(COOKIE_CONFIG, cookie_value));
             Ok(Response::Redirect(Redirect::to("/")))
         }
         None => {
             info!("form.value is empty");
-            Err(FlashResponse::<Template>::from(
-                error::Error::VerificationFailed {},
-            ))
+            Ok(Response::Template(Template::render("authemail", config)))
         }
-    }
-}
-
-#[get("/welcome")]
-async fn login_step3(jar: &CookieJar<'_>) -> Result<Response, FlashResponse<Template>> {
-    let get_api_config = jar.get_private(COOKIE_CONFIG);
-    match get_api_config {
-        Some(cookie) => {
-            let config: PrintNannyConfig = serde_json::from_str(cookie.value())?;
-            Ok(Response::Template(Template::render("welcome", config)))
-        }
-        None => Ok(Response::Template(Template::render(
-            "authemail",
-            &Context::default(),
-        ))),
     }
 }
 
@@ -162,7 +149,7 @@ fn login_step2(email: String) -> Template {
 async fn login_step1_email_prepopulated(
     email: &str,
     jar: &CookieJar<'_>,
-) -> Result<Response, FlashResponse<Redirect>> {
+) -> Result<Response, Response> {
     let get_api_config = jar.get_private(COOKIE_CONFIG);
     let mut c = HashMap::new();
     c.insert("values", indexmap! {"email" => vec![email]});
@@ -174,7 +161,7 @@ async fn login_step1_email_prepopulated(
 }
 
 #[get("/")]
-async fn login_step1(jar: &CookieJar<'_>) -> Result<Response, FlashResponse<Redirect>> {
+async fn login_step1(jar: &CookieJar<'_>) -> Result<Response, Response> {
     let get_api_config = jar.get_private(COOKIE_CONFIG);
     match get_api_config {
         Some(_) => Ok(Response::Redirect(Redirect::to("/"))),
@@ -192,6 +179,5 @@ pub fn routes() -> Vec<rocket::Route> {
         login_step1_submit,
         login_step2,
         login_step2_submit,
-        login_step3
     ]
 }

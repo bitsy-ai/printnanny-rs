@@ -1,14 +1,14 @@
-use log::info;
+use log::{info, warn};
 use rocket::http::CookieJar;
 use rocket::response::Redirect;
 use rocket_dyn_templates::Template;
 
 use super::auth;
-use super::response::{FlashResponse, Response};
+use super::response::Response;
 use printnanny_services::config::PrintNannyConfig;
 
 #[get("/")]
-async fn index(jar: &CookieJar<'_>) -> Result<Response, FlashResponse<Template>> {
+async fn index(jar: &CookieJar<'_>) -> Result<Response, Response> {
     let api_config = jar.get_private(auth::COOKIE_CONFIG);
     match api_config {
         Some(cookie) => {
@@ -16,7 +16,13 @@ async fn index(jar: &CookieJar<'_>) -> Result<Response, FlashResponse<Template>>
             info!("Attaching context to view {:?}", config);
             Ok(Response::Template(Template::render("index", config)))
         }
-        None => Ok(Response::Redirect(Redirect::to("/login"))),
+        None => {
+            warn!(
+                "Failed to read auth::COOKIE_CONFIG={:?}, redirecting to /login",
+                auth::COOKIE_CONFIG
+            );
+            Ok(Response::Redirect(Redirect::to("/login")))
+        }
     }
 }
 

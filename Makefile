@@ -38,4 +38,7 @@ minor:
 	cargo release minor --workspace --execute --tag
 
 major:
-	cargo release major --workspace --execute --tag		
+	cargo release major --workspace --execute --tag
+
+test-profile:
+	./tools/test-profile.sh

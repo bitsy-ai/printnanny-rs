@@ -11,76 +11,33 @@ use thiserror::Error;
 
 use crate::error;
 
-#[derive(Error, Debug, Responder)]
-pub struct FlashResponse<R>(Flash<R>);
-
-impl<R> Deref for FlashResponse<R> {
-    type Target = Flash<R>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<R> fmt::Display for FlashResponse<R> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
-    }
-}
-
-impl From<serde_json::Error> for FlashResponse<Redirect> {
-    fn from(error: serde_json::Error) -> Self {
-        let msg = format!("{:?}", error);
-        let mut context = HashMap::new();
-        context.insert("errors", &msg);
-        error!("{}", &msg);
-        Self(Flash::error(Redirect::to("/"), &msg))
-    }
-}
-
-impl From<printnanny_services::printnanny_api::ServiceError> for FlashResponse<Template> {
-    fn from(error: printnanny_services::printnanny_api::ServiceError) -> Self {
-        let msg = format!("{:?}", error);
-        let mut context = HashMap::new();
-        context.insert("errors", &msg);
-        error!("{}", &msg);
-        Self(Flash::error(Template::render("error", context), &msg))
-    }
-}
-
-impl From<rocket::figment::Error> for FlashResponse<Template> {
-    fn from(error: rocket::figment::Error) -> Self {
-        let msg = format!("{:?}", error);
-        let mut context = HashMap::new();
-        context.insert("errors", &msg);
-        error!("{}", &msg);
-        Self(Flash::error(Template::render("error", context), &msg))
-    }
-}
-
-impl From<error::Error> for FlashResponse<Template> {
-    fn from(error: error::Error) -> Self {
-        let msg = format!("{:?}", error);
-        let mut context = HashMap::new();
-        context.insert("errors", &msg);
-        error!("{}", &msg);
-        Self(Flash::error(Template::render("error", context), &msg))
-    }
-}
-
-impl From<serde_json::Error> for FlashResponse<Template> {
+impl From<serde_json::Error> for Response {
     fn from(error: serde_json::Error) -> Self {
         let msg = format!("Error de/serialzing content {:?}", error);
         let mut context = HashMap::new();
         context.insert("errors", &msg);
         error!("{}", &msg);
-        Self(Flash::error(Template::render("error", context), &msg))
+        Self::Template(Template::render("error", context))
     }
 }
 
-impl<R> From<Flash<R>> for FlashResponse<R> {
-    fn from(call: Flash<R>) -> Self {
-        Self(call)
+impl From<rocket::figment::error::Error> for Response {
+    fn from(error: rocket::figment::error::Error) -> Self {
+        let msg = format!("Error de/serialzing content {:?}", error);
+        let mut context = HashMap::new();
+        context.insert("errors", &msg);
+        error!("{}", &msg);
+        Self::Template(Template::render("error", context))
+    }
+}
+
+impl From<printnanny_services::printnanny_api::ServiceError> for Response {
+    fn from(error: printnanny_services::printnanny_api::ServiceError) -> Self {
+        let msg = format!("Error de/serialzing content {:?}", error);
+        let mut context = HashMap::new();
+        context.insert("errors", &msg);
+        error!("{}", &msg);
+        Self::Template(Template::render("error", context))
     }
 }
 
