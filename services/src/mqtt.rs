@@ -151,15 +151,6 @@ impl MQTTWorker {
         Ok(data)
     }
 
-    pub fn handle_ping(&self, _event: models::TestEvent) -> Result<()> {
-        // mark ping as received
-        // let req = models::TestEventRequest {
-        //     status: Some(models::EventStatus::Ack),
-        // };
-
-        Ok(())
-    }
-
     async fn handle_command(&self, event: &Publish) -> Result<()> {
         let _data = self.deserialize_event(event)?;
         // match data {
