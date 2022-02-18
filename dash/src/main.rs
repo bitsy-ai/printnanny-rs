@@ -10,7 +10,7 @@ use printnanny_dash::home;
 #[tokio::main]
 async fn main() -> Result<()> {
     let app_name = "printnanny-dash";
-    let app = Command::new(app_name)
+    let app = App::new(app_name)
         .version(crate_version!())
         .author(crate_authors!())
         .about(crate_description!())
