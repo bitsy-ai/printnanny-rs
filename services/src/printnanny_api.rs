@@ -253,8 +253,8 @@ impl ApiService {
         };
         let device = self.device_patch(device.id, patched).await?;
         config.device = Some(device.clone());
-        config.user = Some(user);
-        config.janus_cloud = Some(janus_cloud);
+        config.user = Some(user.clone());
+        config.janus_cloud = Some(janus_cloud.clone());
         config.save()?;
         Ok(config)
     }
@@ -364,8 +364,6 @@ impl ApiService {
         task_id: i32,
         device_id: i32,
         status: models::TaskStatusType,
-        detail: Option<String>,
-        wiki_url: Option<String>,
     ) -> Result<models::TaskStatus, ServiceError> {
         let request = models::TaskStatusRequest { status };
         info!("Submitting TaskStatusRequest={:?}", request);
