@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 printnanny-services = {path = "../services", version = "^0.14.0"}
-printnanny-api-client = "0.55.4"
+printnanny-api-client = "0.56.4"
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
 env_logger = "0.9"

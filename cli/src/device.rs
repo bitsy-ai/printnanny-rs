@@ -53,6 +53,6 @@ impl DeviceCmd {
                 .expect("Failed to setup device"),
         };
         debug!("Success action={:?} result={:?}", self.action, result);
-        Ok(self.service.to_string_pretty::<models::Device>(result)?)
+        Ok(serde_json::to_string_pretty::<models::Device>(&result)?)
     }
 }

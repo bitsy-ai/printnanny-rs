@@ -56,12 +56,6 @@ pub enum ServiceError {
     FromUtf8Error(#[from] std::string::FromUtf8Error),
 
     #[error(transparent)]
-    TaskCreateError(#[from] ApiError<devices_api::DevicesTasksCreateError>),
-
-    #[error(transparent)]
-    TaskStatusCreateError(#[from] ApiError<devices_api::DevicesTasksStatusCreateError>),
-
-    #[error(transparent)]
     UsersRetrieveError(#[from] ApiError<users_api::UsersMeRetrieveError>),
 
     #[error(transparent)]
@@ -356,25 +350,5 @@ impl ApiService {
                 }
             }
         }
-    }
-
-    pub async fn task_status_create(
-        &self,
-        task_id: i32,
-        device_id: i32,
-        status: models::TaskStatusType,
-    ) -> Result<models::TaskStatus, ServiceError> {
-        let request = models::TaskStatusRequest { status };
-        info!("Submitting TaskStatusRequest={:?}", request);
-        let res =
-            devices_api::devices_tasks_status_create(&self.reqwest, device_id, task_id, request)
-                .await?;
-        Ok(res)
-    }
-    pub fn to_string_pretty<T: serde::Serialize>(
-        &self,
-        item: T,
-    ) -> serde_json::error::Result<String> {
-        serde_json::to_string_pretty::<T>(&item)
     }
 }
