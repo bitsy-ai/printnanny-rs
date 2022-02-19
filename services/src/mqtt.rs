@@ -152,6 +152,7 @@ impl MQTTWorker {
     }
 
     async fn handle_command(&self, event: &Publish) -> Result<()> {
+        info!("Deserializing event payload {:?}", event);
         let _data = self.deserialize_event(event)?;
         // match data {
         //     PolymorphicEvent::TestEvent(ref mut e) => {}
