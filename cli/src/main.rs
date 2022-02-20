@@ -13,6 +13,7 @@ use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker, MqttAction };
 use printnanny_cli::device::{DeviceCmd, DeviceAction };
 use printnanny_cli::config::{ConfigAction};
+use printnanny_cli::remote;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -111,18 +112,22 @@ async fn main() -> Result<()> {
                 .ignore_case(true)
             ))
 
-        .subcommand(App::new("monitor")
+        .subcommand(App::new("remote")
             .author(crate_authors!())
             .about(crate_description!())
             .version(crate_version!())
-            .about("Interact with Print Nanny monitoring service")
-            .setting(AppSettings::SubcommandRequiredElseHelp)
-            .subcommand(
-                App::new("start")
-                .about("Start Print Nanny monitoring service"))
-            .subcommand(
-                App::new("stop")
-                .about("Stop Print Nanny monitoring service"))
+            .about("Run pre-configured remote event/command handler")
+            .arg(Arg::new("event")
+                .help("JSON-serialized PrintNanny Event. See /api/events schema for supported events")
+                .short('e')
+                .long("event")
+                .required(true)
+                .takes_value(true))
+            .arg(Arg::new("dryrun")
+                .help("Print output but do not run. Ansible playbooks executed with --check flag")
+                .short('d')
+                .takes_value(false)
+                .long("dryrun"))
         );
     
     let app_m = app.get_matches();
@@ -175,12 +180,10 @@ async fn main() -> Result<()> {
 
         },
 
-        Some(("monitor", sub_m)) => {
-            match sub_m.subcommand() {
-                Some(("start", _)) => println!("Starting Print Nanny monitoring"),
-                Some(("stop", _)) => println!("Stopping Print Nanny monitoring"),
-                _ => panic!("Received unrecognized subcommand")
-            };
+        Some(("remoter", sub_m)) => {
+            let dryrun = sub_m.is_present("dryrun");
+            let json_str = sub_m.value_of("event").expect("--event argument is required");
+            remote::handle_event(json_str, config, dryrun)?;
         }
 
         Some(("system-update", _sub_m)) => {
