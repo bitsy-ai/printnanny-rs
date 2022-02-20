@@ -2,12 +2,12 @@
 name = "printnanny-cli"
 description = "Print Nanny Command-line Interface"
 license = "AGPL-3.0-or-later"
-version = "0.14.1"
+version = "0.15.0"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2018"
 
 [dependencies]
-printnanny-services = {path = "../services", version = "^0.14.0"}
+printnanny-services = {path = "../services", version = "^0.15.0"}
 printnanny-api-client = "0.57.1"
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
