@@ -151,12 +151,29 @@ impl MQTTWorker {
         Ok(data)
     }
 
+    fn handle_webrtc_event(
+        &self,
+        event: models::polymorphic_event::WebRtcEvent,
+    ) -> Result<models::polymorphic_event::WebRtcEvent> {
+        match &event.event_type {
+            models::WebRtcEventType::Start => {
+                info!("Handling ")
+            }
+            _ => (),
+        }
+        Ok(event)
+    }
+
     async fn handle_command(&self, event: &Publish) -> Result<()> {
-        let _data = self.deserialize_event(event)?;
-        // match data {
-        //     PolymorphicEvent::TestEvent(ref mut e) => {}
-        //     _ => warn!("No handler configured for command, ignoring {:?}", data),
-        // };
+        info!("Attempting to deserialize event payload {:?}", event);
+        let data = self.deserialize_event(event)?;
+        match data {
+            PolymorphicEvent::WebRtcEvent(e) => {
+                info!("Success deserializing WebRtcEvent event {:?}", e);
+                self.handle_webrtc_event(e);
+            }
+            _ => warn!("No handler configured for command, ignoring {:?}", data),
+        };
         Ok(())
     }
 
