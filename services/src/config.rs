@@ -4,11 +4,66 @@ use figment::value::{Dict, Map, Value};
 use figment::{Figment, Metadata, Profile, Provider};
 use glob::glob;
 use log::{error, info};
-use serde::{Deserialize, Serialize};
 use std::fs;
+use std::path::PathBuf;
 
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::models;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AnsibleConfig {
+    pub venv: String,
+    pub collection: String,
+}
+
+impl Default for AnsibleConfig {
+    fn default() -> Self {
+        Self {
+            venv: "/opt/printnanny/ansible/venv".into(),
+            collection: "bitsyai.printnanny".into(),
+        }
+    }
+}
+
+impl AnsibleConfig {
+    // ansible executable path
+    pub fn ansible(&self) -> PathBuf {
+        PathBuf::from(self.venv.clone()).join("bin/ansible")
+    }
+    // ansible-config executable path
+    pub fn ansible_config(&self) -> PathBuf {
+        PathBuf::from(self.venv.clone()).join("bin/ansible-config")
+    }
+    // ansible-doc executable path
+    pub fn ansible_doc(&self) -> PathBuf {
+        PathBuf::from(self.venv.clone()).join("bin/ansible-doc")
+    }
+    // ansible-galaxy executable path
+    pub fn ansible_galaxy(&self) -> PathBuf {
+        PathBuf::from(self.venv.clone()).join("bin/ansible-galaxy")
+    }
+    // ansible-inventory executable path
+    pub fn ansible_inventory(&self) -> PathBuf {
+        PathBuf::from(self.venv.clone()).join("bin/ansible-inventory")
+    }
+    // ansible-playbook executable path
+    pub fn ansible_playbook(&self) -> PathBuf {
+        PathBuf::from(self.venv.clone()).join("bin/ansible-playbook")
+    }
+    // ansible-pull executable path
+    pub fn ansible_pull(&self) -> PathBuf {
+        PathBuf::from(self.venv.clone()).join("bin/ansible-pull")
+    }
+    // ansible-vault executable path
+    pub fn ansible_vault(&self) -> PathBuf {
+        PathBuf::from(self.venv.clone()).join("bin/ansible-vault")
+    }
+    // venv activate executable path
+    pub fn venv_activate(&self) -> PathBuf {
+        PathBuf::from(self.venv.clone()).join("bin/activate")
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ApiConfig {
@@ -61,6 +116,7 @@ impl Default for MQTTConfig {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
     pub path: String,
+    pub ansible: AnsibleConfig,
     pub api: ApiConfig,
     pub dash: DashConfig,
     pub mqtt: MQTTConfig,
@@ -87,6 +143,7 @@ impl From<&ApiConfig> for ReqwestConfig {
 
 impl Default for PrintNannyConfig {
     fn default() -> Self {
+        let ansible = AnsibleConfig::default();
         let api = ApiConfig {
             base_path: "https://print-nanny.com".into(),
             bearer_access_token: None,
@@ -95,6 +152,7 @@ impl Default for PrintNannyConfig {
         let mqtt = MQTTConfig::default();
         let dash = DashConfig::default();
         PrintNannyConfig {
+            ansible,
             api,
             dash,
             mqtt,
