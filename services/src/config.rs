@@ -143,6 +143,7 @@ impl From<&ApiConfig> for ReqwestConfig {
 
 impl Default for PrintNannyConfig {
     fn default() -> Self {
+        let ansible = AnsibleConfig::default();
         let api = ApiConfig {
             base_path: "https://print-nanny.com".into(),
             bearer_access_token: None,
@@ -151,6 +152,7 @@ impl Default for PrintNannyConfig {
         let mqtt = MQTTConfig::default();
         let dash = DashConfig::default();
         PrintNannyConfig {
+            ansible,
             api,
             dash,
             mqtt,
