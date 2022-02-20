@@ -153,14 +153,15 @@ impl MQTTWorker {
 
     fn handle_webrtc_event(
         &self,
-        event: models::WebRtcEvent,
-    ) -> Result<models::web_rtc_event::WebRtcEvent> {
+        event: models::polymorphic_event::WebRtcEvent,
+    ) -> Result<models::polymorphic_event::WebRtcEvent> {
         match &event.event_type {
             models::WebRtcEventType::Start => {
                 info!("Handling ")
             }
+            _ => (),
         }
-        Ok(())
+        Ok(event)
     }
 
     async fn handle_command(&self, event: &Publish) -> Result<()> {
