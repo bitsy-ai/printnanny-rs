@@ -15,7 +15,7 @@ $(TMP_DIR)/.venv:
 ansible: $(TMP_DIR)/.venv
 	$(TMP_DIR)/.venv/bin/pip install --upgrade wheel setuptools pip
 	$(TMP_DIR)/.venv/bin/pip install ansible
-	$(TMP_DIR)/.venv/bin/ansible-galaxy install collection git+https://github.com/bitsy-ai/ansible-collection-printnanny.git,$(RELEASE_CHANNEL)
+	$(TMP_DIR)/.venv/bin/ansible-galaxy collection install git+https://github.com/bitsy-ai/ansible-collection-printnanny.git,$(RELEASE_CHANNEL)
 
 test-license: $(TMP_DIR)/printnanny_license.zip
 
