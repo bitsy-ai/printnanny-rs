@@ -19,7 +19,8 @@ pub fn handle_event(
         true => Command::new(config.ansible.ansible_playbook())
             .arg(format!(
                 "{}.events.{:?}",
-                config.ansible.collection, event_name
+                config.ansible.collection,
+                event_name.to_string()
             ))
             .arg("-e")
             .arg(format!("'{}'", event_json))
@@ -29,7 +30,8 @@ pub fn handle_event(
         false => Command::new(config.ansible.ansible_playbook())
             .arg(format!(
                 "{}.events.{:?}",
-                config.ansible.collection, event_name
+                config.ansible.collection,
+                event_name.to_string()
             ))
             .arg("-e")
             .arg(format!("'{}'", event_json))
