@@ -154,9 +154,9 @@ impl MQTTWorker {
         &self,
         event: models::polymorphic_event::WebRtcEvent,
     ) -> Result<models::polymorphic_event::WebRtcEvent> {
-        match &event.event_type {
-            models::WebRtcEventType::Start => {
-                info!("Handling ")
+        match &event.event_name {
+            models::WebRtcEventName::Start => {
+                info!("Handling models::WebRtcEventName::Start")
             }
             _ => (),
         }
