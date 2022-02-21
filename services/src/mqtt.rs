@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use std::convert::TryFrom;
 use std::fs;
 use std::time::Duration;
@@ -142,12 +143,10 @@ impl MQTTWorker {
         Ok(result)
     }
 
-    fn deserialize_event(&self, event: &Publish) -> Result<PolymorphicEvent> {
-        let data = serde_json::from_slice::<PolymorphicEvent>(event.payload.as_ref())?;
-        info!(
-            "Deserialized command data={:?} from event={:?}",
-            data, event
-        );
+    fn deserialize_event(&self, payload: &Bytes) -> Result<PolymorphicEvent> {
+        info!("Attempting to deserialize bytes {:?}", payload);
+        let data = serde_json::from_slice::<PolymorphicEvent>(payload)?;
+        info!("Success deserialized event data {:?}", data);
         Ok(data)
     }
 
@@ -165,8 +164,11 @@ impl MQTTWorker {
     }
 
     async fn handle_command(&self, event: &Publish) -> Result<()> {
-        info!("Attempting to deserialize event payload {:?}", event);
-        let data = self.deserialize_event(event)?;
+        info!(
+            "Attempting to deserialize event {:?} payload {:?}",
+            event, event.payload
+        );
+        let data = self.deserialize_event(&event.payload)?;
         match data {
             PolymorphicEvent::WebRtcEvent(e) => {
                 info!("Success deserializing WebRtcEvent event {:?}", e);
