@@ -1,4 +1,3 @@
-use bytes::Bytes;
 use std::convert::TryFrom;
 use std::fs;
 use std::time::Duration;
@@ -13,11 +12,12 @@ use rumqttc::{
 };
 use serde::{Deserialize, Serialize};
 
+use super::printnanny_api::ApiService;
+use super::remote;
 use crate::config::{MQTTConfig, PrintNannyConfig};
 use printnanny_api_client::models;
 use printnanny_api_client::models::PolymorphicEvent;
 
-use super::printnanny_api::ApiService;
 #[derive(Copy, Eq, PartialEq, Debug, Clone, ArgEnum)]
 pub enum MqttAction {
     Publish,
@@ -143,39 +143,13 @@ impl MQTTWorker {
         Ok(result)
     }
 
-    fn deserialize_event(&self, payload: &Bytes) -> Result<PolymorphicEvent> {
-        info!("Attempting to deserialize bytes {:?}", payload);
-        let data = serde_json::from_slice::<PolymorphicEvent>(payload)?;
-        info!("Success deserialized event data {:?}", data);
-        Ok(data)
-    }
-
-    fn handle_webrtc_event(
-        &self,
-        event: models::polymorphic_event::WebRtcEvent,
-    ) -> Result<models::polymorphic_event::WebRtcEvent> {
-        match &event.event_name {
-            models::WebRtcEventName::Start => {
-                info!("Handling models::WebRtcEventName::Start")
-            }
-            _ => (),
-        }
-        Ok(event)
-    }
-
     async fn handle_command(&self, event: &Publish) -> Result<()> {
         info!(
             "Attempting to deserialize event {:?} payload {:?}",
             event, event.payload
         );
-        let data = self.deserialize_event(&event.payload)?;
-        match data {
-            PolymorphicEvent::WebRtcEvent(e) => {
-                info!("Success deserializing WebRtcEvent event {:?}", e);
-                self.handle_webrtc_event(e);
-            }
-            _ => warn!("No handler configured for command, ignoring {:?}", data),
-        };
+        let data = serde_json::from_slice::<PolymorphicEvent>(&event.payload)?;
+        remote::handle_event(data, self.config.clone(), false)?;
         Ok(())
     }
 

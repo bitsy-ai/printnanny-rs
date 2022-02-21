@@ -1,18 +1,20 @@
+use super::config::PrintNannyConfig;
 use anyhow::Result;
 use log::info;
 use printnanny_api_client::models;
-use printnanny_services::config::PrintNannyConfig;
 use std::process::Command;
 
-pub fn handle_event(json_str: &str, config: PrintNannyConfig, dryrun: bool) -> Result<()> {
-    let event: models::PolymorphicEvent =
-        serde_json::from_str(json_str).expect("Failed to deserialize event");
+pub fn handle_event(
+    event: models::PolymorphicEvent,
+    config: PrintNannyConfig,
+    dryrun: bool,
+) -> Result<()> {
+    let event_json = serde_json::to_string(&event)?;
     let event_name = match event {
-        models::PolymorphicEvent::WebRtcEvent(inner_event) => inner_event.event_name,
-        _ => {
-            panic!("Unable to handle event_name {:?}", event);
-        }
+        models::PolymorphicEvent::WebRtcEvent(e) => e.event_name,
+        _ => panic!("Failed to extract event_name from event {:?}", event),
     };
+
     let mut cmd = match dryrun {
         true => Command::new(config.ansible.ansible_playbook())
             .arg(format!(
@@ -20,7 +22,7 @@ pub fn handle_event(json_str: &str, config: PrintNannyConfig, dryrun: bool) -> R
                 config.ansible.collection, event_name
             ))
             .arg("-e")
-            .arg(format!("'{}'", json_str))
+            .arg(format!("'{}'", event_json))
             .arg("--check")
             .spawn()
             .expect("ansible-playbook command failed"),
@@ -30,7 +32,7 @@ pub fn handle_event(json_str: &str, config: PrintNannyConfig, dryrun: bool) -> R
                 config.ansible.collection, event_name
             ))
             .arg("-e")
-            .arg(format!("'{}'", json_str))
+            .arg(format!("'{}'", event_json))
             .spawn()
             .expect("ansible-playbook command failed"),
     };
