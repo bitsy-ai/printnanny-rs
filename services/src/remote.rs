@@ -18,7 +18,7 @@ pub fn handle_event(
     let mut cmd = match dryrun {
         true => Command::new(config.ansible.ansible_playbook())
             .arg(format!(
-                "{}.events.{:?}",
+                "{}.events.{}",
                 config.ansible.collection,
                 event_name.to_string()
             ))
@@ -29,7 +29,7 @@ pub fn handle_event(
             .expect("ansible-playbook command failed"),
         false => Command::new(config.ansible.ansible_playbook())
             .arg(format!(
-                "{}.events.{:?}",
+                "{}.events.{}",
                 config.ansible.collection,
                 event_name.to_string()
             ))
