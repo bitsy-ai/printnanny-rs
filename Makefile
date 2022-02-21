@@ -1,7 +1,7 @@
 
 VERSION ?= 0.2.1
 TMP_DIR ?= .tmp
-
+RELEASE_CHANNEL ?= main
 
 $(TMP_DIR)/printnanny_license.zip:
 	PRINTNANNY_INSTALL_DIR=$(TMP_DIR) ./tools/download-license.sh
@@ -9,9 +9,17 @@ $(TMP_DIR)/printnanny_license.zip:
 $(TMP_DIR):
 	mkdir -p $(TMP_DIR)
 
+$(TMP_DIR)/.venv:
+	python3 -m venv $(TMP_DIR)/.venv
+
+ansible: $(TMP_DIR)/.venv
+	$(TMP_DIR)/.venv/bin/pip install --upgrade wheel setuptools pip
+	$(TMP_DIR)/.venv/bin/pip install ansible
+	$(TMP_DIR)/.venv/bin/ansible-galaxy install collection git+https://github.com/bitsy-ai/ansible-collection-printnanny.git,$(RELEASE_CHANNEL)
+
 test-license: $(TMP_DIR)/printnanny_license.zip
 
-clean:d
+clean:
 	rm -rf $(TMP_DIR)
 
 images:
