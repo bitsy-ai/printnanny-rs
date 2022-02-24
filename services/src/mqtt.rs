@@ -1,16 +1,18 @@
-use std::convert::TryFrom;
-use std::fs;
-use std::time::Duration;
-
 use anyhow::{Context, Result};
 use chrono;
 use clap::ArgEnum;
+use futures::prelude::*;
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use log::{debug, info, warn};
 use rumqttc::{
     AsyncClient, Event, Incoming, MqttOptions, Outgoing, Packet, Publish, QoS, Transport,
 };
 use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
+use std::fs;
+use std::time::Duration;
+use tokio::net::UnixStream;
+use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
 use super::printnanny_api::ApiService;
 use super::remote;
@@ -173,8 +175,17 @@ impl MQTTWorker {
         Ok(())
     }
 
-    pub async fn run(self) -> Result<()> {
+    pub async fn publish(self) -> Result<()> {
+        Ok(())
+    }
+    pub async fn subscribe(self) -> Result<()> {
         let (client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 64);
+        let dir = tempfile::tempdir().unwrap();
+        let bind_path = dir.path().join("bind_path");
+        let fail_msg = format!("Failed to open {:?}", &bind_path);
+        let stream = UnixStream::connect(bind_path).await.expect(&fail_msg);
+        let ready = &stream.ready(tokio::io::Interest::READABLE).await?;
+        let mut outgoing_stream = FramedRead::new(stream, LengthDelimitedCodec::new());
         client
             .subscribe(&self.config_topic, QoS::AtLeastOnce)
             .await
@@ -188,16 +199,23 @@ impl MQTTWorker {
             .await
             .unwrap();
         loop {
-            let notification = eventloop.poll().await?;
-            match &notification {
+            let incoming = eventloop.poll().await?;
+            match &incoming {
                 Event::Incoming(Packet::PingResp) => {
-                    debug!("Received = {:?}", &notification)
+                    debug!("Received = {:?}", &incoming)
                 }
                 Event::Outgoing(Outgoing::PingReq) => {
-                    debug!("Received = {:?}", &notification)
+                    debug!("Received = {:?}", &incoming)
                 }
                 Event::Incoming(Incoming::Publish(e)) => self.handle_event(e).await?,
-                _ => info!("Received = {:?}", &notification),
+                _ => info!("Received = {:?}", &incoming),
+            }
+            if ready.is_readable() {
+                let outgoing = outgoing_stream
+                    .next()
+                    .await
+                    .expect("Failed to read msg from unix socket");
+                info!("Handling outgoing msg {:?}", outgoing);
             }
         }
     }

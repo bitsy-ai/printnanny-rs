@@ -156,9 +156,14 @@ async fn main() -> Result<()> {
                     let worker = MQTTWorker::new(
                         config,
                     ).await?;
-                    worker.run().await?;
+                    worker.subscribe().await?;
                 },
-                MqttAction::Publish => unimplemented!("mqtt publish is not implemented yet")
+                MqttAction::Publish => {
+                    let worker = MQTTWorker::new(
+                        config,
+                    ).await?;
+                    worker.publish().await?;
+                }
             }
         },
         Some(("config", _)) => {
