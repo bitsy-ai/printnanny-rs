@@ -127,7 +127,7 @@ pub struct PrintNannyConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<models::User>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub janus_local: Option<models::JanusStream>,
+    pub janus_local: Option<models::JanusStreamRequest>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub janus_cloud: Option<models::JanusStream>,
 }
