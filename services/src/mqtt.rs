@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use chrono;
-use clap::ArgEnum;
 use futures::prelude::*;
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use log::{debug, error, info, warn};
@@ -19,33 +18,6 @@ use super::remote;
 use crate::config::{MQTTConfig, PrintNannyConfig};
 use printnanny_api_client::models;
 use printnanny_api_client::models::PolymorphicEvent;
-
-#[derive(Copy, Eq, PartialEq, Debug, Clone, ArgEnum)]
-pub enum MqttAction {
-    Publish,
-    Subscribe,
-}
-
-impl MqttAction {
-    pub fn possible_values() -> impl Iterator<Item = clap::PossibleValue<'static>> {
-        MqttAction::value_variants()
-            .iter()
-            .filter_map(clap::ArgEnum::to_possible_value)
-    }
-}
-
-impl std::str::FromStr for MqttAction {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        for variant in Self::value_variants() {
-            if variant.to_possible_value().unwrap().matches(s, false) {
-                return Ok(*variant);
-            }
-        }
-        Err(format!("Invalid variant: {}", s))
-    }
-}
 
 /// Our claims struct, it needs to derive `Serialize` and/or `Deserialize`
 #[derive(Debug, Serialize, Deserialize, Clone)]

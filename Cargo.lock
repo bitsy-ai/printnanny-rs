@@ -2430,7 +2430,6 @@ dependencies = [
  "async-trait",
  "bytes",
  "chrono",
- "clap",
  "config",
  "console",
  "dialoguer",
