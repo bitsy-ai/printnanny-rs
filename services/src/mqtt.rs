@@ -3,7 +3,7 @@ use chrono;
 use clap::ArgEnum;
 use futures::prelude::*;
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 use rumqttc::{
     AsyncClient, Event, Incoming, MqttOptions, Outgoing, Packet, Publish, QoS, Transport,
 };
@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::fs;
 use std::time::Duration;
-use tokio::net::UnixStream;
-use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
+use tokio::net::UnixListener;
+use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
 use super::printnanny_api::ApiService;
 use super::remote;
@@ -178,14 +178,12 @@ impl MQTTWorker {
     pub async fn publish(self) -> Result<()> {
         Ok(())
     }
-    pub async fn subscribe(self) -> Result<()> {
+    pub async fn subscribe(&self) -> Result<()> {
         let (client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 64);
-        let dir = tempfile::tempdir().unwrap();
-        let bind_path = dir.path().join("bind_path");
-        let fail_msg = format!("Failed to open {:?}", &bind_path);
-        let stream = UnixStream::connect(bind_path).await.expect(&fail_msg);
-        let ready = &stream.ready(tokio::io::Interest::READABLE).await?;
-        let mut outgoing_stream = FramedRead::new(stream, LengthDelimitedCodec::new());
+        let listener = UnixListener::bind(&self.config.event_socket).context(format!(
+            "Failed to bind to socket {}",
+            &self.config.event_socket
+        ))?;
         client
             .subscribe(&self.config_topic, QoS::AtLeastOnce)
             .await
@@ -210,12 +208,27 @@ impl MQTTWorker {
                 Event::Incoming(Incoming::Publish(e)) => self.handle_event(e).await?,
                 _ => info!("Received = {:?}", &incoming),
             }
-            if ready.is_readable() {
-                let outgoing = outgoing_stream
-                    .next()
-                    .await
-                    .expect("Failed to read msg from unix socket");
-                info!("Handling outgoing msg {:?}", outgoing);
+            match listener.accept().await {
+                Ok((stream, _addr)) => {
+                    let length_delimited = FramedRead::new(stream, LengthDelimitedCodec::new());
+                    let mut deserialized: tokio_serde::Framed<
+                        FramedRead<tokio::net::UnixStream, LengthDelimitedCodec>,
+                        serde_json::Value,
+                        serde_json::Value,
+                        tokio_serde::formats::Json<serde_json::Value, serde_json::Value>,
+                    > = tokio_serde::SymmetricallyFramed::new(
+                        length_delimited,
+                        tokio_serde::formats::SymmetricalJson::<serde_json::Value>::default(),
+                    );
+                    let msg = deserialized.try_next().await.unwrap();
+                    info!("Publishing msg {:?}", msg);
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to accept connection on {} with error {:?}",
+                        &self.config.event_socket, e
+                    );
+                }
             }
         }
     }

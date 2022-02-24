@@ -115,7 +115,9 @@ impl Default for MQTTConfig {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
-    pub path: String,
+    pub install_dir: String,
+    pub runtime_dir: String,
+    pub event_socket: String,
     pub ansible: AnsibleConfig,
     pub api: ApiConfig,
     pub dash: DashConfig,
@@ -148,7 +150,9 @@ impl Default for PrintNannyConfig {
             base_path: "https://print-nanny.com".into(),
             bearer_access_token: None,
         };
-        let path = "/opt/printnanny/default".into();
+        let install_dir = "/opt/printnanny/default".into();
+        let runtime_dir = "/var/run/printnanny".into();
+        let event_socket = "/var/run/printnanny/event.sock".into();
         let mqtt = MQTTConfig::default();
         let dash = DashConfig::default();
         PrintNannyConfig {
@@ -156,7 +160,9 @@ impl Default for PrintNannyConfig {
             api,
             dash,
             mqtt,
-            path,
+            install_dir,
+            runtime_dir,
+            event_socket,
             device: None,
             user: None,
             janus_cloud: None,
@@ -204,7 +210,7 @@ impl PrintNannyConfig {
         info!("Loaded config from profile {:?}", result.profile());
         let path: String = result
             .find_value("path")
-            .unwrap_or_else(|_| Value::from(Self::default().path))
+            .unwrap_or_else(|_| Value::from(Self::default().install_path))
             .deserialize::<String>()
             .unwrap();
 
@@ -241,7 +247,7 @@ impl PrintNannyConfig {
         // save api_config.json
         let msg = format!("Failed to serialize {:?}", self);
         let content = serde_json::to_string_pretty(&self).expect(&msg);
-        let filename = format!("{}/{}", &self.path, "PrintNannyLicense.json");
+        let filename = format!("{}/{}", &self.install_path, "PrintNannyLicense.json");
         let msg = format!("Unable to write file: {}", &filename);
         fs::write(&filename, content).expect(&msg);
         info!("Success! Wrote {}", &filename);
@@ -344,7 +350,7 @@ mod tests {
 
             let base_path = "http://aurora:8000".into();
             let path: String = "/home/leigh/projects/print-nanny-cli/.tmp".into();
-            assert_eq!(config.path, path);
+            assert_eq!(config.install_path, path);
             assert_eq!(config.api.base_path, base_path);
 
             assert_eq!(
