@@ -1,49 +1,23 @@
-use std::convert::TryFrom;
-use std::fs;
-use std::time::Duration;
-
 use anyhow::{Context, Result};
 use chrono;
-use clap::ArgEnum;
+use futures::prelude::*;
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 use rumqttc::{
     AsyncClient, Event, Incoming, MqttOptions, Outgoing, Packet, Publish, QoS, Transport,
 };
 use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
+use std::fs;
+use std::time::Duration;
+use tokio::net::{UnixListener, UnixStream};
+use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
 use super::printnanny_api::ApiService;
 use super::remote;
 use crate::config::{MQTTConfig, PrintNannyConfig};
 use printnanny_api_client::models;
 use printnanny_api_client::models::PolymorphicEvent;
-
-#[derive(Copy, Eq, PartialEq, Debug, Clone, ArgEnum)]
-pub enum MqttAction {
-    Publish,
-    Subscribe,
-}
-
-impl MqttAction {
-    pub fn possible_values() -> impl Iterator<Item = clap::PossibleValue<'static>> {
-        MqttAction::value_variants()
-            .iter()
-            .filter_map(clap::ArgEnum::to_possible_value)
-    }
-}
-
-impl std::str::FromStr for MqttAction {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        for variant in Self::value_variants() {
-            if variant.to_possible_value().unwrap().matches(s, false) {
-                return Ok(*variant);
-            }
-        }
-        Err(format!("Invalid variant: {}", s))
-    }
-}
 
 /// Our claims struct, it needs to derive `Serialize` and/or `Deserialize`
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -173,8 +147,49 @@ impl MQTTWorker {
         Ok(())
     }
 
-    pub async fn run(self) -> Result<()> {
+    // re-publish printnanny events unix sock to mqtt topic
+    pub async fn publish(&self, value: serde_json::Value) -> Result<()> {
+        let stream = UnixStream::connect(&self.config.event_socket)
+            .await
+            .context(format!(
+                "Failed to connect to socket {}",
+                &self.config.event_socket
+            ))?;
+        // Delimit frames using a length header
+        let length_delimited = FramedWrite::new(stream, LengthDelimitedCodec::new());
+
+        // Serialize frames with JSON
+        let mut serialized = tokio_serde::SymmetricallyFramed::new(
+            length_delimited,
+            tokio_serde::formats::SymmetricalJson::<serde_json::Value>::default(),
+        );
+        // enrich with device metadata
+        let enriched_value = match value {
+            serde_json::Value::Object(mut o) => {
+                let device = self
+                    .config
+                    .device
+                    .clone()
+                    .expect("Device was not defined")
+                    .id;
+                o.insert("device".into(), serde_json::Value::Number(device.into()));
+                serde_json::Value::Object(o)
+            }
+            _ => value,
+        };
+        serialized
+            .send(enriched_value.clone())
+            .await
+            .context(format!("Failed to send {:?}", &enriched_value))?;
+        Ok(())
+    }
+    // subscribe to mqtt config, command topics + printnanny events unix sock
+    pub async fn subscribe(&self) -> Result<()> {
         let (client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 64);
+        let listener = UnixListener::bind(&self.config.event_socket).context(format!(
+            "Failed to bind to socket {}",
+            &self.config.event_socket
+        ))?;
         client
             .subscribe(&self.config_topic, QoS::AtLeastOnce)
             .await
@@ -188,16 +203,38 @@ impl MQTTWorker {
             .await
             .unwrap();
         loop {
-            let notification = eventloop.poll().await?;
-            match &notification {
+            let incoming = eventloop.poll().await?;
+            match &incoming {
                 Event::Incoming(Packet::PingResp) => {
-                    debug!("Received = {:?}", &notification)
+                    debug!("Received = {:?}", &incoming)
                 }
                 Event::Outgoing(Outgoing::PingReq) => {
-                    debug!("Received = {:?}", &notification)
+                    debug!("Received = {:?}", &incoming)
                 }
                 Event::Incoming(Incoming::Publish(e)) => self.handle_event(e).await?,
-                _ => info!("Received = {:?}", &notification),
+                _ => info!("Received = {:?}", &incoming),
+            }
+            match listener.accept().await {
+                Ok((stream, _addr)) => {
+                    let length_delimited = FramedRead::new(stream, LengthDelimitedCodec::new());
+                    let mut deserialized: tokio_serde::Framed<
+                        FramedRead<tokio::net::UnixStream, LengthDelimitedCodec>,
+                        serde_json::Value,
+                        serde_json::Value,
+                        tokio_serde::formats::Json<serde_json::Value, serde_json::Value>,
+                    > = tokio_serde::SymmetricallyFramed::new(
+                        length_delimited,
+                        tokio_serde::formats::SymmetricalJson::<serde_json::Value>::default(),
+                    );
+                    let msg = deserialized.try_next().await.unwrap();
+                    info!("Publishing msg {:?}", msg);
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to accept connection on {} with error {:?}",
+                        &self.config.event_socket, e
+                    );
+                }
             }
         }
     }

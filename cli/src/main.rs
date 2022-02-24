@@ -10,7 +10,7 @@ use clap::{
 
 use printnanny_services::config::{ PrintNannyConfig};
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
-use printnanny_services::mqtt::{ MQTTWorker, MqttAction };
+use printnanny_services::mqtt::{ MQTTWorker };
 use printnanny_services::remote;
 use printnanny_cli::device::{DeviceCmd, DeviceAction };
 use printnanny_cli::config::{ConfigAction};
@@ -102,17 +102,22 @@ async fn main() -> Result<()> {
                 .takes_value(true)
             ))
         // mqtt <subscribe|publish>
-        .subcommand(App::new("mqtt")
+        .subcommand(App::new("event")
             .author(crate_authors!())
             .about(crate_description!())
             .version(crate_version!())
             .about("Interact with MQTT pub/sub service")
-            .setting(AppSettings::ArgRequiredElseHelp)
-            .arg(Arg::new("action")
-                .possible_values(MqttAction::possible_values())
-                .ignore_case(true)
+            .setting(AppSettings::SubcommandRequiredElseHelp)
+            .subcommand(
+                App::new("publish")
+                .arg(Arg::new("data")
+                    .short('d')
+                    .long("data")
+                    .takes_value(true)
             ))
-
+            .subcommand(
+                App::new("subscribe")
+            ))
         .subcommand(App::new("remote")
             .author(crate_authors!())
             .about(crate_description!())
@@ -149,16 +154,23 @@ async fn main() -> Result<()> {
     };
 
     match app_m.subcommand() {
-        Some(("mqtt", sub_m)) => {
-            let action: MqttAction = sub_m.value_of_t("action").unwrap_or_else(|e| e.exit());
-            match action {
-                MqttAction::Subscribe => {
+        Some(("event", sub_m)) => {
+            match sub_m.subcommand() {
+                Some(("subscribe", _event_m)) => {
                     let worker = MQTTWorker::new(
                         config,
                     ).await?;
-                    worker.run().await?;
+                    worker.subscribe().await?;
+                }
+                Some(("publish", event_m)) => {
+                    let worker = MQTTWorker::new(
+                        config,
+                    ).await?;
+                    let data = event_m.value_of("data").expect("Expected --data argument passed");
+                    let value: serde_json::Value = serde_json::from_str(data)?;
+                    worker.publish(value).await?;
                 },
-                MqttAction::Publish => unimplemented!("mqtt publish is not implemented yet")
+                _ => panic!("Expected publish|subscribe subcommand")
             }
         },
         Some(("config", _)) => {
