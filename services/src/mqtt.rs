@@ -163,24 +163,10 @@ impl MQTTWorker {
             length_delimited,
             tokio_serde::formats::SymmetricalJson::<serde_json::Value>::default(),
         );
-        // enrich with device metadata
-        let enriched_value = match value {
-            serde_json::Value::Object(mut o) => {
-                let device = self
-                    .config
-                    .device
-                    .clone()
-                    .expect("Device was not defined")
-                    .id;
-                o.insert("device".into(), serde_json::Value::Number(device.into()));
-                serde_json::Value::Object(o)
-            }
-            _ => value,
-        };
         serialized
-            .send(enriched_value.clone())
+            .send(value.clone())
             .await
-            .context(format!("Failed to send {:?}", &enriched_value))?;
+            .context(format!("Failed to send {:?}", &value))?;
         Ok(())
     }
     // subscribe to mqtt config, command topics + printnanny events unix sock
