@@ -350,7 +350,7 @@ mod tests {
 
             let base_path = "http://aurora:8000".into();
             let path: String = "/home/leigh/projects/print-nanny-cli/.tmp".into();
-            assert_eq!(config.install_path, path);
+            assert_eq!(config.install_dir, path);
             assert_eq!(config.api.base_path, base_path);
 
             assert_eq!(
