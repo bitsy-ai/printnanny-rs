@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::fs;
 use std::time::Duration;
-use tokio::net::UnixListener;
-use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
+use tokio::net::{UnixListener, UnixStream};
+use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
 use super::printnanny_api::ApiService;
 use super::remote;
@@ -175,9 +175,30 @@ impl MQTTWorker {
         Ok(())
     }
 
-    pub async fn publish(self) -> Result<()> {
+    // re-publish printnanny events unix sock to mqtt topic
+    pub async fn publish(&self, event: models::PolymorphicEvent) -> Result<()> {
+        let stream = UnixStream::connect(&self.config.event_socket)
+            .await
+            .context(format!(
+                "Failed to connect to socket {}",
+                &self.config.event_socket
+            ))?;
+        // Delimit frames using a length header
+        let length_delimited = FramedWrite::new(stream, LengthDelimitedCodec::new());
+
+        // Serialize frames with JSON
+        let mut serialized = tokio_serde::SymmetricallyFramed::new(
+            length_delimited,
+            tokio_serde::formats::SymmetricalJson::<serde_json::Value>::default(),
+        );
+        let value = serde_json::to_value(event.clone())?;
+        serialized
+            .send(value)
+            .await
+            .context(format!("Failed to send {:?}", &event))?;
         Ok(())
     }
+    // subscribe to mqtt config, command topics + printnanny events unix sock
     pub async fn subscribe(&self) -> Result<()> {
         let (client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 64);
         let listener = UnixListener::bind(&self.config.event_socket).context(format!(
