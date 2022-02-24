@@ -176,7 +176,7 @@ impl MQTTWorker {
     }
 
     // re-publish printnanny events unix sock to mqtt topic
-    pub async fn publish(&self, event: models::PolymorphicEvent) -> Result<()> {
+    pub async fn publish(&self, value: serde_json::Value) -> Result<()> {
         let stream = UnixStream::connect(&self.config.event_socket)
             .await
             .context(format!(
@@ -191,11 +191,24 @@ impl MQTTWorker {
             length_delimited,
             tokio_serde::formats::SymmetricalJson::<serde_json::Value>::default(),
         );
-        let value = serde_json::to_value(event.clone())?;
+        // enrich with device metadata
+        let enriched_value = match value {
+            serde_json::Value::Object(mut o) => {
+                let device = self
+                    .config
+                    .device
+                    .clone()
+                    .expect("Device was not defined")
+                    .id;
+                o.insert("device".into(), serde_json::Value::Number(device.into()));
+                serde_json::Value::Object(o)
+            }
+            _ => value,
+        };
         serialized
-            .send(value)
+            .send(enriched_value.clone())
             .await
-            .context(format!("Failed to send {:?}", &event))?;
+            .context(format!("Failed to send {:?}", &enriched_value))?;
         Ok(())
     }
     // subscribe to mqtt config, command topics + printnanny events unix sock

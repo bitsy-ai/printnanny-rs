@@ -210,7 +210,7 @@ impl PrintNannyConfig {
         info!("Loaded config from profile {:?}", result.profile());
         let path: String = result
             .find_value("path")
-            .unwrap_or_else(|_| Value::from(Self::default().install_path))
+            .unwrap_or_else(|_| Value::from(Self::default().install_dir))
             .deserialize::<String>()
             .unwrap();
 
@@ -247,7 +247,7 @@ impl PrintNannyConfig {
         // save api_config.json
         let msg = format!("Failed to serialize {:?}", self);
         let content = serde_json::to_string_pretty(&self).expect(&msg);
-        let filename = format!("{}/{}", &self.install_path, "PrintNannyLicense.json");
+        let filename = format!("{}/{}", &self.install_dir, "PrintNannyLicense.json");
         let msg = format!("Unable to write file: {}", &filename);
         fs::write(&filename, content).expect(&msg);
         info!("Success! Wrote {}", &filename);
