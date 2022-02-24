@@ -300,7 +300,7 @@ mod tests {
                 "PrintNanny.toml",
                 r#"
             name = "default"
-            path = "/opt/printnanny/default"
+            install_dir = "/opt/printnanny/default"
             
             [api]
             base_path = "https://print-nanny.com"
@@ -337,7 +337,7 @@ mod tests {
                 "Local.toml",
                 r#"
             name = "local"
-            path = "/home/leigh/projects/print-nanny-cli/.tmp"
+            install_dir = "/home/leigh/projects/print-nanny-cli/.tmp"
             
             [api]
             base_path = "http://aurora:8000"
@@ -358,50 +358,6 @@ mod tests {
                 ApiConfig {
                     base_path: base_path,
                     bearer_access_token: None
-                }
-            );
-            Ok(())
-        });
-    }
-
-    #[test_log::test]
-    fn test_custom_json_toml_glob() {
-        figment::Jail::expect_with(|jail| {
-            jail.create_file(
-                "Base.toml",
-                r#"
-            path = ".tmp"
-            
-            [api]
-            base_path = "https://print-nanny.com"
-            "#,
-            )?;
-            let tmp_directory = jail.directory();
-            std::fs::create_dir(tmp_directory.join(".tmp")).unwrap();
-            jail.create_file(
-                ".tmp/ApiConfig.toml",
-                r#"
-            [api]
-            base_path = "http://aurora:8000"
-            bearer_access_token = "abc123"
-            "#,
-            )?;
-            // jail.create_file(
-            //     ".tmp/device.json",
-            //     r#"
-            // "#,
-            // )?;
-            jail.set_env("PRINTNANNY_CONFIG", "Base.toml");
-            let figment = PrintNannyConfig::figment(None);
-            let config: PrintNannyConfig = figment.extract()?;
-            info!("Read config {:?}", config);
-            // assert_eq!(config.api_config.bearer_access_token, "local");
-            // assert_eq!(config.device.unwrap().id, 1);
-            assert_eq!(
-                config.api,
-                ApiConfig {
-                    base_path: "http://aurora:8000".into(),
-                    bearer_access_token: Some("abc123".into())
                 }
             );
             Ok(())
