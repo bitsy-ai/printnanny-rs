@@ -149,11 +149,11 @@ impl MQTTWorker {
 
     // re-publish printnanny events unix sock to mqtt topic
     pub async fn publish(&self, value: serde_json::Value) -> Result<()> {
-        let stream = UnixStream::connect(&self.config.event_socket)
+        let stream = UnixStream::connect(&self.config.events_socket)
             .await
             .context(format!(
                 "Failed to connect to socket {}",
-                &self.config.event_socket
+                &self.config.events_socket
             ))?;
         // Delimit frames using a length header
         let length_delimited = FramedWrite::new(stream, LengthDelimitedCodec::new());
@@ -172,9 +172,9 @@ impl MQTTWorker {
     // subscribe to mqtt config, command topics + printnanny events unix sock
     pub async fn subscribe(&self) -> Result<()> {
         let (client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 64);
-        let listener = UnixListener::bind(&self.config.event_socket).context(format!(
+        let listener = UnixListener::bind(&self.config.events_socket).context(format!(
             "Failed to bind to socket {}",
-            &self.config.event_socket
+            &self.config.events_socket
         ))?;
         client
             .subscribe(&self.config_topic, QoS::AtLeastOnce)
@@ -218,7 +218,7 @@ impl MQTTWorker {
                 Err(e) => {
                     error!(
                         "Failed to accept connection on {} with error {:?}",
-                        &self.config.event_socket, e
+                        &self.config.events_socket, e
                     );
                 }
             }

@@ -117,7 +117,7 @@ impl Default for MQTTConfig {
 pub struct PrintNannyConfig {
     pub install_dir: String,
     pub runtime_dir: String,
-    pub event_socket: String,
+    pub events_socket: String,
     pub ansible: AnsibleConfig,
     pub api: ApiConfig,
     pub dash: DashConfig,
@@ -152,7 +152,7 @@ impl Default for PrintNannyConfig {
         };
         let install_dir = "/opt/printnanny/default".into();
         let runtime_dir = "/var/run/printnanny".into();
-        let event_socket = "/var/run/printnanny/event.sock".into();
+        let events_socket = "/var/run/printnanny/event.sock".into();
         let mqtt = MQTTConfig::default();
         let dash = DashConfig::default();
         PrintNannyConfig {
@@ -162,7 +162,7 @@ impl Default for PrintNannyConfig {
             mqtt,
             install_dir,
             runtime_dir,
-            event_socket,
+            events_socket,
             device: None,
             user: None,
             janus_cloud: None,
