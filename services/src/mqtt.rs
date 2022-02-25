@@ -123,8 +123,7 @@ impl MQTTWorker {
             event, event.payload
         );
         let data = serde_json::from_slice::<PolymorphicEvent>(&event.payload)?;
-        remote::handle_event(data, self.config.clone(), false)?;
-        Ok(())
+        remote::handle_command(data, self.config.clone(), false).await
     }
 
     async fn handle_event(&self, event: &Publish) -> Result<()> {
