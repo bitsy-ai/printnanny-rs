@@ -209,7 +209,7 @@ impl PrintNannyConfig {
 
         info!("Loaded config from profile {:?}", result.profile());
         let path: String = result
-            .find_value("path")
+            .find_value("install_dir")
             .unwrap_or_else(|_| Value::from(Self::default().install_dir))
             .deserialize::<String>()
             .unwrap();
