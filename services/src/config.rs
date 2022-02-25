@@ -152,7 +152,7 @@ impl Default for PrintNannyConfig {
         };
         let install_dir = "/opt/printnanny/default".into();
         let runtime_dir = "/var/run/printnanny".into();
-        let events_socket = "/var/run/printnanny/events.sock".into();
+        let events_socket = "/var/run/printnanny/event.sock".into();
         let mqtt = MQTTConfig::default();
         let dash = DashConfig::default();
         PrintNannyConfig {

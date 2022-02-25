@@ -123,7 +123,7 @@ impl MQTTWorker {
             event, event.payload
         );
         let data = serde_json::from_slice::<PolymorphicEvent>(&event.payload)?;
-        remote::handle_event(data, self.config.clone(), false)?;
+        remote::handle_command(data, self.config.clone(), false).await;
         Ok(())
     }
 
@@ -172,12 +172,16 @@ impl MQTTWorker {
     // subscribe to mqtt config, command topics + printnanny events unix sock
     pub async fn subscribe(&self) -> Result<()> {
         let (client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 64);
-        warn!(
-            "Deleting socket {:?} without mercy. Refactor this code to run 2+ concurrent socket listeners/bindings.",
-            &self.config.events_socket
-        );
-        std::fs::remove_file(&self.config.events_socket)
-            .context(format!("Failed to delete {}", &self.config.events_socket))?;
+        let maybe_delete = std::fs::remove_file(&self.config.events_socket);
+        match maybe_delete {
+            Ok(_) => {
+                warn!(
+                    "Deleted socket {:?} without mercy. Refactor this code to run 2+ concurrent socket listeners/bindings.",
+                    &self.config.events_socket
+                );
+            }
+            Err(_) => {}
+        };
         let listener = UnixListener::bind(&self.config.events_socket).context(format!(
             "Failed to bind to socket {}",
             &self.config.events_socket
