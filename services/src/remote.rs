@@ -3,11 +3,7 @@ use async_process::Command as AsyncCommand;
 use log::info;
 use printnanny_api_client::models;
 
-pub async fn handle_command(
-    event: models::PolymorphicEvent,
-    config: PrintNannyConfig,
-    dryrun: bool,
-) -> () {
+async fn run_playbook(event: models::PolymorphicEvent, config: PrintNannyConfig, dryrun: bool) {
     let event_json = serde_json::to_string(&event).expect("Failed to serialize event");
     let event_name = match &event {
         models::PolymorphicEvent::WebRtcEvent(e) => e.event_name,
@@ -50,4 +46,11 @@ pub async fn handle_command(
             );
         }
     }
+}
+pub async fn handle_command(
+    event: models::PolymorphicEvent,
+    config: PrintNannyConfig,
+    dryrun: bool,
+) -> () {
+    run_playbook(event, config, dryrun).await;
 }
