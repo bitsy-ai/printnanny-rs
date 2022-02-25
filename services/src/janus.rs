@@ -191,11 +191,7 @@ pub async fn janus_admin_api_call(
 ) -> Result<String> {
     let body = build_request_body(&endpoint, janus_config)?;
     let client = reqwest::Client::new();
-    let host = &janus_config
-        .auth
-        .as_ref()
-        .expect("JanusAuth was not defined")
-        .admin_url;
+    let host = &janus_config.admin_url;
     let res = client.post(host).json(&body).send().await?.text().await?;
     Ok(res)
 }
