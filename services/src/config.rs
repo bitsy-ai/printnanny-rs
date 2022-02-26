@@ -13,15 +13,19 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AnsibleConfig {
-    pub venv: String,
-    pub collection: String,
+    pub venv_dir: String,
+    pub collection_name: String,
+    pub collection_dir: String,
+    pub collection_version: String,
 }
 
 impl Default for AnsibleConfig {
     fn default() -> Self {
         Self {
-            venv: "/opt/printnanny/ansible/venv".into(),
-            collection: "bitsyai.printnanny".into(),
+            venv_dir: "/opt/printnanny/ansible/venv".into(),
+            collection_name: "bitsyai.printnanny".into(),
+            collection_dir: "/opt/printnanny/ansible/ansible_collections".into(),
+            collection_version: "1.4.1",
         }
     }
 }
