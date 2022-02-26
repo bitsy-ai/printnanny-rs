@@ -25,7 +25,7 @@ impl Default for AnsibleConfig {
             venv_dir: "/opt/printnanny/ansible/venv".into(),
             collection_name: "bitsyai.printnanny".into(),
             collection_dir: "/opt/printnanny/ansible/ansible_collections".into(),
-            collection_version: "1.4.1",
+            collection_version: "1.4.1".into(),
         }
     }
 }
