@@ -309,7 +309,7 @@ impl ApiService {
         let image_version = read_to_string("/boot/image_version.txt")
             .unwrap_or_else(|_| "Failed to parse /boot/image_version.txt".to_string());
 
-        let ansible_collection_version = self.config.ansible.collection_version.copy();
+        let ansible_collection_version = self.config.ansible.collection_version.clone();
         let request = models::SystemInfoRequest {
             machine_id,
             hardware,
