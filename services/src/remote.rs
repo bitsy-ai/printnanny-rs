@@ -14,7 +14,7 @@ async fn run_playbook(event: models::PolymorphicEvent, config: PrintNannyConfig,
         true => AsyncCommand::new(config.ansible.ansible_playbook())
             .arg(format!(
                 "{}.events.{}",
-                config.ansible.collection,
+                config.ansible.collection_name,
                 event_name.to_string()
             ))
             .arg("-e")
@@ -26,7 +26,7 @@ async fn run_playbook(event: models::PolymorphicEvent, config: PrintNannyConfig,
         false => AsyncCommand::new(config.ansible.ansible_playbook())
             .arg(format!(
                 "{}.events.{}",
-                config.ansible.collection,
+                config.ansible.collection_name,
                 event_name.to_string()
             ))
             .arg("-e")

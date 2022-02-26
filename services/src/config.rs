@@ -13,15 +13,17 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AnsibleConfig {
-    pub venv: String,
-    pub collection: String,
+    pub venv_dir: String,
+    pub collection_name: String,
+    pub collection_version: String,
 }
 
 impl Default for AnsibleConfig {
     fn default() -> Self {
         Self {
-            venv: "/opt/printnanny/ansible/venv".into(),
-            collection: "bitsyai.printnanny".into(),
+            venv_dir: "/opt/printnanny/ansible/venv".into(),
+            collection_name: "bitsyai.printnanny".into(),
+            collection_version: "1.4.1".into(),
         }
     }
 }
@@ -29,39 +31,39 @@ impl Default for AnsibleConfig {
 impl AnsibleConfig {
     // ansible executable path
     pub fn ansible(&self) -> PathBuf {
-        PathBuf::from(self.venv.clone()).join("bin/ansible")
+        PathBuf::from(self.venv_dir.clone()).join("bin/ansible")
     }
     // ansible-config executable path
     pub fn ansible_config(&self) -> PathBuf {
-        PathBuf::from(self.venv.clone()).join("bin/ansible-config")
+        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-config")
     }
     // ansible-doc executable path
     pub fn ansible_doc(&self) -> PathBuf {
-        PathBuf::from(self.venv.clone()).join("bin/ansible-doc")
+        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-doc")
     }
     // ansible-galaxy executable path
     pub fn ansible_galaxy(&self) -> PathBuf {
-        PathBuf::from(self.venv.clone()).join("bin/ansible-galaxy")
+        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-galaxy")
     }
     // ansible-inventory executable path
     pub fn ansible_inventory(&self) -> PathBuf {
-        PathBuf::from(self.venv.clone()).join("bin/ansible-inventory")
+        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-inventory")
     }
     // ansible-playbook executable path
     pub fn ansible_playbook(&self) -> PathBuf {
-        PathBuf::from(self.venv.clone()).join("bin/ansible-playbook")
+        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-playbook")
     }
     // ansible-pull executable path
     pub fn ansible_pull(&self) -> PathBuf {
-        PathBuf::from(self.venv.clone()).join("bin/ansible-pull")
+        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-pull")
     }
     // ansible-vault executable path
     pub fn ansible_vault(&self) -> PathBuf {
-        PathBuf::from(self.venv.clone()).join("bin/ansible-vault")
+        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-vault")
     }
     // venv activate executable path
     pub fn venv_activate(&self) -> PathBuf {
-        PathBuf::from(self.venv.clone()).join("bin/activate")
+        PathBuf::from(self.venv_dir.clone()).join("bin/activate")
     }
 }
 
