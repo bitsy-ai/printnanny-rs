@@ -31,39 +31,39 @@ impl Default for AnsibleConfig {
 impl AnsibleConfig {
     // ansible executable path
     pub fn ansible(&self) -> PathBuf {
-        PathBuf::from(self.venv_dirclone()).join("bin/ansible")
+        PathBuf::from(self.venv_dir.clone()).join("bin/ansible")
     }
     // ansible-config executable path
     pub fn ansible_config(&self) -> PathBuf {
-        PathBuf::from(self.venv_dirclone()).join("bin/ansible-config")
+        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-config")
     }
     // ansible-doc executable path
     pub fn ansible_doc(&self) -> PathBuf {
-        PathBuf::from(self.venv_dirclone()).join("bin/ansible-doc")
+        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-doc")
     }
     // ansible-galaxy executable path
     pub fn ansible_galaxy(&self) -> PathBuf {
-        PathBuf::from(self.venv_dirclone()).join("bin/ansible-galaxy")
+        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-galaxy")
     }
     // ansible-inventory executable path
     pub fn ansible_inventory(&self) -> PathBuf {
-        PathBuf::from(self.venv_dirclone()).join("bin/ansible-inventory")
+        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-inventory")
     }
     // ansible-playbook executable path
     pub fn ansible_playbook(&self) -> PathBuf {
-        PathBuf::from(self.venv_dirclone()).join("bin/ansible-playbook")
+        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-playbook")
     }
     // ansible-pull executable path
     pub fn ansible_pull(&self) -> PathBuf {
-        PathBuf::from(self.venv_dirclone()).join("bin/ansible-pull")
+        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-pull")
     }
     // ansible-vault executable path
     pub fn ansible_vault(&self) -> PathBuf {
-        PathBuf::from(self.venv_dirclone()).join("bin/ansible-vault")
+        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-vault")
     }
     // venv activate executable path
     pub fn venv_activate(&self) -> PathBuf {
-        PathBuf::from(self.venv_dirclone()).join("bin/activate")
+        PathBuf::from(self.venv_dir.clone()).join("bin/activate")
     }
 }
 
