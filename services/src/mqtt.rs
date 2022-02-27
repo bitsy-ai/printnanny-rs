@@ -14,7 +14,6 @@ use tokio::net::{UnixListener, UnixStream};
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
 use super::printnanny_api::ApiService;
-use super::remote;
 use crate::config::{MQTTConfig, PrintNannyConfig};
 use printnanny_api_client::models;
 use printnanny_api_client::models::PolymorphicEvent;
@@ -129,7 +128,8 @@ impl MQTTWorker {
                 warn!("Ignored msg on state topic {:?}", event)
             }
             _ if self.command_topic.contains(&event.topic) => {
-                self.config.cmd.add_to_queue(event).await?;
+                let data = serde_json::from_slice::<PolymorphicEvent>(&event.payload)?;
+                self.config.cmd.add_to_queue(data);
             }
             _ => warn!("Ignored published event {:?}", event),
         };
