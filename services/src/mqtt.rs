@@ -123,7 +123,7 @@ impl MQTTWorker {
             event, event.payload
         );
         let data = serde_json::from_slice::<PolymorphicEvent>(&event.payload)?;
-        remote::handle_command(data, self.config.clone(), false).await;
+        let result = remote::run_playbook(data, self.config.clone(), false).await?;
         Ok(())
     }
 
@@ -169,6 +169,32 @@ impl MQTTWorker {
             .context(format!("Failed to send {:?}", &value))?;
         Ok(())
     }
+
+    async fn spawn_socket_listener(&self) -> Result<()> {
+        let events_socket = self.config.events_socket.clone();
+        tokio::spawn(async move {
+            let listener = UnixListener::bind(&events_socket)
+                .context(format!("Failed to bind to socket {}", &events_socket))
+                .unwrap();
+            let (mut socket, _) = listener.accept().await.unwrap();
+            loop {
+                info!("Accepted socket connection {:?}", socket);
+                let length_delimited = FramedRead::new(&mut socket, LengthDelimitedCodec::new());
+                let mut deserialized: tokio_serde::Framed<
+                    FramedRead<&mut tokio::net::UnixStream, LengthDelimitedCodec>,
+                    serde_json::Value,
+                    serde_json::Value,
+                    tokio_serde::formats::Json<serde_json::Value, serde_json::Value>,
+                > = tokio_serde::SymmetricallyFramed::new(
+                    length_delimited,
+                    tokio_serde::formats::SymmetricalJson::<serde_json::Value>::default(),
+                );
+                let msg = deserialized.try_next().await.unwrap();
+                info!("Deserialized msg {:?}", msg);
+            }
+        });
+        Ok(())
+    }
     // subscribe to mqtt config, command topics + printnanny events unix sock
     pub async fn subscribe(&self) -> Result<()> {
         let (client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 64);
@@ -182,10 +208,6 @@ impl MQTTWorker {
             }
             Err(_) => {}
         };
-        let listener = UnixListener::bind(&self.config.events_socket).context(format!(
-            "Failed to bind to socket {}",
-            &self.config.events_socket
-        ))?;
         client
             .subscribe(&self.config_topic, QoS::AtLeastOnce)
             .await
@@ -198,6 +220,8 @@ impl MQTTWorker {
             .subscribe(&self.state_topic, QoS::AtLeastOnce)
             .await
             .unwrap();
+        self.spawn_socket_listener().await?;
+
         loop {
             let incoming = eventloop.poll().await?;
             match &incoming {
@@ -209,28 +233,6 @@ impl MQTTWorker {
                 }
                 Event::Incoming(Incoming::Publish(e)) => self.handle_event(e).await?,
                 _ => info!("Received = {:?}", &incoming),
-            }
-            match listener.accept().await {
-                Ok((stream, _addr)) => {
-                    let length_delimited = FramedRead::new(stream, LengthDelimitedCodec::new());
-                    let mut deserialized: tokio_serde::Framed<
-                        FramedRead<tokio::net::UnixStream, LengthDelimitedCodec>,
-                        serde_json::Value,
-                        serde_json::Value,
-                        tokio_serde::formats::Json<serde_json::Value, serde_json::Value>,
-                    > = tokio_serde::SymmetricallyFramed::new(
-                        length_delimited,
-                        tokio_serde::formats::SymmetricalJson::<serde_json::Value>::default(),
-                    );
-                    let msg = deserialized.try_next().await.unwrap();
-                    info!("Publishing msg {:?}", msg);
-                }
-                Err(e) => {
-                    error!(
-                        "Failed to accept connection on {} with error {:?}",
-                        &self.config.events_socket, e
-                    );
-                }
             }
         }
     }
