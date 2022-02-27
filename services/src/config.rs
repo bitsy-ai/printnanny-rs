@@ -5,6 +5,7 @@ use figment::{Figment, Metadata, Profile, Provider};
 use glob::glob;
 use log::{error, info};
 use std::fs;
+use std::fs::File;
 use std::path::PathBuf;
 
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
@@ -25,6 +26,42 @@ impl Default for AnsibleConfig {
             collection_name: "bitsyai.printnanny".into(),
             collection_version: "1.4.1".into(),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CmdConfig {
+    pub queue_dir: String,
+    pub success_dir: String,
+    pub error_dir: String,
+}
+
+impl Default for CmdConfig {
+    fn default() -> Self {
+        Self {
+            queue_dir: "/var/run/printnanny/cmd/queue".into(),
+            success_dir: "/var/run/printnanny/cmd/success".into(),
+            error_dir: "/var/run/printnanny/cmd/error".into(),
+        }
+    }
+}
+
+impl CmdConfig {
+    pub fn add_to_queue(&self, event: models::PolymorphicEvent) -> () {
+        let (event_id, event_name) = match &event {
+            models::PolymorphicEvent::TestEvent(e) => (e.id, e.event_name.to_string()),
+            models::PolymorphicEvent::WebRtcEvent(e) => (e.id, e.event_name.to_string()),
+        };
+        let filename = format!("{}/{}_{}", self.queue_dir, event_name, event_id);
+        serde_json::to_writer(
+            &File::create(&filename).expect(&format!("Failed to create file {}", &filename)),
+            &event,
+        )
+        .expect(&format!("Failed to serialize event to json {:?}", &event));
+        info!(
+            "Wrote event={:?} to file={:?} to await processing",
+            event, filename
+        );
     }
 }
 
@@ -124,6 +161,7 @@ pub struct PrintNannyConfig {
     pub api: ApiConfig,
     pub dash: DashConfig,
     pub mqtt: MQTTConfig,
+    pub cmd: CmdConfig,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<models::Device>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -157,9 +195,11 @@ impl Default for PrintNannyConfig {
         let events_socket = "/var/run/printnanny/event.sock".into();
         let mqtt = MQTTConfig::default();
         let dash = DashConfig::default();
+        let cmd = CmdConfig::default();
         PrintNannyConfig {
             ansible,
             api,
+            cmd,
             dash,
             mqtt,
             install_dir,
