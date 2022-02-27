@@ -198,7 +198,7 @@ async fn main() -> Result<()> {
             let dryrun = sub_m.is_present("dryrun");
             let json_str = sub_m.value_of("event").expect("--event argument is required");
             let event: models::PolymorphicEvent = serde_json::from_str(json_str).expect("Failed to deserialize event data");
-            remote::handle_command(event, config, dryrun).await;
+            remote::run_playbook(event, config, dryrun).await?;
         }
 
         Some(("system-update", _sub_m)) => {
