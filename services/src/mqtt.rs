@@ -116,17 +116,6 @@ impl MQTTWorker {
         };
         Ok(result)
     }
-
-    async fn handle_command(&self, event: &Publish) -> Result<()> {
-        info!(
-            "Attempting to deserialize event {:?} payload {:?}",
-            event, event.payload
-        );
-        let data = serde_json::from_slice::<PolymorphicEvent>(&event.payload)?;
-        let result = remote::run_playbook(data, self.config.clone(), false).await?;
-        Ok(())
-    }
-
     async fn handle_event(&self, event: &Publish) -> Result<()> {
         info!("Handling event {:?}", event);
         match &event.topic {
@@ -140,7 +129,7 @@ impl MQTTWorker {
                 warn!("Ignored msg on state topic {:?}", event)
             }
             _ if self.command_topic.contains(&event.topic) => {
-                self.handle_command(event).await?;
+                self.config.cmd.add_to_queue(event).await?;
             }
             _ => warn!("Ignored published event {:?}", event),
         };

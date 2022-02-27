@@ -11,7 +11,6 @@ use clap::{
 use printnanny_services::config::{ PrintNannyConfig};
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker };
-use printnanny_services::remote;
 use printnanny_cli::device::{DeviceCmd, DeviceAction };
 use printnanny_cli::config::{ConfigAction};
 use printnanny_api_client::models;
@@ -193,14 +192,6 @@ async fn main() -> Result<()> {
             println!("{}", res);
 
         },
-
-        Some(("remote", sub_m)) => {
-            let dryrun = sub_m.is_present("dryrun");
-            let json_str = sub_m.value_of("event").expect("--event argument is required");
-            let event: models::PolymorphicEvent = serde_json::from_str(json_str).expect("Failed to deserialize event data");
-            remote::run_playbook(event, config, dryrun).await?;
-        }
-
         Some(("system-update", _sub_m)) => {
             let mut cmd =
             Command::new("systemctl")

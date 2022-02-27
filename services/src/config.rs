@@ -6,6 +6,7 @@ use glob::glob;
 use log::{error, info};
 use std::fs;
 use std::path::PathBuf;
+use std::time::SystemTime;
 
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::models;
@@ -25,6 +26,35 @@ impl Default for AnsibleConfig {
             collection_name: "bitsyai.printnanny".into(),
             collection_version: "1.4.1".into(),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CmdConfig {
+    pub queue_dir: String,
+    pub success_dir: String,
+    pub error_dir: String,
+}
+
+impl Default for CmdConfig {
+    fn default() -> Self {
+        Self {
+            queue_dir: "/var/run/printnanny/cmd/queue".into(),
+            success_dir: "/var/run/printnanny/cmd/success".into(),
+            error_dir: "/var/run/printnanny/cmd/error".into(),
+        }
+    }
+}
+
+impl CmdConfig {
+    pub fn add_to_queue(&self, event: models::PolymorphicEvent) -> Result<()> {
+        let filename = format!("{}_{}", event.event_name, event.id);
+        serde_json::to_writer(&File::create(path)?, model)?;
+        info!(
+            "Wrote event={:?} to file={:?} to await processing",
+            event, filename
+        );
+        Ok(())
     }
 }
 
