@@ -49,13 +49,16 @@ pub async fn run_playbook(
     }?;
     match output.status.success() {
         true => {
-            info!("Success! event={:?} stdout={:?}", event, output.stdout);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            info!("Success! event={:?} stdout={:?}", event, stdout);
             Ok(())
         }
         false => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
             info!(
-                "Command failed code={} event={:?} stdout={:?} stderr={:?}",
-                output.status, event, output.stdout, output.stderr
+                "Command failed code={} event={:?} stdout={} stderr={}",
+                output.status, event, stdout, stderr
             );
             Ok(())
         }
