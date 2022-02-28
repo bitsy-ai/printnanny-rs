@@ -129,7 +129,7 @@ impl ApiService {
     pub async fn auth_email_create(
         &self,
         email: String,
-    ) -> Result<models::DetailResponse, ServiceError> {
+    ) -> Result<models::EmailAuth, ServiceError> {
         let req = models::EmailAuthRequest { email };
         Ok(auth_api::auth_email_create(&self.reqwest, req).await?)
     }
@@ -137,7 +137,7 @@ impl ApiService {
         &self,
         email: &str,
         token: &str,
-    ) -> Result<models::TokenResponse, ServiceError> {
+    ) -> Result<models::CallbackTokenAuth, ServiceError> {
         let req = models::CallbackTokenAuthRequest {
             email: Some(email.to_string()),
             token: token.to_string(),
