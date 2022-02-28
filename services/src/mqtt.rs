@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use chrono;
 use futures::prelude::*;
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-use log::{debug, error, info, warn};
+use log::{debug, info, warn};
 use rumqttc::{
     AsyncClient, Event, Incoming, MqttOptions, Outgoing, Packet, Publish, QoS, Transport,
 };
