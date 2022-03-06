@@ -81,11 +81,10 @@ impl MQTTWorker {
 
     pub async fn new(config: PrintNannyConfig) -> Result<MQTTWorker> {
         let service = ApiService::new(config.clone())?;
-        let device = service
-            .device_setup()
-            .await?
-            .device
-            .expect("Failed to setup device");
+        let device = service.config.device.clone().expect(&format!(
+            "Failed to read Device info from config {:?}",
+            &service.config
+        ));
         info!(
             "Initializing subscription from models::CloudiotDevice {:?}",
             device.cloudiot_device
