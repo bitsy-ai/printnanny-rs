@@ -273,10 +273,6 @@ impl ApiService {
         // None fields will be generated server-side
         let req = models::JanusStreamRequest {
             config_type: Some(config_type),
-            active: Some(false),
-            secret: None,
-            pin: None,
-            info: None,
         };
         let res =
             janus_api::devices_janus_stream_get_or_create(&self.reqwest, device, Some(req)).await?;
