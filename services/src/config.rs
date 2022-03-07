@@ -289,8 +289,8 @@ impl PrintNannyConfig {
         let filename = format!("{}/{}", &self.install_dir, "PrintNannyLicense.json");
         let msg = format!("Unable to remove file: {}", &filename);
         fs::remove_file(&filename).expect(&msg);
-        info!("Deleted license file", &filename);
-        Ok()
+        info!("Deleted license file {}", &filename);
+        Ok(())
     }
 
     pub fn save(&self) -> Result<String> {
