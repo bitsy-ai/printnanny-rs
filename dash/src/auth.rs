@@ -1,14 +1,16 @@
-use indexmap::indexmap;
-use rocket::response::Redirect;
-use rocket::serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use printnanny_services::config::{ApiConfig, PrintNannyConfig};
-use printnanny_services::printnanny_api::{ApiService, ServiceError};
+use indexmap::indexmap;
 use rocket::form::{Context, Contextual, Form, FromForm};
 use rocket::http::{Cookie, CookieJar};
+use rocket::response::Redirect;
+use rocket::serde::{Deserialize, Serialize};
 use rocket::State;
 use rocket_dyn_templates::Template;
+
+use printnanny_api_client::models::User;
+use printnanny_services::config::{ApiConfig, PrintNannyConfig};
+use printnanny_services::printnanny_api::{ApiService, ServiceError};
 
 use super::response::Response;
 
@@ -16,6 +18,31 @@ use super::response::Response;
 pub struct PrintNannyConfigFile(pub Option<String>);
 
 pub const COOKIE_USER: &str = "printnanny_user";
+
+pub fn is_auth_valid(
+    jar: &CookieJar<'_>,
+    config_file: &State<PrintNannyConfigFile>,
+) -> Result<Option<PrintNannyConfig>, ServiceError> {
+    let cookie = jar.get_private(COOKIE_USER);
+    match cookie {
+        Some(user_json) => {
+            let user: User = serde_json::from_str(user_json.value())?;
+            let config = PrintNannyConfig::new(config_file.0.as_deref())?;
+
+            // if config + cookie mismatch, nuke cookie (profile switch in developer mode)
+            if config.user != Some(user.clone()) {
+                warn!("config.user {:?} did not match COOKIE_USER {:?}, deleting cookie to force re-auth", config.user, &user);
+                jar.remove_private(Cookie::named(COOKIE_USER));
+                config.purge()?;
+                Ok(None)
+            } else {
+                info!("Auth success! COOKIE_USER matches config.user");
+                Ok(Some(config))
+            }
+        }
+        None => Ok(None),
+    }
+}
 
 #[derive(Debug, FromForm, Serialize, Deserialize)]
 pub struct EmailForm<'v> {
