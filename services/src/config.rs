@@ -285,8 +285,15 @@ impl PrintNannyConfig {
         result
     }
 
+    pub fn purge(&self) -> Result<()> {
+        let filename = format!("{}/{}", &self.install_dir, "PrintNannyLicense.json");
+        let msg = format!("Unable to remove file: {}", &filename);
+        fs::remove_file(&filename).expect(&msg);
+        info!("Deleted license file", &filename);
+        Ok()
+    }
+
     pub fn save(&self) -> Result<String> {
-        // save api_config.json
         let msg = format!("Failed to serialize {:?}", self);
         let content = serde_json::to_string_pretty(&self).expect(&msg);
         let filename = format!("{}/{}", &self.install_dir, "PrintNannyLicense.json");
