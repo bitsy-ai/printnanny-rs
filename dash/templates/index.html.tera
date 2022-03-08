@@ -21,7 +21,7 @@
 </div>
 <div class="row">
     <div class="col-12">
-        <a target="_blank" href="http://{{device.hostname}}:5000">
+        <a target="_blank" href="/octoprint/">
             <button>OctoPrint</button>
         </a>
         <a target="_blank" href="{{ api.base_path }}{{device.dashboard_url}}">
