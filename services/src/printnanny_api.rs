@@ -230,20 +230,29 @@ impl ApiService {
 
     pub async fn device_setup(&self) -> Result<PrintNannyConfig, ServiceError> {
         // get or create device with matching hostname
+        let hostname = sys_info::hostname()?;
+        info!("Begin setup for host {}", hostname);
+        info!("Calling device_retrieve_or_create_hostname()");
         let device = self.device_retrieve_or_create_hostname().await?;
         info!("Success! Registered device: {:?}", device);
         // create SystemInfo
+        info!("Calling device_system_info_update_or_create()");
         let system_info = self.device_system_info_update_or_create(device.id).await?;
         info!("Success! Updated SystemInfo {:?}", system_info);
 
         // create PublicKey
+        info!("Calling device_public_key_update_or_create()");
         let public_key = self.device_public_key_update_or_create(device.id).await?;
         info!("Success! Updated PublicKey: {:?}", public_key);
 
-        let _cloudiot_device = self
+        info!("Calling cloudiot_device_update_or_create()");
+        let cloudiot_device = self
             .cloudiot_device_update_or_create(device.id, public_key.id)
             .await?;
+        info!("Success! Updated CloudiotDevice {:?}", cloudiot_device);
+
         // refresh user
+
         let user = self.auth_user_retreive().await?;
         // save License.toml with user/device info
         let mut config = self.config.clone();
@@ -255,6 +264,7 @@ impl ApiService {
         };
         let device = self.device_patch(device.id, patched).await?;
         config.device = Some(device);
+        config.cloudiot_device = Some(cloudiot_device);
         config.user = Some(user);
         config.save()?;
         Ok(config)
