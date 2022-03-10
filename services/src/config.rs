@@ -207,6 +207,7 @@ impl Default for PrintNannyConfig {
             install_dir,
             runtime_dir,
             events_socket,
+            cloudiot_device: None,
             device: None,
             user: None,
             janus_cloud: None,
