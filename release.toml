@@ -1,1 +1,4 @@
 consolidate-commits = true
+pre-release-commit-message = "chore: Release"
+consolidate-pushes = true
+allow-branch = ["main"]
