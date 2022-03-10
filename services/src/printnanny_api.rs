@@ -210,6 +210,24 @@ impl ApiService {
         Ok(res)
     }
 
+    pub async fn stream_setup(&self) -> Result<PrintNannyConfig, ServiceError> {
+        // get or create cloud JanusAuth
+        let device_id = self
+            .config
+            .device
+            .clone()
+            .expect("Failed to setup strea. Device is not registered")
+            .id;
+        let janus_cloud = self
+            .janus_stream_get_or_create(device_id, models::JanusConfigType::Cloud)
+            .await?;
+        info!("Success! Retreived JanusStream {:?}", janus_cloud);
+        let mut config = self.config.clone();
+        config.janus_cloud = Some(janus_cloud);
+        config.save()?;
+        Ok(config)
+    }
+
     pub async fn device_setup(&self) -> Result<PrintNannyConfig, ServiceError> {
         // get or create device with matching hostname
         let device = self.device_retrieve_or_create_hostname().await?;
@@ -218,11 +236,6 @@ impl ApiService {
         let system_info = self.device_system_info_update_or_create(device.id).await?;
         info!("Success! Updated SystemInfo {:?}", system_info);
 
-        // get or create cloud JanusAuth
-        let janus_cloud = self
-            .janus_stream_get_or_create(device.id, models::JanusConfigType::Cloud)
-            .await?;
-        info!("Success! Retreived JanusStream {:?}", janus_cloud);
         // create PublicKey
         let public_key = self.device_public_key_update_or_create(device.id).await?;
         info!("Success! Updated PublicKey: {:?}", public_key);
@@ -243,7 +256,6 @@ impl ApiService {
         let device = self.device_patch(device.id, patched).await?;
         config.device = Some(device);
         config.user = Some(user);
-        config.janus_cloud = Some(janus_cloud);
         config.save()?;
         Ok(config)
     }
