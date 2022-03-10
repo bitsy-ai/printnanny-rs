@@ -167,6 +167,8 @@ pub struct PrintNannyConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<models::User>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub cloudiot_device: Option<models::CloudiotDevice>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub janus_local: Option<models::JanusStream>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub janus_cloud: Option<models::JanusStream>,
@@ -205,6 +207,7 @@ impl Default for PrintNannyConfig {
             install_dir,
             runtime_dir,
             events_socket,
+            cloudiot_device: None,
             device: None,
             user: None,
             janus_cloud: None,

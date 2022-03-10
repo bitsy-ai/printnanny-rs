@@ -28,9 +28,7 @@ struct Claims {
 
 #[derive(Debug, Clone)]
 pub struct MQTTWorker {
-    service: ApiService,
     config: PrintNannyConfig,
-    claims: Claims,
     config_topic: String,
     event_topic: String,
     command_topic: String,
@@ -103,8 +101,6 @@ impl MQTTWorker {
         let mqttoptions = MQTTWorker::mqttoptions(cloudiot_device, &config.mqtt, &token)?;
 
         let result = MQTTWorker {
-            service,
-            claims,
             config,
             state_topic: cloudiot_device.state_topic.clone(),
             command_topic: cloudiot_device.command_topic.clone(),
