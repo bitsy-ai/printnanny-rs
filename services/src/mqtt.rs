@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono;
 use futures::prelude::*;
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
@@ -79,10 +79,13 @@ impl MQTTWorker {
 
     pub async fn new(config: PrintNannyConfig) -> Result<MQTTWorker> {
         let service = ApiService::new(config.clone())?;
-        let device = service.config.device.clone().expect(&format!(
-            "Failed to read Device info from config {:?}",
-            &service.config
-        ));
+        let device = match service.config.device.clone() {
+            Some(d) => Ok(d),
+            None => Err(anyhow!(
+                "Failed to read Device info from config {:?}",
+                &service.config
+            )),
+        }?;
         info!(
             "Initializing subscription from models::CloudiotDevice {:?}",
             device.cloudiot_device
