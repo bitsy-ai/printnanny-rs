@@ -195,7 +195,7 @@ async fn main() -> Result<()> {
         Some(("system-update", _sub_m)) => {
             let mut cmd =
             Command::new("systemctl")
-            .args(&["start", "printnannyupdater"])
+            .args(&["start", "printnanny-update"])
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .spawn()

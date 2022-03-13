@@ -5,3 +5,4 @@ pub mod debug;
 pub mod error;
 pub mod home;
 pub mod response;
+pub mod status;
