@@ -66,7 +66,7 @@ impl HealthCheck {
     }
 
     pub fn firstboot_ok() -> Result<bool, HealthCheckError> {
-        let args = &["show", "-p", "SubState", "--value", &FIRSTBOOT_SERVICE];
+        let args = &["show", "-p", "SubState", "--value", FIRSTBOOT_SERVICE];
         let output = Command::new("systemctl").args(args).output()?;
         info!("systemctl {:?} output {:?}", args, output);
         let result = String::from_utf8_lossy(&output.stdout) == "success";
@@ -115,7 +115,7 @@ impl HealthCheck {
             .args(&["--list-boots"])
             .output()?;
         let result = String::from_utf8_lossy(output.stdout.as_slice())
-            .split("\n")
+            .split('\n')
             .map(String::from)
             .collect::<Vec<String>>();
         Ok(result)
