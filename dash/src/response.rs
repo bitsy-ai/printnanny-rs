@@ -6,9 +6,21 @@ use rocket::response::Redirect;
 use rocket::serde::json::Json;
 use rocket_dyn_templates::Template;
 
+use super::status::HealthCheckError;
+
+impl From<HealthCheckError> for Response {
+    fn from(error: HealthCheckError) -> Self {
+        let msg = format!("HealthCheckError error {:?}", error);
+        let mut context = HashMap::new();
+        context.insert("errors", &msg);
+        error!("{}", &msg);
+        Self::Template(Template::render("error", context))
+    }
+}
+
 impl From<serde_json::Error> for Response {
     fn from(error: serde_json::Error) -> Self {
-        let msg = format!("Error de/serialzing content {:?}", error);
+        let msg = format!("Error de/serializing content {:?}", error);
         let mut context = HashMap::new();
         context.insert("errors", &msg);
         error!("{}", &msg);
@@ -18,7 +30,7 @@ impl From<serde_json::Error> for Response {
 
 impl From<rocket::figment::error::Error> for Response {
     fn from(error: rocket::figment::error::Error) -> Self {
-        let msg = format!("Error de/serialzing content {:?}", error);
+        let msg = format!("Error de/serializing content {:?}", error);
         let mut context = HashMap::new();
         context.insert("errors", &msg);
         error!("{}", &msg);
@@ -28,7 +40,7 @@ impl From<rocket::figment::error::Error> for Response {
 
 impl From<printnanny_services::printnanny_api::ServiceError> for Response {
     fn from(error: printnanny_services::printnanny_api::ServiceError) -> Self {
-        let msg = format!("Error de/serialzing content {:?}", error);
+        let msg = format!("Error de/serializing content {:?}", error);
         let mut context = HashMap::new();
         context.insert("errors", &msg);
         error!("{}", &msg);

@@ -1,3 +1,7 @@
+use std::convert::TryFrom;
+use std::fs;
+use std::time::Duration;
+
 use anyhow::{anyhow, Context, Result};
 use chrono;
 use futures::prelude::*;
@@ -7,9 +11,6 @@ use rumqttc::{
     AsyncClient, Event, Incoming, MqttOptions, Outgoing, Packet, Publish, QoS, Transport,
 };
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
-use std::fs;
-use std::time::Duration;
 use tokio::net::{UnixListener, UnixStream};
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
@@ -91,6 +92,18 @@ impl MQTTWorker {
             device.cloudiot_device
         );
         let cloudiot_device = device.cloudiot_device.as_ref().unwrap();
+        // let cloudiot_device = match device.cloudiot_device {
+        //     Some(d) => d,
+        //     None => {
+        //         let public_key = service
+        //             .device_public_key_update_or_create(device.id)
+        //             .await?;
+        //         let cloudiot_device = service
+        //             .cloudiot_device_update_or_create(device.id, public_key.id)
+        //             .await?;
+        //         Box::new(cloudiot_device)
+        //     }
+        // };
         let gcp_project_id: String = cloudiot_device.gcp_project_id.clone();
 
         let iat = chrono::offset::Utc::now().timestamp(); // issued at (seconds since epoch)

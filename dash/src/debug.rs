@@ -3,8 +3,6 @@ use rocket::response::Redirect;
 use rocket::serde::json::Json;
 use rocket::State;
 
-use printnanny_services::config::PrintNannyConfig;
-
 use super::auth;
 use crate::response::Response;
 #[get("/")]

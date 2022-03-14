@@ -270,7 +270,7 @@ impl ApiService {
         Ok(config)
     }
 
-    async fn device_public_key_update_or_create(
+    pub async fn device_public_key_update_or_create(
         &self,
         device: i32,
     ) -> Result<models::PublicKey, ServiceError> {

@@ -47,21 +47,23 @@ impl Default for CmdConfig {
 }
 
 impl CmdConfig {
-    pub fn add_to_queue(&self, event: models::PolymorphicEvent) -> () {
+    pub fn add_to_queue(&self, event: models::PolymorphicEvent) {
         let (event_id, event_name) = match &event {
             models::PolymorphicEvent::TestEvent(e) => (e.id, e.event_name.to_string()),
             models::PolymorphicEvent::WebRtcEvent(e) => (e.id, e.event_name.to_string()),
         };
         let filename = format!("{}/{}_{}", self.queue_dir, event_name, event_id);
-        serde_json::to_writer(
+        let result = serde_json::to_writer(
             &File::create(&filename).expect(&format!("Failed to create file {}", &filename)),
             &event,
-        )
-        .expect(&format!("Failed to serialize event to json {:?}", &event));
-        info!(
-            "Wrote event={:?} to file={:?} to await processing",
-            event, filename
         );
+        match result {
+            Ok(_) => info!(
+                "Wrote event={:?} to file={:?} to await processing",
+                event, filename
+            ),
+            Err(e) => error!("Failed to serialize event {:?} with error {:?}", event, e),
+        }
     }
 }
 
