@@ -1,0 +1,29 @@
+{% import "macros" as m %}
+
+{% extends "base" %}
+
+{% block body %}
+<div class="row">
+    <div class="col-8">
+        <h1>Welcome to PrintNanny OS!</h1>
+        <h3>Setup in-progress</h3>
+        {% if not firstboot_ok %}
+        <p>Please wait. A unique identity is being created for your device. </p>
+        <p>This page will automatically refresh.</p>
+        {% endif %}
+
+<pre>
+{{ systemctl_status }}
+</pre>
+    </div>
+    <div class="col-4">
+        <img class="pull-right" src="https://cdn.print-nanny.com/www/device-dash/logo.png" style="is-full-width" />
+    </div>
+</div>
+
+<script type="text/javascript">
+    setTimeout(function () { 
+      location.reload();
+    }, 3000);
+</script>
+{% endblock body %}

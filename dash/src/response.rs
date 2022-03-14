@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::convert::From;
-use std::io;
 
 use printnanny_services::config::PrintNannyConfig;
 use rocket::response::Redirect;
