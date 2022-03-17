@@ -68,9 +68,11 @@ impl HealthCheck {
     pub fn firstboot_ok() -> Result<bool, HealthCheckError> {
         let args = &["show", "-p", "SubState", "--value", FIRSTBOOT_SERVICE];
         let output = Command::new("systemctl").args(args).output()?;
-        info!("systemctl {:?} output {:?}", args, output);
-        let result = String::from_utf8_lossy(&output.stdout) == "success";
-        Ok(result)
+        let substate = String::from_utf8_lossy(&output.stdout);
+        let args = &["show", "-p", "ExecMainStatus", "--value", FIRSTBOOT_SERVICE];
+        let output = Command::new("systemctl").args(args).output()?;
+        let status = String::from_utf8_lossy(&output.stdout);
+        Ok(substate == "exited" && status == "0")
     }
 
     pub fn list_units() -> Result<Vec<UnitState>, HealthCheckError> {
