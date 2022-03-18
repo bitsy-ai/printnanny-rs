@@ -5,25 +5,37 @@
 {% block body %}
 <div class="row">
     <div class="col-8">
-        <h1>Welcome to PrintNanny OS!</h1>
-        <h3>Setup in-progress</h3>
-        {% if not firstboot_ok %}
-        <p>Please wait. A unique identity is being created for your device. </p>
-        <p>This page will automatically refresh.</p>
-        {% endif %}
+        <div class="card">
+            <header>
+                <h1>Welcome to PrintNanny OS!</h1>
+            </header>
+            {% if not firstboot_ok %}
+            <p>⏳ Please wait while PrintNanny configures your Pi...</p>
+            <p>This page will refresh automatically.</p>
+            {% endif %}            
+            <footer class="is-right">
+                <a href="/" class="button">Refresh Now</a>
+                <a href="https://discord.gg/sf23bk2hPr" class="button primary">Join Discord</a>
 
-<pre>
-{{ systemctl_status }}
-</pre>
+            </footer>
+        </div>
     </div>
-    <div class="col-4">
+    <div class="col-3">
         <img class="pull-right" src="https://cdn.print-nanny.com/www/device-dash/logo.png" style="is-full-width" />
     </div>
 </div>
-
+<hr>
+<div class="row">
+    <div class="col-12">
+        <h3>Setup Status</h3>
+        <pre>
+        {{ systemctl_status }}
+        </pre>
+    </div>
+</div>
 <script type="text/javascript">
     setTimeout(function () { 
-      location.reload();
-    }, 3000);
+        location.reload();
+    }, 10000);
 </script>
 {% endblock body %}
