@@ -61,7 +61,7 @@ impl HealthCheck {
             list_units,
             systemctl_status,
         };
-        info!("HealthCheck {:?}", health_check);
+        info!("HealthCheck.firstboot_ok {:?}", health_check.firstboot_ok);
         Ok(health_check)
     }
 
@@ -72,6 +72,7 @@ impl HealthCheck {
         let args = &["show", "-p", "ExecMainStatus", "--value", FIRSTBOOT_SERVICE];
         let output = Command::new("systemctl").args(args).output()?;
         let status = String::from_utf8_lossy(&output.stdout);
+        info!("firstbook_ok() substate={} status={}", substate, status);
         Ok(substate == "exited" && status == "0")
     }
 
