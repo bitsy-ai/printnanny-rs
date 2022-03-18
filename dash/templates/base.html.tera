@@ -26,9 +26,8 @@
           --font-family-mono: monaco, "Consolas", "Lucida Console", monospace;
       }
       .container {
-        max-width: 800px;
         margin: 0 auto;
-        padding: 20px 10px;
+        padding: calc(var(--grid-gutter));
       }
     </style>
     {% block head %}
