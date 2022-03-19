@@ -1,5 +1,13 @@
 {% extends "base" %}
+<style>
+  .container {
+    margin: 0 auto;
+    padding: calc(var(--grid-gutter));
+    max-width: 800px;
+  }
+</style>
 
+{% endblock head %}
 {% block body %}
 <h1>Check your email 💌</h1>
 
@@ -11,7 +19,7 @@
         <legend>Step 2: Enter the 6-digit code sent to {{ email }}</legend>
         <div class="row">
           <div class="col-12">
-          <input label="Registration code", type="text", name="token" />
+            <input label="Registration code" , type="text" , name="token" />
           </div>
         </div>
       </fieldset>
@@ -21,4 +29,4 @@
   </div>
   <div class="col-3">
   </div>
-{% endblock body %}
+  {% endblock body %}
