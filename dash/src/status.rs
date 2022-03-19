@@ -82,7 +82,7 @@ impl HealthCheck {
         let output = Command::new("systemctl").args(args).output()?;
         let status = String::from_utf8_lossy(&output.stdout);
         info!("firstbook_ok() substate={} status={}", substate, status);
-        Ok(substate == "exited" && status.parse::<i32>()? == 0)
+        Ok((substate == "exited" || substate == "dead") && status.parse::<i32>()? == 0)
     }
 
     pub fn list_units() -> Result<Vec<UnitState>, HealthCheckError> {
