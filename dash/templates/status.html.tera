@@ -15,16 +15,16 @@
             {% endif %}
             {% if config.user is defined %}
             <p>You are logged in as {{ config.user.email }} </p>
+            {% else %}
+            <p>Please login to finish setup.</p>
             {% endif %}
             <footer class="is-right">
                 {% if config.user is defined %}
-                <a href="/logout" class="button">Logout</a>
+                <a href="/logout" class="button primary">Logout</a>
                 {% else %}
-                <a href="/login" class="button">Login</a>
+                <a href="/login" class="button primary">Login</a>
                 {% endif %}
-                <a href="/status" class="button">Refresh Status</a>
                 <a href="https://discord.gg/sf23bk2hPr" class="button primary">Join Discord</a>
-
             </footer>
         </div>
     </div>
