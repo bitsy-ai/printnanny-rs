@@ -11,6 +11,7 @@ use clap::{
 use printnanny_services::config::{ PrintNannyConfig};
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker };
+use printnanny_services::versioninfo::VersionInfo;
 use printnanny_cli::device::{DeviceCmd, DeviceAction };
 use printnanny_cli::config::{ConfigAction};
 use printnanny_api_client::models;
@@ -117,6 +118,12 @@ async fn main() -> Result<()> {
             .subcommand(
                 App::new("subscribe")
             ))
+        .subcommand(App::new("version")
+            .author(crate_authors!())
+            .about(crate_description!())
+            .version(crate_version!())
+            .about("Get VersionInfo for PrintNanny components"))
+
         .subcommand(App::new("remote")
             .author(crate_authors!())
             .about(crate_description!())
@@ -203,6 +210,10 @@ async fn main() -> Result<()> {
 
             let status = cmd.wait();
             println!("System update exited with status {:?}", status);
+        },
+        Some(("version", _sub_m)) => {
+            let versioninfo = VersionInfo::new();
+            println!("{}", serde_json::to_string_pretty(&versioninfo)?);
         },
         _ => {}
     }
