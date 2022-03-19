@@ -83,16 +83,6 @@ impl HealthCheck {
         let output = Command::new("systemctl").args(args).output()?;
         let status = String::from_utf8_lossy(&output.stdout);
         let status = status.trim();
-        info!(
-            "firstbook_ok() substate={} {}",
-            substate,
-            (substate == "exited" || substate == "dead")
-        );
-        info!(
-            "firstbook_ok() status={} {}",
-            status,
-            status.parse::<i32>()? == 0
-        );
         info!("firstbook_ok() substate={} status={}", substate, status);
         Ok((substate == "exited" || substate == "dead") && status.parse::<i32>()? == 0)
     }
