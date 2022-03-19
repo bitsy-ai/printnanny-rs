@@ -78,9 +78,11 @@ impl HealthCheck {
         let args = &["show", "-p", "SubState", "--value", FIRSTBOOT_SERVICE];
         let output = Command::new("systemctl").args(args).output()?;
         let substate = String::from_utf8_lossy(&output.stdout);
+        let substate = substate.trim();
         let args = &["show", "-p", "ExecMainStatus", "--value", FIRSTBOOT_SERVICE];
         let output = Command::new("systemctl").args(args).output()?;
         let status = String::from_utf8_lossy(&output.stdout);
+        let status = status.trim();
         info!("firstbook_ok() substate={} status={}", substate, status);
         Ok((substate == "exited" || substate == "dead") && status.parse::<i32>()? == 0)
     }
