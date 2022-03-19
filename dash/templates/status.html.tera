@@ -9,12 +9,20 @@
             <header>
                 <h1>Welcome to PrintNanny OS!</h1>
             </header>
-            {% if not firstboot_ok %}
+            {% if not healthcheck.firstboot_ok %}
             <p>⏳ Please wait while PrintNanny configures your Pi...</p>
             <p>This page will refresh automatically.</p>
-            {% endif %}            
+            {% endif %}
+            {% if config.user is defined %}
+            <p>You are logged in as {{ config.user.email }} </p>
+            {% endif %}
             <footer class="is-right">
-                <a href="/" class="button">Refresh Now</a>
+                {% if config.user is defined %}
+                <a href="/logout" class="button">Logout</a>
+                {% else %}
+                <a href="/login" class="button">Login</a>
+                {% endif %}
+                <a href="/status" class="button">Refresh Status</a>
                 <a href="https://discord.gg/sf23bk2hPr" class="button primary">Join Discord</a>
 
             </footer>
@@ -27,14 +35,14 @@
 <hr>
 <div class="row">
     <div class="col-12">
-        <h3>Setup Status</h3>
+        <h3>PrintNanny Status</h3>
         <pre>
-        {{ systemctl_status }}
+        {{ healthcheck.systemctl_status }}
         </pre>
     </div>
 </div>
 <script type="text/javascript">
-    setTimeout(function () { 
+    setTimeout(function () {
         location.reload();
     }, 10000);
 </script>
