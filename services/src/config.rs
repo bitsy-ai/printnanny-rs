@@ -114,13 +114,16 @@ pub struct ApiConfig {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DashConfig {
+    pub base_url: String,
     pub base_path: String,
     pub port: i32,
 }
 
 impl Default for DashConfig {
     fn default() -> Self {
+        let hostname = sys_info::hostname().unwrap_or("localhost".to_string());
         Self {
+            base_url: format!("http://{}/", hostname),
             base_path: "/".into(),
             port: 9001,
         }
