@@ -1,8 +1,15 @@
 use std::io;
 use std::process::Command;
 
+use printnanny_services::config::PrintNannyConfig;
+use rocket::http::CookieJar;
+use rocket::State;
+use rocket_dyn_templates::Template;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+use super::auth;
+use super::response::Response;
 
 pub const CMD_SERVICE: &str = "printnanny-cmd";
 pub const DASH_SERVICE: &str = "printnanny-dash";
@@ -125,4 +132,28 @@ impl HealthCheck {
             .collect::<Vec<String>>();
         Ok(result)
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct StatusResponse {
+    config: Option<PrintNannyConfig>,
+    healthcheck: HealthCheck,
+}
+
+#[get("/")]
+async fn index(
+    jar: &CookieJar<'_>,
+    config_file: &State<auth::PrintNannyConfigFile>,
+) -> Result<Response, Response> {
+    let healthcheck = HealthCheck::new()?;
+    let config = auth::is_auth_valid(jar, config_file)?;
+    let res = StatusResponse {
+        healthcheck,
+        config,
+    };
+    Ok(Response::Template(Template::render("status", res)))
+}
+
+pub fn routes() -> Vec<rocket::Route> {
+    routes![index]
 }

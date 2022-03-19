@@ -1,4 +1,5 @@
 {% extends "base" %}
+{% block head %}
 <style>
   .container {
     margin: 0 auto;
