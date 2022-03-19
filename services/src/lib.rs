@@ -3,3 +3,4 @@ pub mod cpuinfo;
 pub mod janus;
 pub mod mqtt;
 pub mod printnanny_api;
+pub mod versioninfo;
