@@ -83,6 +83,11 @@ impl HealthCheck {
         let output = Command::new("systemctl").args(args).output()?;
         let status = String::from_utf8_lossy(&output.stdout);
         let status = status.trim();
+        // see: https://trstringer.com/simple-vs-oneshot-systemd-service/
+        // Type	Before	During	After
+        // Simple	                    inactive (dead)	active (running)	inactive (dead)
+        // Oneshot	                    inactive (dead)	activating (start)	inactive (dead)
+        // Oneshot (RemainAfterExit)	inactive (dead)	activating (start)	active (exited)
         info!("firstbook_ok() substate={} status={}", substate, status);
         Ok((substate == "exited" || substate == "dead") && status.parse::<i32>()? == 0)
     }
