@@ -30,6 +30,9 @@
         <a target="_blank" href="{{ api.base_path }}{{ device.video_test_url }}">
             <button>Test Video</button>
         </a>
+        <a target="_blank" href="/status">
+            <button>System Status</button>
+        </a>
         <a target="_blank" href="/debug">
             <button>Debug Settings</button>
         </a>
