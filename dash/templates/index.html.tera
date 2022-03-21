@@ -5,10 +5,10 @@
 {% block body %}
 <div class="row">
     <div class="col-8">
-        <h1>Welcome to Print Nanny OS!</h1>
+        <h1>Welcome to PrintNanny OS!</h1>
         <dl class="row">
             <dt class="col-4">Username</dt>
-            <dd class="col-8">{{user.email}}</dd> 
+            <dd class="col-8">{{user.email}}</dd>
             <dt class="col-4">Hostname</dt>
             <dd class="col-8">{{device.hostname}}</dd>
             <dt class="col-4">Fingerprint</dt>
@@ -29,6 +29,9 @@
         </a>
         <a target="_blank" href="{{ api.base_path }}{{ device.video_test_url }}">
             <button>Test Video</button>
+        </a>
+        <a target="_blank" href="/status">
+            <button>System Status</button>
         </a>
         <a target="_blank" href="/debug">
             <button>Debug Settings</button>

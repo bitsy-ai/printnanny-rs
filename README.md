@@ -1,4 +1,4 @@
-# Print Nanny OS Tools
+# PrintNanny OS Tools
 
 ![Discord](https://img.shields.io/discord/773452324692688956)
 ![Github Followers](https://img.shields.io/github/followers/leigh-johnson?style=social)
@@ -6,15 +6,15 @@
 ![Commit Activity](https://img.shields.io/github/commit-activity/m/bitsy-ai/printnanny-cli)
 ![Release](https://img.shields.io/github/release-date-pre/bitsy-ai/printnanny-cli)
 
-![Print Nanny Logo](https://github.com/bitsy-ai/octoprint-nanny-plugin/raw/main/docs/images/logo.jpg)
+![PrintNanny Logo](https://github.com/bitsy-ai/octoprint-nanny-plugin/raw/main/docs/images/logo.jpg)
 
 ### [Learn more](https://www.print-nanny.com/)
 
-### [Install Print Nanny OS](https://print-nanny.com/devices/releases/)
+### [Install PrintNanny OS](https://print-nanny.com/devices/releases/)
 
 # Crates
 
-This workspace contains the following tools used in Print Nanny OS:
+This workspace contains the following tools used in PrintNanny OS:
 
 ## printnanny-services
 
@@ -30,7 +30,7 @@ This workspace contains the following tools used in Print Nanny OS:
 ```
 printnanny
 Leigh Johnson <leigh@bitsy.ai>
-Print Nanny Command-line Interface
+PrintNanny Command-line Interface
 
 USAGE:
     printnanny-cli [OPTIONS] --config <config> <SUBCOMMAND>
@@ -46,7 +46,7 @@ SUBCOMMANDS:
     factsd         Config serializer (JSON) intended for use with Ansible facts.d
     help           Print this message or the help of the given subcommand(s)
     janus-admin    Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token
-    monitor        Interact with Print Nanny monitoring service
+    monitor        Interact with PrintNanny monitoring service
     mqtt           Interact with MQTT pub/sub service       
 ```
 
@@ -108,12 +108,12 @@ OPTIONS:
     -V, --version                       Print version information
 ```
 
-### Print Nanny monitoring commands
+### PrintNanny monitoring commands
 
 ```
 printnanny-cli-monitor
 Leigh Johnson <leigh@bitsy.ai>
-Interact with Print Nanny monitoring service
+Interact with PrintNanny monitoring service
 
 USAGE:
     printnanny-cli --config <config> monitor <SUBCOMMAND>
@@ -124,8 +124,8 @@ OPTIONS:
 
 SUBCOMMANDS:
     help     Print this message or the help of the given subcommand(s)
-    start    Start Print Nanny monitoring service
-    stop     Stop Print Nanny monitoring service
+    start    Start PrintNanny monitoring service
+    stop     Stop PrintNanny monitoring service
 ```
 
 ### MQTT pub/sub commands

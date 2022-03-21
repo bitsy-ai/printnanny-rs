@@ -9,16 +9,16 @@
             <header>
                 <h1>Welcome to PrintNanny OS!</h1>
             </header>
+            {% if config.user is defined %}
+            <h3>You are logged in as {{ config.user.email }} </h3>
+            {% else %}
+            <h3>Login with your PrintNanny account to get started</h3>
             {% if not healthcheck.firstboot_ok %}
             <p>⏳ Please wait while PrintNanny configures your Pi...</p>
             <p>This page will refresh automatically.</p>
             {% endif %}
-            {% if config.user is defined %}
-            <p>You are logged in as {{ config.user.email }} </p>
-            {% else %}
-            <p>Please login to finish setup.</p>
             {% endif %}
-            <footer class="is-right">
+            <footer class="is-left">
                 {% if config.user is defined %}
                 <a href="/logout" class="button primary">Logout</a>
                 {% else %}
@@ -35,9 +35,9 @@
 <hr>
 <div class="row">
     <div class="col-12">
-        <h3>PrintNanny Status</h3>
+        <h3>PrintNanny System Status</h3>
         <pre>
-        {{ healthcheck.systemctl_status }}
+{{ healthcheck.systemctl_status }}
         </pre>
     </div>
 </div>

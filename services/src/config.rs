@@ -338,7 +338,7 @@ impl PrintNannyConfig {
 
 impl Provider for PrintNannyConfig {
     fn metadata(&self) -> Metadata {
-        Metadata::named("Print Nanny Config")
+        Metadata::named("PrintNanny Config")
     }
 
     fn data(&self) -> Result<Map<Profile, Dict>> {

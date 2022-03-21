@@ -33,7 +33,7 @@ set -e
 
 help() {
     cat <<'EOF'
-Install Print Nanny Command-line Interface
+Install PrintNanny Command-line Interface
 
 Usage:
     install.sh [options]

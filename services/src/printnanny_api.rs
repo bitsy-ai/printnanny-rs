@@ -83,7 +83,7 @@ pub enum ServiceError {
 
     #[error("Signup incomplete - failed to read from {cache:?}")]
     SignupIncomplete { cache: PathBuf },
-    #[error("Missing Print Nanny API token")]
+    #[error("Missing PrintNanny API token")]
     SetupIncomplete {},
 }
 
