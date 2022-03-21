@@ -1,6 +1,6 @@
 [package]
 name = "printnanny-cli"
-description = "Print Nanny Command-line Interface"
+description = "PrintNanny Command-line Interface"
 license = "AGPL-3.0-or-later"
 version = "0.18.6"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]

@@ -1,49 +1,53 @@
 {% import "macros" as m %}
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width">
-    <title>{% block title %}Print Nanny{% endblock title %}
-    </title>
 
-    <link rel="stylesheet" href="https://cdn.print-nanny.com/www/device-dash/chota.min.css">
-    <style>
-      :root {
-          --bg-color: #f1f3fa;
-          --bg-secondary-color: #98a6ad;
-          --color-primary: #727cf5;
-          --color-lightGrey: #dee2e6;
-          --color-grey: #6c757d;
-          --color-darkGrey: #313a46;
-          --color-error: #ff679b;
-          --color-success: #0acf97;
-          --grid-maxWidth: 120rem;
-          --grid-gutter: 2rem;
-          --font-size: 1.6rem;
-          --font-color: #333333;
-          --font-family-sans: sans-serif;
-          --font-family-mono: monaco, "Consolas", "Lucida Console", monospace;
-      }
-      .container {
-        margin: 0 auto;
-        padding: calc(var(--grid-gutter));
-      }
-    </style>
-    {% block head %}
-    {% endblock head %}
-  </head>
-  <body>
-    <div class="container">
-        <div class"row">
-          {% if flash %}
-            <small class="field-{{flash.0}}-msg">
-               {{ flash.1 }}
-            </small>
-          {% endif %}
-        </div>
-        {% block body %}
-        {% endblock body %}
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>{% block title %}PrintNanny{% endblock title %}
+  </title>
+
+  <link rel="stylesheet" href="https://cdn.print-nanny.com/www/device-dash/chota.min.css">
+  <style>
+    :root {
+      --bg-color: #f1f3fa;
+      --bg-secondary-color: #98a6ad;
+      --color-primary: #727cf5;
+      --color-lightGrey: #dee2e6;
+      --color-grey: #6c757d;
+      --color-darkGrey: #313a46;
+      --color-error: #ff679b;
+      --color-success: #0acf97;
+      --grid-maxWidth: 120rem;
+      --grid-gutter: 2rem;
+      --font-size: 1.6rem;
+      --font-color: #333333;
+      --font-family-sans: sans-serif;
+      --font-family-mono: monaco, "Consolas", "Lucida Console", monospace;
+    }
+
+    .container {
+      margin: 0 auto;
+      padding: calc(var(--grid-gutter));
+    }
+  </style>
+  {% block head %}
+  {% endblock head %}
+</head>
+
+<body>
+  <div class="container">
+    <div class"row">
+      {% if flash %}
+      <small class="field-{{flash.0}}-msg">
+        {{ flash.1 }}
+      </small>
+      {% endif %}
     </div>
-  </body>
+    {% block body %}
+    {% endblock body %}
+  </div>
+</body>
+
 </html>
