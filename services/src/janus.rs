@@ -61,7 +61,7 @@ pub struct JanusAdminService {
 
 fn build_request_body(
     endpoint: &JanusAdminEndpoint,
-    janus_config: &models::JanusStream,
+    janus_config: &models::JanusEdgeStream,
 ) -> Result<HashMap<String, String>> {
     let transaction: String = thread_rng()
         .sample_iter(&Alphanumeric)
@@ -83,7 +83,6 @@ fn build_request_body(
                 janus_config
                     .auth
                     .as_ref()
-                    .expect("auth not set")
                     .api_token
                     .as_ref()
                     .expect("api_token not set")
@@ -94,7 +93,6 @@ fn build_request_body(
                 janus_config
                     .auth
                     .as_ref()
-                    .expect("auth not set")
                     .admin_secret
                     .as_ref()
                     .expect("admin_secret not set")
@@ -107,7 +105,6 @@ fn build_request_body(
                 janus_config
                     .auth
                     .as_ref()
-                    .expect("auth not set")
                     .api_token
                     .as_ref()
                     .expect("api_token not set")
@@ -118,7 +115,6 @@ fn build_request_body(
                 janus_config
                     .auth
                     .as_ref()
-                    .expect("auth not set")
                     .admin_secret
                     .as_ref()
                     .expect("admin_secret not set")
@@ -131,7 +127,6 @@ fn build_request_body(
                 janus_config
                     .auth
                     .as_ref()
-                    .expect("auth not set")
                     .admin_secret
                     .as_ref()
                     .expect("admin_secret not set")
@@ -144,7 +139,6 @@ fn build_request_body(
                 janus_config
                     .auth
                     .as_ref()
-                    .expect("auth not set")
                     .api_token
                     .as_ref()
                     .expect("api_token not set")
@@ -155,7 +149,6 @@ fn build_request_body(
                 janus_config
                     .auth
                     .as_ref()
-                    .expect("auth not set")
                     .admin_secret
                     .as_ref()
                     .expect("admin_secret not set")
@@ -168,7 +161,6 @@ fn build_request_body(
                 janus_config
                     .auth
                     .as_ref()
-                    .expect("auth not set")
                     .admin_secret
                     .as_ref()
                     .expect("admin_secret not set")
@@ -187,7 +179,7 @@ fn build_request_body(
 
 pub async fn janus_admin_api_call(
     endpoint: JanusAdminEndpoint,
-    janus_config: &models::JanusStream,
+    janus_config: &models::JanusEdgeStream,
 ) -> Result<String> {
     let body = build_request_body(&endpoint, janus_config)?;
     let client = reqwest::Client::new();
