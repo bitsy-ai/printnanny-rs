@@ -159,6 +159,7 @@ impl Default for MQTTConfig {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
+    pub config_file: String,
     pub install_dir: String,
     pub runtime_dir: String,
     pub events_socket: String,
@@ -174,10 +175,13 @@ pub struct PrintNannyConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cloudiot_device: Option<models::CloudiotDevice>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub janus_local: Option<models::JanusStream>,
+    pub janus_edge: Option<models::JanusEdgeStream>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub janus_edge_request: Option<models::JanusEdgeStreamRequest>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub janus_cloud: Option<models::JanusStream>,
 }
+
 pub struct ConfigError {}
 
 impl From<&ApiConfig> for ReqwestConfig {
@@ -197,7 +201,8 @@ impl Default for PrintNannyConfig {
             base_path: "https://print-nanny.com".into(),
             bearer_access_token: None,
         };
-        let install_dir = "/opt/printnanny/default".into();
+        let install_dir = "/opt/printnanny/profiles/default".into();
+        let config_file = "/opt/printnanny/profiles/default/PrintNannyConfig.toml".into();
         let runtime_dir = "/var/run/printnanny".into();
         let events_socket = "/var/run/printnanny/event.sock".into();
         let mqtt = MQTTConfig::default();
@@ -207,16 +212,18 @@ impl Default for PrintNannyConfig {
             ansible,
             api,
             cmd,
+            config_file,
             dash,
-            mqtt,
-            install_dir,
-            runtime_dir,
             events_socket,
+            install_dir,
+            mqtt,
+            runtime_dir,
             cloudiot_device: None,
             device: None,
             user: None,
             janus_cloud: None,
-            janus_local: None,
+            janus_edge: None,
+            janus_edge_request: None,
         }
     }
 }
@@ -303,12 +310,11 @@ impl PrintNannyConfig {
 
     pub fn save(&self) -> Result<String> {
         let msg = format!("Failed to serialize {:?}", self);
-        let content = serde_json::to_string_pretty(&self).expect(&msg);
-        let filename = format!("{}/{}", &self.install_dir, "PrintNannyLicense.json");
-        let msg = format!("Unable to write file: {}", &filename);
-        fs::write(&filename, content).expect(&msg);
-        info!("Success! Wrote {}", &filename);
-        Ok(filename)
+        let content = toml::to_string_pretty(&self).expect(&msg);
+        let msg = format!("Unable to write file: {}", self.config_file);
+        fs::write(&self.config_file, content).expect(&msg);
+        info!("Success! Wrote {}", self.config_file);
+        Ok(self.config_file.to_string())
     }
 
     /// Extract a `Config` from `provider`, panicking if extraction fails.
