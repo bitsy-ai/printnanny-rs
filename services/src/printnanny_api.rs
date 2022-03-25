@@ -42,8 +42,13 @@ pub enum ServiceError {
     DevicesRetrieveHostnameError(#[from] ApiError<devices_api::DevicesRetrieveHostnameError>),
 
     #[error(transparent)]
-    JanusStreamGetOrCreateError(#[from] ApiError<janus_api::DevicesJanusStreamGetOrCreateError>),
-
+    JanusEdgeStreamGetOrCreateError(
+        #[from] ApiError<janus_api::DevicesJanusEdgeStreamGetOrCreateError>,
+    ),
+    #[error(transparent)]
+    JanusCloudStreamGetOrCreateError(
+        #[from] ApiError<janus_api::DevicesJanusCloudStreamGetOrCreateError>,
+    ),
     #[error(transparent)]
     SystemInfoCreateError(#[from] ApiError<devices_api::DevicesSystemInfoCreateError>),
     #[error(transparent)]

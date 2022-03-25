@@ -191,7 +191,7 @@ async fn main() -> Result<()> {
         }, 
         Some(("janus-admin", sub_m)) => {
             let endpoint: JanusAdminEndpoint = sub_m.value_of_t("endpoint").unwrap_or_else(|e| e.exit());
-            let janus_config = config.janus_local.expect("janus_local config is not set");
+            let janus_config = config.janus_edge.expect("janus_edge config is not set");
             let res = janus_admin_api_call(
                 endpoint,
                 &janus_config
