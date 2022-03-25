@@ -179,7 +179,7 @@ pub struct PrintNannyConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub janus_edge_request: Option<models::JanusEdgeStreamRequest>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub janus_cloud: Option<models::JanusStream>,
+    pub janus_cloud: Option<models::JanusCloudStream>,
 }
 
 pub struct ConfigError {}

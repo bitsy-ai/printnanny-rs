@@ -1,7 +1,7 @@
 
 VERSION ?= 0.2.1
 TMP_DIR ?= .tmp
-DEV_MACHINE ?= octonanny-dev-03-19
+DEV_MACHINE ?= octonanny-dev-03-24
 
 $(TMP_DIR)/printnanny_license.zip:
 	PRINTNANNY_INSTALL_DIR=$(TMP_DIR) ./tools/download-license.sh
