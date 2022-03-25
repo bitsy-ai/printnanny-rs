@@ -42,8 +42,13 @@ pub enum ServiceError {
     DevicesRetrieveHostnameError(#[from] ApiError<devices_api::DevicesRetrieveHostnameError>),
 
     #[error(transparent)]
-    JanusStreamGetOrCreateError(#[from] ApiError<janus_api::DevicesJanusStreamGetOrCreateError>),
-
+    JanusEdgeStreamGetOrCreateError(
+        #[from] ApiError<janus_api::DevicesJanusEdgeStreamGetOrCreateError>,
+    ),
+    #[error(transparent)]
+    JanusCloudStreamGetOrCreateError(
+        #[from] ApiError<janus_api::DevicesJanusCloudStreamGetOrCreateError>,
+    ),
     #[error(transparent)]
     SystemInfoCreateError(#[from] ApiError<devices_api::DevicesSystemInfoCreateError>),
     #[error(transparent)]
@@ -218,9 +223,7 @@ impl ApiService {
             .clone()
             .expect("Failed to setup strea. Device is not registered")
             .id;
-        let janus_cloud = self
-            .janus_stream_get_or_create(device_id, models::JanusConfigType::Cloud)
-            .await?;
+        let janus_cloud = self.janus_cloud_stream_get_or_create(device_id).await?;
         info!("Success! Retreived JanusStream {:?}", janus_cloud);
         let mut config = self.config.clone();
         config.janus_cloud = Some(janus_cloud);
@@ -287,17 +290,12 @@ impl ApiService {
         Ok(res)
     }
 
-    async fn janus_stream_get_or_create(
+    async fn janus_cloud_stream_get_or_create(
         &self,
         device: i32,
-        config_type: models::JanusConfigType,
-    ) -> Result<models::JanusStream, ServiceError> {
-        // None fields will be generated server-side
-        let req = models::JanusStreamRequest {
-            config_type: Some(config_type),
-        };
+    ) -> Result<models::JanusCloudStream, ServiceError> {
         let res =
-            janus_api::devices_janus_stream_get_or_create(&self.reqwest, device, Some(req)).await?;
+            janus_api::devices_janus_cloud_stream_get_or_create(&self.reqwest, device).await?;
         Ok(res)
     }
 
