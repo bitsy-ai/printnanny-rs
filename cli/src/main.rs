@@ -185,7 +185,7 @@ async fn main() -> Result<()> {
         },
         Some(("device", sub_m)) => {
             let action: DeviceAction = sub_m.value_of_t("action").unwrap_or_else(|e| e.exit());
-            let cmd = DeviceCmd::new(action, config).await?;
+            let mut cmd = DeviceCmd::new(action, config).await?;
             let result = cmd.handle().await?;
             println!("{}", result)
         }, 
