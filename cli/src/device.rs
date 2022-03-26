@@ -42,15 +42,17 @@ impl DeviceCmd {
         let service = ApiService::new(config)?;
         Ok(Self { service, action })
     }
-    pub async fn handle(&self) -> Result<String> {
+    pub async fn handle(&mut self) -> Result<String> {
         let result = match self.action {
             DeviceAction::Get => self.service.device_retrieve_hostname().await?,
-            DeviceAction::Setup => self
-                .service
-                .device_setup()
-                .await?
-                .device
-                .expect("Failed to setup device"),
+            DeviceAction::Setup => {
+                self.service.device_setup().await?;
+                self.service
+                    .config
+                    .device
+                    .clone()
+                    .expect("Failed to setup device")
+            }
         };
         debug!("Success action={:?} result={:?}", self.action, result);
         Ok(serde_json::to_string_pretty::<models::Device>(&result)?)
