@@ -88,8 +88,12 @@ pub enum ServiceError {
 
     #[error("Signup incomplete - failed to read from {cache:?}")]
     SignupIncomplete { cache: PathBuf },
-    #[error("Missing PrintNanny API token")]
-    SetupIncomplete {},
+    #[error("Setup incomplete, failed to read {field:?} from {config_file:?} {detail:?}")]
+    SetupIncomplete {
+        detail: Option<String>,
+        field: String,
+        config_file: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -215,23 +219,26 @@ impl ApiService {
         Ok(res)
     }
 
-    pub async fn stream_setup(&self) -> Result<PrintNannyConfig, ServiceError> {
+    pub async fn stream_setup(&mut self) -> Result<(), ServiceError> {
         // get or create cloud JanusAuth
-        let device_id = self
-            .config
-            .device
-            .clone()
-            .expect("Failed to setup strea. Device is not registered")
-            .id;
-        let janus_cloud = self.janus_cloud_stream_get_or_create(device_id).await?;
+        let device = match &self.config.device {
+            Some(r) => Ok(r),
+            None => Err(ServiceError::SetupIncomplete {
+                config_file: self.config.config_file.to_string(),
+                field: "devicet".into(),
+                detail: None,
+            }),
+        }?;
+        let janus_edge = self.janus_edge_stream_get_or_create(device.id).await?;
+        let janus_cloud = self.janus_cloud_stream_get_or_create(device.id).await?;
         info!("Success! Retreived JanusStream {:?}", janus_cloud);
-        let mut config = self.config.clone();
-        config.janus_cloud = Some(janus_cloud);
-        config.save()?;
-        Ok(config)
+        self.config.janus_cloud = Some(janus_cloud);
+        self.config.janus_edge = Some(janus_edge);
+        self.config.save()?;
+        Ok(())
     }
 
-    pub async fn device_setup(&self) -> Result<PrintNannyConfig, ServiceError> {
+    pub async fn device_setup(&mut self) -> Result<(), ServiceError> {
         // get or create device with matching hostname
         let hostname = sys_info::hostname()?;
         info!("Begin setup for host {}", hostname);
@@ -255,10 +262,10 @@ impl ApiService {
         info!("Success! Updated CloudiotDevice {:?}", cloudiot_device);
 
         // refresh user
-
         let user = self.auth_user_retreive().await?;
-        // save License.toml with user/device info
-        let mut config = self.config.clone();
+
+        // setup edge + cloud janus streams
+
         let patched = models::PatchedDeviceRequest {
             setup_complete: Some(true),
             monitoring_active: None,
@@ -266,11 +273,11 @@ impl ApiService {
             hostname: None,
         };
         let device = self.device_patch(device.id, patched).await?;
-        config.device = Some(device);
-        config.cloudiot_device = Some(cloudiot_device);
-        config.user = Some(user);
-        config.save()?;
-        Ok(config)
+        self.config.device = Some(device);
+        self.config.cloudiot_device = Some(cloudiot_device);
+        self.config.user = Some(user);
+        self.stream_setup().await?;
+        Ok(())
     }
 
     pub async fn device_public_key_update_or_create(
@@ -296,6 +303,23 @@ impl ApiService {
     ) -> Result<models::JanusCloudStream, ServiceError> {
         let res =
             janus_api::devices_janus_cloud_stream_get_or_create(&self.reqwest, device).await?;
+        Ok(res)
+    }
+
+    async fn janus_edge_stream_get_or_create(
+        &self,
+        device: i32,
+    ) -> Result<models::JanusEdgeStream, ServiceError> {
+        let req: models::JanusEdgeStreamRequest = match &self.config.janus_edge_request {
+            Some(r) => Ok(r.clone()),
+            None => Err(ServiceError::SetupIncomplete {
+                config_file: self.config.config_file.to_string(),
+                field: "janus_edge_request".into(),
+                detail: None,
+            }),
+        }?;
+        let res =
+            janus_api::devices_janus_edge_stream_get_or_create(&self.reqwest, device, req).await?;
         Ok(res)
     }
 
