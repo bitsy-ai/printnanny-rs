@@ -225,11 +225,21 @@ impl ApiService {
             Some(r) => Ok(r),
             None => Err(ServiceError::SetupIncomplete {
                 config_file: self.config.config_file.to_string(),
-                field: "devicet".into(),
+                field: "device".into(),
                 detail: None,
             }),
         }?;
-        let janus_edge = self.janus_edge_stream_get_or_create(device.id).await?;
+        let user = match &self.config.user {
+            Some(r) => Ok(r),
+            None => Err(ServiceError::SetupIncomplete {
+                config_file: self.config.config_file.to_string(),
+                field: "user".into(),
+                detail: None,
+            }),
+        }?;
+        let janus_edge = self
+            .janus_edge_stream_get_or_create(device.id, user.id)
+            .await?;
         let janus_cloud = self.janus_cloud_stream_get_or_create(device.id).await?;
         info!("Success! Retreived JanusStream {:?}", janus_cloud);
         self.config.janus_cloud = Some(janus_cloud);
@@ -309,8 +319,9 @@ impl ApiService {
     async fn janus_edge_stream_get_or_create(
         &self,
         device: i32,
+        user: i32,
     ) -> Result<models::JanusEdgeStream, ServiceError> {
-        let req: models::JanusEdgeStreamRequest = match &self.config.janus_edge_request {
+        let mut req: models::JanusEdgeStreamRequest = match &self.config.janus_edge_request {
             Some(r) => Ok(r.clone()),
             None => Err(ServiceError::SetupIncomplete {
                 config_file: self.config.config_file.to_string(),
@@ -318,6 +329,11 @@ impl ApiService {
                 detail: None,
             }),
         }?;
+        // device and user ids are set to zero in the config rendered during firstboot
+        // set these to correct user/device id
+        // https://github.com/bitsy-ai/ansible-collection-printnanny/blob/main/roles/install/templates/config.toml.j2#L22
+        req.device = device;
+        req.auth.user = user;
         let res =
             janus_api::devices_janus_edge_stream_get_or_create(&self.reqwest, device, req).await?;
         Ok(res)
