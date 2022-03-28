@@ -309,11 +309,14 @@ impl PrintNannyConfig {
     }
 
     pub fn save(&self) -> Result<()> {
-        let content = toml::to_string_pretty(&self);
+        // serializing directly to toml e.g. toml::to_string_pretty raises ValueAfterTable error
+        // rather than re-order all printnanny-api structs to always place structs/vecs at end
+        // serialize to json first, then toml
+        let content = toml::Value::try_from(self);
         match content {
             Ok(c) => {
-                let msg = format!("Unable to write file: {}", self.config_file);
-                fs::write(&self.config_file, c).expect(&msg);
+                let msg = format!("Failed to write {:?}", self.config_file);
+                fs::write(&self.config_file, c.to_string()).expect(&msg);
                 info!("Success! Wrote {}", self.config_file);
                 Ok(())
             }
