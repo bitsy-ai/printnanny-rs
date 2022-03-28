@@ -132,7 +132,6 @@ impl Default for DashConfig {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MQTTConfig {
-    pub ca_certs: Vec<String>,
     pub private_key: String,
     pub public_key: String,
     pub fingerprint: String,
@@ -140,6 +139,7 @@ pub struct MQTTConfig {
     pub cipher: String,
     pub length: i32,
     pub keepalive: u64,
+    pub ca_certs: Vec<String>,
 }
 
 impl Default for MQTTConfig {
@@ -308,13 +308,27 @@ impl PrintNannyConfig {
         Ok(())
     }
 
-    pub fn save(&self) -> Result<String> {
-        let msg = format!("Failed to serialize {:?}", self);
-        let content = toml::to_string_pretty(&self).expect(&msg);
-        let msg = format!("Unable to write file: {}", self.config_file);
-        fs::write(&self.config_file, content).expect(&msg);
-        info!("Success! Wrote {}", self.config_file);
-        Ok(self.config_file.to_string())
+    pub fn save(&self) -> Result<()> {
+        // serializing directly to toml e.g. toml::to_string_pretty raises ValueAfterTable error
+        // rather than re-order all printnanny-api structs to always place structs/vecs at end
+        // serialize to json first, then toml
+        let content = toml::Value::try_from(self);
+        match content {
+            Ok(c) => {
+                let msg = format!("Failed to write {:?}", self.config_file);
+                fs::write(&self.config_file, c.to_string()).expect(&msg);
+                info!("Success! Wrote {}", self.config_file);
+                Ok(())
+            }
+            Err(e) => {
+                let msg = format!(
+                    "Failed to serialize config_file{:?} error={:?} config={:?}",
+                    self.config_file, e, self
+                );
+                error!("{:?}", &msg);
+                Err(figment::Error::from(msg))
+            }
+        }
     }
 
     /// Extract a `Config` from `provider`, panicking if extraction fails.
