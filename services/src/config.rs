@@ -132,7 +132,6 @@ impl Default for DashConfig {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MQTTConfig {
-    pub ca_certs: Vec<String>,
     pub private_key: String,
     pub public_key: String,
     pub fingerprint: String,
@@ -140,6 +139,7 @@ pub struct MQTTConfig {
     pub cipher: String,
     pub length: i32,
     pub keepalive: u64,
+    pub ca_certs: Vec<String>,
 }
 
 impl Default for MQTTConfig {
