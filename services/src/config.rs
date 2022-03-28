@@ -308,13 +308,24 @@ impl PrintNannyConfig {
         Ok(())
     }
 
-    pub fn save(&self) -> Result<String> {
-        let msg = format!("Failed to serialize {:?}", self);
-        let content = toml::to_string_pretty(&self).expect(&msg);
-        let msg = format!("Unable to write file: {}", self.config_file);
-        fs::write(&self.config_file, content).expect(&msg);
-        info!("Success! Wrote {}", self.config_file);
-        Ok(self.config_file.to_string())
+    pub fn save(&self) -> Result<()> {
+        let content = toml::to_string_pretty(&self);
+        match content {
+            Ok(c) => {
+                let msg = format!("Unable to write file: {}", self.config_file);
+                fs::write(&self.config_file, c).expect(&msg);
+                info!("Success! Wrote {}", self.config_file);
+                Ok(())
+            }
+            Err(e) => {
+                let msg = format!(
+                    "Failed to serialize config_file{:?} error={:?} config={:?}",
+                    self.config_file, e, self
+                );
+                error!("{:?}", &msg);
+                Err(figment::Error::from(msg))
+            }
+        }
     }
 
     /// Extract a `Config` from `provider`, panicking if extraction fails.
