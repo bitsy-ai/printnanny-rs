@@ -240,8 +240,9 @@ impl ApiService {
         let janus_edge = self
             .janus_edge_stream_get_or_create(device.id, user.id)
             .await?;
+        info!("Success! JanusEdgeStream={:?}", janus_edge);
         let janus_cloud = self.janus_cloud_stream_get_or_create(device.id).await?;
-        info!("Success! Retreived JanusStream {:?}", janus_cloud);
+        info!("Success! Retreived JanusCloudStream {:?}", janus_cloud);
         self.config.janus_cloud = Some(janus_cloud);
         self.config.janus_edge = Some(janus_edge);
         self.config.save()?;
@@ -311,8 +312,16 @@ impl ApiService {
         &self,
         device: i32,
     ) -> Result<models::JanusCloudStream, ServiceError> {
+        let req = models::JanusCloudStreamRequest {
+            device,
+            pin: None,
+            info: None,
+            rtp_port: None,
+            active: None,
+            secret: None,
+        };
         let res =
-            janus_api::devices_janus_cloud_stream_get_or_create(&self.reqwest, device).await?;
+            janus_api::devices_janus_cloud_stream_get_or_create(&self.reqwest, device, req).await?;
         Ok(res)
     }
 
