@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::ArgEnum;
-use log::debug;
+use log::info;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
@@ -72,7 +72,8 @@ fn build_request_body(
     let mut map = HashMap::new();
     map.insert(String::from("transaction"), transaction);
     map.insert(String::from("janus"), action);
-    debug!(
+    info!("Loaded JanusEdgeConfig={:?}", janus_config);
+    info!(
         "Building Janus Admin API {:?} request body {:?}",
         &endpoint, &map
     );
