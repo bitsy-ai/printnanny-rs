@@ -312,8 +312,16 @@ impl ApiService {
         &self,
         device: i32,
     ) -> Result<models::JanusCloudStream, ServiceError> {
+        let req = models::JanusCloudStreamRequest {
+            device,
+            pin: None,
+            info: None,
+            rtp_port: None,
+            active: None,
+            secret: None,
+        };
         let res =
-            janus_api::devices_janus_cloud_stream_get_or_create(&self.reqwest, device).await?;
+            janus_api::devices_janus_cloud_stream_get_or_create(&self.reqwest, device, req).await?;
         Ok(res)
     }
 
