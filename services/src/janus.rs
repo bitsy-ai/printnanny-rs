@@ -170,11 +170,6 @@ fn build_request_body(
         }
         _ => {}
     };
-    debug!(
-        "Building Janus Admin API {:?} request body {:?}",
-        &endpoint, &map
-    );
-
     Ok(map)
 }
 
