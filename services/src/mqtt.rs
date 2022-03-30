@@ -152,7 +152,7 @@ impl MQTTWorker {
         let stream = UnixStream::connect(&self.config.events_socket)
             .await
             .context(format!(
-                "Failed to connect to socket {}",
+                "Failed to connect to socket {:?}",
                 &self.config.events_socket
             ))?;
         // Delimit frames using a length header
@@ -174,7 +174,7 @@ impl MQTTWorker {
         let events_socket = self.config.events_socket.clone();
         tokio::spawn(async move {
             let listener = UnixListener::bind(&events_socket)
-                .context(format!("Failed to bind to socket {}", &events_socket))
+                .context(format!("Failed to bind to socket {:?}", &events_socket))
                 .unwrap();
             let (mut socket, _) = listener.accept().await.unwrap();
             loop {
