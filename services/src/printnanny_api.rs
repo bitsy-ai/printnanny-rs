@@ -14,7 +14,7 @@ use printnanny_api_client::apis::Error as ApiError;
 use printnanny_api_client::models;
 use thiserror::Error;
 
-use crate::config::PrintNannyConfig;
+use crate::config::{PrintNannyConfig, PrintNannyConfigError};
 use crate::cpuinfo::RpiCpuInfo;
 
 #[derive(Error, Debug)]
@@ -86,13 +86,16 @@ pub enum ServiceError {
     #[error(transparent)]
     SerdeError(#[from] serde_json::Error),
 
+    #[error(transparent)]
+    PrintNannyConfigError(#[from] PrintNannyConfigError),
+
     #[error("Signup incomplete - failed to read from {cache:?}")]
     SignupIncomplete { cache: PathBuf },
     #[error("Setup incomplete, failed to read {field:?} from {config_file:?} {detail:?}")]
     SetupIncomplete {
         detail: Option<String>,
         field: String,
-        config_file: String,
+        config_file: PathBuf,
     },
 }
 
@@ -224,7 +227,7 @@ impl ApiService {
         let device = match &self.config.device {
             Some(r) => Ok(r),
             None => Err(ServiceError::SetupIncomplete {
-                config_file: self.config.config_file.to_string(),
+                config_file: self.config.config_file.clone(),
                 field: "device".into(),
                 detail: None,
             }),
@@ -232,7 +235,7 @@ impl ApiService {
         let user = match &self.config.user {
             Some(r) => Ok(r),
             None => Err(ServiceError::SetupIncomplete {
-                config_file: self.config.config_file.to_string(),
+                config_file: self.config.config_file.clone(),
                 field: "user".into(),
                 detail: None,
             }),
@@ -245,7 +248,7 @@ impl ApiService {
         info!("Success! Retreived JanusCloudStream {:?}", janus_cloud);
         self.config.janus_cloud = Some(janus_cloud);
         self.config.janus_edge = Some(janus_edge);
-        self.config.save()?;
+        self.config.try_save()?;
         Ok(())
     }
 
@@ -333,7 +336,7 @@ impl ApiService {
         let mut req: models::JanusEdgeStreamRequest = match &self.config.janus_edge_request {
             Some(r) => Ok(r.clone()),
             None => Err(ServiceError::SetupIncomplete {
-                config_file: self.config.config_file.to_string(),
+                config_file: self.config.config_file.clone(),
                 field: "janus_edge_request".into(),
                 detail: None,
             }),
