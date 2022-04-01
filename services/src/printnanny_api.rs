@@ -319,7 +319,6 @@ impl ApiService {
             device,
             pin: None,
             info: None,
-            rtp_port: None,
             active: None,
             secret: None,
         };
