@@ -321,6 +321,7 @@ impl ApiService {
             info: None,
             active: None,
             secret: None,
+            ws_port: None,
         };
         let res =
             janus_api::devices_janus_cloud_stream_get_or_create(&self.reqwest, device, req).await?;
