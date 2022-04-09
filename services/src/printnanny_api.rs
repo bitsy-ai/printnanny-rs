@@ -253,6 +253,8 @@ impl ApiService {
     }
 
     pub async fn device_setup(&mut self) -> Result<(), ServiceError> {
+        // get full api config w/ static, dashboard urls
+        let api = self.api_client_config_retieve().await?;
         // get or create device with matching hostname
         let hostname = sys_info::hostname()?;
         info!("Begin setup for host {}", hostname);
