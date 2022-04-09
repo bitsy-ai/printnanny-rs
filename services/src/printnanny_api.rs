@@ -259,13 +259,10 @@ impl ApiService {
         info!("Success! Retreived JanusCloudStream {:?}", janus_cloud);
         self.config.janus_cloud = Some(janus_cloud);
         self.config.janus_edge = Some(janus_edge);
-        self.config.try_save()?;
         Ok(())
     }
 
     pub async fn device_setup(&mut self) -> Result<(), ServiceError> {
-        // get full api config w/ static, dashboard urls
-        let api = self.api_client_config_retieve().await?;
         // get or create device with matching hostname
         let hostname = sys_info::hostname()?;
         info!("Begin setup for host {}", hostname);
@@ -303,8 +300,9 @@ impl ApiService {
         self.config.device = Some(device);
         self.config.cloudiot_device = Some(cloudiot_device);
         self.config.user = Some(user);
-        self.config.api = api;
         self.stream_setup().await?;
+        self.config.try_save()?;
+
         Ok(())
     }
 
