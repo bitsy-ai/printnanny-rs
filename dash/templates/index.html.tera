@@ -24,7 +24,7 @@
         <a target="_blank" href="/octoprint/">
             <button>OctoPrint</button>
         </a>
-        <a target="_blank" href="{{ api.base_path }}{{device.dashboard_url}}">
+        <a target="_blank" href="{{ api.base_path }}{{ api.dashboard_url }}">
             <button>PrintNanny Cloud</button>
         </a>
         <a target="_blank" href="{{ api.base_path }}{{ device.video_test_url }}">

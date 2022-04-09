@@ -10,7 +10,6 @@ use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::models;
 
 #[derive(Error, Debug)]
@@ -118,12 +117,6 @@ impl AnsibleConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ApiConfig {
-    pub base_path: String,
-    pub bearer_access_token: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DashConfig {
     pub base_url: String,
     pub base_path: String,
@@ -176,7 +169,7 @@ pub struct PrintNannyConfig {
     pub runtime_dir: PathBuf,
     pub events_socket: PathBuf,
     pub ansible: AnsibleConfig,
-    pub api: ApiConfig,
+    pub api: models::PrintNannyApiConfig,
     pub dash: DashConfig,
     pub mqtt: MQTTConfig,
     pub cmd: CmdConfig,
@@ -204,22 +197,14 @@ const FACTORY_RESET: [&'static str; 6] = [
     "user",
 ];
 
-impl From<&ApiConfig> for ReqwestConfig {
-    fn from(api: &ApiConfig) -> ReqwestConfig {
-        ReqwestConfig {
-            base_path: api.base_path.to_string(),
-            bearer_access_token: api.bearer_access_token.clone(),
-            ..ReqwestConfig::default()
-        }
-    }
-}
-
 impl Default for PrintNannyConfig {
     fn default() -> Self {
         let ansible = AnsibleConfig::default();
-        let api = ApiConfig {
-            base_path: "https://print-nanny.com".into(),
+        let api = models::PrintNannyApiConfig {
+            base_path: "https://printnanny.ai".into(),
             bearer_access_token: None,
+            static_url: "https://printnanny.ai/static/".into(),
+            dashboard_url: "https://printnanny.ai/dashboard/".into(),
         };
         let install_dir = "/opt/printnanny/profiles/default".into();
         let config_file = "/opt/printnanny/profiles/default/PrintNannyConfig.toml".into();
@@ -445,9 +430,11 @@ mod tests {
             let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
                 config.api,
-                ApiConfig {
+                models::PrintNannyApiConfig {
                     base_path: "https://print-nanny.com".into(),
-                    bearer_access_token: None
+                    bearer_access_token: None,
+                    static_url: "https://printnanny.ai/static/".into(),
+                    dashboard_url: "https://printnanny.ai/dashboard/".into(),
                 }
             );
 
@@ -456,9 +443,11 @@ mod tests {
             let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
                 config.api,
-                ApiConfig {
+                models::PrintNannyApiConfig {
                     base_path: "https://print-nanny.com".into(),
-                    bearer_access_token: Some("secret".into())
+                    bearer_access_token: Some("secret".into()),
+                    static_url: "https://printnanny.ai/static/".into(),
+                    dashboard_url: "https://printnanny.ai/dashboard/".into(),
                 }
             );
             Ok(())
@@ -489,9 +478,11 @@ mod tests {
 
             assert_eq!(
                 config.api,
-                ApiConfig {
+                models::PrintNannyApiConfig {
                     base_path: base_path,
-                    bearer_access_token: None
+                    bearer_access_token: None,
+                    static_url: "https://printnanny.ai/static/".into(),
+                    dashboard_url: "https://printnanny.ai/dashboard/".into(),
                 }
             );
             Ok(())
@@ -515,9 +506,11 @@ mod tests {
             let figment = PrintNannyConfig::figment(None);
             let mut config: PrintNannyConfig = figment.extract()?;
             config.install_dir = jail.directory().into();
-            let expected = ApiConfig {
+            let expected = models::PrintNannyApiConfig {
                 base_path: config.api.base_path,
                 bearer_access_token: Some("secret_token".to_string()),
+                static_url: "https://printnanny.ai/static/".into(),
+                dashboard_url: "https://printnanny.ai/dashboard/".into(),
             };
             config.api = expected.clone();
             config.try_save().unwrap();
