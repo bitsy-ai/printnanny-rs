@@ -6,6 +6,7 @@ use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
 use printnanny_api_client::apis::auth_api;
+use printnanny_api_client::apis::config_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::janus_api;
@@ -20,10 +21,11 @@ use crate::cpuinfo::RpiCpuInfo;
 #[derive(Error, Debug)]
 pub enum ServiceError {
     #[error(transparent)]
+    ApiConfigRetreiveError(#[from] ApiError<config_api::ApiConfigRetreiveError>),
+    #[error(transparent)]
     AuthTokenCreateError(#[from] ApiError<auth_api::AuthTokenCreateError>),
     #[error(transparent)]
     AuthEmailCreateError(#[from] ApiError<auth_api::AuthEmailCreateError>),
-
     #[error(transparent)]
     CloudiotDeviceUpdateOrCreateError(
         #[from] ApiError<devices_api::CloudiotDeviceUpdateOrCreateError>,
@@ -124,7 +126,11 @@ impl ApiService {
     // args >> api_config.json >> anonymous api usage only
     pub fn new(config: PrintNannyConfig) -> Result<ApiService, ServiceError> {
         debug!("Initializing ApiService from config: {:?}", config);
-        let reqwest = ReqwestConfig::from(&config.api);
+        let reqwest = ReqwestConfig {
+            base_path: config.api.base_path.to_string(),
+            bearer_access_token: config.api.bearer_access_token.clone(),
+            ..ReqwestConfig::default()
+        };
         Ok(Self {
             reqwest,
             config,
@@ -134,6 +140,11 @@ impl ApiService {
     }
     // auth APIs
     // fetch user associated with auth token
+    pub async fn api_client_config_retieve(
+        &self,
+    ) -> Result<models::PrintNannyApiConfig, ServiceError> {
+        Ok(config_api::api_config_retreive(&self.reqwest).await?)
+    }
     pub async fn auth_user_retreive(&self) -> Result<models::User, ServiceError> {
         Ok(users_api::users_me_retrieve(&self.reqwest).await?)
     }
@@ -292,6 +303,7 @@ impl ApiService {
         self.config.device = Some(device);
         self.config.cloudiot_device = Some(cloudiot_device);
         self.config.user = Some(user);
+        self.config.api = api;
         self.stream_setup().await?;
         Ok(())
     }

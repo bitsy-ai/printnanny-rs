@@ -176,7 +176,7 @@ pub struct PrintNannyConfig {
     pub runtime_dir: PathBuf,
     pub events_socket: PathBuf,
     pub ansible: AnsibleConfig,
-    pub api: ApiConfig,
+    pub api: models::PrintNannyApiConfig,
     pub dash: DashConfig,
     pub mqtt: MQTTConfig,
     pub cmd: CmdConfig,
@@ -204,22 +204,14 @@ const FACTORY_RESET: [&'static str; 6] = [
     "user",
 ];
 
-impl From<&ApiConfig> for ReqwestConfig {
-    fn from(api: &ApiConfig) -> ReqwestConfig {
-        ReqwestConfig {
-            base_path: api.base_path.to_string(),
-            bearer_access_token: api.bearer_access_token.clone(),
-            ..ReqwestConfig::default()
-        }
-    }
-}
-
 impl Default for PrintNannyConfig {
     fn default() -> Self {
         let ansible = AnsibleConfig::default();
-        let api = ApiConfig {
-            base_path: "https://print-nanny.com".into(),
+        let api = models::PrintNannyApiConfig {
+            base_path: "https://printnanny.ai".into(),
             bearer_access_token: None,
+            static_url: "https://printnanny.ai/static/".into(),
+            dashboard_url: "https://printnanny.ai/dashboard/".into(),
         };
         let install_dir = "/opt/printnanny/profiles/default".into();
         let config_file = "/opt/printnanny/profiles/default/PrintNannyConfig.toml".into();
