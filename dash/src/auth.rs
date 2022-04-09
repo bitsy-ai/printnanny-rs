@@ -8,8 +8,8 @@ use rocket::serde::{Deserialize, Serialize};
 use rocket::State;
 use rocket_dyn_templates::Template;
 
-use printnanny_api_client::models::User;
-use printnanny_services::config::{ApiConfig, PrintNannyConfig};
+use printnanny_api_client::models;
+use printnanny_services::config::PrintNannyConfig;
 use printnanny_services::printnanny_api::{ApiService, ServiceError};
 
 use super::response::Response;
@@ -26,7 +26,7 @@ pub fn is_auth_valid(
     let cookie = jar.get_private(COOKIE_USER);
     match cookie {
         Some(user_json) => {
-            let user: User = serde_json::from_str(user_json.value())?;
+            let user: models::User = serde_json::from_str(user_json.value())?;
             let config = PrintNannyConfig::new(config_file.0.as_deref())?;
 
             // if config + cookie mismatch, nuke cookie (profile switch in developer mode)
@@ -126,9 +126,10 @@ async fn handle_token_validate(
     let bearer_access_token = res.token.to_string();
     info!("Success! Authenticated and received bearer token");
 
-    let api_config = ApiConfig {
+    let api_config = models::PrintNannyApiConfig {
         base_path: service.config.api.base_path,
         bearer_access_token: Some(bearer_access_token),
+        ..auth_config.api
     };
     auth_config.api = api_config;
     let updated_config = handle_device_update(auth_config).await?;

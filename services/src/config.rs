@@ -10,7 +10,6 @@ use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::models;
 
 #[derive(Error, Debug)]
