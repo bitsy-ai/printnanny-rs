@@ -61,6 +61,7 @@ impl CmdConfig {
         let (event_id, event_name) = match &event {
             models::PolymorphicEvent::TestEvent(e) => (e.id, e.event_name.to_string()),
             models::PolymorphicEvent::WebRtcEvent(e) => (e.id, e.event_name.to_string()),
+            models::PolymorphicEvent::OctoPrintEvent(e) => (e.id, e.event_name.to_string()),
         };
         let filename = format!("{}/{}_{}", self.queue_dir, event_name, event_id);
         let result = serde_json::to_writer(
