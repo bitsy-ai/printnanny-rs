@@ -17,7 +17,6 @@ use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 use super::printnanny_api::ApiService;
 use crate::config::{MQTTConfig, PrintNannyConfig};
 use printnanny_api_client::models;
-use printnanny_api_client::models::PolymorphicEvent;
 
 /// Our claims struct, it needs to derive `Serialize` and/or `Deserialize`
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -139,7 +138,7 @@ impl MQTTWorker {
                 warn!("Ignored msg on state topic {:?}", event)
             }
             _ if self.command_topic.contains(&event.topic) => {
-                let data = serde_json::from_slice::<PolymorphicEvent>(&event.payload)?;
+                let data = serde_json::from_slice::<models::PolymorphicCommand>(&event.payload)?;
                 self.config.cmd.add_to_queue(data);
             }
             _ => warn!("Ignored published event {:?}", event),
