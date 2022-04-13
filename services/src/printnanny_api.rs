@@ -10,6 +10,7 @@ use printnanny_api_client::apis::config_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::janus_api;
+use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::apis::users_api;
 use printnanny_api_client::apis::Error as ApiError;
 use printnanny_api_client::models;
@@ -55,6 +56,11 @@ pub enum ServiceError {
     SystemInfoCreateError(#[from] ApiError<devices_api::DevicesSystemInfoCreateError>),
     #[error(transparent)]
     SystemInfoUpdateOrCreateError(#[from] ApiError<devices_api::SystemInfoUpdateOrCreateError>),
+
+    #[error(transparent)]
+    OctoprintInstallUpdateOrCreateError(
+        #[from] ApiError<octoprint_api::OctoprintInstallUpdateOrCreateError>,
+    ),
 
     #[error(transparent)]
     PublicKeyUpdateOrCreate(#[from] ApiError<devices_api::PublicKeyUpdateOrCreateError>),
@@ -287,6 +293,14 @@ impl ApiService {
         info!("Success! Updated CloudiotDevice {:?}", cloudiot_device);
 
         // create OctoPrintInstall / RepetierInstall / MainsailInstall
+        let octoprint_install = match self.config.edition {
+            models::OsEdition::OctoprintDesktop => {
+                self.octoprint_install_update_or_create(device.id).await?
+            }
+            models::OsEdition::OctoprintLite => {
+                self.octoprint_install_update_or_create(device.id).await?
+            }
+        };
 
         // refresh user
         let user = self.auth_user_retreive().await?;
@@ -405,6 +419,22 @@ impl ApiService {
             device,
         };
         let res = devices_api::system_info_update_or_create(&self.reqwest, device, request).await?;
+        Ok(res)
+    }
+
+    pub async fn octoprint_install_update_or_create(
+        &self,
+        device: i32,
+    ) -> Result<models::OctoPrintInstall, ServiceError> {
+        let mut req = match &self.config.octoprint_install_request {
+            Some(octoprint_install) => Ok(octoprint_install.clone()),
+            None => Err(PrintNannyConfigError::InvalidValue {
+                value: "octoprint_install".into(),
+            }),
+        }?;
+        // place-holder device id is rendered in firstrun config.toml
+        req.device = device;
+        let res = octoprint_api::octoprint_install_update_or_create(&self.reqwest, req).await?;
         Ok(res)
     }
 

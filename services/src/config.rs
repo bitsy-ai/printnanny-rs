@@ -162,7 +162,7 @@ impl Default for MQTTConfig {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
-    pub edition: String,
+    pub edition: models::OsEdition,
     pub profile: String,
     pub config_file: PathBuf,
     pub install_dir: PathBuf,
@@ -186,6 +186,8 @@ pub struct PrintNannyConfig {
     pub janus_edge_request: Option<models::JanusEdgeStreamRequest>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub janus_cloud: Option<models::JanusCloudStream>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub octoprint_install_request: Option<models::OctoPrintInstallRequest>,
 }
 
 const FACTORY_RESET: [&'static str; 6] = [
@@ -214,12 +216,14 @@ impl Default for PrintNannyConfig {
         let dash = DashConfig::default();
         let cmd = CmdConfig::default();
         let profile = "default".into();
+        let edition = models::OsEdition::OctoprintDesktop;
         PrintNannyConfig {
             ansible,
             api,
             cmd,
             config_file,
             dash,
+            edition,
             events_socket,
             install_dir,
             mqtt,
@@ -231,6 +235,7 @@ impl Default for PrintNannyConfig {
             janus_cloud: None,
             janus_edge: None,
             janus_edge_request: None,
+            octoprint_install_request: None,
         }
     }
 }
