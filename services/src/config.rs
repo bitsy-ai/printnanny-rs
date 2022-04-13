@@ -188,14 +188,17 @@ pub struct PrintNannyConfig {
     pub janus_cloud: Option<models::JanusCloudStream>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub octoprint_install_request: Option<models::OctoPrintInstallRequest>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub octoprint_install: Option<models::OctoPrintInstall>,
 }
 
-const FACTORY_RESET: [&'static str; 6] = [
+const FACTORY_RESET: [&'static str; 7] = [
     "api",
     "cloudiot_device",
     "device",
     "janus_edge",
     "janus_cloud",
+    "octoprint_install",
     "user",
 ];
 
@@ -236,6 +239,7 @@ impl Default for PrintNannyConfig {
             janus_edge: None,
             janus_edge_request: None,
             octoprint_install_request: None,
+            octoprint_install: None,
         }
     }
 }
@@ -341,8 +345,13 @@ impl PrintNannyConfig {
                 toml::Value::try_from(figment::util::map! { key => &self.cloudiot_device})
             }
             "device" => toml::Value::try_from(figment::util::map! {key => &self.device }),
-            "janus_cloud" => toml::Value::try_from(figment::util::map! {key =>  &self.janus_edge }),
+            "janus_cloud" => {
+                toml::Value::try_from(figment::util::map! {key =>  &self.janus_cloud })
+            }
             "janus_edge" => toml::Value::try_from(figment::util::map! {key =>  &self.janus_edge }),
+            "octoprint_install" => {
+                toml::Value::try_from(figment::util::map! {key =>  &self.octoprint_install })
+            }
             "user" => toml::Value::try_from(figment::util::map! {key =>  &self.user }),
             _ => {
                 warn!("try_save_by_key received unhandled key={:?} - serializing entire PrintNannyConfig", key);

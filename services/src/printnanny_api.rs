@@ -183,6 +183,7 @@ impl ApiService {
             monitoring_active: Some(false),
             release_channel: None,
             setup_complete: Some(false),
+            edition: self.config.edition,
         };
         Ok(devices_api::devices_create(&self.reqwest, req).await?)
     }
@@ -295,12 +296,15 @@ impl ApiService {
         // create OctoPrintInstall / RepetierInstall / MainsailInstall
         let octoprint_install = match self.config.edition {
             models::OsEdition::OctoprintDesktop => {
-                self.octoprint_install_update_or_create(device.id).await?
+                Ok(self.octoprint_install_update_or_create(device.id).await?)
             }
             models::OsEdition::OctoprintLite => {
-                self.octoprint_install_update_or_create(device.id).await?
+                Ok(self.octoprint_install_update_or_create(device.id).await?)
             }
-        };
+            _ => Err(PrintNannyConfigError::InvalidValue {
+                value: format!("edition={:?}", &self.config.edition),
+            }),
+        }?;
 
         // refresh user
         let user = self.auth_user_retreive().await?;
@@ -312,11 +316,13 @@ impl ApiService {
             monitoring_active: None,
             release_channel: None,
             hostname: None,
+            edition: None,
         };
         let device = self.device_patch(device.id, patched).await?;
         self.config.device = Some(device);
         self.config.cloudiot_device = Some(cloudiot_device);
         self.config.user = Some(user);
+        self.config.octoprint_install = Some(octoprint_install);
         self.stream_setup().await?;
         self.config.try_save()?;
 
