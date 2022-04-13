@@ -162,6 +162,7 @@ impl Default for MQTTConfig {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
+    pub edition: String,
     pub profile: String,
     pub config_file: PathBuf,
     pub install_dir: PathBuf,
