@@ -435,6 +435,8 @@ mod tests {
                 r#"
                 profile = "default"
                 install_dir = "/opt/printnanny/default"
+                data_dir = "/opt/printnanny/default/data"
+
                 
                 [api]
                 base_path = "https://print-nanny.com"
@@ -476,6 +478,7 @@ mod tests {
                 r#"
                 profile = "local"
                 install_dir = "/opt/printnanny/default"
+                data_dir = "/opt/printnanny/default/data"
                 
                 [api]
                 base_path = "http://aurora:8000"
@@ -515,7 +518,7 @@ mod tests {
                 "#,
             )?;
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
-            jail.set_env("PRINTNANNY_INSTALL_DIR", format!("{:?}", jail.directory()));
+            jail.set_env("PRINTNANNY_DATA_DIR", format!("{:?}", jail.directory()));
 
             let figment = PrintNannyConfig::figment(None);
             let mut config: PrintNannyConfig = figment.extract()?;
