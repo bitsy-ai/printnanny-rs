@@ -279,11 +279,14 @@ impl ApiService {
         let public_key = self.device_public_key_update_or_create(device.id).await?;
         info!("Success! Updated PublicKey: {:?}", public_key);
 
+        // create GCP Cloudiot Device
         info!("Calling cloudiot_device_update_or_create()");
         let cloudiot_device = self
             .cloudiot_device_update_or_create(device.id, public_key.id)
             .await?;
         info!("Success! Updated CloudiotDevice {:?}", cloudiot_device);
+
+        // create OctoPrintInstall / RepetierInstall / MainsailInstall
 
         // refresh user
         let user = self.auth_user_retreive().await?;
