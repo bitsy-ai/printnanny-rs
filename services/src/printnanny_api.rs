@@ -99,11 +99,11 @@ pub enum ServiceError {
 
     #[error("Signup incomplete - failed to read from {cache:?}")]
     SignupIncomplete { cache: PathBuf },
-    #[error("Setup incomplete, failed to read {field:?} from {config_file:?} {detail:?}")]
+    #[error("Setup incomplete, failed to read {field:?} from {firstboot_file:?} {detail:?}")]
     SetupIncomplete {
         detail: Option<String>,
         field: String,
-        config_file: PathBuf,
+        firstboot_file: PathBuf,
     },
 }
 
@@ -245,7 +245,7 @@ impl ApiService {
         let device = match &self.config.device {
             Some(r) => Ok(r),
             None => Err(ServiceError::SetupIncomplete {
-                config_file: self.config.config_file.clone(),
+                firstboot_file: self.config.firstboot_file.clone(),
                 field: "device".into(),
                 detail: None,
             }),
@@ -253,7 +253,7 @@ impl ApiService {
         let user = match &self.config.user {
             Some(r) => Ok(r),
             None => Err(ServiceError::SetupIncomplete {
-                config_file: self.config.config_file.clone(),
+                firstboot_file: self.config.firstboot_file.clone(),
                 field: "user".into(),
                 detail: None,
             }),
@@ -370,7 +370,7 @@ impl ApiService {
         let mut req: models::JanusEdgeStreamRequest = match &self.config.janus_edge_request {
             Some(r) => Ok(r.clone()),
             None => Err(ServiceError::SetupIncomplete {
-                config_file: self.config.config_file.clone(),
+                firstboot_file: self.config.firstboot_file.clone(),
                 field: "janus_edge_request".into(),
                 detail: None,
             }),

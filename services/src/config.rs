@@ -164,7 +164,7 @@ impl Default for MQTTConfig {
 pub struct PrintNannyConfig {
     pub edition: models::OsEdition,
     pub profile: String,
-    pub config_file: PathBuf,
+    pub firstboot_file: PathBuf,
     pub install_dir: PathBuf,
     pub runtime_dir: PathBuf,
     pub events_socket: PathBuf,
@@ -212,7 +212,7 @@ impl Default for PrintNannyConfig {
             dashboard_url: "https://printnanny.ai/dashboard/".into(),
         };
         let install_dir = "/opt/printnanny/profiles/default".into();
-        let config_file = "/opt/printnanny/profiles/default/PrintNannyConfig.toml".into();
+        let firstboot_file = "/opt/printnanny/profiles/default/PrintNannyConfig.toml".into();
         let runtime_dir = "/var/run/printnanny".into();
         let events_socket = "/var/run/printnanny/event.sock".into();
         let mqtt = MQTTConfig::default();
@@ -224,7 +224,7 @@ impl Default for PrintNannyConfig {
             ansible,
             api,
             cmd,
-            config_file,
+            firstboot_file,
             dash,
             edition,
             events_socket,
@@ -282,7 +282,7 @@ impl PrintNannyConfig {
 
         info!("Loaded config from profile {:?}", result.profile());
         let path: String = result
-            .find_value("install_dir")
+            .find_value("data_dir")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
@@ -469,7 +469,7 @@ mod tests {
     }
 
     #[test_log::test]
-    fn test_custom_config_file() {
+    fn test_custom_firstboot_file() {
         figment::Jail::expect_with(|jail| {
             jail.create_file(
                 "Local.toml",
