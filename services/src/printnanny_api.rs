@@ -10,6 +10,7 @@ use printnanny_api_client::apis::config_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::janus_api;
+use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::apis::users_api;
 use printnanny_api_client::apis::Error as ApiError;
 use printnanny_api_client::models;
@@ -57,6 +58,11 @@ pub enum ServiceError {
     SystemInfoUpdateOrCreateError(#[from] ApiError<devices_api::SystemInfoUpdateOrCreateError>),
 
     #[error(transparent)]
+    OctoprintInstallUpdateOrCreateError(
+        #[from] ApiError<octoprint_api::OctoprintInstallUpdateOrCreateError>,
+    ),
+
+    #[error(transparent)]
     PublicKeyUpdateOrCreate(#[from] ApiError<devices_api::PublicKeyUpdateOrCreateError>),
 
     #[error(transparent)]
@@ -93,11 +99,11 @@ pub enum ServiceError {
 
     #[error("Signup incomplete - failed to read from {cache:?}")]
     SignupIncomplete { cache: PathBuf },
-    #[error("Setup incomplete, failed to read {field:?} from {config_file:?} {detail:?}")]
+    #[error("Setup incomplete, failed to read {field:?} from {firstboot_file:?} {detail:?}")]
     SetupIncomplete {
         detail: Option<String>,
         field: String,
-        config_file: PathBuf,
+        firstboot_file: PathBuf,
     },
 }
 
@@ -177,6 +183,7 @@ impl ApiService {
             monitoring_active: Some(false),
             release_channel: None,
             setup_complete: Some(false),
+            edition: self.config.edition,
         };
         Ok(devices_api::devices_create(&self.reqwest, req).await?)
     }
@@ -238,7 +245,7 @@ impl ApiService {
         let device = match &self.config.device {
             Some(r) => Ok(r),
             None => Err(ServiceError::SetupIncomplete {
-                config_file: self.config.config_file.clone(),
+                firstboot_file: self.config.firstboot_file.clone(),
                 field: "device".into(),
                 detail: None,
             }),
@@ -246,7 +253,7 @@ impl ApiService {
         let user = match &self.config.user {
             Some(r) => Ok(r),
             None => Err(ServiceError::SetupIncomplete {
-                config_file: self.config.config_file.clone(),
+                firstboot_file: self.config.firstboot_file.clone(),
                 field: "user".into(),
                 detail: None,
             }),
@@ -279,11 +286,25 @@ impl ApiService {
         let public_key = self.device_public_key_update_or_create(device.id).await?;
         info!("Success! Updated PublicKey: {:?}", public_key);
 
+        // create GCP Cloudiot Device
         info!("Calling cloudiot_device_update_or_create()");
         let cloudiot_device = self
             .cloudiot_device_update_or_create(device.id, public_key.id)
             .await?;
         info!("Success! Updated CloudiotDevice {:?}", cloudiot_device);
+
+        // create OctoPrintInstall / RepetierInstall / MainsailInstall
+        let octoprint_install = match self.config.edition {
+            models::OsEdition::OctoprintDesktop => {
+                Ok(self.octoprint_install_update_or_create(device.id).await?)
+            }
+            models::OsEdition::OctoprintLite => {
+                Ok(self.octoprint_install_update_or_create(device.id).await?)
+            }
+            _ => Err(PrintNannyConfigError::InvalidValue {
+                value: format!("edition={:?}", &self.config.edition),
+            }),
+        }?;
 
         // refresh user
         let user = self.auth_user_retreive().await?;
@@ -295,11 +316,13 @@ impl ApiService {
             monitoring_active: None,
             release_channel: None,
             hostname: None,
+            edition: None,
         };
         let device = self.device_patch(device.id, patched).await?;
         self.config.device = Some(device);
         self.config.cloudiot_device = Some(cloudiot_device);
         self.config.user = Some(user);
+        self.config.octoprint_install = Some(octoprint_install);
         self.stream_setup().await?;
         self.config.try_save()?;
 
@@ -347,7 +370,7 @@ impl ApiService {
         let mut req: models::JanusEdgeStreamRequest = match &self.config.janus_edge_request {
             Some(r) => Ok(r.clone()),
             None => Err(ServiceError::SetupIncomplete {
-                config_file: self.config.config_file.clone(),
+                firstboot_file: self.config.firstboot_file.clone(),
                 field: "janus_edge_request".into(),
                 detail: None,
             }),
@@ -402,6 +425,22 @@ impl ApiService {
             device,
         };
         let res = devices_api::system_info_update_or_create(&self.reqwest, device, request).await?;
+        Ok(res)
+    }
+
+    pub async fn octoprint_install_update_or_create(
+        &self,
+        device: i32,
+    ) -> Result<models::OctoPrintInstall, ServiceError> {
+        let mut req = match &self.config.octoprint_install_request {
+            Some(octoprint_install) => Ok(octoprint_install.clone()),
+            None => Err(PrintNannyConfigError::InvalidValue {
+                value: "octoprint_install".into(),
+            }),
+        }?;
+        // place-holder device id is rendered in firstrun config.toml
+        req.device = device;
+        let res = octoprint_api::octoprint_install_update_or_create(&self.reqwest, req).await?;
         Ok(res)
     }
 

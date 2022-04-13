@@ -162,8 +162,9 @@ impl Default for MQTTConfig {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
+    pub edition: models::OsEdition,
     pub profile: String,
-    pub config_file: PathBuf,
+    pub firstboot_file: PathBuf,
     pub install_dir: PathBuf,
     pub runtime_dir: PathBuf,
     pub events_socket: PathBuf,
@@ -185,14 +186,19 @@ pub struct PrintNannyConfig {
     pub janus_edge_request: Option<models::JanusEdgeStreamRequest>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub janus_cloud: Option<models::JanusCloudStream>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub octoprint_install_request: Option<models::OctoPrintInstallRequest>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub octoprint_install: Option<models::OctoPrintInstall>,
 }
 
-const FACTORY_RESET: [&'static str; 6] = [
+const FACTORY_RESET: [&'static str; 7] = [
     "api",
     "cloudiot_device",
     "device",
     "janus_edge",
     "janus_cloud",
+    "octoprint_install",
     "user",
 ];
 
@@ -206,19 +212,21 @@ impl Default for PrintNannyConfig {
             dashboard_url: "https://printnanny.ai/dashboard/".into(),
         };
         let install_dir = "/opt/printnanny/profiles/default".into();
-        let config_file = "/opt/printnanny/profiles/default/PrintNannyConfig.toml".into();
+        let firstboot_file = "/opt/printnanny/profiles/default/PrintNannyConfig.toml".into();
         let runtime_dir = "/var/run/printnanny".into();
         let events_socket = "/var/run/printnanny/event.sock".into();
         let mqtt = MQTTConfig::default();
         let dash = DashConfig::default();
         let cmd = CmdConfig::default();
         let profile = "default".into();
+        let edition = models::OsEdition::OctoprintDesktop;
         PrintNannyConfig {
             ansible,
             api,
             cmd,
-            config_file,
+            firstboot_file,
             dash,
+            edition,
             events_socket,
             install_dir,
             mqtt,
@@ -230,6 +238,8 @@ impl Default for PrintNannyConfig {
             janus_cloud: None,
             janus_edge: None,
             janus_edge_request: None,
+            octoprint_install_request: None,
+            octoprint_install: None,
         }
     }
 }
@@ -272,7 +282,7 @@ impl PrintNannyConfig {
 
         info!("Loaded config from profile {:?}", result.profile());
         let path: String = result
-            .find_value("install_dir")
+            .find_value("data_dir")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
@@ -335,8 +345,13 @@ impl PrintNannyConfig {
                 toml::Value::try_from(figment::util::map! { key => &self.cloudiot_device})
             }
             "device" => toml::Value::try_from(figment::util::map! {key => &self.device }),
-            "janus_cloud" => toml::Value::try_from(figment::util::map! {key =>  &self.janus_edge }),
+            "janus_cloud" => {
+                toml::Value::try_from(figment::util::map! {key =>  &self.janus_cloud })
+            }
             "janus_edge" => toml::Value::try_from(figment::util::map! {key =>  &self.janus_edge }),
+            "octoprint_install" => {
+                toml::Value::try_from(figment::util::map! {key =>  &self.octoprint_install })
+            }
             "user" => toml::Value::try_from(figment::util::map! {key =>  &self.user }),
             _ => {
                 warn!("try_save_by_key received unhandled key={:?} - serializing entire PrintNannyConfig", key);
@@ -420,6 +435,8 @@ mod tests {
                 r#"
                 profile = "default"
                 install_dir = "/opt/printnanny/default"
+                data_dir = "/opt/printnanny/default/data"
+
                 
                 [api]
                 base_path = "https://print-nanny.com"
@@ -454,13 +471,14 @@ mod tests {
     }
 
     #[test_log::test]
-    fn test_custom_config_file() {
+    fn test_custom_firstboot_file() {
         figment::Jail::expect_with(|jail| {
             jail.create_file(
                 "Local.toml",
                 r#"
                 profile = "local"
                 install_dir = "/opt/printnanny/default"
+                data_dir = "/opt/printnanny/default/data"
                 
                 [api]
                 base_path = "http://aurora:8000"
@@ -500,7 +518,7 @@ mod tests {
                 "#,
             )?;
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
-            jail.set_env("PRINTNANNY_INSTALL_DIR", format!("{:?}", jail.directory()));
+            jail.set_env("PRINTNANNY_DATA_DIR", format!("{:?}", jail.directory()));
 
             let figment = PrintNannyConfig::figment(None);
             let mut config: PrintNannyConfig = figment.extract()?;
