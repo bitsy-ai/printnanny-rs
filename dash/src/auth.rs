@@ -33,7 +33,7 @@ pub fn is_auth_valid(
             if config.user != Some(user.clone()) {
                 warn!("config.user {:?} did not match COOKIE_USER {:?}, deleting cookie to force re-auth", config.user, &user);
                 jar.remove_private(Cookie::named(COOKIE_USER));
-                config.try_factory_reset()?;
+                // config.try_factory_reset()?;
                 Ok(None)
             } else {
                 info!("Auth success! COOKIE_USER matches config.user");

@@ -166,6 +166,7 @@ pub struct PrintNannyConfig {
     pub profile: String,
     pub firstboot_file: PathBuf,
     pub install_dir: PathBuf,
+    pub data_dir: PathBuf,
     pub runtime_dir: PathBuf,
     pub events_socket: PathBuf,
     pub ansible: AnsibleConfig,
@@ -211,7 +212,8 @@ impl Default for PrintNannyConfig {
             static_url: "https://printnanny.ai/static/".into(),
             dashboard_url: "https://printnanny.ai/dashboard/".into(),
         };
-        let install_dir = "/opt/printnanny/profiles/default".into();
+        let install_dir: PathBuf = "/opt/printnanny/profiles/default".into();
+        let data_dir = install_dir.join("data").into();
         let firstboot_file = "/opt/printnanny/profiles/default/PrintNannyConfig.toml".into();
         let runtime_dir = "/var/run/printnanny".into();
         let events_socket = "/var/run/printnanny/event.sock".into();
@@ -224,10 +226,11 @@ impl Default for PrintNannyConfig {
             ansible,
             api,
             cmd,
-            firstboot_file,
             dash,
+            data_dir,
             edition,
             events_socket,
+            firstboot_file,
             install_dir,
             mqtt,
             profile,
@@ -359,7 +362,7 @@ impl PrintNannyConfig {
             }
         }?;
         let filename = format!("{}.toml", key);
-        let filename = self.install_dir.join(filename);
+        let filename = self.data_dir.join(filename);
         fs::write(&filename, content.to_string())?;
         info!("Wrote {} to {:?}", key, filename);
         Ok(())
