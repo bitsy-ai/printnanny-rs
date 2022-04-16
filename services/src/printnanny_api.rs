@@ -435,7 +435,7 @@ impl ApiService {
         let mut req = match &self.config.octoprint_install_request {
             Some(octoprint_install) => Ok(octoprint_install.clone()),
             None => Err(PrintNannyConfigError::InvalidValue {
-                value: "octoprint_install".into(),
+                value: "octoprint_install_request".into(),
             }),
         }?;
         // place-holder device id is rendered in firstrun config.toml
