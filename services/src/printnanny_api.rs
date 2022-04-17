@@ -319,6 +319,9 @@ impl ApiService {
             edition: None,
         };
         let device = self.device_patch(device.id, patched).await?;
+
+        let api = self.api_client_config_retieve().await?;
+        self.config.api = api;
         self.config.device = Some(device);
         self.config.cloudiot_device = Some(cloudiot_device);
         self.config.user = Some(user);
