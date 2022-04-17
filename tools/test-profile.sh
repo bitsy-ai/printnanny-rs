@@ -4,7 +4,7 @@ PREFIX="${PRINTNANNY_PREFIX:-.tmp/test}"
 
 CA_CERTS="$PREFIX/ca-certificates"
 KEYS="${PREFIX}/keys"
-DATA_DIR = "${PREFIX}/data"
+DATA_DIR="${PREFIX}/data"
 mkdir -p "$KEYS"
 mkdir -p "$CA_CERTS"
 mkdir -p "$DATA_DIR"
