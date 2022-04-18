@@ -173,7 +173,7 @@ async fn main() -> Result<()> {
                         config,
                     ).await?;
                     let data = event_m.value_of("data").expect("Expected --data argument passed");
-                    let event: models::PolymorphicEventRequest = serde_json::from_str(data).expect("Failed to deserialize event data");
+                    let event: models::PolymorphicEventCreateRequest = serde_json::from_str(data).expect("Failed to deserialize event data");
                     let value: serde_json::Value = serde_json::to_value(event)?;
                     worker.publish(value).await?;
                 },
