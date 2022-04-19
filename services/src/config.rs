@@ -243,7 +243,6 @@ impl Default for PrintNannyConfig {
         let cmd = CmdConfig::default();
         let profile = "default".into();
         let edition = models::OsEdition::OctoprintDesktop;
-        let hostname = sys_info::hostname().unwrap_or("localhost".to_string());
         let printnanny_cloud_proxy = PrintNannyCloudProxy::default();
         PrintNannyConfig {
             ansible,
