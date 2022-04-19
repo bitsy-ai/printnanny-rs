@@ -162,18 +162,19 @@ impl Default for MQTTConfig {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
-    pub edition: models::OsEdition,
-    pub profile: String,
-    pub firstboot_file: PathBuf,
-    pub install_dir: PathBuf,
-    pub data_dir: PathBuf,
-    pub runtime_dir: PathBuf,
-    pub events_socket: PathBuf,
     pub ansible: AnsibleConfig,
     pub api: models::PrintNannyApiConfig,
-    pub dash: DashConfig,
-    pub mqtt: MQTTConfig,
     pub cmd: CmdConfig,
+    pub dash: DashConfig,
+    pub data_dir: PathBuf,
+    pub edition: models::OsEdition,
+    pub events_socket: PathBuf,
+    pub firstboot_file: PathBuf,
+    pub install_dir: PathBuf,
+    pub mqtt: MQTTConfig,
+    pub printnanny_cloud_proxy_url: String,
+    pub profile: String,
+    pub runtime_dir: PathBuf,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<models::Device>,
@@ -222,6 +223,8 @@ impl Default for PrintNannyConfig {
         let cmd = CmdConfig::default();
         let profile = "default".into();
         let edition = models::OsEdition::OctoprintDesktop;
+        let hostname = sys_info::hostname().unwrap_or("localhost".to_string());
+        let printnanny_cloud_proxy_url = format!("http://{}/printnanny-cloud", hostname);
         PrintNannyConfig {
             ansible,
             api,
@@ -233,6 +236,7 @@ impl Default for PrintNannyConfig {
             firstboot_file,
             install_dir,
             mqtt,
+            printnanny_cloud_proxy_url,
             profile,
             runtime_dir,
             cloudiot_device: None,
