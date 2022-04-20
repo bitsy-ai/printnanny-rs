@@ -33,7 +33,7 @@ async fn main() -> Result<()> {
                 .takes_value(true)
                 .help("Path to Config.toml (see env/ for examples)"),
         )
-        // janusadmin
+        // octoprint
         .subcommand(
             App::new("octoprint")
                 .author(crate_authors!())
@@ -54,6 +54,15 @@ async fn main() -> Result<()> {
                         .long("package")
                         .takes_value(true),
                 ),
+        )
+        // repetier
+        .subcommand(
+            App::new("repetier")
+                .author(crate_authors!())
+                .about(crate_description!())
+                .version(crate_version!())
+                .setting(AppSettings::ArgRequiredElseHelp)
+                .about("Interact with Repetier installation"),
         );
     let app_m = app.get_matches();
 
@@ -79,7 +88,7 @@ async fn main() -> Result<()> {
             let result = cmd.handle()?;
             println!("{:?}", result)
         }
-        _ => {}
+        _ => std::unimplemented!("command is not implemented"),
     }
     Ok(())
 }
