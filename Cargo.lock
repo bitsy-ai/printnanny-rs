@@ -2485,6 +2485,7 @@ version = "0.20.6"
 dependencies = [
  "printnanny-cli",
  "printnanny-dash",
+ "printnanny-dev",
 ]
 
 [[package]]
@@ -2534,6 +2535,21 @@ dependencies = [
  "sqlx",
  "thiserror",
  "time 0.3.9",
+ "tokio",
+]
+
+[[package]]
+name = "printnanny-dev"
+version = "0.20.6"
+dependencies = [
+ "anyhow",
+ "clap",
+ "env_logger",
+ "function_name",
+ "log",
+ "printnanny-api-client",
+ "printnanny-services",
+ "serde_json",
  "tokio",
 ]
 

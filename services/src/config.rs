@@ -181,21 +181,45 @@ impl Default for PrintNannyCloudProxy {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct PrintNannyPaths {
+    data: PathBuf,
+    events_socket: PathBuf,
+    firstboot: PathBuf,
+    install: PathBuf,
+    runtime: PathBuf,
+    octoprint: Option<PathBuf>,
+}
+
+impl Default for PrintNannyPaths {
+    fn default() -> Self {
+        let install: PathBuf = "/opt/printnanny/profiles/default".into();
+        let data = install.join("data").into();
+        let runtime: PathBuf = "/var/run/printnanny".into();
+        let firstboot = "/opt/printnanny/profiles/default/PrintNannyConfig.toml".into();
+        let events_socket = runtime.join("events.socket").into();
+        let octoprint = None;
+        Self {
+            data,
+            events_socket,
+            firstboot,
+            install,
+            runtime,
+            octoprint,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
     pub ansible: AnsibleConfig,
     pub api: models::PrintNannyApiConfig,
     pub cmd: CmdConfig,
     pub dash: DashConfig,
-    pub data_dir: PathBuf,
     pub edition: models::OsEdition,
-    pub events_socket: PathBuf,
-    pub firstboot_file: PathBuf,
-    pub install_dir: PathBuf,
     pub mqtt: MQTTConfig,
+    pub paths: PrintNannyPaths,
     pub printnanny_cloud_proxy: PrintNannyCloudProxy,
     pub profile: String,
-    pub runtime_dir: PathBuf,
-
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<models::Device>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -233,11 +257,8 @@ impl Default for PrintNannyConfig {
             static_url: "https://printnanny.ai/static/".into(),
             dashboard_url: "https://printnanny.ai/dashboard/".into(),
         };
-        let install_dir: PathBuf = "/opt/printnanny/profiles/default".into();
-        let data_dir = install_dir.join("data").into();
-        let firstboot_file = "/opt/printnanny/profiles/default/PrintNannyConfig.toml".into();
-        let runtime_dir = "/var/run/printnanny".into();
-        let events_socket = "/var/run/printnanny/event.sock".into();
+
+        let paths = PrintNannyPaths::default();
         let mqtt = MQTTConfig::default();
         let dash = DashConfig::default();
         let cmd = CmdConfig::default();
@@ -249,15 +270,11 @@ impl Default for PrintNannyConfig {
             api,
             cmd,
             dash,
-            data_dir,
             edition,
-            events_socket,
-            firstboot_file,
-            install_dir,
             mqtt,
+            paths,
             printnanny_cloud_proxy,
             profile,
-            runtime_dir,
             cloudiot_device: None,
             device: None,
             user: None,
