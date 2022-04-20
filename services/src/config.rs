@@ -209,6 +209,29 @@ impl Default for PrintNannyPaths {
     }
 }
 
+impl PrintNannyPaths {
+    pub fn octoprint_venv(&self) -> Option<PathBuf> {
+        match &self.octoprint {
+            Some(path) => Some(path.join("venv")),
+            None => None,
+        }
+    }
+
+    pub fn octoprint_pip(&self) -> Option<PathBuf> {
+        match self.octoprint_venv() {
+            Some(path) => Some(path.join("bin/pip")),
+            None => None,
+        }
+    }
+
+    pub fn octoprint_python(&self) -> Option<PathBuf> {
+        match self.octoprint_venv() {
+            Some(path) => Some(path.join("bin/python")),
+            None => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
     pub ansible: AnsibleConfig,
@@ -471,14 +494,43 @@ impl Provider for PrintNannyConfig {
 mod tests {
     use super::*;
     #[test_log::test]
+    fn test_paths() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_file(
+                "PrintNanny.toml",
+                r#"
+                profile = "default"
+
+                [paths]
+                install = "/opt/printnanny/default"
+                data = "/opt/printnanny/default/data"
+                octoprint = "/home/octoprint/.octoprint"
+
+                
+                [api]
+                base_path = "https://print-nanny.com"
+                "#,
+            )?;
+            let figment = PrintNannyConfig::figment(None);
+            let config: PrintNannyConfig = figment.extract()?;
+            assert_eq!(
+                config.paths.octoprint_venv(),
+                Some("/home/octoprint/.octoprint/venv".into())
+            );
+            Ok(())
+        });
+    }
+    #[test_log::test]
     fn test_env_merged() {
         figment::Jail::expect_with(|jail| {
             jail.create_file(
                 "PrintNanny.toml",
                 r#"
                 profile = "default"
-                install_dir = "/opt/printnanny/default"
-                data_dir = "/opt/printnanny/default/data"
+
+                [paths]
+                install = "/opt/printnanny/default"
+                data = "/opt/printnanny/default/data"
 
                 
                 [api]
@@ -520,8 +572,10 @@ mod tests {
                 "Local.toml",
                 r#"
                 profile = "local"
-                install_dir = "/opt/printnanny/default"
-                data_dir = "/opt/printnanny/default/data"
+
+                [paths]
+                install = "/opt/printnanny/default"
+                data = "/opt/printnanny/default/data"
                 
                 [api]
                 base_path = "http://aurora:8000"
@@ -533,7 +587,10 @@ mod tests {
             let config: PrintNannyConfig = figment.extract()?;
 
             let base_path = "http://aurora:8000".into();
-            assert_eq!(config.install_dir, PathBuf::from("/opt/printnanny/default"));
+            assert_eq!(
+                config.paths.install,
+                PathBuf::from("/opt/printnanny/default")
+            );
             assert_eq!(config.api.base_path, base_path);
 
             assert_eq!(
@@ -561,11 +618,13 @@ mod tests {
                 "#,
             )?;
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
-            jail.set_env("PRINTNANNY_DATA_DIR", format!("{:?}", jail.directory()));
+            jail.set_env("PRINTNANNY_PATHS.DATA", format!("{:?}", jail.directory()));
 
             let figment = PrintNannyConfig::figment(None);
             let mut config: PrintNannyConfig = figment.extract()?;
-            config.install_dir = jail.directory().into();
+            config.paths.install = jail.directory().into();
+            config.paths.data = jail.directory().into();
+
             let expected = models::PrintNannyApiConfig {
                 base_path: config.api.base_path,
                 bearer_access_token: Some("secret_token".to_string()),

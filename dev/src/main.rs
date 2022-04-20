@@ -7,7 +7,7 @@ use clap::{App, AppSettings, Arg};
 use env_logger::Builder;
 use log::{info, LevelFilter};
 
-use printnanny_dev::octoprint::OctoPrintAction;
+use printnanny_dev::octoprint::{OctoPrintAction, OctoPrintCmd};
 use printnanny_services::config::PrintNannyConfig;
 
 #[tokio::main]
@@ -72,6 +72,13 @@ async fn main() -> Result<()> {
     };
 
     match app_m.subcommand() {
+        Some(("octprint", sub_m)) => {
+            let action: OctoPrintAction = sub_m.value_of_t("action").unwrap_or_else(|e| e.exit());
+            let package = sub_m.value_of("package").map(|s| s.to_string());
+            let cmd = OctoPrintCmd::new(action, config, package);
+            let result = cmd.handle()?;
+            println!("{:?}", result)
+        }
         _ => {}
     }
     Ok(())

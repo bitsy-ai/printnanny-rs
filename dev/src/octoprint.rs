@@ -1,5 +1,9 @@
+use anyhow::Result;
 use clap::ArgEnum;
-use std::fmt;
+use log::{error, info};
+use std::process::{Command, Output};
+
+use printnanny_services::config::PrintNannyConfig;
 
 #[derive(Copy, Eq, PartialEq, Debug, Clone, clap::ArgEnum)]
 pub enum OctoPrintAction {
@@ -28,11 +32,57 @@ impl std::str::FromStr for OctoPrintAction {
     }
 }
 
-impl fmt::Display for OctoPrintAction {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            OctoPrintAction::PipInstall => write!(f, "pipinstall"),
-            OctoPrintAction::PipUninstall => write!(f, "pipuninstall"),
+pub struct OctoPrintCmd {
+    pub action: OctoPrintAction,
+    pub config: PrintNannyConfig,
+    pub package: Option<String>,
+}
+
+impl OctoPrintCmd {
+    pub fn new(action: OctoPrintAction, config: PrintNannyConfig, package: Option<String>) -> Self {
+        Self {
+            action,
+            config,
+            package,
+        }
+    }
+
+    pub fn handle_pip_install(self) -> Result<Output> {
+        let package = &self.package.expect("package is required");
+        let args = &["install", "--upgrade", "--force-reinstall", package];
+        let cmd = self
+            .config
+            .paths
+            .octoprint_pip()
+            .expect("Failed to find octoprint pip");
+        let output = Command::new(cmd).args(args).output()?;
+        info!("{:?}", &output.stdout);
+
+        if !output.status.success() {
+            error!("{:?}", &output.stderr);
+        }
+        Ok(output)
+    }
+    pub fn handle_pip_uninstall(self) -> Result<Output> {
+        let package = &self.package.expect("package is required");
+        let args = &["uninstall", package];
+        let cmd = self
+            .config
+            .paths
+            .octoprint_pip()
+            .expect("Failed to find octoprint pip");
+        let output = Command::new(cmd).args(args).output()?;
+        info!("{:?}", &output.stdout);
+
+        if !output.status.success() {
+            error!("{:?}", &output.stderr);
+        }
+        Ok(output)
+    }
+    pub fn handle(self) -> Result<Output> {
+        match self.action {
+            OctoPrintAction::PipInstall => self.handle_pip_install(),
+            OctoPrintAction::PipUninstall => self.handle_pip_uninstall(),
         }
     }
 }
