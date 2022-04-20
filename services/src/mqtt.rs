@@ -148,11 +148,11 @@ impl MQTTWorker {
 
     // re-publish printnanny events unix sock to mqtt topic
     pub async fn publish(&self, value: serde_json::Value) -> Result<()> {
-        let stream = UnixStream::connect(&self.config.events_socket)
+        let stream = UnixStream::connect(&self.config.paths.events_socket)
             .await
             .context(format!(
                 "Failed to connect to socket {:?}",
-                &self.config.events_socket
+                &self.config.paths.events_socket
             ))?;
         // Delimit frames using a length header
         let length_delimited = FramedWrite::new(stream, LengthDelimitedCodec::new());
@@ -170,7 +170,7 @@ impl MQTTWorker {
     }
 
     async fn spawn_socket_listener(&self) -> Result<()> {
-        let events_socket = self.config.events_socket.clone();
+        let events_socket = self.config.paths.events_socket.clone();
         tokio::spawn(async move {
             let listener = UnixListener::bind(&events_socket)
                 .context(format!("Failed to bind to socket {:?}", &events_socket))
@@ -197,12 +197,12 @@ impl MQTTWorker {
     // subscribe to mqtt config, command topics + printnanny events unix sock
     pub async fn subscribe(&self) -> Result<()> {
         let (client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 64);
-        let maybe_delete = std::fs::remove_file(&self.config.events_socket);
+        let maybe_delete = std::fs::remove_file(&self.config.paths.events_socket);
         match maybe_delete {
             Ok(_) => {
                 warn!(
                     "Deleted socket {:?} without mercy. Refactor this code to run 2+ concurrent socket listeners/bindings.",
-                    &self.config.events_socket
+                    &self.config.paths.events_socket
                 );
             }
             Err(_) => {}

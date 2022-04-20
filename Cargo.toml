@@ -20,6 +20,7 @@ description = "PrintNanny root package crate"
 [dependencies]
 printnanny-cli = { path = "cli", version = "^0.20.0"}
 printnanny-dash = { path = "dash", version = "^0.20.0"}
+printnanny-dev = { path = "dev", version = "^0.20.0"}
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.dev]
 panic = "abort"

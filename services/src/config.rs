@@ -181,21 +181,68 @@ impl Default for PrintNannyCloudProxy {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct PrintNannyPaths {
+    pub data: PathBuf,
+    pub events_socket: PathBuf,
+    pub firstboot: PathBuf,
+    pub install: PathBuf,
+    pub runtime: PathBuf,
+    pub octoprint: Option<PathBuf>,
+}
+
+impl Default for PrintNannyPaths {
+    fn default() -> Self {
+        let install: PathBuf = "/opt/printnanny/profiles/default".into();
+        let data = install.join("data").into();
+        let runtime: PathBuf = "/var/run/printnanny".into();
+        let firstboot = "/opt/printnanny/profiles/default/PrintNannyConfig.toml".into();
+        let events_socket = runtime.join("events.socket").into();
+        let octoprint = None;
+        Self {
+            data,
+            events_socket,
+            firstboot,
+            install,
+            runtime,
+            octoprint,
+        }
+    }
+}
+
+impl PrintNannyPaths {
+    pub fn octoprint_venv(&self) -> Option<PathBuf> {
+        match &self.octoprint {
+            Some(path) => Some(path.join("venv")),
+            None => None,
+        }
+    }
+
+    pub fn octoprint_pip(&self) -> Option<PathBuf> {
+        match self.octoprint_venv() {
+            Some(path) => Some(path.join("bin/pip")),
+            None => None,
+        }
+    }
+
+    pub fn octoprint_python(&self) -> Option<PathBuf> {
+        match self.octoprint_venv() {
+            Some(path) => Some(path.join("bin/python")),
+            None => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
     pub ansible: AnsibleConfig,
     pub api: models::PrintNannyApiConfig,
     pub cmd: CmdConfig,
     pub dash: DashConfig,
-    pub data_dir: PathBuf,
     pub edition: models::OsEdition,
-    pub events_socket: PathBuf,
-    pub firstboot_file: PathBuf,
-    pub install_dir: PathBuf,
     pub mqtt: MQTTConfig,
+    pub paths: PrintNannyPaths,
     pub printnanny_cloud_proxy: PrintNannyCloudProxy,
     pub profile: String,
-    pub runtime_dir: PathBuf,
-
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<models::Device>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -233,11 +280,8 @@ impl Default for PrintNannyConfig {
             static_url: "https://printnanny.ai/static/".into(),
             dashboard_url: "https://printnanny.ai/dashboard/".into(),
         };
-        let install_dir: PathBuf = "/opt/printnanny/profiles/default".into();
-        let data_dir = install_dir.join("data").into();
-        let firstboot_file = "/opt/printnanny/profiles/default/PrintNannyConfig.toml".into();
-        let runtime_dir = "/var/run/printnanny".into();
-        let events_socket = "/var/run/printnanny/event.sock".into();
+
+        let paths = PrintNannyPaths::default();
         let mqtt = MQTTConfig::default();
         let dash = DashConfig::default();
         let cmd = CmdConfig::default();
@@ -249,15 +293,11 @@ impl Default for PrintNannyConfig {
             api,
             cmd,
             dash,
-            data_dir,
             edition,
-            events_socket,
-            firstboot_file,
-            install_dir,
             mqtt,
+            paths,
             printnanny_cloud_proxy,
             profile,
-            runtime_dir,
             cloudiot_device: None,
             device: None,
             user: None,
@@ -308,7 +348,7 @@ impl PrintNannyConfig {
 
         info!("Loaded config from profile {:?}", result.profile());
         let path: String = result
-            .find_value("data_dir")
+            .find_value("paths.data")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
@@ -344,7 +384,7 @@ impl PrintNannyConfig {
         // for each key/value pair in FACTORY_RESET, remove file
         for key in FACTORY_RESET.iter() {
             let filename = format!("{}.toml", key);
-            let filename = self.install_dir.join(filename);
+            let filename = self.paths.install.join(filename);
             fs::remove_file(&filename)?;
             info!("Removed {} cache {:?}", key, filename);
         }
@@ -385,7 +425,7 @@ impl PrintNannyConfig {
             }
         }?;
         let filename = format!("{}.toml", key);
-        let filename = self.data_dir.join(filename);
+        let filename = self.paths.data.join(filename);
         fs::write(&filename, content.to_string())?;
         info!("Wrote {} to {:?}", key, filename);
         Ok(())
@@ -454,14 +494,51 @@ impl Provider for PrintNannyConfig {
 mod tests {
     use super::*;
     #[test_log::test]
+    fn test_paths() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_file(
+                "PrintNanny.toml",
+                r#"
+                profile = "default"
+
+                [paths]
+                install = "/opt/printnanny/default"
+                data = "/opt/printnanny/default/data"
+                octoprint = "/home/octoprint/.octoprint"
+
+                
+                [api]
+                base_path = "https://print-nanny.com"
+                "#,
+            )?;
+            let figment = PrintNannyConfig::figment(None);
+            let config: PrintNannyConfig = figment.extract()?;
+            assert_eq!(
+                config.paths.octoprint_venv(),
+                Some("/home/octoprint/.octoprint/venv".into())
+            );
+            assert_eq!(
+                config.paths.octoprint_pip(),
+                Some("/home/octoprint/.octoprint/venv/bin/pip".into())
+            );
+            assert_eq!(
+                config.paths.octoprint_python(),
+                Some("/home/octoprint/.octoprint/venv/bin/python".into())
+            );
+            Ok(())
+        });
+    }
+    #[test_log::test]
     fn test_env_merged() {
         figment::Jail::expect_with(|jail| {
             jail.create_file(
                 "PrintNanny.toml",
                 r#"
                 profile = "default"
-                install_dir = "/opt/printnanny/default"
-                data_dir = "/opt/printnanny/default/data"
+
+                [paths]
+                install = "/opt/printnanny/default"
+                data = "/opt/printnanny/default/data"
 
                 
                 [api]
@@ -503,8 +580,10 @@ mod tests {
                 "Local.toml",
                 r#"
                 profile = "local"
-                install_dir = "/opt/printnanny/default"
-                data_dir = "/opt/printnanny/default/data"
+
+                [paths]
+                install = "/opt/printnanny/default"
+                data = "/opt/printnanny/default/data"
                 
                 [api]
                 base_path = "http://aurora:8000"
@@ -516,7 +595,10 @@ mod tests {
             let config: PrintNannyConfig = figment.extract()?;
 
             let base_path = "http://aurora:8000".into();
-            assert_eq!(config.install_dir, PathBuf::from("/opt/printnanny/default"));
+            assert_eq!(
+                config.paths.install,
+                PathBuf::from("/opt/printnanny/default")
+            );
             assert_eq!(config.api.base_path, base_path);
 
             assert_eq!(
@@ -544,11 +626,13 @@ mod tests {
                 "#,
             )?;
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
-            jail.set_env("PRINTNANNY_DATA_DIR", format!("{:?}", jail.directory()));
+            jail.set_env("PRINTNANNY_PATHS.DATA", format!("{:?}", jail.directory()));
 
             let figment = PrintNannyConfig::figment(None);
             let mut config: PrintNannyConfig = figment.extract()?;
-            config.install_dir = jail.directory().into();
+            config.paths.install = jail.directory().into();
+            config.paths.data = jail.directory().into();
+
             let expected = models::PrintNannyApiConfig {
                 base_path: config.api.base_path,
                 bearer_access_token: Some("secret_token".to_string()),
