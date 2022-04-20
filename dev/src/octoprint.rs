@@ -1,7 +1,6 @@
 use anyhow::Result;
 use clap::ArgEnum;
 use printnanny_services::config::PrintNannyConfig;
-use std::io::{self, Write};
 use std::process::{Child, Command};
 
 #[derive(Copy, Eq, PartialEq, Debug, Clone, clap::ArgEnum)]
