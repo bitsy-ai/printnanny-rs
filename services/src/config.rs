@@ -517,6 +517,14 @@ mod tests {
                 config.paths.octoprint_venv(),
                 Some("/home/octoprint/.octoprint/venv".into())
             );
+            assert_eq!(
+                config.paths.octoprint_pip(),
+                Some("/home/octoprint/.octoprint/venv/bin/pip".into())
+            );
+            assert_eq!(
+                config.paths.octoprint_python(),
+                Some("/home/octoprint/.octoprint/venv/bin/python".into())
+            );
             Ok(())
         });
     }
