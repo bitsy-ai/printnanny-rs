@@ -1,9 +1,8 @@
 use anyhow::Result;
 use clap::ArgEnum;
-use log::{error, info};
 use printnanny_services::config::PrintNannyConfig;
 use std::io::{self, Write};
-use std::process::{Command, Output};
+use std::process::{Child, Command};
 
 #[derive(Copy, Eq, PartialEq, Debug, Clone, clap::ArgEnum)]
 pub enum OctoPrintAction {
@@ -47,7 +46,7 @@ impl OctoPrintCmd {
         }
     }
 
-    pub fn handle_pip_install(self) -> Result<Output> {
+    pub fn handle_pip_install(self) -> Result<Child> {
         let package = &self.package.expect("package is required");
         let args = &["install", "--upgrade", "--force-reinstall", package];
         let cmd = self
@@ -55,12 +54,10 @@ impl OctoPrintCmd {
             .paths
             .octoprint_pip()
             .expect("Failed to find octoprint pip");
-        let output = Command::new(cmd).args(args).output()?;
-        io::stdout().write_all(&output.stdout).unwrap();
-        io::stderr().write_all(&output.stderr).unwrap();
+        let output = Command::new(cmd).args(args).spawn()?;
         Ok(output)
     }
-    pub fn handle_pip_uninstall(self) -> Result<Output> {
+    pub fn handle_pip_uninstall(self) -> Result<Child> {
         let package = &self.package.expect("package is required");
         let args = &["uninstall", package];
         let cmd = self
@@ -68,12 +65,10 @@ impl OctoPrintCmd {
             .paths
             .octoprint_pip()
             .expect("Failed to find octoprint pip");
-        let output = Command::new(cmd).args(args).output()?;
-        io::stdout().write_all(&output.stdout).unwrap();
-        io::stderr().write_all(&output.stderr).unwrap();
+        let output = Command::new(cmd).args(args).spawn()?;
         Ok(output)
     }
-    pub fn handle(self) -> Result<Output> {
+    pub fn handle(self) -> Result<Child> {
         match self.action {
             OctoPrintAction::PipInstall => self.handle_pip_install(),
             OctoPrintAction::PipUninstall => self.handle_pip_uninstall(),
