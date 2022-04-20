@@ -11,16 +11,16 @@ tag = false
 
 [package]
 name = "printnanny"
-version = "0.20.6"
+version = "0.21.0"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2021"
 rust-version = "1.59"
 license = "AGPL-3.0-or-later"
 description = "PrintNanny root package crate"
 [dependencies]
-printnanny-cli = { path = "cli", version = "^0.20.0"}
-printnanny-dash = { path = "dash", version = "^0.20.0"}
-printnanny-dev = { path = "dev", version = "^0.20.0"}
+printnanny-cli = { path = "cli", version = "^0.21.0"}
+printnanny-dash = { path = "dash", version = "^0.21.0"}
+printnanny-dev = { path = "dev", version = "^0.21.0"}
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.dev]
 panic = "abort"
