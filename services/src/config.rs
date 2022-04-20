@@ -182,12 +182,12 @@ impl Default for PrintNannyCloudProxy {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyPaths {
-    data: PathBuf,
-    events_socket: PathBuf,
-    firstboot: PathBuf,
-    install: PathBuf,
-    runtime: PathBuf,
-    octoprint: Option<PathBuf>,
+    pub data: PathBuf,
+    pub events_socket: PathBuf,
+    pub firstboot: PathBuf,
+    pub install: PathBuf,
+    pub runtime: PathBuf,
+    pub octoprint: Option<PathBuf>,
 }
 
 impl Default for PrintNannyPaths {
@@ -325,7 +325,7 @@ impl PrintNannyConfig {
 
         info!("Loaded config from profile {:?}", result.profile());
         let path: String = result
-            .find_value("data_dir")
+            .find_value("paths.data")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
@@ -361,7 +361,7 @@ impl PrintNannyConfig {
         // for each key/value pair in FACTORY_RESET, remove file
         for key in FACTORY_RESET.iter() {
             let filename = format!("{}.toml", key);
-            let filename = self.install_dir.join(filename);
+            let filename = self.paths.install.join(filename);
             fs::remove_file(&filename)?;
             info!("Removed {} cache {:?}", key, filename);
         }
@@ -402,7 +402,7 @@ impl PrintNannyConfig {
             }
         }?;
         let filename = format!("{}.toml", key);
-        let filename = self.data_dir.join(filename);
+        let filename = self.paths.data.join(filename);
         fs::write(&filename, content.to_string())?;
         info!("Wrote {} to {:?}", key, filename);
         Ok(())
