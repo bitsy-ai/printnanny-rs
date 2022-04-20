@@ -152,6 +152,29 @@ OPTIONS:
 
 Two-factor authentication dash based on [Rocket.rs](https://rocket.rs/)
 
+### printnanny-dev
+
+Developer tools
+
+```
+Leigh Johnson <leigh@bitsy.ai>
+PrintNanny Developer Command-line Tools
+
+USAGE:
+    printnanny-dev [OPTIONS] <SUBCOMMAND>
+
+OPTIONS:
+    -c, --config <config>    Path to Config.toml (see env/ for examples)
+    -h, --help               Print help information
+    -v                       Sets the level of verbosity
+    -V, --version            Print version information
+
+SUBCOMMANDS:
+    help         Print this message or the help of the given subcommand(s)
+    octoprint    Interact with OctoPrint installation
+    repetier     Interact with Repetier installation
+```
+
 ### Credits
 
 Created from [XAMPPRocky/mean-bean-ci-template](https://github.com/XAMPPRocky/mean-bean-ci-template)
@@ -160,3 +183,5 @@ This is a template for GitHub Actions meant as a successor to [`japaric/trust`](
 for handling [`XAMPPRocky/tokei`](https://github.com/XAMPPRocky/tokei)'s CI and
 deployment. I decided to make it a template to be able share it across
 projects and with the community.
+
+
