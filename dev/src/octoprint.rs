@@ -1,9 +1,9 @@
 use anyhow::Result;
 use clap::ArgEnum;
 use log::{error, info};
-use std::process::{Command, Output};
-
 use printnanny_services::config::PrintNannyConfig;
+use std::io::{self, Write};
+use std::process::{Command, Output};
 
 #[derive(Copy, Eq, PartialEq, Debug, Clone, clap::ArgEnum)]
 pub enum OctoPrintAction {
@@ -56,11 +56,8 @@ impl OctoPrintCmd {
             .octoprint_pip()
             .expect("Failed to find octoprint pip");
         let output = Command::new(cmd).args(args).output()?;
-        info!("{:?}", &output.stdout);
-
-        if !output.status.success() {
-            error!("{:?}", &output.stderr);
-        }
+        io::stdout().write_all(&output.stdout).unwrap();
+        io::stderr().write_all(&output.stderr).unwrap();
         Ok(output)
     }
     pub fn handle_pip_uninstall(self) -> Result<Output> {
@@ -72,11 +69,8 @@ impl OctoPrintCmd {
             .octoprint_pip()
             .expect("Failed to find octoprint pip");
         let output = Command::new(cmd).args(args).output()?;
-        info!("{:?}", &output.stdout);
-
-        if !output.status.success() {
-            error!("{:?}", &output.stderr);
-        }
+        io::stdout().write_all(&output.stdout).unwrap();
+        io::stderr().write_all(&output.stderr).unwrap();
         Ok(output)
     }
     pub fn handle(self) -> Result<Output> {

@@ -72,7 +72,7 @@ async fn main() -> Result<()> {
     };
 
     match app_m.subcommand() {
-        Some(("octprint", sub_m)) => {
+        Some(("octoprint", sub_m)) => {
             let action: OctoPrintAction = sub_m.value_of_t("action").unwrap_or_else(|e| e.exit());
             let package = sub_m.value_of("package").map(|s| s.to_string());
             let cmd = OctoPrintCmd::new(action, config, package);
