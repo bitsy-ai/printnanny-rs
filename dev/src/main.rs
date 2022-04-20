@@ -88,7 +88,7 @@ async fn main() -> Result<()> {
             let result = cmd.handle()?;
             println!("{:?}", result)
         }
-        _ => {}
+        _ => std::unimplemented!("command is not implemented"),
     }
     Ok(())
 }
