@@ -170,6 +170,7 @@ OPTIONS:
     -V, --version            Print version information
 
 SUBCOMMANDS:
+    ansible      Interact with Ansible installation, vars, and playbooks
     help         Print this message or the help of the given subcommand(s)
     octoprint    Interact with OctoPrint installation
     repetier     Interact with Repetier installation
