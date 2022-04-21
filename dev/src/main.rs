@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
                 .arg(
                     Arg::new("profile")
                         .short('p')
-                        .long("package")
+                        .long("profile")
                         .takes_value(true)
                         .required_if_eq_any(&[("action", "set-profile")]),
                 ),
