@@ -44,39 +44,40 @@ impl AnsibleCmd {
         }
     }
 
-    fn stop_printnanny_setup(self) -> Result<Child> {
+    fn stop_printnanny_setup(&self) -> Result<Child> {
         let args = &["stop", "printnanny-setup.target"];
         Ok(Command::new("systemctl").args(args).spawn()?)
     }
 
-    fn start_printnanny_setup(self) -> Result<Child> {
+    fn start_printnanny_setup(&self) -> Result<Child> {
         let args = &["start", "printnanny-setup.target"];
         Ok(Command::new("systemctl").args(args).spawn()?)
     }
 
-    fn stop_printnanny_services(self) -> Result<Child> {
+    fn stop_printnanny_services(&self) -> Result<Child> {
         let args = &["stop", "printnanny.target"];
         Ok(Command::new("systemctl").args(args).spawn()?)
     }
-    fn start_printnanny_services(self) -> Result<Child> {
+    fn start_printnanny_services(&self) -> Result<Child> {
         let args = &["start", "printnanny.target"];
         Ok(Command::new("systemctl").args(args).spawn()?)
     }
-    fn set_profile_fact(self, profile: &str) -> Result<Child> {
+    fn set_profile_fact(&self, profile: &str) -> Result<Child> {
+        let ansible_args = format!("'printnanny_profile={} cacheable=true'", profile);
         let args = &[
             "printnanny",
             "-m",
             "ansible.builtin.set_fact",
             "-a",
-            format!("'printnanny_profile={} cacheable=true'", profile),
+            &ansible_args,
         ];
-        Ok(Command::new(self.config.ansible.ansible())
+        Ok(Command::new(&self.config.ansible.ansible())
             .args(args)
             .spawn()?)
     }
 
     pub fn handle_set_profile(self) -> Result<()> {
-        let profile = &self.profile.expect("profile is required");
+        let profile = &self.profile.clone().expect("profile is required");
         self.stop_printnanny_setup()?;
         self.stop_printnanny_services()?;
         self.set_profile_fact(profile)?;
