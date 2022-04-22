@@ -2,6 +2,7 @@
 members = [
     "services",
     "dash",
+    "dev",
     "cli",
 ]
 
