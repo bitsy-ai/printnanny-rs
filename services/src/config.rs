@@ -23,23 +23,6 @@ pub enum PrintNannyConfigError {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AnsibleConfig {
-    pub venv_dir: String,
-    pub collection_name: String,
-    pub collection_version: String,
-}
-
-impl Default for AnsibleConfig {
-    fn default() -> Self {
-        Self {
-            venv_dir: "/opt/printnanny/ansible/venv".into(),
-            collection_name: "bitsyai.printnanny".into(),
-            collection_version: "1.4.1".into(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CmdConfig {
     pub queue_dir: String,
     pub success_dir: String,
@@ -73,45 +56,6 @@ impl CmdConfig {
             ),
             Err(e) => error!("Failed to serialize event {:?} with error {:?}", event, e),
         }
-    }
-}
-
-impl AnsibleConfig {
-    // ansible executable path
-    pub fn ansible(&self) -> PathBuf {
-        PathBuf::from(self.venv_dir.clone()).join("bin/ansible")
-    }
-    // ansible-config executable path
-    pub fn ansible_config(&self) -> PathBuf {
-        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-config")
-    }
-    // ansible-doc executable path
-    pub fn ansible_doc(&self) -> PathBuf {
-        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-doc")
-    }
-    // ansible-galaxy executable path
-    pub fn ansible_galaxy(&self) -> PathBuf {
-        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-galaxy")
-    }
-    // ansible-inventory executable path
-    pub fn ansible_inventory(&self) -> PathBuf {
-        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-inventory")
-    }
-    // ansible-playbook executable path
-    pub fn ansible_playbook(&self) -> PathBuf {
-        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-playbook")
-    }
-    // ansible-pull executable path
-    pub fn ansible_pull(&self) -> PathBuf {
-        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-pull")
-    }
-    // ansible-vault executable path
-    pub fn ansible_vault(&self) -> PathBuf {
-        PathBuf::from(self.venv_dir.clone()).join("bin/ansible-vault")
-    }
-    // venv activate executable path
-    pub fn venv_activate(&self) -> PathBuf {
-        PathBuf::from(self.venv_dir.clone()).join("bin/activate")
     }
 }
 
@@ -234,7 +178,6 @@ impl PrintNannyPaths {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
-    pub ansible: AnsibleConfig,
     pub api: models::PrintNannyApiConfig,
     pub cmd: CmdConfig,
     pub dash: DashConfig,
@@ -250,13 +193,9 @@ pub struct PrintNannyConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cloudiot_device: Option<models::CloudiotDevice>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub janus_edge: Option<models::JanusEdgeStream>,
+    pub janus_edge_stream: Option<models::JanusEdgeStream>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub janus_edge_request: Option<models::JanusEdgeStreamRequest>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub janus_cloud: Option<models::JanusCloudStream>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub octoprint_install_request: Option<models::OctoPrintInstallRequest>,
+    pub janus_cloud_stream: Option<models::JanusCloudStream>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub octoprint_install: Option<models::OctoPrintInstall>,
 }
@@ -289,7 +228,6 @@ impl Default for PrintNannyConfig {
         let edition = models::OsEdition::OctoprintDesktop;
         let printnanny_cloud_proxy = PrintNannyCloudProxy::default();
         PrintNannyConfig {
-            ansible,
             api,
             cmd,
             dash,
