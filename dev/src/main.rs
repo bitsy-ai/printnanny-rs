@@ -7,7 +7,6 @@ use clap::{App, AppSettings, Arg};
 use env_logger::Builder;
 use log::LevelFilter;
 
-use printnanny_dev::ansible::{AnsibleAction, AnsibleCmd};
 use printnanny_dev::octoprint::{OctoPrintAction, OctoPrintCmd};
 use printnanny_services::config::PrintNannyConfig;
 
@@ -33,28 +32,6 @@ async fn main() -> Result<()> {
                 .short('c')
                 .takes_value(true)
                 .help("Path to Config.toml (see env/ for examples)"),
-        )
-        // ansible
-        .subcommand(
-            App::new("ansible")
-                .author(crate_authors!())
-                .about(crate_description!())
-                .version(crate_version!())
-                .setting(AppSettings::ArgRequiredElseHelp)
-                .about("Interact with Ansible installation, vars, and playbooks")
-                // model
-                .arg(
-                    Arg::new("action")
-                        .possible_values(AnsibleAction::possible_values())
-                        .ignore_case(true),
-                )
-                .arg(
-                    Arg::new("profile")
-                        .short('p')
-                        .long("profile")
-                        .takes_value(true)
-                        .required_if_eq_any(&[("action", "set-profile")]),
-                ),
         )
         // octoprint
         .subcommand(
