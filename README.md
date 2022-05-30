@@ -43,7 +43,6 @@ OPTIONS:
 
 SUBCOMMANDS:
     device         Interact with device REST API
-    factsd         Config serializer (JSON) intended for use with Ansible facts.d
     help           Print this message or the help of the given subcommand(s)
     janus-admin    Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token
     monitor        Interact with PrintNanny monitoring service
