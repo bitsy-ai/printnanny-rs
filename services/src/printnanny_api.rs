@@ -258,14 +258,15 @@ impl ApiService {
                 detail: None,
             }),
         }?;
-        let janus_edge = self
-            .janus_edge_stream_get_or_create(device.id, user.id)
-            .await?;
-        info!("Success! JanusEdgeStream={:?}", janus_edge);
-        let janus_cloud = self.janus_cloud_stream_get_or_create(device.id).await?;
-        info!("Success! Retreived JanusCloudStream {:?}", janus_cloud);
-        self.config.janus_cloud = Some(janus_cloud);
-        self.config.janus_edge = Some(janus_edge);
+        // TODO - JanusConfigs in next PR
+        // let janus_edge = self
+        //     .janus_edge_stream_get_or_create(device.id, user.id)
+        //     .await?;
+        // info!("Success! JanusEdgeStream={:?}", janus_edge);
+        // let janus_cloud = self.janus_cloud_stream_get_or_create(device.id).await?;
+        // info!("Success! Retreived JanusCloudStream {:?}", janus_cloud);
+        // self.config.janus_cloud = Some(janus_cloud);
+        // self.config.janus_edge = Some(janus_edge);
         Ok(())
     }
 
@@ -294,17 +295,17 @@ impl ApiService {
         info!("Success! Updated CloudiotDevice {:?}", cloudiot_device);
 
         // create OctoPrintInstall / RepetierInstall / MainsailInstall
-        let octoprint_install = match self.config.edition {
-            models::OsEdition::OctoprintDesktop => {
-                Ok(self.octoprint_install_update_or_create(device.id).await?)
-            }
-            models::OsEdition::OctoprintLite => {
-                Ok(self.octoprint_install_update_or_create(device.id).await?)
-            }
-            _ => Err(PrintNannyConfigError::InvalidValue {
-                value: format!("edition={:?}", &self.config.edition),
-            }),
-        }?;
+        // let octoprint_install = match self.config.edition {
+        //     models::OsEdition::OctoprintDesktop => {
+        //         Ok(self.octoprint_install_update_or_create(device.id).await?)
+        //     }
+        //     models::OsEdition::OctoprintLite => {
+        //         Ok(self.octoprint_install_update_or_create(device.id).await?)
+        //     }
+        //     _ => Err(PrintNannyConfigError::InvalidValue {
+        //         value: format!("edition={:?}", &self.config.edition),
+        //     }),
+        // }?;
 
         // refresh user
         let user = self.auth_user_retreive().await?;
@@ -325,7 +326,6 @@ impl ApiService {
         self.config.device = Some(device);
         self.config.cloudiot_device = Some(cloudiot_device);
         self.config.user = Some(user);
-        self.config.octoprint_install = Some(octoprint_install);
         self.stream_setup().await?;
         self.config.try_save()?;
 
@@ -365,28 +365,28 @@ impl ApiService {
         Ok(res)
     }
 
-    async fn janus_edge_stream_get_or_create(
-        &self,
-        device: i32,
-        user: i32,
-    ) -> Result<models::JanusEdgeStream, ServiceError> {
-        let mut req: models::JanusEdgeStreamRequest = match &self.config.janus_edge_request {
-            Some(r) => Ok(r.clone()),
-            None => Err(ServiceError::SetupIncomplete {
-                firstboot_file: self.config.paths.firstboot.clone(),
-                field: "janus_edge_request".into(),
-                detail: None,
-            }),
-        }?;
-        // device and user ids are set to zero in the config rendered during firstboot
-        // set these to correct user/device id
-        // https://github.com/bitsy-ai/ansible-collection-printnanny/blob/main/roles/install/templates/config.toml.j2#L22
-        req.device = device;
-        req.auth.user = user;
-        let res =
-            janus_api::devices_janus_edge_stream_get_or_create(&self.reqwest, device, req).await?;
-        Ok(res)
-    }
+    // async fn janus_edge_stream_get_or_create(
+    //     &self,
+    //     device: i32,
+    //     user: i32,
+    // ) -> Result<models::JanusEdgeStream, ServiceError> {
+    //     let mut req: models::JanusEdgeStreamRequest = match &self.config.janus_edge_request {
+    //         Some(r) => Ok(r.clone()),
+    //         None => Err(ServiceError::SetupIncomplete {
+    //             firstboot_file: self.config.paths.firstboot.clone(),
+    //             field: "janus_edge_request".into(),
+    //             detail: None,
+    //         }),
+    //     }?;
+    //     // device and user ids are set to zero in the config rendered during firstboot
+    //     // set these to correct user/device id
+    //     // https://github.com/bitsy-ai/ansible-collection-printnanny/blob/main/roles/install/templates/config.toml.j2#L22
+    //     req.device = device;
+    //     req.auth.user = user;
+    //     let res =
+    //         janus_api::devices_janus_edge_stream_get_or_create(&self.reqwest, device, req).await?;
+    //     Ok(res)
+    // }
 
     async fn device_system_info_update_or_create(
         &self,
@@ -414,7 +414,6 @@ impl ApiService {
         let image_version = read_to_string("/boot/image_version.txt")
             .unwrap_or_else(|_| "Failed to parse /boot/image_version.txt".to_string());
 
-        let ansible_collection_version = self.config.ansible.collection_version.clone();
         let request = models::SystemInfoRequest {
             machine_id,
             hardware,
@@ -424,28 +423,27 @@ impl ApiService {
             cores,
             ram,
             image_version,
-            ansible_collection_version,
             device,
         };
         let res = devices_api::system_info_update_or_create(&self.reqwest, device, request).await?;
         Ok(res)
     }
 
-    pub async fn octoprint_install_update_or_create(
-        &self,
-        device: i32,
-    ) -> Result<models::OctoPrintInstall, ServiceError> {
-        let mut req = match &self.config.octoprint_install_request {
-            Some(octoprint_install) => Ok(octoprint_install.clone()),
-            None => Err(PrintNannyConfigError::InvalidValue {
-                value: "octoprint_install_request".into(),
-            }),
-        }?;
-        // place-holder device id is rendered in firstrun config.toml
-        req.device = device;
-        let res = octoprint_api::octoprint_install_update_or_create(&self.reqwest, req).await?;
-        Ok(res)
-    }
+    // pub async fn octoprint_install_update_or_create(
+    //     &self,
+    //     device: i32,
+    // ) -> Result<models::OctoPrintInstall, ServiceError> {
+    //     let mut req = match &self.config.octoprint_install_request {
+    //         Some(octoprint_install) => Ok(octoprint_install.clone()),
+    //         None => Err(PrintNannyConfigError::InvalidValue {
+    //             value: "octoprint_install_request".into(),
+    //         }),
+    //     }?;
+    //     // place-holder device id is rendered in firstrun config.toml
+    //     req.device = device;
+    //     let res = octoprint_api::octoprint_install_update_or_create(&self.reqwest, req).await?;
+    //     Ok(res)
+    // }
 
     // read <models::<T>>.json from disk cache @ /var/run/printnanny
     // hydrate cache if not found using fallback fn f (must return a Future)

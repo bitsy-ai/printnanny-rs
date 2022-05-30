@@ -196,8 +196,6 @@ pub struct PrintNannyConfig {
     pub janus_edge_stream: Option<models::JanusEdgeStream>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub janus_cloud_stream: Option<models::JanusCloudStream>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub octoprint_install: Option<models::OctoPrintInstall>,
 }
 
 const FACTORY_RESET: [&'static str; 7] = [
@@ -212,7 +210,6 @@ const FACTORY_RESET: [&'static str; 7] = [
 
 impl Default for PrintNannyConfig {
     fn default() -> Self {
-        let ansible = AnsibleConfig::default();
         let api = models::PrintNannyApiConfig {
             base_path: "https://printnanny.ai".into(),
             bearer_access_token: None,
@@ -239,11 +236,8 @@ impl Default for PrintNannyConfig {
             cloudiot_device: None,
             device: None,
             user: None,
-            janus_cloud: None,
-            janus_edge: None,
-            janus_edge_request: None,
-            octoprint_install_request: None,
-            octoprint_install: None,
+            janus_cloud_stream: None,
+            janus_edge_stream: None,
         }
     }
 }
@@ -349,12 +343,11 @@ impl PrintNannyConfig {
                 toml::Value::try_from(figment::util::map! { key => &self.cloudiot_device})
             }
             "device" => toml::Value::try_from(figment::util::map! {key => &self.device }),
-            "janus_cloud" => {
-                toml::Value::try_from(figment::util::map! {key =>  &self.janus_cloud })
+            "janus_cloud_stream" => {
+                toml::Value::try_from(figment::util::map! {key =>  &self.janus_cloud_stream })
             }
-            "janus_edge" => toml::Value::try_from(figment::util::map! {key =>  &self.janus_edge }),
-            "octoprint_install" => {
-                toml::Value::try_from(figment::util::map! {key =>  &self.octoprint_install })
+            "janus_edge_stream" => {
+                toml::Value::try_from(figment::util::map! {key =>  &self.janus_edge_stream })
             }
             "user" => toml::Value::try_from(figment::util::map! {key =>  &self.user }),
             _ => {
