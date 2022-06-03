@@ -390,6 +390,13 @@ impl PrintNannyConfig {
         Ok(())
     }
 
+    // Save ::Default() to output file
+    pub fn try_init(&self, filename: &str) -> Result<(), PrintNannyConfigError> {
+        let content = toml::ser::to_string_pretty(self)?;
+        fs::write(&filename, content.to_string())?;
+        Ok(())
+    }
+
     /// Save FACTORY_RESET fields as <field>.toml Figment fragments
     ///
     /// # Panics

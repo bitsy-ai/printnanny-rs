@@ -11,8 +11,13 @@ impl ConfigAction {
     pub fn handle(sub_m: &clap::ArgMatches) -> Result<(), PrintNannyConfigError> {
         let config: PrintNannyConfig = PrintNannyConfig::new()?;
         match sub_m.subcommand() {
-            Some(("init", init_m)) => Ok(()),
-            Some(("show", show_m)) => {
+            Some(("init", init_m)) => {
+                let output = init_m.value_of("output").unwrap();
+                let config = PrintNannyConfig::new()?;
+                config.try_init(output.into())?;
+                Ok(())
+            }
+            Some(("show", _)) => {
                 println!("{}", toml::ser::to_string_pretty(&config)?);
                 Ok(())
             }
