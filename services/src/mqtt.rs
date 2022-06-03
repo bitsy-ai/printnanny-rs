@@ -77,7 +77,8 @@ impl MQTTWorker {
         Ok(mqttoptions)
     }
 
-    pub async fn new(config: PrintNannyConfig) -> Result<MQTTWorker> {
+    pub async fn new() -> Result<MQTTWorker> {
+        let config: PrintNannyConfig = PrintNannyConfig::new()?;
         let service = ApiService::new(config.clone())?;
         let device = match service.config.device.clone() {
             Some(d) => Ok(d),

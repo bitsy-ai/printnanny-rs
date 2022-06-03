@@ -182,7 +182,7 @@ impl ApiService {
             monitoring_active: Some(false),
             release_channel: None,
             setup_complete: Some(false),
-            edition: self.config.edition,
+            edition: printnanny_api_client::models::OsEdition::OctoprintDesktop, // TODO read from /etc/os-release
         };
         Ok(devices_api::devices_create(&self.reqwest, req).await?)
     }

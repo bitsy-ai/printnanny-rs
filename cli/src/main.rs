@@ -30,11 +30,6 @@ async fn main() -> Result<()> {
         .short('v')
         .multiple_occurrences(true)
         .help("Sets the level of verbosity"))
-        .arg(Arg::new("config")
-            .long("config")
-            .short('c')
-            .takes_value(true)
-            .help("Path to Config.toml (see env/ for examples)"))
         // janusadmin
         .subcommand(App::new("janus-admin")
             .author(crate_authors!())
@@ -82,23 +77,6 @@ async fn main() -> Result<()> {
                     .long("force")
                     .help("Overwrite any existing configuration")
                 )))
-        // device
-        .subcommand(App::new("device")
-            .author(crate_authors!())
-            .about(crate_description!())
-            .version(crate_version!())
-            .setting(AppSettings::ArgRequiredElseHelp)
-            .about("Interact with device REST API")
-            // model
-            .arg(Arg::new("action")
-                .possible_values(DeviceAction::possible_values())
-                .ignore_case(true)
-            )
-            .arg(Arg::new("output")
-                .short('o')
-                .long("output")
-                .takes_value(true)
-            ))
         // mqtt <subscribe|publish>
         .subcommand(App::new("event")
             .author(crate_authors!())
@@ -141,9 +119,7 @@ async fn main() -> Result<()> {
         );
     
     let app_m = app.get_matches();
-    let conf_file = app_m.value_of("config");
 
-    let config: PrintNannyConfig = PrintNannyConfig::new(conf_file)?;
 
     // Vary the output based on how many times the user used the "verbose" flag
     // (i.e. 'printnanny v v v' or 'printnanny vvv' vs 'printnanny v'
@@ -160,13 +136,11 @@ async fn main() -> Result<()> {
             match sub_m.subcommand() {
                 Some(("subscribe", _event_m)) => {
                     let worker = MQTTWorker::new(
-                        config,
                     ).await?;
                     worker.subscribe().await?;
                 }
                 Some(("publish", event_m)) => {
                     let worker = MQTTWorker::new(
-                        config,
                     ).await?;
                     let data = event_m.value_of("data").expect("Expected --data argument passed");
                     let event: models::PolymorphicEventCreateRequest = serde_json::from_str(data).expect("Failed to deserialize event data");
@@ -176,21 +150,13 @@ async fn main() -> Result<()> {
                 _ => panic!("Expected publish|subscribe subcommand")
             }
         },
-        Some(("config", _)) => {
-            println!("{}",serde_json::to_string_pretty(&config)?);
+        Some(("config", subm)) => {
+            ConfigAction::handle(subm)?;
         },
-        Some(("device", sub_m)) => {
-            let action: DeviceAction = sub_m.value_of_t("action").unwrap_or_else(|e| e.exit());
-            let mut cmd = DeviceCmd::new(action, config).await?;
-            let result = cmd.handle().await?;
-            println!("{}", result)
-        }, 
         Some(("janus-admin", sub_m)) => {
             let endpoint: JanusAdminEndpoint = sub_m.value_of_t("endpoint").unwrap_or_else(|e| e.exit());
-            let janus_config = config.janus_edge_stream.expect("janus_edge config is not set");
             let res = janus_admin_api_call(
                 endpoint,
-                &janus_config
             ).await?;
             println!("{}", res);
 

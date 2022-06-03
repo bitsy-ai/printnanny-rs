@@ -1,4 +1,5 @@
 use clap::ArgEnum;
+use printnanny_services::config::{PrintNannyConfig, PrintNannyConfigError};
 
 #[derive(Copy, Eq, PartialEq, Debug, Clone, clap::ArgEnum)]
 pub enum ConfigAction {
@@ -7,6 +8,17 @@ pub enum ConfigAction {
 }
 
 impl ConfigAction {
+    pub fn handle(sub_m: &clap::ArgMatches) -> Result<(), PrintNannyConfigError> {
+        let config: PrintNannyConfig = PrintNannyConfig::new()?;
+        match sub_m.subcommand() {
+            Some(("init", init_m)) => Ok(()),
+            Some(("show", show_m)) => {
+                println!("{}", toml::ser::to_string_pretty(&config)?);
+                Ok(())
+            }
+            _ => panic!("Expected init|subscribe subcommand"),
+        }
+    }
     pub fn possible_values() -> impl Iterator<Item = clap::PossibleValue<'static>> {
         ConfigAction::value_variants()
             .iter()

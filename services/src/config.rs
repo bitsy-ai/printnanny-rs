@@ -22,6 +22,8 @@ pub enum PrintNannyConfigError {
     TomlSerError(#[from] toml::ser::Error),
     #[error(transparent)]
     IOError(#[from] std::io::Error),
+    #[error(transparent)]
+    FigmentError(#[from] figment::error::Error),
 }
 
 // #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -210,11 +212,6 @@ impl PrintNannyPaths {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
-    pub api: models::PrintNannyApiConfig,
-    pub dash: DashConfig,
-    pub edition: models::OsEdition,
-    pub mqtt: MQTTConfig,
-    pub paths: PrintNannyPaths,
     pub printnanny_cloud_proxy: PrintNannyCloudProxy,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<models::Device>,
@@ -226,6 +223,10 @@ pub struct PrintNannyConfig {
     pub janus_edge_stream: Option<models::JanusEdgeStream>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub janus_cloud_stream: Option<models::JanusCloudStream>,
+    pub paths: PrintNannyPaths,
+    pub api: models::PrintNannyApiConfig,
+    pub dash: DashConfig,
+    pub mqtt: MQTTConfig,
 }
 
 const FACTORY_RESET: [&'static str; 7] = [
@@ -250,12 +251,10 @@ impl Default for PrintNannyConfig {
         let paths = PrintNannyPaths::default();
         let mqtt = MQTTConfig::default();
         let dash = DashConfig::default();
-        let edition = models::OsEdition::OctoprintDesktop;
         let printnanny_cloud_proxy = PrintNannyCloudProxy::default();
         PrintNannyConfig {
             api,
             dash,
-            edition,
             mqtt,
             paths,
             printnanny_cloud_proxy,
@@ -272,39 +271,29 @@ impl PrintNannyConfig {
     // See example: https://docs.rs/figment/latest/figment/index.html#extracting-and-profiles
     // Note the `nested` option on both `file` providers. This makes each
     // top-level dictionary act as a profile
-    pub fn new(config: Option<&str>) -> figment::error::Result<Self> {
-        let figment = Self::figment(config);
+    pub fn new() -> figment::error::Result<Self> {
+        let figment = Self::figment();
         let result = figment.extract()?;
         info!("Initialized config {:?}", result);
         Ok(result)
     }
 
     // intended for use with Rocket's figmment
-    pub fn from_figment(config: Option<&str>, figment: Figment) -> Figment {
-        figment.merge(Self::figment(config))
+    pub fn from_figment(figment: Figment) -> Figment {
+        figment.merge(Self::figment())
     }
 
-    pub fn figment(config: Option<&str>) -> Figment {
+    pub fn figment() -> Figment {
         let result = Figment::from(Self {
             // profile,
             ..Self::default()
         })
         .merge(Toml::file(Env::var_or(
             "PRINTNANNY_CONFIG",
-            "PrintNanny.toml",
+            "/etc/printnanny/config.toml",
         )))
         .merge(Env::prefixed("PRINTNANNY_").global());
 
-        let result = match config {
-            Some(c) => result.merge(Toml::file(c)),
-            None => result,
-        };
-        info!(
-            "Initialized PrintNannyConfig from PRINTNANNY_CONFIG and PRINTANNY_ env vars: \n {:?}",
-            &result
-        );
-
-        info!("Loaded config from profile {:?}", result.profile());
         let path: String = result
             .find_value("paths.etcd")
             .unwrap()
