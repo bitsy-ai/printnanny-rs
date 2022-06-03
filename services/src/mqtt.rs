@@ -138,7 +138,7 @@ impl MQTTWorker {
                 warn!("Ignored msg on state topic {:?}", event)
             }
             _ if self.command_topic.contains(&event.topic) => {
-                let data = serde_json::from_slice::<models::PolymorphicCommand>(&event.payload)?;
+                // let data = serde_json::from_slice::<models::PolymorphicCommand>(&event.payload)?;
                 unimplemented!("add_to_queue not implemented in this release")
                 // self.config.cmd.add_to_queue(data);
             }

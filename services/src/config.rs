@@ -174,7 +174,6 @@ impl Default for PrintNannyPaths {
         // /etc is mounted as an r/w overlay fs
         let etc: PathBuf = "/etc/printnanny/".into();
         let etcd: PathBuf = "/etc/printnanny/printnanny.d/".into();
-        let vault: PathBuf = etc.join("vault").into();
         let run: PathBuf = "/var/run/printnanny".into();
         let log: PathBuf = "/var/log/printnanny".into();
         let events_socket = run.join("events.socket").into();

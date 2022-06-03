@@ -3,7 +3,7 @@ use std::process::{ Command, Stdio };
 
 use anyhow::{ Result };
 use env_logger::Builder;
-use log::{ info, LevelFilter};
+use log::{ LevelFilter};
 use clap::{ 
     Arg, App, AppSettings
 };
