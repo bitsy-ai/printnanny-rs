@@ -139,7 +139,8 @@ impl MQTTWorker {
             }
             _ if self.command_topic.contains(&event.topic) => {
                 let data = serde_json::from_slice::<models::PolymorphicCommand>(&event.payload)?;
-                self.config.cmd.add_to_queue(data);
+                unimplemented!("add_to_queue not implemented in this release")
+                // self.config.cmd.add_to_queue(data);
             }
             _ => warn!("Ignored published event {:?}", event),
         };

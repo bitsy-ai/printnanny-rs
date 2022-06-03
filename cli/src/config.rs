@@ -2,7 +2,8 @@ use clap::ArgEnum;
 
 #[derive(Copy, Eq, PartialEq, Debug, Clone, clap::ArgEnum)]
 pub enum ConfigAction {
-    Get,
+    Show,
+    Init,
 }
 
 impl ConfigAction {

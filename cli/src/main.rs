@@ -66,11 +66,22 @@ async fn main() -> Result<()> {
             .about(crate_description!())
             .version(crate_version!())
             .setting(AppSettings::ArgRequiredElseHelp)
-            .about("Show PrintNanny config")
-            .arg(Arg::new("action")
-                .possible_values(ConfigAction::possible_values())
-                .ignore_case(true)
-            ))
+            .about("Interact with PrintNanny config")
+            .subcommand(App::new("show")
+                .author(crate_authors!())
+                .about(crate_description!())
+                .version(crate_version!())
+                .about("Print PrintNanny config to console"))
+            .subcommand(App::new("init")
+                .author(crate_authors!())
+                .about(crate_description!())
+                .version(crate_version!())
+                .about("Initialize PrintNanny config")
+                .arg(Arg::new("force")
+                    .short('f')
+                    .long("force")
+                    .help("Overwrite any existing configuration")
+                )))
         // device
         .subcommand(App::new("device")
             .author(crate_authors!())
@@ -130,8 +141,6 @@ async fn main() -> Result<()> {
         );
     
     let app_m = app.get_matches();
-    info!("testing");
-
     let conf_file = app_m.value_of("config");
 
     let config: PrintNannyConfig = PrintNannyConfig::new(conf_file)?;
