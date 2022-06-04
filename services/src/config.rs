@@ -12,7 +12,9 @@ use thiserror::Error;
 
 use printnanny_api_client::models;
 
-const OCTOPRINT_DIR: &str = "/home/octoprint/.octoprint";
+pub const OCTOPRINT_DIR: &str = "/home/octoprint/.octoprint";
+pub const PRINTNANNY_CONFIG_FILENAME: &str = "PrintNannyConfig.toml";
+pub const PRINTNANNY_CONFIG_DEFAULT: &str = "/etc/printnanny/PrintNannyConfig.toml";
 
 #[derive(Error, Debug)]
 pub enum PrintNannyConfigError {
@@ -290,7 +292,7 @@ impl PrintNannyConfig {
         })
         .merge(Toml::file(Env::var_or(
             "PRINTNANNY_CONFIG",
-            "/etc/printnanny/config.toml",
+            PRINTNANNY_CONFIG_DEFAULT,
         )))
         .merge(Env::prefixed("PRINTNANNY_").global());
 
@@ -465,7 +467,7 @@ mod tests {
                 base_path = "https://print-nanny.com"
                 "#,
             )?;
-            let figment = PrintNannyConfig::figment(None);
+            let figment = PrintNannyConfig::figment();
             let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
                 config.paths.octoprint_venv(),
@@ -478,9 +480,8 @@ mod tests {
     fn test_env_merged() {
         figment::Jail::expect_with(|jail| {
             jail.create_file(
-                "PrintNanny.toml",
+                PRINTNANNY_CONFIG_FILENAME,
                 r#"
-                profile = "default"
 
                 [paths]
                 install = "/opt/printnanny/default"
@@ -491,8 +492,8 @@ mod tests {
                 base_path = "https://print-nanny.com"
                 "#,
             )?;
-            let figment = PrintNannyConfig::figment(None);
-            let config: PrintNannyConfig = figment.extract()?;
+            jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
+            let config = PrintNannyConfig::new()?;
             assert_eq!(
                 config.api,
                 models::PrintNannyApiConfig {
@@ -502,9 +503,8 @@ mod tests {
                     dashboard_url: "https://printnanny.ai/dashboard/".into(),
                 }
             );
-
             jail.set_env("PRINTNANNY_API.BEARER_ACCESS_TOKEN", "secret");
-            let figment = PrintNannyConfig::figment(None);
+            let figment = PrintNannyConfig::figment();
             let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
                 config.api,
@@ -536,7 +536,7 @@ mod tests {
             )?;
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
 
-            let figment = PrintNannyConfig::figment(None);
+            let figment = PrintNannyConfig::figment();
             let config: PrintNannyConfig = figment.extract()?;
 
             let base_path = "http://aurora:8000".into();
@@ -569,7 +569,7 @@ mod tests {
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
             jail.set_env("PRINTNANNY_PATHS.ETCD", format!("{:?}", jail.directory()));
 
-            let figment = PrintNannyConfig::figment(None);
+            let figment = PrintNannyConfig::figment();
             let mut config: PrintNannyConfig = figment.extract()?;
             config.paths.etc = jail.directory().into();
 
@@ -581,7 +581,7 @@ mod tests {
             };
             config.api = expected.clone();
             config.try_save().unwrap();
-            let figment = PrintNannyConfig::figment(None);
+            let figment = PrintNannyConfig::figment();
             let new: PrintNannyConfig = figment.extract()?;
             assert_eq!(new.api, expected);
             Ok(())
