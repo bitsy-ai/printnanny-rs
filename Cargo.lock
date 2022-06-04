@@ -2419,7 +2419,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny"
-version = "0.21.0"
+version = "0.22.0-rc.1"
 dependencies = [
  "printnanny-cli",
  "printnanny-dash",
@@ -2442,7 +2442,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-cli"
-version = "0.21.0"
+version = "0.22.0-rc.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -2459,7 +2459,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-dash"
-version = "0.21.0"
+version = "0.22.0-rc.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -2480,7 +2480,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-dev"
-version = "0.21.0"
+version = "0.22.0-rc.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -2495,7 +2495,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-services"
-version = "0.21.0"
+version = "0.22.0-rc.1"
 dependencies = [
  "anyhow",
  "assert_cmd",

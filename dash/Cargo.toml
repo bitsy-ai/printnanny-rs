@@ -2,13 +2,13 @@
 name = "printnanny-dash"
 description = "PrintNanny Device Management Dashboard"
 license = "AGPL-3.0-or-later"
-version = "0.21.0"
+version = "0.22.0-rc.1"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2021"
 rust-version = "1.59"
 
 [dependencies]
-printnanny-services = {path = "../services", version = "^0.21.0"}
+printnanny-services = {path = "../services", version = "^0.22.0-rc.1"}
 printnanny-api-client = "0.80.0"
 serde = "1.0.133"
 thiserror = "1.0.30"
