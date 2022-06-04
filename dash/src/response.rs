@@ -6,18 +6,6 @@ use rocket::response::Redirect;
 use rocket::serde::json::Json;
 use rocket_dyn_templates::Template;
 
-use super::status::HealthCheckError;
-
-impl From<HealthCheckError> for Response {
-    fn from(error: HealthCheckError) -> Self {
-        let msg = format!("HealthCheckError error {:?}", error);
-        let mut context = HashMap::new();
-        context.insert("errors", &msg);
-        error!("{}", &msg);
-        Self::Template(Template::render("error", context))
-    }
-}
-
 impl From<serde_json::Error> for Response {
     fn from(error: serde_json::Error) -> Self {
         let msg = format!("Error de/serializing content {:?}", error);
