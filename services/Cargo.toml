@@ -44,6 +44,7 @@ tokio-util = { version="0.7.0", features = ["codec"] }
 tokio-serde = { version="0.8.0", features = ["json"] }
 toml = "0.5.8"
 openssl = { version = "=0.10", features = ["vendored"] }
+openssh-keys = "0.5.0"
 warp = "0.3"
 
 [dev-dependencies]
