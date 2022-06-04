@@ -48,22 +48,14 @@ impl OctoPrintCmd {
     pub fn handle_pip_install(self) -> Result<Child> {
         let package = &self.package.expect("package is required");
         let args = &["install", "--upgrade", "--force-reinstall", package];
-        let cmd = self
-            .config
-            .paths
-            .octoprint_pip()
-            .expect("Failed to find octoprint pip");
+        let cmd = self.config.paths.octoprint_pip();
         let output = Command::new(cmd).args(args).spawn()?;
         Ok(output)
     }
     pub fn handle_pip_uninstall(self) -> Result<Child> {
         let package = &self.package.expect("package is required");
         let args = &["uninstall", package];
-        let cmd = self
-            .config
-            .paths
-            .octoprint_pip()
-            .expect("Failed to find octoprint pip");
+        let cmd = self.config.paths.octoprint_pip();
         let output = Command::new(cmd).args(args).spawn()?;
         Ok(output)
     }

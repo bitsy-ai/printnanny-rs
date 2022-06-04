@@ -5,7 +5,6 @@ use rocket::form::{Context, Contextual, Form, FromForm};
 use rocket::http::{Cookie, CookieJar};
 use rocket::response::Redirect;
 use rocket::serde::{Deserialize, Serialize};
-use rocket::State;
 use rocket_dyn_templates::Template;
 
 use printnanny_api_client::models;
@@ -13,21 +12,14 @@ use printnanny_services::config::PrintNannyConfig;
 use printnanny_services::printnanny_api::{ApiService, ServiceError};
 
 use super::response::Response;
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct PrintNannyConfigFile(pub Option<String>);
-
 pub const COOKIE_USER: &str = "printnanny_user";
 
-pub fn is_auth_valid(
-    jar: &CookieJar<'_>,
-    config_file: &State<PrintNannyConfigFile>,
-) -> Result<Option<PrintNannyConfig>, ServiceError> {
+pub fn is_auth_valid(jar: &CookieJar<'_>) -> Result<Option<PrintNannyConfig>, ServiceError> {
     let cookie = jar.get_private(COOKIE_USER);
     match cookie {
         Some(user_json) => {
             let user: models::User = serde_json::from_str(user_json.value())?;
-            let config = PrintNannyConfig::new(config_file.0.as_deref())?;
+            let config = PrintNannyConfig::new()?;
 
             // if config + cookie mismatch, nuke cookie (profile switch in developer mode)
             if config.user != Some(user.clone()) {
@@ -82,10 +74,9 @@ async fn handle_step1(
 #[post("/", data = "<form>")]
 async fn login_step1_submit<'r>(
     form: Form<Contextual<'r, EmailForm<'r>>>,
-    config_file: &State<PrintNannyConfigFile>,
 ) -> Result<Response, Response> {
     info!("Received auth email form response {:?}", form);
-    let config = PrintNannyConfig::new(config_file.0.as_deref())?;
+    let config = PrintNannyConfig::new()?;
     match &form.value {
         Some(signup) => {
             let result = handle_step1(signup, config).await?;
@@ -142,10 +133,9 @@ async fn login_step2_submit<'r>(
     email: String,
     jar: &CookieJar<'_>,
     form: Form<Contextual<'r, TokenForm<'r>>>,
-    config_file: &State<PrintNannyConfigFile>,
 ) -> Result<Response, Response> {
     info!("Received auth email form response {:?}", form);
-    let config = PrintNannyConfig::new(config_file.0.as_deref())?;
+    let config = PrintNannyConfig::new()?;
     match form.value {
         Some(ref v) => {
             let token = v.token;

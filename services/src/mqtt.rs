@@ -77,7 +77,8 @@ impl MQTTWorker {
         Ok(mqttoptions)
     }
 
-    pub async fn new(config: PrintNannyConfig) -> Result<MQTTWorker> {
+    pub async fn new() -> Result<MQTTWorker> {
+        let config: PrintNannyConfig = PrintNannyConfig::new()?;
         let service = ApiService::new(config.clone())?;
         let device = match service.config.device.clone() {
             Some(d) => Ok(d),
@@ -138,8 +139,9 @@ impl MQTTWorker {
                 warn!("Ignored msg on state topic {:?}", event)
             }
             _ if self.command_topic.contains(&event.topic) => {
-                let data = serde_json::from_slice::<models::PolymorphicCommand>(&event.payload)?;
-                self.config.cmd.add_to_queue(data);
+                // let data = serde_json::from_slice::<models::PolymorphicCommand>(&event.payload)?;
+                unimplemented!("add_to_queue not implemented in this release")
+                // self.config.cmd.add_to_queue(data);
             }
             _ => warn!("Ignored published event {:?}", event),
         };

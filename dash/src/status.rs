@@ -148,12 +148,9 @@ struct StatusResponse {
 }
 
 #[get("/")]
-async fn index(
-    jar: &CookieJar<'_>,
-    config_file: &State<auth::PrintNannyConfigFile>,
-) -> Result<Response, Response> {
+async fn index(jar: &CookieJar<'_>) -> Result<Response, Response> {
     let healthcheck = HealthCheck::new()?;
-    let config = auth::is_auth_valid(jar, config_file)?;
+    let config = auth::is_auth_valid(jar)?;
     let res = StatusResponse {
         healthcheck,
         config,

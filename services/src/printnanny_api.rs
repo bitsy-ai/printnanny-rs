@@ -99,11 +99,10 @@ pub enum ServiceError {
 
     #[error("Signup incomplete - failed to read from {cache:?}")]
     SignupIncomplete { cache: PathBuf },
-    #[error("Setup incomplete, failed to read {field:?} from {firstboot_file:?} {detail:?}")]
+    #[error("Setup incomplete, failed to read {field:?} {detail:?}")]
     SetupIncomplete {
         detail: Option<String>,
         field: String,
-        firstboot_file: PathBuf,
     },
 }
 
@@ -183,7 +182,7 @@ impl ApiService {
             monitoring_active: Some(false),
             release_channel: None,
             setup_complete: Some(false),
-            edition: self.config.edition,
+            edition: printnanny_api_client::models::OsEdition::OctoprintDesktop, // TODO read from /etc/os-release
         };
         Ok(devices_api::devices_create(&self.reqwest, req).await?)
     }
@@ -245,7 +244,6 @@ impl ApiService {
         let device = match &self.config.device {
             Some(r) => Ok(r),
             None => Err(ServiceError::SetupIncomplete {
-                firstboot_file: self.config.paths.firstboot.clone(),
                 field: "device".into(),
                 detail: None,
             }),
@@ -253,7 +251,6 @@ impl ApiService {
         let user = match &self.config.user {
             Some(r) => Ok(r),
             None => Err(ServiceError::SetupIncomplete {
-                firstboot_file: self.config.paths.firstboot.clone(),
                 field: "user".into(),
                 detail: None,
             }),

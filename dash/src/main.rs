@@ -14,24 +14,13 @@ async fn main() -> Result<()> {
     let app = App::new(app_name)
         .version(crate_version!())
         .author(crate_authors!())
-        .about(crate_description!())
-        .arg(
-            Arg::new("config")
-                .long("config")
-                .short('c')
-                .takes_value(true)
-                .help("Path to Config.toml (see env/ for examples)"),
-        );
-    let app_m = app.get_matches();
-    let config_arg = app_m.value_of("config");
-    let config_file = auth::PrintNannyConfigFile(config_arg.map(str::to_string));
+        .about(crate_description!());
     rocket::build()
         .mount("/", home::routes())
         .mount("/status", status::routes())
         .mount("/debug", debug::routes())
         .mount("/login", auth::routes())
         .attach(Template::fairing())
-        .manage(config_file)
         .launch()
         .await?;
     Ok(())

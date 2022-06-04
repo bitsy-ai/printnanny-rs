@@ -1,6 +1,5 @@
 #[macro_use]
 extern crate clap;
-use std::process::{Command, Stdio};
 
 use anyhow::Result;
 use clap::{App, AppSettings, Arg};
@@ -66,9 +65,7 @@ async fn main() -> Result<()> {
         );
     let app_m = app.get_matches();
 
-    let conf_file = app_m.value_of("config");
-
-    let config: PrintNannyConfig = PrintNannyConfig::new(conf_file)?;
+    let config: PrintNannyConfig = PrintNannyConfig::new()?;
 
     // Vary the output based on how many times the user used the "verbose" flag
     // (i.e. 'printnanny v v v' or 'printnanny vvv' vs 'printnanny v'

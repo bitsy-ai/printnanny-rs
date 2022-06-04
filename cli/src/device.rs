@@ -33,28 +33,23 @@ impl std::str::FromStr for DeviceAction {
     }
 }
 
-pub struct DeviceCmd {
-    pub action: DeviceAction,
-    pub service: ApiService,
-}
+pub struct DeviceCmd {}
 impl DeviceCmd {
-    pub async fn new(action: DeviceAction, config: PrintNannyConfig) -> Result<Self> {
-        let service = ApiService::new(config)?;
-        Ok(Self { service, action })
-    }
-    pub async fn handle(&mut self) -> Result<String> {
-        let result = match self.action {
-            DeviceAction::Get => self.service.device_retrieve_hostname().await?,
+    pub async fn handle(action: DeviceAction) -> Result<String> {
+        let config = PrintNannyConfig::new()?;
+        let mut service = ApiService::new(config)?;
+        let result = match action {
+            DeviceAction::Get => service.device_retrieve_hostname().await?,
             DeviceAction::Setup => {
-                self.service.device_setup().await?;
-                self.service
+                service.device_setup().await?;
+                service
                     .config
                     .device
                     .clone()
                     .expect("Failed to setup device")
             }
         };
-        debug!("Success action={:?} result={:?}", self.action, result);
+        debug!("Success action={:?} result={:?}", action, result);
         Ok(serde_json::to_string_pretty::<models::Device>(&result)?)
     }
 }
