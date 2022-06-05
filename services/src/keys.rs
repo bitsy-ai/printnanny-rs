@@ -1,72 +1,85 @@
+use log::info;
+use openssl::ec::{EcGroup, EcKey};
+use openssl::nid::Nid;
+use openssl::sha::sha256;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum HostKeyError {
+pub enum PrintNannyKeyError {
+    #[error("Refusing to overwrite existing keys at {path:?}.")]
+    AlreadyExists { path: PathBuf },
     #[error(transparent)]
     IOError(#[from] std::io::Error),
     #[error(transparent)]
-    OpenSSHKeyError(#[from] openssh_keys::errors::OpenSSHKeyError),
+    OpenSSLError(#[from] openssl::error::ErrorStack),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct HostKeys {
+pub struct PrintNannyKeys {
+    force_create: bool,
     path: PathBuf,
 }
 
-impl Default for HostKeys {
+impl Default for PrintNannyKeys {
     fn default() -> Self {
-        let path = "/etc/ssh".into();
-        Self { path }
+        let path = "/etc/printnanny/keys".into();
+        let force_create = false;
+        Self { force_create, path }
     }
 }
 
-impl HostKeys {
-    pub fn ecdsa_private_key_file(&self) -> PathBuf {
-        self.path.join("ssh_host_ecdsa_key")
+impl PrintNannyKeys {
+    pub fn ec_private_key_file(&self) -> PathBuf {
+        self.path.join("ec_private.pem")
     }
-    // ecdsa
-    pub fn ecdsa_public_key_file(&self) -> PathBuf {
-        self.path.join("ssh_host_ecdsa_key.pub")
+    pub fn ec_public_key_file(&self) -> PathBuf {
+        self.path.join("ec_public.pem")
     }
-
-    pub fn ecdsa_public_key_content(&self) -> Result<String, HostKeyError> {
-        Ok(String::from_utf8_lossy(&fs::read(self.ecdsa_public_key_file())?).to_string())
+    pub fn ec_public_key_fingerprint(&self) -> PathBuf {
+        self.path.join("ec_public.sha256")
     }
-
-    pub fn ecdsa_public_key(&self) -> Result<openssh_keys::PublicKey, HostKeyError> {
-        let file = fs::File::open(self.ecdsa_public_key_file())?;
-        let key = openssh_keys::PublicKey::read_keys(file)?[0].clone();
-        Ok(key)
+    fn keypair_exists(&self) -> bool {
+        self.ec_private_key_file().exists() && self.ec_public_key_file().exists()
     }
 
-    pub fn ecdsa_public_key_fingerprint(&self) -> Result<String, HostKeyError> {
-        Ok(self.ecdsa_public_key()?.fingerprint_md5())
+    pub fn read_fingerprint(&self) -> Result<String, PrintNannyKeyError> {
+        let contents = fs::read_to_string(self.ec_public_key_fingerprint())?;
+        Ok(contents)
     }
 
-    // rsa
-    pub fn rsa_private_key_file(&self) -> PathBuf {
-        self.path.join("ssh_host_rsa_key")
-    }
+    fn _try_generate(&self) -> Result<(), PrintNannyKeyError> {
+        let group = EcGroup::from_curve_name(Nid::X9_62_PRIME192V1)?;
+        let private_key = EcKey::generate(&group)?;
+        fs::write(
+            self.ec_private_key_file(),
+            private_key.private_key_to_pem()?,
+        )?;
+        let public_key = EcKey::from_public_key(&group, private_key.public_key())?;
+        fs::write(self.ec_public_key_file(), public_key.public_key_to_pem()?)?;
 
-    pub fn rsa_public_key_file(&self) -> PathBuf {
-        self.path.join("ssh_host_rsa_key.pub")
+        let public_der = public_key.public_key_to_der()?;
+        let fingerprint = hex::encode(sha256(&public_der));
+        fs::write(self.ec_public_key_fingerprint(), &fingerprint)?;
+        info!(
+            "Generated new keypair {:?} and wrote PEM-encoded key parts to {:?}",
+            &fingerprint, self.path
+        );
+        Ok(())
     }
-
-    pub fn rsa_public_key_content(&self) -> Result<String, HostKeyError> {
-        Ok(String::from_utf8_lossy(&fs::read(self.rsa_public_key_file())?).to_string())
-    }
-
-    pub fn rsa_public_key(&self) -> Result<openssh_keys::PublicKey, HostKeyError> {
-        let file = fs::File::open(self.rsa_public_key_file())?;
-        let key = openssh_keys::PublicKey::read_keys(file)?[0].clone();
-        Ok(key)
-    }
-
-    pub fn rsa_public_key_fingerprint(&self) -> Result<String, HostKeyError> {
-        Ok(self.rsa_public_key()?.fingerprint_md5())
+    pub fn try_generate(&self) -> Result<(), PrintNannyKeyError> {
+        // check for existence of keys
+        match self.keypair_exists() {
+            true => match self.force_create {
+                true => self._try_generate(),
+                false => Err(PrintNannyKeyError::AlreadyExists {
+                    path: self.path.clone(),
+                }),
+            },
+            false => self._try_generate(),
+        }
     }
 }
 
@@ -74,35 +87,30 @@ impl HostKeys {
 mod tests {
     use super::*;
     #[test_log::test]
-    fn test_ecdsa() {
-        let test_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test");
-        let expected_fingerprint = "41:e1:86:05:27:f4:cf:63:5a:4b:1c:60:35:37:08:7d";
-        let expected_public_key_content= "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBNOZyjeo+NN5uG5swsrsEDW+Ah8UeTHKAmrCaoTJ2jGeE9mzNfs5noqkwlsxIt0AUsTDX1V5PqAdxDWN0mSqPak= test@test\n";
-        let keys = HostKeys { path: test_path };
-        assert_eq!(
-            keys.ecdsa_public_key_fingerprint().unwrap(),
-            expected_fingerprint.to_string()
-        );
-        assert_eq!(
-            keys.ecdsa_public_key_content().unwrap(),
-            expected_public_key_content.to_string()
-        );
-        assert_ne!(keys.ecdsa_private_key_file(), keys.ecdsa_public_key_file());
+    fn test_generate_keys() {
+        figment::Jail::expect_with(|jail| {
+            let keys = PrintNannyKeys {
+                path: jail.directory().to_path_buf(),
+                force_create: false,
+            };
+            keys.try_generate().unwrap();
+            let result = keys.try_generate();
+            assert!(result.is_err());
+            Ok(())
+        });
     }
-
-    fn test_rsa() {
-        let test_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test");
-        let expected_fingerprint = "41:e1:86:05:27:f4:cf:63:5a:4b:1c:60:35:37:08:7d";
-        let expected_public_key_content= "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC7meTeYn54vE6JgdU/o7ApsaJdJHq+9ASGi+B2KTeimO7xfac2AMEwUjfgxBmQ2BXnBTD/LkLVVg5gRoudzYVxWxD5lmJvMIJ5xx/bj7sKfrwdeurOldjQg+ejtCJyu5j27DNFo5BJrFvLLEq864gWIF16Hx38gqocvtVewXCJ+klmZPnLG/G4ElFffyTcMSVFp06MmIVesClf/X2GSX1QXbPrcVA9FcJ35Q33SBP8FaIEhIyvu5uyJ499a3yyTL/NNLEnsS/6MKX1ycTRXg0XK0urIleIdQEef7LuDuk/+tgZWLViIxW7PgCbUUhHsyVw5E/s0Uq7mrgFK0pPCQA1d7qN6ExHsGFDOlJeNZ46+WpM2A8by9U0KZLEE4t57wF7T/VSokEjjx6NdkKAUOVfW4s0M85ymVL9qCSSaDq9yPc+KMWV8F8TY+MiOXvXVsM9qYHlXLhpGUhZm2UdWeSiH2PioGNofYGadmh0ulZwd9M2bOI5JvrI5ozxOJTHCcc= test@test \n";
-        let keys = HostKeys { path: test_path };
-        assert_eq!(
-            keys.rsa_public_key_fingerprint().unwrap(),
-            expected_fingerprint.to_string()
-        );
-        assert_eq!(
-            keys.rsa_public_key_content().unwrap(),
-            expected_public_key_content.to_string()
-        );
-        assert_ne!(keys.rsa_private_key_file(), keys.rsa_public_key_file());
+    fn test_generate_overwrite_keys() {
+        figment::Jail::expect_with(|jail| {
+            let keys = PrintNannyKeys {
+                path: jail.directory().to_path_buf(),
+                force_create: true,
+            };
+            keys.try_generate().unwrap();
+            let fingerprint1 = keys.read_fingerprint().unwrap();
+            keys.try_generate().unwrap();
+            let fingerprint2 = keys.read_fingerprint().unwrap();
+            assert_ne!(fingerprint1, fingerprint2);
+            Ok(())
+        });
     }
 }

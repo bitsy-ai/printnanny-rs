@@ -21,6 +21,7 @@ dirs = "4.0.0"
 figment = { version = "0.10", features = ["env", "json", "toml"] }
 futures = "0.3.21"
 glob = "0.3.0"
+hex = "0.4"
 http = "0.2.5"
 jsonwebtoken = "7"
 log = "0.4"
@@ -43,8 +44,7 @@ tokio = { version = "1.17.0", features = ["full"] }
 tokio-util = { version="0.7.0", features = ["codec"] }
 tokio-serde = { version="0.8.0", features = ["json"] }
 toml = "0.5.8"
-openssl = { version = "=0.10", features = ["vendored"] }
-openssh-keys = "0.5.0"
+openssl = { version = "0.10" }
 warp = "0.3"
 
 [dev-dependencies]

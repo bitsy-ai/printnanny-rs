@@ -10,7 +10,7 @@ use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::keys::HostKeys;
+use crate::keys::PrintNannyKeys;
 use printnanny_api_client::models;
 
 pub const OCTOPRINT_DIR: &str = "/home/octoprint/.octoprint";
@@ -230,7 +230,7 @@ pub struct PrintNannyConfig {
     pub api: models::PrintNannyApiConfig,
     pub dash: DashConfig,
     pub mqtt: MQTTConfig,
-    pub keys: HostKeys,
+    pub keys: PrintNannyKeys,
 }
 
 const FACTORY_RESET: [&'static str; 7] = [
@@ -256,7 +256,7 @@ impl Default for PrintNannyConfig {
         let mqtt = MQTTConfig::default();
         let dash = DashConfig::default();
         let printnanny_cloud_proxy = PrintNannyCloudProxy::default();
-        let keys = HostKeys::default();
+        let keys = PrintNannyKeys::default();
         PrintNannyConfig {
             api,
             dash,
