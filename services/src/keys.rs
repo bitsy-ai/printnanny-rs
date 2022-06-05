@@ -7,20 +7,12 @@ use std::fs;
 use std::path::PathBuf;
 use thiserror::Error;
 
-#[derive(Error, Debug)]
-pub enum PrintNannyKeyError {
-    #[error("Refusing to overwrite existing keys at {path:?}.")]
-    AlreadyExists { path: PathBuf },
-    #[error(transparent)]
-    IOError(#[from] std::io::Error),
-    #[error(transparent)]
-    OpenSSLError(#[from] openssl::error::ErrorStack),
-}
+use super::error::PrintNannyConfigError;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PrintNannyKeys {
-    force_create: bool,
-    path: PathBuf,
+    pub force_create: bool,
+    pub path: PathBuf,
 }
 
 impl Default for PrintNannyKeys {
@@ -45,12 +37,12 @@ impl PrintNannyKeys {
         self.ec_private_key_file().exists() && self.ec_public_key_file().exists()
     }
 
-    pub fn read_fingerprint(&self) -> Result<String, PrintNannyKeyError> {
+    pub fn read_fingerprint(&self) -> Result<String, PrintNannyConfigError> {
         let contents = fs::read_to_string(self.ec_public_key_fingerprint())?;
         Ok(contents)
     }
 
-    fn _try_generate(&self) -> Result<(), PrintNannyKeyError> {
+    fn _try_generate(&self) -> Result<(), PrintNannyConfigError> {
         let group = EcGroup::from_curve_name(Nid::X9_62_PRIME192V1)?;
         let private_key = EcKey::generate(&group)?;
         fs::write(
@@ -69,12 +61,12 @@ impl PrintNannyKeys {
         );
         Ok(())
     }
-    pub fn try_generate(&self) -> Result<(), PrintNannyKeyError> {
+    pub fn try_generate(&self) -> Result<(), PrintNannyConfigError> {
         // check for existence of keys
         match self.keypair_exists() {
             true => match self.force_create {
                 true => self._try_generate(),
-                false => Err(PrintNannyKeyError::AlreadyExists {
+                false => Err(PrintNannyConfigError::KeypairExists {
                     path: self.path.clone(),
                 }),
             },

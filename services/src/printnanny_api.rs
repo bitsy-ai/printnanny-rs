@@ -16,8 +16,9 @@ use printnanny_api_client::apis::Error as ApiError;
 use printnanny_api_client::models;
 use thiserror::Error;
 
-use crate::config::{PrintNannyConfig, PrintNannyConfigError};
-use crate::cpuinfo::RpiCpuInfo;
+use super::config::PrintNannyConfig;
+use super::cpuinfo::RpiCpuInfo;
+use super::error::PrintNannyConfigError;
 
 #[derive(Error, Debug)]
 pub enum ServiceError {

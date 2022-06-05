@@ -8,26 +8,14 @@ use figment::{Figment, Metadata, Profile, Provider};
 use glob::glob;
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
-use crate::keys::PrintNannyKeys;
+use super::error::PrintNannyConfigError;
+use super::keys::PrintNannyKeys;
 use printnanny_api_client::models;
 
 pub const OCTOPRINT_DIR: &str = "/home/octoprint/.octoprint";
 pub const PRINTNANNY_CONFIG_FILENAME: &str = "PrintNannyConfig.toml";
 pub const PRINTNANNY_CONFIG_DEFAULT: &str = "/etc/printnanny/PrintNannyConfig.toml";
-
-#[derive(Error, Debug)]
-pub enum PrintNannyConfigError {
-    #[error("Failed to handle invalid value {value:?}")]
-    InvalidValue { value: String },
-    #[error(transparent)]
-    TomlSerError(#[from] toml::ser::Error),
-    #[error(transparent)]
-    IOError(#[from] std::io::Error),
-    #[error(transparent)]
-    FigmentError(#[from] figment::error::Error),
-}
 
 // #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 // pub struct CmdConfig {
@@ -171,7 +159,6 @@ pub struct PrintNannyPaths {
     pub log: PathBuf,
     pub octoprint: PathBuf,
     pub run: PathBuf,
-    pub vault: PathBuf,
 }
 
 impl Default for PrintNannyPaths {
@@ -183,13 +170,11 @@ impl Default for PrintNannyPaths {
         let log: PathBuf = "/var/log/printnanny".into();
         let events_socket = run.join("events.socket").into();
         let octoprint = OCTOPRINT_DIR.into();
-        let vault = "/etc/printnanny/vault".into();
         Self {
             etc,
             etcd,
             run,
             log,
-            vault,
             events_socket,
             octoprint,
         }

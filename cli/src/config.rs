@@ -1,20 +1,30 @@
 use clap::ArgEnum;
-use printnanny_services::config::{PrintNannyConfig, PrintNannyConfigError};
+use printnanny_services::config::PrintNannyConfig;
+use printnanny_services::error::PrintNannyConfigError;
+use printnanny_services::keys::PrintNannyKeys;
+use std::path::PathBuf;
 
 #[derive(Copy, Eq, PartialEq, Debug, Clone, clap::ArgEnum)]
 pub enum ConfigAction {
     Show,
     Init,
+    GenerateKeys,
 }
 
 impl ConfigAction {
     pub fn handle(sub_m: &clap::ArgMatches) -> Result<(), PrintNannyConfigError> {
         let config: PrintNannyConfig = PrintNannyConfig::new()?;
         match sub_m.subcommand() {
-            Some(("init", init_m)) => {
-                let output = init_m.value_of("output").unwrap();
+            Some(("init", args)) => {
+                let output = args.value_of("output").unwrap();
                 let config = PrintNannyConfig::new()?;
-                config.try_init(output.into())?;
+                Ok(())
+            }
+            Some(("generate-keys", args)) => {
+                let path = PathBuf::from(args.value_of("output").unwrap());
+                let force_create = args.is_present("force");
+                let keys = PrintNannyKeys { path, force_create };
+                keys.try_generate()?;
                 Ok(())
             }
             Some(("show", _)) => {
