@@ -14,8 +14,8 @@ use super::keys::PrintNannyKeys;
 use printnanny_api_client::models;
 
 pub const OCTOPRINT_DIR: &str = "/home/octoprint/.octoprint";
-pub const PRINTNANNY_CONFIG_FILENAME: &str = "PrintNannyConfig.toml";
-pub const PRINTNANNY_CONFIG_DEFAULT: &str = "/etc/printnanny/PrintNannyConfig.toml";
+pub const PRINTNANNY_CONFIG_FILENAME: &str = "default.toml";
+pub const PRINTNANNY_CONFIG_DEFAULT: &str = "/etc/printnanny/default.toml";
 
 // #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 // pub struct CmdConfig {
