@@ -8,25 +8,14 @@ use figment::{Figment, Metadata, Profile, Provider};
 use glob::glob;
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
+use super::error::PrintNannyConfigError;
+use super::keys::PrintNannyKeys;
 use printnanny_api_client::models;
 
 pub const OCTOPRINT_DIR: &str = "/home/octoprint/.octoprint";
 pub const PRINTNANNY_CONFIG_FILENAME: &str = "PrintNannyConfig.toml";
 pub const PRINTNANNY_CONFIG_DEFAULT: &str = "/etc/printnanny/PrintNannyConfig.toml";
-
-#[derive(Error, Debug)]
-pub enum PrintNannyConfigError {
-    #[error("Failed to handle invalid value {value:?}")]
-    InvalidValue { value: String },
-    #[error(transparent)]
-    TomlSerError(#[from] toml::ser::Error),
-    #[error(transparent)]
-    IOError(#[from] std::io::Error),
-    #[error(transparent)]
-    FigmentError(#[from] figment::error::Error),
-}
 
 // #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 // pub struct CmdConfig {
@@ -87,12 +76,7 @@ impl Default for DashConfig {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MQTTConfig {
     pub cmd: PathBuf,
-    pub private_key: String,
-    pub public_key: String,
-    pub fingerprint: String,
-    pub fingerprint_algorithm: String,
     pub cipher: String,
-    pub length: i32,
     pub keepalive: u64,
     pub ca_certs: Vec<String>,
 }
@@ -101,13 +85,8 @@ impl Default for MQTTConfig {
     fn default() -> Self {
         Self {
             cmd: "/var/run/printnanny/cmd".into(),
-            private_key: "/etc/ssh/ssh_host_ecdsa_key".into(),
-            public_key: "/etc/ssh/ssh_host_ecdsa_key.pub".into(),
-            fingerprint: "".into(),
-            fingerprint_algorithm: "md5".into(),
             ca_certs: vec!["/etc/ca-certificates".into()],
             cipher: "secp256r1".into(),
-            length: 4096,
             keepalive: 300, // seconds
         }
     }
@@ -170,7 +149,6 @@ pub struct PrintNannyPaths {
     pub log: PathBuf,
     pub octoprint: PathBuf,
     pub run: PathBuf,
-    pub vault: PathBuf,
 }
 
 impl Default for PrintNannyPaths {
@@ -182,13 +160,11 @@ impl Default for PrintNannyPaths {
         let log: PathBuf = "/var/log/printnanny".into();
         let events_socket = run.join("events.socket").into();
         let octoprint = OCTOPRINT_DIR.into();
-        let vault = "/etc/printnanny/vault".into();
         Self {
             etc,
             etcd,
             run,
             log,
-            vault,
             events_socket,
             octoprint,
         }
@@ -229,6 +205,7 @@ pub struct PrintNannyConfig {
     pub api: models::PrintNannyApiConfig,
     pub dash: DashConfig,
     pub mqtt: MQTTConfig,
+    pub keys: PrintNannyKeys,
 }
 
 const FACTORY_RESET: [&'static str; 7] = [
@@ -254,12 +231,14 @@ impl Default for PrintNannyConfig {
         let mqtt = MQTTConfig::default();
         let dash = DashConfig::default();
         let printnanny_cloud_proxy = PrintNannyCloudProxy::default();
+        let keys = PrintNannyKeys::default();
         PrintNannyConfig {
             api,
             dash,
             mqtt,
             paths,
             printnanny_cloud_proxy,
+            keys,
             cloudiot_device: None,
             device: None,
             user: None,

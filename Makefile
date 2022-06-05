@@ -1,5 +1,5 @@
 
-VERSION ?= 0.2.1
+VERSION ?= latest
 TMP_DIR ?= .tmp
 DEV_MACHINE ?= pn-dev
 
@@ -16,20 +16,17 @@ clean:
 
 images:
 	docker build \
-		-f docker/aarch64-unknown-linux-gnu.Dockerfile \
-		-t bitsyai/cross:aarch64-unknown-linux-gnu-$(VERSION) \
-		docker
-	docker push bitsyai/cross:aarch64-unknown-linux-gnu-$(VERSION)
+		-f tools/docker/aarch64-unknown-linux-gnu.Dockerfile \
+		-t bitsyai/cross:aarch64-unknown-linux-gnu tools/docker
+	docker push bitsyai/cross:aarch64-unknown-linux-gnu
 	docker build \
-		-f docker/armv7-unknown-linux-gnueabihf.Dockerfile \
-		-t bitsyai/cross:armv7-unknown-linux-gnueabihf-$(VERSION) \
-		docker
-	docker push bitsyai/cross:armv7-unknown-linux-gnueabihf-$(VERSION)
+		-f tools/docker/armv7-unknown-linux-gnueabihf.Dockerfile \
+		-t bitsyai/cross:armv7-unknown-linux-gnueabihf tools/docker
+	docker push bitsyai/cross:armv7-unknown-linux-gnueabihf
 	docker build \
-		-f docker/x86_64-unknown-linux-gnu.Dockerfile \
-		-t bitsyai/cross:x86_64-unknown-linux-gnu-$(VERSION) \
-		docker
-	docker push bitsyai/cross:x86_64-unknown-linux-gnu-$(VERSION)
+		-f tools/docker/x86_64-unknown-linux-gnu.Dockerfile \
+		-t bitsyai/cross:x86_64-unknown-linux-gnu tools/docker
+	docker push bitsyai/cross:x86_64-unknown-linux-gnu
 
 patch:
 	cargo release patch --workspace --execute --tag

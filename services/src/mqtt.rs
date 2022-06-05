@@ -113,7 +113,8 @@ impl MQTTWorker {
             exp,
             aud: gcp_project_id,
         };
-        let token = encode_jwt(&config.mqtt.private_key, &claims)?;
+        let key_contents = fs::read_to_string(&config.keys.ec_private_key_file())?;
+        let token = encode_jwt(&key_contents, &claims)?;
         let mqttoptions = MQTTWorker::mqttoptions(cloudiot_device, &config.mqtt, &token)?;
 
         let result = MQTTWorker {
