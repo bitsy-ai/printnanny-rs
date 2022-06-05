@@ -1,8 +1,8 @@
 [target.aarch64-unknown-linux-gnu]
-image = "bitsyai/cross:aarch64-unknown-linux-gnu"
+image = "rustembedded/cross:aarch64-unknown-linux-gnu"
 
 [target.armv7-unknown-linux-gnueabihf]
-image = "bitsyai/cross:armv7-unknown-linux-gnueabihf"
+image = "rustembedded/cross:armv7-unknown-linux-gnueabihf"
 
-[target.x86_64-unknown-linux-gnu]
-image = "bitsyai/cross:x86_64-unknown-linux-gnu-0.2.1"
+[target.x86_64-unknown-linux-gnueabihf]
+image = "rustembedded/cross:x86_64-unknown-linux-gnu"
