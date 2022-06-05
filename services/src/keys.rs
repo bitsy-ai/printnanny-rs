@@ -99,6 +99,7 @@ mod tests {
             Ok(())
         });
     }
+    #[test_log::test]
     fn test_generate_overwrite_keys() {
         figment::Jail::expect_with(|jail| {
             let keys = PrintNannyKeys {
