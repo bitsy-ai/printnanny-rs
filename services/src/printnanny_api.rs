@@ -334,14 +334,15 @@ impl ApiService {
         &self,
         device: i32,
     ) -> Result<models::PublicKey, ServiceError> {
-        info!("Reading public key from {:?}", &self.config.mqtt.public_key);
-        let pem = read_to_string(&self.config.mqtt.public_key)?;
+        let keyfile = &self.config.keys.ec_public_key_file();
+        info!("Reading public key from {:?}", &keyfile);
+        let pem = read_to_string(&keyfile)?;
         let req = models::PublicKeyRequest {
-            fingerprint: self.config.mqtt.fingerprint.clone(),
+            fingerprint: self.config.keys.read_fingerprint()?,
             pem,
             device,
             cipher: self.config.mqtt.cipher.clone(),
-            length: self.config.mqtt.length,
+            length: 256,
         };
         let res = devices_api::public_key_update_or_create(&self.reqwest, device, req).await?;
         Ok(res)

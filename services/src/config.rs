@@ -76,12 +76,7 @@ impl Default for DashConfig {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MQTTConfig {
     pub cmd: PathBuf,
-    pub private_key: String,
-    pub public_key: String,
-    pub fingerprint: String,
-    pub fingerprint_algorithm: String,
     pub cipher: String,
-    pub length: i32,
     pub keepalive: u64,
     pub ca_certs: Vec<String>,
 }
@@ -90,13 +85,8 @@ impl Default for MQTTConfig {
     fn default() -> Self {
         Self {
             cmd: "/var/run/printnanny/cmd".into(),
-            private_key: "/etc/ssh/ssh_host_ecdsa_key".into(),
-            public_key: "/etc/ssh/ssh_host_ecdsa_key.pub".into(),
-            fingerprint: "".into(),
-            fingerprint_algorithm: "md5".into(),
             ca_certs: vec!["/etc/ca-certificates".into()],
             cipher: "secp256r1".into(),
-            length: 4096,
             keepalive: 300, // seconds
         }
     }
