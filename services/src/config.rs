@@ -2,6 +2,7 @@ use std::fs;
 use std::fs::File;
 use std::path::PathBuf;
 
+use clap::{ArgEnum, PossibleValue};
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
@@ -16,6 +17,42 @@ use printnanny_api_client::models;
 pub const OCTOPRINT_DIR: &str = "/home/octoprint/.octoprint";
 pub const PRINTNANNY_CONFIG_FILENAME: &str = "default.toml";
 pub const PRINTNANNY_CONFIG_DEFAULT: &str = "/etc/printnanny/default.toml";
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
+pub enum ConfigFormat {
+    Json,
+    Toml,
+}
+
+impl ConfigFormat {
+    pub fn possible_values() -> impl Iterator<Item = PossibleValue<'static>> {
+        ConfigFormat::value_variants()
+            .iter()
+            .filter_map(ArgEnum::to_possible_value)
+    }
+}
+
+impl std::fmt::Display for ConfigFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.to_possible_value()
+            .expect("no values are skipped")
+            .get_name()
+            .fmt(f)
+    }
+}
+
+impl std::str::FromStr for ConfigFormat {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        for variant in Self::value_variants() {
+            if variant.to_possible_value().unwrap().matches(s, false) {
+                return Ok(*variant);
+            }
+        }
+        Err(format!("Invalid variant: {}", s))
+    }
+}
 
 // #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 // pub struct CmdConfig {
@@ -259,6 +296,11 @@ impl PrintNannyConfig {
         Ok(result)
     }
 
+    pub fn find_value(key: &str) -> Result<figment::value::Value, figment::Error> {
+        let figment = Self::figment();
+        figment.find_value(key)
+    }
+
     // intended for use with Rocket's figmment
     pub fn from_figment(figment: Figment) -> Figment {
         figment.merge(Self::figment())
@@ -372,8 +414,15 @@ impl PrintNannyConfig {
     }
 
     // Save ::Default() to output file
-    pub fn try_init(&self, filename: &str) -> Result<(), PrintNannyConfigError> {
-        let content = toml::ser::to_string_pretty(self)?;
+    pub fn try_init(
+        &self,
+        filename: &str,
+        format: &ConfigFormat,
+    ) -> Result<(), PrintNannyConfigError> {
+        let content: String = match format {
+            ConfigFormat::Json => serde_json::to_string_pretty(self)?,
+            ConfigFormat::Toml => toml::ser::to_string_pretty(self)?,
+        };
         fs::write(&filename, content.to_string())?;
         Ok(())
     }
@@ -563,6 +612,28 @@ mod tests {
             let figment = PrintNannyConfig::figment();
             let new: PrintNannyConfig = figment.extract()?;
             assert_eq!(new.api, expected);
+            Ok(())
+        });
+    }
+
+    #[test_log::test]
+    fn test_find_value() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_file(
+                "Local.toml",
+                r#"
+                profile = "local"
+                [api]
+                base_path = "http://aurora:8000"
+                "#,
+            )?;
+            jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
+            jail.set_env("PRINTNANNY_PATHS.ETCD", format!("{:?}", jail.directory()));
+
+            let expected: Option<String> = Some("http://aurora:8000".into());
+            let value: Option<String> =
+                PrintNannyConfig::find_value("api.base_path")?.into_string();
+            assert_eq!(value, expected);
             Ok(())
         });
     }
