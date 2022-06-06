@@ -615,4 +615,26 @@ mod tests {
             Ok(())
         });
     }
+
+    #[test_log::test]
+    fn test_find_value() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_file(
+                "Local.toml",
+                r#"
+                profile = "local"
+                [api]
+                base_path = "http://aurora:8000"
+                "#,
+            )?;
+            jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
+            jail.set_env("PRINTNANNY_PATHS.ETCD", format!("{:?}", jail.directory()));
+
+            let config = PrintNannyConfig::new();
+            let expected = "http://aurora:8000";
+            let value = config.find_value("api.base_path");
+            assert_eq!(value, expected);
+            Ok(())
+        });
+    }
 }
