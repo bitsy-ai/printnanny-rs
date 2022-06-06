@@ -296,9 +296,9 @@ impl PrintNannyConfig {
         Ok(result)
     }
 
-    pub fn find_value(key: &str) -> Result<figment::value::Value, PrintNannyConfigError> {
+    pub fn find_value(key: &str) -> Result<figment::value::Value, figment::Error> {
         let figment = Self::figment();
-        Ok(figment.find_value(key)?)
+        figment.find_value(key)
     }
 
     // intended for use with Rocket's figmment
@@ -630,9 +630,9 @@ mod tests {
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
             jail.set_env("PRINTNANNY_PATHS.ETCD", format!("{:?}", jail.directory()));
 
-            let config = PrintNannyConfig::new();
-            let expected = "http://aurora:8000";
-            let value = config.find_value("api.base_path");
+            let expected: Option<String> = Some("http://aurora:8000".into());
+            let value: Option<String> =
+                PrintNannyConfig::find_value("api.base_path")?.into_string();
             assert_eq!(value, expected);
             Ok(())
         });

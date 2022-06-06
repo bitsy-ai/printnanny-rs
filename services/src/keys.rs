@@ -5,7 +5,6 @@ use openssl::sha::sha256;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use thiserror::Error;
 
 use super::error::PrintNannyConfigError;
 
