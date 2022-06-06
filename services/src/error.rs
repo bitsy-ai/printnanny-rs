@@ -13,6 +13,8 @@ pub enum PrintNannyConfigError {
     OpenSSLError(#[from] openssl::error::ErrorStack),
 
     #[error(transparent)]
+    JsonSerError(#[from] serde_json::Error),
+    #[error(transparent)]
     TomlSerError(#[from] toml::ser::Error),
     #[error(transparent)]
     FigmentError(#[from] figment::error::Error),

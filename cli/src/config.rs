@@ -1,15 +1,12 @@
 use clap::ArgEnum;
-use printnanny_services::config::PrintNannyConfig;
+use printnanny_services::config::{ConfigFormat, PrintNannyConfig};
 use printnanny_services::error::PrintNannyConfigError;
 use printnanny_services::keys::PrintNannyKeys;
+use serde_json::Value;
+use std::io::{self, Write};
 use std::path::PathBuf;
 
-#[derive(Copy, Eq, PartialEq, Debug, Clone, clap::ArgEnum)]
-pub enum ConfigAction {
-    Show,
-    Init,
-    GenerateKeys,
-}
+pub struct ConfigAction;
 
 impl ConfigAction {
     pub fn handle(sub_m: &clap::ArgMatches) -> Result<(), PrintNannyConfigError> {
@@ -17,39 +14,34 @@ impl ConfigAction {
         match sub_m.subcommand() {
             Some(("init", args)) => {
                 let output = args.value_of("output").unwrap();
-                let config = PrintNannyConfig::new()?;
-                Ok(())
+                let f: ConfigFormat = args.value_of_t("format").unwrap();
+                config.try_init(output, &f)?
+            }
+            Some(("get", args)) => {
+                let key = args.value_of("key").unwrap();
+                let f: ConfigFormat = args.value_of_t("format").unwrap();
+                let data = PrintNannyConfig::find_value(key)?;
+                let v = match f {
+                    ConfigFormat::Json => serde_json::to_vec_pretty(&data)?,
+                    ConfigFormat::Toml => toml::ser::to_vec(&data)?,
+                };
+                io::stdout().write_all(&v)?;
             }
             Some(("generate-keys", args)) => {
                 let path = PathBuf::from(args.value_of("output").unwrap());
                 let force_create = args.is_present("force");
                 let keys = PrintNannyKeys { path, force_create };
-                keys.try_generate()?;
-                Ok(())
             }
-            Some(("show", _)) => {
-                println!("{}", toml::ser::to_string_pretty(&config)?);
-                Ok(())
+            Some(("show", args)) => {
+                let f: ConfigFormat = args.value_of_t("format").unwrap();
+                let v = match f {
+                    ConfigFormat::Json => serde_json::to_vec_pretty(&config)?,
+                    ConfigFormat::Toml => toml::ser::to_vec(&config)?,
+                };
+                io::stdout().write_all(&v)?;
             }
-            _ => panic!("Expected init|subscribe subcommand"),
-        }
-    }
-    pub fn possible_values() -> impl Iterator<Item = clap::PossibleValue<'static>> {
-        ConfigAction::value_variants()
-            .iter()
-            .filter_map(clap::ArgEnum::to_possible_value)
-    }
-}
-
-impl std::str::FromStr for ConfigAction {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        for variant in Self::value_variants() {
-            if variant.to_possible_value().unwrap().matches(s, false) {
-                return Ok(*variant);
-            }
-        }
-        Err(format!("Invalid variant: {}", s))
+            _ => panic!("Expected generate-keys|get|init|generate-keys subcommand"),
+        };
+        Ok(())
     }
 }
