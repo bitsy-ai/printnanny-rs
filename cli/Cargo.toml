@@ -2,7 +2,7 @@
 name = "printnanny-cli"
 description = "PrintNanny Command-line Interface"
 license = "AGPL-3.0-or-later"
-version = "0.22.0-rc.4"
+version = "0.22.0-rc.5"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2021"
 rust-version = "1.61"
