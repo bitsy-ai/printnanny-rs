@@ -2,7 +2,7 @@ use clap::ArgEnum;
 use printnanny_services::config::{ConfigFormat, PrintNannyConfig};
 use printnanny_services::error::PrintNannyConfigError;
 use printnanny_services::keys::PrintNannyKeys;
-use serde_json::Value;
+use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
 
@@ -29,8 +29,10 @@ impl ConfigAction {
             }
             Some(("generate-keys", args)) => {
                 let path = PathBuf::from(args.value_of("output").unwrap());
+                fs::create_dir_all(&path)?;
                 let force_create = args.is_present("force");
                 let keys = PrintNannyKeys { path, force_create };
+                keys.try_generate()?
             }
             Some(("show", args)) => {
                 let f: ConfigFormat = args.value_of_t("format").unwrap();
