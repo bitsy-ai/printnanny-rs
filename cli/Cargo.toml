@@ -6,6 +6,7 @@ version = "0.22.0-rc.5"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2021"
 rust-version = "1.61"
+repository = "https://github.com/bitsy-ai/printnanny-cli.git"
 
 [dependencies]
 printnanny-dash = {path = "../dash", version = "^0.22.0-rc.5"}
