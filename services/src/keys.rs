@@ -42,7 +42,7 @@ impl PrintNannyKeys {
     }
 
     fn _try_generate(&self) -> Result<(), PrintNannyConfigError> {
-        let group = EcGroup::from_curve_name(Nid::X9_62_PRIME192V1)?;
+        let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1)?;
         let private_key = EcKey::generate(&group)?;
         fs::write(
             self.ec_private_key_file(),
