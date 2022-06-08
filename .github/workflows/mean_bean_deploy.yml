@@ -10,7 +10,7 @@ on:
 
 name: Publish
 env:
-  BIN: printnanny-cli printnanny-dash
+  BIN: printnanny-cli
   TAR: printnanny
   CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -209,7 +209,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: |
-          tar -zcvf ${{ env.TAR }}-www-templates.tar.gz -C dash/templates .
+          tar -zcvf ${{ env.TAR }}-www-templates.tar.gz -C cli/templates .
           sha256sum ${{ env.TAR }}-www-templates.tar.gz > ${{ env.TAR }}-www-templates.tar.gz.256sum
       - name: Release
         id: upload-release-asset
