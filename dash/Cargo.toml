@@ -8,7 +8,7 @@ edition = "2021"
 rust-version = "1.61"
 
 [dependencies]
-printnanny-services = {path = "../services", version = "^0.22.0-rc.1"}
+printnanny-services = {path = "../services", version = "^0.22.0-rc.5"}
 printnanny-api-client = "0.80.0"
 serde = "1.0.133"
 thiserror = "1.0.30"
@@ -36,6 +36,6 @@ version = "0.1.0-rc.1"
 features = ["handlebars", "tera"]
 
 [dependencies.rocket_sync_db_pools]
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.2"
 default-features = false
 features = ["diesel_sqlite_pool"]

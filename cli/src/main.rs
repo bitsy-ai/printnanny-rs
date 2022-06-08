@@ -1,18 +1,23 @@
 #[macro_use] extern crate clap;
-use std::process::{ Command, Stdio };
 
 use anyhow::{ Result };
 use env_logger::Builder;
 use log::{ LevelFilter};
 use clap::{ 
-    Arg, App, AppSettings
+    Arg, Command
 };
+use rocket_dyn_templates::Template;
 
-use printnanny_services::config::{ ConfigFormat, PrintNannyConfig};
+use git_version::git_version;
+
+use printnanny_dash::auth;
+use printnanny_dash::debug;
+use printnanny_dash::home;
+
+use printnanny_services::config::ConfigFormat;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker };
 use printnanny_services::versioninfo::VersionInfo;
-use printnanny_cli::device::{DeviceCmd, DeviceAction };
 use printnanny_cli::config::{ConfigAction};
 use printnanny_api_client::models;
 
@@ -21,21 +26,30 @@ async fn main() -> Result<()> {
     let mut builder = Builder::new();
     let app_name = "printnanny";
 
-    let app = App::new(app_name)
-        .setting(AppSettings::SubcommandRequiredElseHelp)
+    let version = Box::leak(format!("{} {}", crate_version!(), git_version!()).into_boxed_str());
+
+    let app = Command::new(app_name)
+        .subcommand_required(true)
         .author(crate_authors!())
         .about(crate_description!())
-        .version(crate_version!())
+        .version(&version[..])
         .arg(Arg::new("v")
         .short('v')
         .multiple_occurrences(true)
         .help("Sets the level of verbosity"))
-        // janusadmin
-        .subcommand(App::new("janus-admin")
+
+        // dash
+        .subcommand(Command::new("dash")
             .author(crate_authors!())
             .about(crate_description!())
-            .version(crate_version!())
-            .setting(AppSettings::ArgRequiredElseHelp)
+            .version(&version[..]))
+
+        // janusadmin
+        .subcommand(Command::new("janus-admin")
+            .author(crate_authors!())
+            .about(crate_description!())
+            .version(&version[..])
+            .arg_required_else_help(true)
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token")
             .arg(Arg::new("endpoint")
                 .possible_values(JanusAdminEndpoint::possible_values())
@@ -44,28 +58,27 @@ async fn main() -> Result<()> {
                 .ignore_case(true)
             ) 
             .arg(Arg::new("plugins")
-                .long("plugins")
                 .takes_value(true)
                 .required_if_eq_any(&[
                     ("endpoint", "addtoken"),
                     ("endpoint", "add-token"),
                     ("endpoint", "AddToken"),
                 ])
-                .use_delimiter(true)
+                .use_value_delimiter(true)
                 .help("Commaseparated list of plugins used to scope token access.")
                 .default_value("janus.plugin.echotest,janus.plugin.streaming")
                     ))
         // config
-        .subcommand(App::new("config")
+        .subcommand(Command::new("config")
             .author(crate_authors!())
             .about(crate_description!())
-            .version(crate_version!())
-            .setting(AppSettings::ArgRequiredElseHelp)
+            .version(&version[..])
+            .arg_required_else_help(true)
             .about("Interact with PrintNanny config")
-            .subcommand(App::new("get")
+            .subcommand(Command::new("get")
                 .author(crate_authors!())
                 .about(crate_description!())
-                .version(crate_version!())
+                .version(&version[..])
                 .about("Print PrintNanny config to console")
                 .arg(Arg::new("key").required(true))
                 .arg(Arg::new("format")
@@ -77,10 +90,10 @@ async fn main() -> Result<()> {
                     .help("Overwrite any existing configuration")
                 )
             )
-            .subcommand(App::new("show")
+            .subcommand(Command::new("show")
                 .author(crate_authors!())
                 .about(crate_description!())
-                .version(crate_version!())
+                .version(&version[..])
                 .about("Print PrintNanny config to console")
                 .arg(Arg::new("format")
                     .short('F')
@@ -91,10 +104,10 @@ async fn main() -> Result<()> {
                     .help("Overwrite any existing configuration")
                 )            
             )
-            .subcommand(App::new("init")
+            .subcommand(Command::new("init")
                 .author(crate_authors!())
                 .about(crate_description!())
-                .version(crate_version!())
+                .version(&version[..])
                 .about("Initialize PrintNanny config")
                 .arg(Arg::new("force")
                     .short('f')
@@ -117,10 +130,10 @@ async fn main() -> Result<()> {
                 .takes_value(true)
                 .help("Write generated config to output file")
             ))
-            .subcommand(App::new("generate-keys")
+            .subcommand(Command::new("generate-keys")
                 .author(crate_authors!())
                 .about(crate_description!())
-                .version(crate_version!())
+                .version(&version[..])
                 .about("Generate PrintNanny keypair")
                 .arg(Arg::new("force")
                     .short('f')
@@ -136,32 +149,32 @@ async fn main() -> Result<()> {
                 .help("Write generated config to output file")
             )))
         // mqtt <subscribe|publish>
-        .subcommand(App::new("event")
+        .subcommand(Command::new("event")
             .author(crate_authors!())
             .about(crate_description!())
-            .version(crate_version!())
+            .version(&version[..])
             .about("Interact with MQTT pub/sub service")
-            .setting(AppSettings::SubcommandRequiredElseHelp)
+            .subcommand_required(true)
             .subcommand(
-                App::new("publish")
+                Command::new("publish")
                 .arg(Arg::new("data")
                     .short('d')
                     .long("data")
                     .takes_value(true)
             ))
             .subcommand(
-                App::new("subscribe")
+                Command::new("subscribe")
             ))
-        .subcommand(App::new("version")
+        .subcommand(Command::new("version")
             .author(crate_authors!())
             .about(crate_description!())
-            .version(crate_version!())
+            .version(&version[..])
             .about("Get VersionInfo for PrintNanny components"))
 
-        .subcommand(App::new("remote")
+        .subcommand(Command::new("remote")
             .author(crate_authors!())
             .about(crate_description!())
-            .version(crate_version!())
+            .version(&version[..])
             .about("Run pre-configured remote event/command handler")
             .arg(Arg::new("event")
                 .help("JSON-serialized PrintNanny Event. See /api/events schema for supported events")
@@ -190,6 +203,15 @@ async fn main() -> Result<()> {
     };
 
     match app_m.subcommand() {
+        Some(("dash", _)) => {
+            rocket::build()
+            .mount("/", home::routes())
+            .mount("/debug", debug::routes())
+            .mount("/login", auth::routes())
+            .attach(Template::fairing())
+            .launch()
+            .await?;
+        },
         Some(("event", sub_m)) => {
             match sub_m.subcommand() {
                 Some(("subscribe", _event_m)) => {
@@ -219,23 +241,11 @@ async fn main() -> Result<()> {
             println!("{}", res);
 
         },
-        Some(("system-update", _sub_m)) => {
-            let mut cmd =
-            Command::new("systemctl")
-            .args(&["start", "printnanny-update"])
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .spawn()
-            .unwrap();
-
-            let status = cmd.wait();
-            println!("System update exited with status {:?}", status);
-        },
         Some(("version", _sub_m)) => {
             let versioninfo = VersionInfo::new();
             println!("{}", serde_json::to_string_pretty(&versioninfo)?);
         },
         _ => {}
-    }
+    };
     Ok(())
 }

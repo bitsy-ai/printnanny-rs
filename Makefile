@@ -2,6 +2,7 @@
 VERSION ?= latest
 TMP_DIR ?= .tmp
 DEV_MACHINE ?= pn-dev
+DEV_USER ?= root
 
 $(TMP_DIR)/printnanny_license.zip:
 	PRINTNANNY_INSTALL_DIR=$(TMP_DIR) ./tools/download-license.sh
@@ -42,9 +43,9 @@ test-profile: clean
 
 dev-build:
 	cross build --workspace --target=aarch64-unknown-linux-gnu
-	rsync --progress -e "ssh -o StrictHostKeyChecking=no" target/aarch64-unknown-linux-gnu/debug/printnanny-cli pi@$(DEV_MACHINE):~/printnanny-cli
-	rsync --progress -e "ssh -o StrictHostKeyChecking=no" target/aarch64-unknown-linux-gnu/debug/printnanny-dash pi@$(DEV_MACHINE):~/printnanny-dash
-	ssh -o StrictHostKeyChecking=no pi@$(DEV_MACHINE) "sudo systemctl stop printnanny.target"
-	ssh -o StrictHostKeyChecking=no pi@$(DEV_MACHINE) "sudo cp /home/pi/printnanny-cli /usr/local/bin/printnanny-cli"
-	ssh -o StrictHostKeyChecking=no pi@$(DEV_MACHINE) "sudo cp /home/pi/printnanny-dash /usr/local/bin/printnanny-dash"
-	ssh -o StrictHostKeyChecking=no pi@$(DEV_MACHINE) "sudo systemctl restart printnanny.target"
+	rsync --progress -e "ssh -o StrictHostKeyChecking=no" target/aarch64-unknown-linux-gnu/debug/printnanny-cli $(DEV_USER)@$(DEV_MACHINE):~/printnanny-cli
+	rsync --progress -e "ssh -o StrictHostKeyChecking=no" target/aarch64-unknown-linux-gnu/debug/printnanny-dash $(DEV_USER)@$(DEV_MACHINE):~/printnanny-dash
+	ssh -o StrictHostKeyChecking=no $(DEV_USER)@$(DEV_MACHINE) "sudo systemctl stop printnanny*" || echo "Failed to stop printnanny services"
+	ssh -o StrictHostKeyChecking=no $(DEV_USER)@$(DEV_MACHINE) "sudo cp ~/printnanny-cli /usr/bin/printnanny-cli"
+	ssh -o StrictHostKeyChecking=no $(DEV_USER)@$(DEV_MACHINE) "sudo cp ~/printnanny-dash /usr/bin/printnanny-dash"
+	ssh -o StrictHostKeyChecking=no $(DEV_USER)@$(DEV_MACHINE) "sudo systemctl start printnanny*"
