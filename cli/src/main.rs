@@ -6,7 +6,14 @@ use log::{ LevelFilter};
 use clap::{ 
     Arg, Command
 };
+use rocket_dyn_templates::Template;
+
 use git_version::git_version;
+
+use printnanny_dash::auth;
+use printnanny_dash::debug;
+use printnanny_dash::home;
+
 use printnanny_services::config::ConfigFormat;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker };
@@ -30,6 +37,13 @@ async fn main() -> Result<()> {
         .short('v')
         .multiple_occurrences(true)
         .help("Sets the level of verbosity"))
+
+        // dash
+        .subcommand(Command::new("dash")
+            .author(crate_authors!())
+            .about(crate_description!())
+            .version(&version[..]))
+
         // janusadmin
         .subcommand(Command::new("janus-admin")
             .author(crate_authors!())
@@ -189,6 +203,15 @@ async fn main() -> Result<()> {
     };
 
     match app_m.subcommand() {
+        Some(("dash", _)) => {
+            rocket::build()
+            .mount("/", home::routes())
+            .mount("/debug", debug::routes())
+            .mount("/login", auth::routes())
+            .attach(Template::fairing())
+            .launch()
+            .await?;
+        },
         Some(("event", sub_m)) => {
             match sub_m.subcommand() {
                 Some(("subscribe", _event_m)) => {
@@ -223,6 +246,6 @@ async fn main() -> Result<()> {
             println!("{}", serde_json::to_string_pretty(&versioninfo)?);
         },
         _ => {}
-    }
+    };
     Ok(())
 }
