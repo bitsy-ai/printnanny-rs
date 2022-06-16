@@ -8,11 +8,11 @@
         <h1>Welcome to PrintNanny OS!</h1>
         <dl class="row">
             <dt class="col-4">Username</dt>
-            <dd class="col-8">{{user.email}}</dd>
+            <dd class="col-8">{{ config.user.email }}</dd>
             <dt class="col-4">Hostname</dt>
-            <dd class="col-8">{{device.hostname}}</dd>
+            <dd class="col-8">{{ config.device.hostname }}</dd>
             <dt class="col-4">Fingerprint</dt>
-            <dd class="col-8">{{device.public_key.fingerprint}}</dd>
+            <dd class="col-8">{{ config.device.public_key.fingerprint }}</dd>
         </dl>
     </div>
     <div class="col-4">
@@ -24,10 +24,10 @@
         <a target="_blank" href="/octoprint/">
             <button>OctoPrint</button>
         </a>
-        <a target="_blank" href="{{ api.base_path }}{{ api.dashboard_url }}">
+        <a target="_blank" href="{{ config.api.base_path }}{{ config.api.dashboard_url }}">
             <button>PrintNanny Cloud</button>
         </a>
-        <a target="_blank" href="{{ api.base_path }}{{ device.video_test_url }}">
+        <a target="_blank" href="{{ config.api.base_path }}{{ config.device.video_test_url }}">
             <button>Test Video</button>
         </a>
         <a target="_blank" href="/status">

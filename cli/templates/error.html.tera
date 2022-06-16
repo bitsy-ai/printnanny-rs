@@ -2,12 +2,17 @@
 
 {% block body %}
 <h1>Oops, something went wrong!</h1>
-<h3>Email the error(s) below to <a target="_blank" href="mailto:leigh@print-nanny.com">leigh@print-nanny.com</a> for assistance.</h3>
 <div class="row">
     <div class="col-9">
+    <p><a href="https://github.com/bitsy-ai/printnanny-os/issues"><button>Search Github Issues</button></a><p>
 
+    <h3>Errors:</h3>
   {{ errors }}
 
+    <h3>Issue.txt</h3>
+<pre>
+{{ issue_txt }}
+</pre>
     </div>
     <div class="col-3">
     <img src="https://cdn.print-nanny.com/www/device-dash/confused.svg" style="is-full-width" />

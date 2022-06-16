@@ -1,0 +1,25 @@
+{% extends "base" %}
+
+{% block body %}
+<h1>Report an Issue with PrintNanny OS</h1>
+<div class="row">
+    <div class="col-9">
+    <p>
+        <a class="button dark" href="https://github.com/bitsy-ai/printnanny-os/issues">
+            Search Github Issues
+        </a>
+        <a class="button primary" href="https://github.com/bitsy-ai/printnanny-os/issues/new/choose">
+            New Issue
+        </a>
+    <p>
+    <h3>Issue.txt</h3>
+    <p>Please copy and paste the following into your Github issue. Thank you for helping make PrintNanny excellent!<p>
+<pre>
+{{ issue_txt }}
+</pre>
+    </div>
+    <div class="col-3">
+    <img src="https://cdn.print-nanny.com/www/device-dash/confused.svg" style="is-full-width" />
+    </div>
+</div>
+{% endblock body %}
