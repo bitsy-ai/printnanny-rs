@@ -10,6 +10,7 @@ use rocket_dyn_templates::Template;
 
 use git_version::git_version;
 
+use printnanny_dash::issue;
 use printnanny_dash::auth;
 use printnanny_dash::debug;
 use printnanny_dash::home;
@@ -191,9 +192,16 @@ async fn main() -> Result<()> {
                 .help("Path to license.txt")
                 .short('i')
                 .long("input")
+                .required(true)
                 .takes_value(true)
                 .default_value("/boot/license.txt")
             )
+            .arg(Arg::new("output")
+                .help("Write short-lived credential to conf.d fragment")
+                .short('o')
+                .long("output")
+                .takes_value(true)
+                .default_value("/etc/printnanny/conf.d"))
         );
     
     
@@ -215,6 +223,7 @@ async fn main() -> Result<()> {
             rocket::build()
             .mount("/", home::routes())
             .mount("/debug", debug::routes())
+            .mount("/issue", issue::routes())
             .mount("/login", auth::routes())
             .attach(Template::fairing())
             .launch()

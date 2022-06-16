@@ -47,6 +47,18 @@
     </div>
     {% block body %}
     {% endblock body %}
+    <hr>
+    <footer class="row">
+      <div class="col-6">
+
+        <p>Copyright© 2022 PrintNanny, Bitsy AI Labs</p>
+      </div>
+        <div class="col-6">
+        <a class="is-right" href="/issue">
+          <button>Report an Issue</button>
+        </a>
+      </div>
+    </footer>
   </div>
 </body>
 

@@ -1,4 +1,4 @@
-use log::{debug, error, info, warn};
+use log::{debug, info, warn};
 use std::convert::TryInto;
 use std::fs::{read_to_string, File};
 use std::future::Future;
