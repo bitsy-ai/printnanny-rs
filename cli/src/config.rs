@@ -49,7 +49,7 @@ impl ConfigAction {
     }
 }
 
-pub async fn handle_check_license(infile: &str, outfile: &str) -> Result<(), ServiceError> {
+pub async fn handle_check_license(infile: &str) -> Result<(), ServiceError> {
     let mut config: PrintNannyConfig = PrintNannyConfig::new()?;
     let api_service = ApiService::new(config.clone())?;
     config.api = api_service.check_license(infile).await?;

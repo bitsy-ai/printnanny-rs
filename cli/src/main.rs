@@ -194,12 +194,6 @@ async fn main() -> Result<()> {
                 .takes_value(true)
                 .default_value("/boot/license.txt")
             )
-            .arg(Arg::new("output")
-                .help("Write short-lived credential to conf.d fragment")
-                .short('o')
-                .long("output")
-                .takes_value(true)
-                .default_value("/etc/printnanny/conf.d"))
         );
     
     
@@ -257,8 +251,7 @@ async fn main() -> Result<()> {
         },
         Some(("check-license", sub_m)) => {
             let input = sub_m.value_of("input").unwrap();
-            let output = sub_m.value_of("output").unwrap();
-            handle_check_license(input, output).await?;
+            handle_check_license(input).await?;
         },
         _ => {}
     };

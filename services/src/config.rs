@@ -375,6 +375,17 @@ impl PrintNannyConfig {
     ///
     /// If serialization or fs write fails, prints an error message indicating the failure
     pub fn try_save_by_key(&self, key: &str) -> Result<(), PrintNannyConfigError> {
+        let filename = format!("{}.toml", key);
+        let filename = self.paths.confd.join(filename);
+        self.try_save_fragment(key, &filename)?;
+        Ok(())
+    }
+
+    pub fn try_save_fragment(
+        &self,
+        key: &str,
+        filename: &PathBuf,
+    ) -> Result<(), PrintNannyConfigError> {
         let content = match key {
             "api" => toml::Value::try_from(figment::util::map! { key => &self.api}),
             "cloudiot_device" => {
@@ -389,12 +400,10 @@ impl PrintNannyConfig {
             }
             "user" => toml::Value::try_from(figment::util::map! {key =>  &self.user }),
             _ => {
-                warn!("try_save_by_key received unhandled key={:?} - serializing entire PrintNannyConfig", key);
+                warn!("try_save_fragment received unhandled key={:?} - serializing entire PrintNannyConfig", key);
                 toml::Value::try_from(self)
             }
         }?;
-        let filename = format!("{}.toml", key);
-        let filename = self.paths.confd.join(filename);
         info!("Saving {}.toml to {:?}", &key, &filename);
         fs::write(&filename, content.to_string())?;
         info!("Wrote {} to {:?}", key, filename);
