@@ -1,6 +1,8 @@
 use printnanny_services::config::{ConfigFormat, PrintNannyConfig};
 use printnanny_services::error::PrintNannyConfigError;
+use printnanny_services::error::ServiceError;
 use printnanny_services::keys::PrintNannyKeys;
+use printnanny_services::printnanny_api::ApiService;
 use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
@@ -45,4 +47,12 @@ impl ConfigAction {
         };
         Ok(())
     }
+}
+
+pub async fn handle_check_license(infile: &str, outfile: &str) -> Result<(), ServiceError> {
+    let mut config: PrintNannyConfig = PrintNannyConfig::new()?;
+    let api_service = ApiService::new(config.clone())?;
+    config.api = api_service.check_license(infile).await?;
+    config.try_save_by_key("api")?;
+    Ok(())
 }

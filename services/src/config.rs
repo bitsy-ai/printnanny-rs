@@ -181,7 +181,7 @@ impl Default for PrintNannyCloudProxy {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyPaths {
     pub etc: PathBuf,
-    pub etcd: PathBuf,
+    pub confd: PathBuf,
     pub events_socket: PathBuf,
     pub log: PathBuf,
     pub octoprint: PathBuf,
@@ -192,14 +192,14 @@ impl Default for PrintNannyPaths {
     fn default() -> Self {
         // /etc is mounted as an r/w overlay fs
         let etc: PathBuf = "/etc/printnanny/".into();
-        let etcd: PathBuf = "/etc/printnanny/printnanny.d/".into();
+        let confd: PathBuf = "/etc/printnanny/conf.d/".into();
         let run: PathBuf = "/var/run/printnanny".into();
         let log: PathBuf = "/var/log/printnanny".into();
         let events_socket = run.join("events.socket").into();
         let octoprint = OCTOPRINT_DIR.into();
         Self {
             etc,
-            etcd,
+            confd,
             run,
             log,
             events_socket,
@@ -318,7 +318,7 @@ impl PrintNannyConfig {
         .merge(Env::prefixed("PRINTNANNY_").global());
 
         let path: String = result
-            .find_value("paths.etcd")
+            .find_value("paths.confd")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
@@ -374,7 +374,7 @@ impl PrintNannyConfig {
     /// Save FACTORY_RESET field as <field>.toml Figment fragments
     ///
     /// If serialization or fs write fails, prints an error message indicating the failure
-    fn try_save_by_key(&self, key: &str) -> Result<(), PrintNannyConfigError> {
+    pub fn try_save_by_key(&self, key: &str) -> Result<(), PrintNannyConfigError> {
         let content = match key {
             "api" => toml::Value::try_from(figment::util::map! { key => &self.api}),
             "cloudiot_device" => {
@@ -394,7 +394,7 @@ impl PrintNannyConfig {
             }
         }?;
         let filename = format!("{}.toml", key);
-        let filename = self.paths.etcd.join(filename);
+        let filename = self.paths.confd.join(filename);
         info!("Saving {}.toml to {:?}", &key, &filename);
         fs::write(&filename, content.to_string())?;
         info!("Wrote {} to {:?}", key, filename);
@@ -548,7 +548,7 @@ mod tests {
     }
 
     #[test_log::test]
-    fn test_custom_etcd() {
+    fn test_custom_confd() {
         figment::Jail::expect_with(|jail| {
             jail.create_file(
                 "Local.toml",
@@ -556,7 +556,7 @@ mod tests {
                 profile = "local"
 
                 [paths]
-                etcd = ".tmp/"
+                confd = ".tmp/"
                 
                 [api]
                 base_path = "http://aurora:8000"
@@ -568,7 +568,7 @@ mod tests {
             let config: PrintNannyConfig = figment.extract()?;
 
             let base_path = "http://aurora:8000".into();
-            assert_eq!(config.paths.etcd, PathBuf::from(".tmp/"));
+            assert_eq!(config.paths.confd, PathBuf::from(".tmp/"));
             assert_eq!(config.api.base_path, base_path);
 
             assert_eq!(
@@ -595,7 +595,7 @@ mod tests {
                 "#,
             )?;
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
-            jail.set_env("PRINTNANNY_PATHS.ETCD", format!("{:?}", jail.directory()));
+            jail.set_env("PRINTNANNY_PATHS.confd", format!("{:?}", jail.directory()));
 
             let figment = PrintNannyConfig::figment();
             let mut config: PrintNannyConfig = figment.extract()?;
@@ -628,7 +628,7 @@ mod tests {
                 "#,
             )?;
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
-            jail.set_env("PRINTNANNY_PATHS.ETCD", format!("{:?}", jail.directory()));
+            jail.set_env("PRINTNANNY_PATHS.confd", format!("{:?}", jail.directory()));
 
             let expected: Option<String> = Some("http://aurora:8000".into());
             let value: Option<String> =
