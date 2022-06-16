@@ -183,6 +183,7 @@ pub struct PrintNannyPaths {
     pub etc: PathBuf,
     pub confd: PathBuf,
     pub events_socket: PathBuf,
+    pub issue_txt: PathBuf,
     pub log: PathBuf,
     pub octoprint: PathBuf,
     pub run: PathBuf,
@@ -193,6 +194,7 @@ impl Default for PrintNannyPaths {
         // /etc is mounted as an r/w overlay fs
         let etc: PathBuf = "/etc/printnanny/".into();
         let confd: PathBuf = "/etc/printnanny/conf.d/".into();
+        let issue_txt: PathBuf = "/boot/issue.txt".into();
         let run: PathBuf = "/var/run/printnanny".into();
         let log: PathBuf = "/var/log/printnanny".into();
         let events_socket = run.join("events.socket").into();
@@ -201,6 +203,7 @@ impl Default for PrintNannyPaths {
             etc,
             confd,
             run,
+            issue_txt,
             log,
             events_socket,
             octoprint,
