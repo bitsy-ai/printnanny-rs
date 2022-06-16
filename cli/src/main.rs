@@ -17,7 +17,6 @@ use printnanny_dash::home;
 use printnanny_services::config::ConfigFormat;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker };
-use printnanny_services::versioninfo::VersionInfo;
 use printnanny_cli::config::{ConfigAction};
 use printnanny_api_client::models;
 
@@ -165,11 +164,6 @@ async fn main() -> Result<()> {
             .subcommand(
                 Command::new("subscribe")
             ))
-        .subcommand(Command::new("version")
-            .author(crate_authors!())
-            .about(crate_description!())
-            .version(&version[..])
-            .about("Get VersionInfo for PrintNanny components"))
 
         .subcommand(Command::new("remote")
             .author(crate_authors!())
@@ -240,10 +234,6 @@ async fn main() -> Result<()> {
             ).await?;
             println!("{}", res);
 
-        },
-        Some(("version", _sub_m)) => {
-            let versioninfo = VersionInfo::new();
-            println!("{}", serde_json::to_string_pretty(&versioninfo)?);
         },
         _ => {}
     };
