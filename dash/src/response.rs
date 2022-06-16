@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::convert::From;
 
 use printnanny_services::config::PrintNannyConfig;
+use printnanny_services::error::ServiceError;
 use rocket::response::Redirect;
 use rocket::serde::json::Json;
 use rocket_dyn_templates::Template;
@@ -26,8 +27,8 @@ impl From<rocket::figment::error::Error> for Response {
     }
 }
 
-impl From<printnanny_services::printnanny_api::ServiceError> for Response {
-    fn from(error: printnanny_services::printnanny_api::ServiceError) -> Self {
+impl From<ServiceError> for Response {
+    fn from(error: ServiceError) -> Self {
         let msg = format!("Error de/serializing content {:?}", error);
         let mut context = HashMap::new();
         context.insert("errors", &msg);

@@ -9,7 +9,8 @@ use rocket_dyn_templates::Template;
 
 use printnanny_api_client::models;
 use printnanny_services::config::PrintNannyConfig;
-use printnanny_services::printnanny_api::{ApiService, ServiceError};
+use printnanny_services::error::ServiceError;
+use printnanny_services::printnanny_api::ApiService;
 
 use super::response::Response;
 pub const COOKIE_USER: &str = "printnanny_user";
