@@ -17,7 +17,7 @@ use printnanny_dash::home;
 use printnanny_services::config::ConfigFormat;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker };
-use printnanny_cli::config::{ConfigAction};
+use printnanny_cli::config::{ConfigAction, handle_check_license};
 use printnanny_api_client::models;
 
 #[tokio::main]
@@ -181,7 +181,21 @@ async fn main() -> Result<()> {
                 .short('d')
                 .takes_value(false)
                 .long("dryrun"))
+        )
+        .subcommand(Command::new("check-license")
+            .author(crate_authors!())
+            .about(crate_description!())
+            .version(&version[..])
+            .about("Exchange license key for a short-lived PrintNanny API credential")
+            .arg(Arg::new("input")
+                .help("Path to license.txt")
+                .short('i')
+                .long("input")
+                .takes_value(true)
+                .default_value("/boot/license.txt")
+            )
         );
+    
     
     let app_m = app.get_matches();
 
@@ -234,6 +248,10 @@ async fn main() -> Result<()> {
             ).await?;
             println!("{}", res);
 
+        },
+        Some(("check-license", sub_m)) => {
+            let input = sub_m.value_of("input").unwrap();
+            handle_check_license(input).await?;
         },
         _ => {}
     };

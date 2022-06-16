@@ -10,102 +10,14 @@ use printnanny_api_client::apis::config_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::janus_api;
-use printnanny_api_client::apis::octoprint_api;
+use printnanny_api_client::apis::licenses_api;
 use printnanny_api_client::apis::users_api;
 use printnanny_api_client::apis::Error as ApiError;
 use printnanny_api_client::models;
-use thiserror::Error;
 
 use super::config::PrintNannyConfig;
 use super::cpuinfo::RpiCpuInfo;
-use super::error::PrintNannyConfigError;
-
-#[derive(Error, Debug)]
-pub enum ServiceError {
-    #[error(transparent)]
-    ApiConfigRetreiveError(#[from] ApiError<config_api::ApiConfigRetreiveError>),
-    #[error(transparent)]
-    AuthTokenCreateError(#[from] ApiError<auth_api::AuthTokenCreateError>),
-    #[error(transparent)]
-    AuthEmailCreateError(#[from] ApiError<auth_api::AuthEmailCreateError>),
-    #[error(transparent)]
-    CloudiotDeviceUpdateOrCreateError(
-        #[from] ApiError<devices_api::CloudiotDeviceUpdateOrCreateError>,
-    ),
-
-    #[error(transparent)]
-    DevicesCreateError(#[from] ApiError<devices_api::DevicesCreateError>),
-
-    #[error(transparent)]
-    DevicesRetrieveError(#[from] ApiError<devices_api::DevicesRetrieveError>),
-
-    #[error(transparent)]
-    DevicesPartialUpdateError(#[from] ApiError<devices_api::DevicesPartialUpdateError>),
-
-    #[error(transparent)]
-    DevicesRetrieveHostnameError(#[from] ApiError<devices_api::DevicesRetrieveHostnameError>),
-
-    #[error(transparent)]
-    JanusEdgeStreamGetOrCreateError(
-        #[from] ApiError<janus_api::DevicesJanusEdgeStreamGetOrCreateError>,
-    ),
-    #[error(transparent)]
-    JanusCloudStreamGetOrCreateError(
-        #[from] ApiError<janus_api::DevicesJanusCloudStreamGetOrCreateError>,
-    ),
-    #[error(transparent)]
-    SystemInfoCreateError(#[from] ApiError<devices_api::DevicesSystemInfoCreateError>),
-    #[error(transparent)]
-    SystemInfoUpdateOrCreateError(#[from] ApiError<devices_api::SystemInfoUpdateOrCreateError>),
-
-    #[error(transparent)]
-    OctoprintInstallUpdateOrCreateError(
-        #[from] ApiError<octoprint_api::OctoprintInstallUpdateOrCreateError>,
-    ),
-
-    #[error(transparent)]
-    PublicKeyUpdateOrCreate(#[from] ApiError<devices_api::PublicKeyUpdateOrCreateError>),
-
-    #[error(transparent)]
-    FromUtf8Error(#[from] std::string::FromUtf8Error),
-
-    #[error(transparent)]
-    UsersRetrieveError(#[from] ApiError<users_api::UsersMeRetrieveError>),
-
-    #[error(transparent)]
-    Utf8Error(#[from] std::str::Utf8Error),
-
-    #[error("License fingerprint mismatch (expected {expected:?}, found {active:?})")]
-    InvalidLicense { expected: String, active: String },
-
-    #[error("Failed to fingerprint {path:?} got stderr {stderr:?}")]
-    FingerprintError { path: PathBuf, stderr: String },
-
-    #[error(transparent)]
-    ProcError(#[from] procfs::ProcError),
-
-    #[error(transparent)]
-    FigmentError(#[from] figment::Error),
-
-    #[error(transparent)]
-    SysInfoError(#[from] sys_info::Error),
-
-    #[error(transparent)]
-    IoError(#[from] std::io::Error),
-    #[error(transparent)]
-    SerdeError(#[from] serde_json::Error),
-
-    #[error(transparent)]
-    PrintNannyConfigError(#[from] PrintNannyConfigError),
-
-    #[error("Signup incomplete - failed to read from {cache:?}")]
-    SignupIncomplete { cache: PathBuf },
-    #[error("Setup incomplete, failed to read {field:?} {detail:?}")]
-    SetupIncomplete {
-        detail: Option<String>,
-        field: String,
-    },
-}
+use super::error::ServiceError;
 
 #[derive(Debug, Clone)]
 pub struct ApiService {
@@ -443,6 +355,16 @@ impl ApiService {
     //     let res = octoprint_api::octoprint_install_update_or_create(&self.reqwest, req).await?;
     //     Ok(res)
     // }
+
+    pub async fn check_license(
+        &self,
+        infile: &str,
+    ) -> Result<models::PrintNannyApiConfig, ServiceError> {
+        let file = File::open(infile)?;
+        let req: models::LicenseRequest = serde_json::from_reader(file)?;
+        let res = licenses_api::license_verify(&self.reqwest, req).await?;
+        Ok(res)
+    }
 
     // read <models::<T>>.json from disk cache @ /var/run/printnanny
     // hydrate cache if not found using fallback fn f (must return a Future)
