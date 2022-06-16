@@ -21,20 +21,14 @@
 </div>
 <div class="row">
     <div class="col-12">
-        <a target="_blank" href="/octoprint/">
-            <button>OctoPrint</button>
+        <a class="button success" target="_blank" href="/octoprint/">
+            OctoPrint
         </a>
-        <a target="_blank" href="{{ config.api.base_path }}{{ config.api.dashboard_url }}">
-            <button>PrintNanny Cloud</button>
+        <a class="button primary" target="_blank" href="{{ config.api.base_path }}{{ config.api.dashboard_url }}">
+           PrintNanny Cloud
         </a>
-        <a target="_blank" href="{{ config.api.base_path }}{{ config.device.video_test_url }}">
-            <button>Test Video</button>
-        </a>
-        <a target="_blank" href="/status">
-            <button>System Status</button>
-        </a>
-        <a target="_blank" href="/debug">
-            <button>Debug Settings</button>
+        <a class="button" target="_blank" href="http://{{ config.device.hostname }}:8080">
+            Update PrintNanny OS
         </a>
     </div>
 </div>
