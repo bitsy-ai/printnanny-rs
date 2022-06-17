@@ -1,3 +1,4 @@
+use log::info;
 use printnanny_services::config::{ConfigFormat, PrintNannyConfig};
 use printnanny_services::error::PrintNannyConfigError;
 use printnanny_services::error::ServiceError;
@@ -52,6 +53,7 @@ impl ConfigAction {
 pub async fn handle_check_license(infile: &str) -> Result<(), ServiceError> {
     let mut config: PrintNannyConfig = PrintNannyConfig::new()?;
     let api_service = ApiService::new(config.clone())?;
+    info!("Reading license from {}", infile);
     config.api = api_service.check_license(infile).await?;
     config.try_save_by_key("api")?;
     Ok(())
