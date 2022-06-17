@@ -52,9 +52,11 @@ impl ConfigAction {
 
 pub async fn handle_check_license(infile: &str) -> Result<(), ServiceError> {
     let mut config: PrintNannyConfig = PrintNannyConfig::new()?;
-    let api_service = ApiService::new(config.clone())?;
+    let mut api_service = ApiService::new(config.clone())?;
     info!("Reading license from {}", infile);
     config.api = api_service.check_license(infile).await?;
     config.try_save_by_key("api")?;
+    api_service.config = config;
+    api_service.device_setup().await?;
     Ok(())
 }

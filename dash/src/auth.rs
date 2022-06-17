@@ -124,9 +124,8 @@ async fn handle_token_validate(
         ..auth_config.api
     };
     auth_config.api = api_config;
-    let updated_config = handle_device_update(auth_config).await?;
-    info!("Success! Config updated: {:?}", updated_config);
-    Ok(updated_config)
+    auth_config.try_save_by_key("api")?;
+    Ok(auth_config)
 }
 
 #[post("/<email>", data = "<form>")]

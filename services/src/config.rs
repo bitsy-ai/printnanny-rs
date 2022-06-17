@@ -377,11 +377,12 @@ impl PrintNannyConfig {
     /// Save FACTORY_RESET field as <field>.toml Figment fragments
     ///
     /// If serialization or fs write fails, prints an error message indicating the failure
-    pub fn try_save_by_key(&self, key: &str) -> Result<(), PrintNannyConfigError> {
+    pub fn try_save_by_key(&self, key: &str) -> Result<PathBuf, PrintNannyConfigError> {
         let filename = format!("{}.toml", key);
         let filename = self.paths.confd.join(filename);
         self.try_save_fragment(key, &filename)?;
-        Ok(())
+        info!("Saved config fragment: {:?}", &filename);
+        Ok(filename)
     }
 
     pub fn try_save_fragment(
