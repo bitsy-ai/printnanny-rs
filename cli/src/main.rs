@@ -196,12 +196,6 @@ async fn main() -> Result<()> {
                 .takes_value(true)
                 .default_value("/boot/license.txt")
             )
-            .arg(Arg::new("output")
-                .help("Write short-lived credential to conf.d fragment")
-                .short('o')
-                .long("output")
-                .takes_value(true)
-                .default_value("/etc/printnanny/conf.d"))
         );
     
     
