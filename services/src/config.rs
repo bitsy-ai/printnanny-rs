@@ -192,8 +192,8 @@ pub struct PrintNannyPaths {
 impl Default for PrintNannyPaths {
     fn default() -> Self {
         // /etc is mounted as an r/w overlay fs
-        let etc: PathBuf = "/etc/printnanny/".into();
-        let confd: PathBuf = "/etc/printnanny/conf.d/".into();
+        let etc: PathBuf = "/etc/printnanny".into();
+        let confd: PathBuf = "/etc/printnanny/conf.d".into();
         let issue_txt: PathBuf = "/boot/issue.txt".into();
         let run: PathBuf = "/var/run/printnanny".into();
         let log: PathBuf = "/var/log/printnanny".into();
