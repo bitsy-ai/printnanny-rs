@@ -1,5 +1,6 @@
 use std::convert::TryFrom;
 use std::fs;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
@@ -36,7 +37,7 @@ pub struct MQTTWorker {
     mqttoptions: MqttOptions,
 }
 
-fn encode_jwt(private_key: &str, claims: &Claims) -> Result<String> {
+fn encode_jwt(private_key: &PathBuf, claims: &Claims) -> Result<String> {
     let contents =
         fs::read(private_key).context(format!("Failed to read file {:?}", private_key))?;
     let key = EncodingKey::from_ec_pem(&contents)
@@ -113,8 +114,7 @@ impl MQTTWorker {
             exp,
             aud: gcp_project_id,
         };
-        let key_contents = fs::read_to_string(&config.keys.ec_private_key_file())?;
-        let token = encode_jwt(&key_contents, &claims)?;
+        let token = encode_jwt(&config.keys.ec_private_key_file(), &claims)?;
         let mqttoptions = MQTTWorker::mqttoptions(cloudiot_device, &config.mqtt, &token)?;
 
         let result = MQTTWorker {
