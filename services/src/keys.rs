@@ -1,6 +1,7 @@
 use log::info;
 use openssl::ec::{EcGroup, EcKey};
 use openssl::nid::Nid;
+use openssl::pkey::PKey;
 use openssl::sha::sha256;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -44,11 +45,9 @@ impl PrintNannyKeys {
     fn _try_generate(&self) -> Result<(), PrintNannyConfigError> {
         let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1)?;
         let private_key = EcKey::generate(&group)?;
-        fs::write(
-            self.ec_private_key_file(),
-            private_key.private_key_to_pem()?,
-        )?;
         let public_key = EcKey::from_public_key(&group, private_key.public_key())?;
+        let pcks8_key = PKey::try_from(private_key)?.private_key_to_pem_pkcs8()?;
+        fs::write(self.ec_private_key_file(), pcks8_key)?;
         fs::write(self.ec_public_key_file(), public_key.public_key_to_pem()?)?;
 
         let public_der = public_key.public_key_to_der()?;
