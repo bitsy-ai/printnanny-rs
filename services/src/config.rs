@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::path::PathBuf;
@@ -9,6 +10,7 @@ use figment::{Figment, Metadata, Profile, Provider};
 use glob::glob;
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use super::error::PrintNannyConfigError;
 use super::keys::PrintNannyKeys;
@@ -477,6 +479,27 @@ impl PrintNannyConfig {
         let config = figment.extract::<Self>()?;
         Ok(config)
     }
+
+    // Parse /etc/os-release into Map
+    pub fn os_release(&self) -> Result<HashMap<String, Value>, std::io::Error> {
+        let content = fs::read_to_string("/etc/os-release")?;
+        let mut map = HashMap::<String, Value>::new();
+        let lines = content.split("\n");
+        for line in (lines).step_by(1) {
+            if line.contains("=") {
+                let mut pair = line.split("=");
+                let key = pair.nth(0).unwrap_or("unknown").to_string();
+                let value = pair
+                    .nth(0)
+                    .unwrap_or("unknown")
+                    .replace("\"", "")
+                    .to_string();
+                map.insert(key, Value::from(value));
+            }
+        }
+        info!("Parsed Map from /etc/os-release: {:?}", map);
+        Ok(map)
+    }
 }
 
 impl Provider for PrintNannyConfig {
@@ -652,5 +675,12 @@ mod tests {
             assert_eq!(value, expected);
             Ok(())
         });
+    }
+
+    #[test_log::test]
+    fn test_os_release() {
+        let config = PrintNannyConfig::new().unwrap();
+        let os_release = config.os_release().unwrap();
+        assert_eq!(true, os_release.contains_key("VERSION_ID"));
     }
 }
