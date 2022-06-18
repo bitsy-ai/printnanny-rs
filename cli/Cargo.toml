@@ -11,7 +11,7 @@ repository = "https://github.com/bitsy-ai/printnanny-cli.git"
 [dependencies]
 printnanny-dash = {path = "../dash", version = "^0.22.0-rc.5"}
 printnanny-services = {path = "../services", version = "^0.22.0-rc.5"}
-printnanny-api-client = "0.85.1"
+printnanny-api-client = "0.85.3"
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
 env_logger = "0.9"
