@@ -66,6 +66,9 @@ pub enum ServiceError {
     LicenseVerifyError(#[from] ApiError<licenses_api::LicenseVerifyError>),
 
     #[error(transparent)]
+    LicenseActivateError(#[from] ApiError<licenses_api::LicenseActivateError>),
+
+    #[error(transparent)]
     SystemInfoCreateError(#[from] ApiError<devices_api::DevicesSystemInfoCreateError>),
     #[error(transparent)]
     SystemInfoUpdateOrCreateError(#[from] ApiError<devices_api::SystemInfoUpdateOrCreateError>),
@@ -110,8 +113,6 @@ pub enum ServiceError {
     #[error(transparent)]
     PrintNannyConfigError(#[from] PrintNannyConfigError),
 
-    #[error("Signup incomplete - failed to read from {cache:?}")]
-    SignupIncomplete { cache: PathBuf },
     #[error("Setup incomplete, failed to read {field:?} {detail:?}")]
     SetupIncomplete {
         detail: Option<String>,

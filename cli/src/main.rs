@@ -188,14 +188,6 @@ async fn main() -> Result<()> {
             .about(crate_description!())
             .version(&version[..])
             .about("Exchange license key for a short-lived PrintNanny API credential")
-            .arg(Arg::new("input")
-                .help("Path to license.txt")
-                .short('i')
-                .long("input")
-                .required(true)
-                .takes_value(true)
-                .default_value("/boot/license.txt")
-            )
         );
     
     
@@ -253,8 +245,7 @@ async fn main() -> Result<()> {
 
         },
         Some(("check-license", sub_m)) => {
-            let input = sub_m.value_of("input").unwrap();
-            handle_check_license(input).await?;
+            handle_check_license().await?;
         },
         _ => {}
     };

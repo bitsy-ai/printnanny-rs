@@ -352,6 +352,24 @@ impl ApiService {
         Ok(res)
     }
 
+    pub async fn license_activate(&self) -> Result<models::License, ServiceError> {
+        let license_file = File::open(&self.config.paths.license)?;
+        let mut req: models::LicenseRequest = serde_json::from_reader(license_file)?;
+        match &self.device {
+            Some(device) => {
+                req.device = Some(device.id);
+                Ok(())
+            }
+            None => Err(ServiceError::SetupIncomplete {
+                detail: Some("license_activate()".to_string()),
+                field: "device".into(),
+            }),
+        }?;
+        let license_id = req.id.clone();
+        let res = licenses_api::license_activate(&self.reqwest, &license_id, req).await?;
+        Ok(res)
+    }
+
     // pub async fn octoprint_install_update_or_create(
     //     &self,
     //     device: i32,
@@ -368,11 +386,8 @@ impl ApiService {
     //     Ok(res)
     // }
 
-    pub async fn check_license(
-        &self,
-        infile: &str,
-    ) -> Result<models::PrintNannyApiConfig, ServiceError> {
-        let file = File::open(infile)?;
+    pub async fn check_license(&self) -> Result<models::PrintNannyApiConfig, ServiceError> {
+        let file = File::open(&self.config.paths.license)?;
         let req: models::LicenseRequest = serde_json::from_reader(file)?;
         let res = licenses_api::license_verify(&self.reqwest, req).await?;
         Ok(res)
