@@ -520,25 +520,26 @@ mod tests {
     fn test_paths() {
         figment::Jail::expect_with(|jail| {
             jail.create_file(
-                "PrintNanny.toml",
+                PRINTNANNY_CONFIG_FILENAME,
                 r#"
                 profile = "default"
 
                 [paths]
                 install = "/opt/printnanny/default"
                 data = "/opt/printnanny/default/data"
-                octoprint = "/home/leigh/projects/printnanny-cli/.tmp/test"
+                octoprint = "/home/octoprint/.octoprint"
 
                 
                 [api]
                 base_path = "https://print-nanny.com"
                 "#,
             )?;
+            jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
             let figment = PrintNannyConfig::figment();
             let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
                 config.paths.octoprint_venv(),
-                PathBuf::from("/home/leigh/projects/printnanny-cli/.tmp/test/venv")
+                PathBuf::from("/home/octoprint/.octoprint/venv")
             );
             Ok(())
         });
