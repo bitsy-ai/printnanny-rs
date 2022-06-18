@@ -188,6 +188,7 @@ pub struct PrintNannyPaths {
     pub etc: PathBuf,
     pub confd: PathBuf,
     pub events_socket: PathBuf,
+    pub license: PathBuf,
     pub issue_txt: PathBuf,
     pub log: PathBuf,
     pub octoprint: PathBuf,
@@ -203,6 +204,7 @@ impl Default for PrintNannyPaths {
         let run: PathBuf = "/var/run/printnanny".into();
         let log: PathBuf = "/var/log/printnanny".into();
         let events_socket = run.join("events.socket").into();
+        let license = "/boot/license.txt".into();
         let octoprint = OCTOPRINT_DIR.into();
         Self {
             etc,
@@ -212,6 +214,7 @@ impl Default for PrintNannyPaths {
             log,
             events_socket,
             octoprint,
+            license,
         }
     }
 }
