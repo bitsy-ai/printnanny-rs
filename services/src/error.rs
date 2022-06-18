@@ -12,8 +12,6 @@ use printnanny_api_client::apis::Error as ApiError;
 
 #[derive(Error, Debug)]
 pub enum PrintNannyConfigError {
-    #[error("Expected Device to be registered, but no id set. ")]
-    InvalidDevice,
     #[error("Failed to handle invalid config value {value:?}")]
     InvalidValue { value: String },
     #[error("Refusing to overwrite existing keypair at {path:?}.")]
