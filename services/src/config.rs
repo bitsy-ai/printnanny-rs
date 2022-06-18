@@ -122,7 +122,10 @@ impl Default for MQTTConfig {
     fn default() -> Self {
         Self {
             cmd: "/var/run/printnanny/cmd".into(),
-            ca_certs: vec!["/etc/ca-certificates".into()],
+            ca_certs: vec![
+                "/etc/ca-certificates/gtsltsr.crt".into(),
+                "/etc/ca-certificates/GSR4.crt".into(),
+            ],
             cipher: "secp256r1".into(),
             keepalive: 300, // seconds
         }
