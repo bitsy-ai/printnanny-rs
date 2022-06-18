@@ -1,4 +1,5 @@
 use log::{debug, info, warn};
+use serde_json::Value;
 use std::convert::TryInto;
 use std::fs::{read_to_string, File};
 use std::future::Future;
@@ -307,14 +308,11 @@ impl ApiService {
 
         // hacky parsing of rpi-specific /proc/cpuinfo
         let rpi_cpuinfo = RpiCpuInfo::new();
-        let hardware = rpi_cpuinfo
-            .hardware
-            .unwrap_or_else(|| "Unknown".to_string());
-        let model = rpi_cpuinfo.model.unwrap_or_else(|| "Unknown".to_string());
-        let serial = rpi_cpuinfo.serial.unwrap_or_else(|| "Unknown".to_string());
+        let model = rpi_cpuinfo.model.unwrap_or_else(|| "unknown".to_string());
+        let serial = rpi_cpuinfo.serial.unwrap_or_else(|| "unknown".to_string());
         let revision = rpi_cpuinfo
             .revision
-            .unwrap_or_else(|| "Unknown".to_string());
+            .unwrap_or_else(|| "unknown".to_string());
 
         let cpuinfo = procfs::CpuInfo::new()?;
         let cores: i32 = cpuinfo.num_cores().try_into().unwrap();
@@ -322,19 +320,33 @@ impl ApiService {
         let meminfo = procfs::Meminfo::new()?;
         let ram = meminfo.mem_total.try_into().unwrap();
 
-        let image_version = read_to_string("/boot/image_version.txt")
-            .unwrap_or_else(|_| "Failed to parse /boot/image_version.txt".to_string());
+        let os_release_json = self.config.os_release()?;
+        let unknown_value = Value::from("unknown");
+        let os_variant_id = os_release_json
+            .get("VARIANT_ID")
+            .unwrap_or(&unknown_value)
+            .to_string();
+        let os_build_id = os_release_json
+            .get("BUILD_ID")
+            .unwrap_or(&unknown_value)
+            .to_string();
+        let os_version_id = os_release_json
+            .get("VERSION_ID")
+            .unwrap_or(&unknown_value)
+            .to_string();
 
         let request = models::SystemInfoRequest {
             machine_id,
-            hardware,
             serial,
             revision,
             model,
             cores,
             ram,
-            image_version,
             device,
+            os_build_id,
+            os_variant_id,
+            os_version_id,
+            os_release_json: Some(os_release_json),
         };
         let res = devices_api::system_info_update_or_create(&self.reqwest, device, request).await?;
         Ok(res)

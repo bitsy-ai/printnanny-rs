@@ -9,7 +9,7 @@ rust-version = "1.59"
 
 [dependencies]
 printnanny-services = {path = "../services", version = "^0.22.0-rc.5"}
-printnanny-api-client = "0.83.0"
+printnanny-api-client = "0.85.0"
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
 env_logger = "0.9"
