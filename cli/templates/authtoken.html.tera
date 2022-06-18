@@ -25,7 +25,7 @@
         </div>
       </fieldset>
       <br />
-      <input type="submit" value="Finish Setup" class="is-full-width" />
+      <input type="submit" value="Submit" class="is-full-width" />
     </form>
   </div>
   <div class="col-3">
