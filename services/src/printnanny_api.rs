@@ -325,15 +325,21 @@ impl ApiService {
         let os_variant_id = os_release_json
             .get("VARIANT_ID")
             .unwrap_or(&unknown_value)
-            .to_string();
+            .as_str()
+            .unwrap()
+            .into();
         let os_build_id = os_release_json
             .get("BUILD_ID")
             .unwrap_or(&unknown_value)
-            .to_string();
+            .as_str()
+            .unwrap()
+            .into();
         let os_version_id = os_release_json
             .get("VERSION_ID")
             .unwrap_or(&unknown_value)
-            .to_string();
+            .as_str()
+            .unwrap()
+            .into();
 
         let request = models::SystemInfoRequest {
             machine_id,
