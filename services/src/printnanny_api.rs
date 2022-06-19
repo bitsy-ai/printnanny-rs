@@ -362,7 +362,7 @@ impl ApiService {
     pub async fn license_activate(&self) -> Result<models::License, ServiceError> {
         let license_file = File::open(&self.config.paths.license)?;
         let mut req: models::LicenseRequest = serde_json::from_reader(license_file)?;
-        match &self.device {
+        match &self.config.device {
             Some(device) => {
                 req.device = Some(device.id);
                 Ok(())
