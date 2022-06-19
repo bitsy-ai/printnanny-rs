@@ -243,6 +243,8 @@ impl PrintNannyPaths {
 pub struct PrintNannyConfig {
     pub printnanny_cloud_proxy: PrintNannyCloudProxy,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub alert_settings: Option<models::AlertSettings>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<models::Device>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<models::User>,
@@ -259,7 +261,8 @@ pub struct PrintNannyConfig {
     pub keys: PrintNannyKeys,
 }
 
-const FACTORY_RESET: [&'static str; 7] = [
+const FACTORY_RESET: [&'static str; 8] = [
+    "alert_settings",
     "api",
     "cloudiot_device",
     "device",
@@ -290,6 +293,7 @@ impl Default for PrintNannyConfig {
             paths,
             printnanny_cloud_proxy,
             keys,
+            alert_settings: None,
             cloudiot_device: None,
             device: None,
             user: None,
@@ -402,6 +406,9 @@ impl PrintNannyConfig {
         filename: &PathBuf,
     ) -> Result<(), PrintNannyConfigError> {
         let content = match key {
+            "alert_settings" => {
+                toml::Value::try_from(figment::util::map! { key => &self.alert_settings})
+            }
             "api" => toml::Value::try_from(figment::util::map! { key => &self.api}),
             "cloudiot_device" => {
                 toml::Value::try_from(figment::util::map! { key => &self.cloudiot_device})
