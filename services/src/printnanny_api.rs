@@ -348,6 +348,7 @@ impl ApiService {
             os_version_id,
             os_release_json: Some(os_release_json),
         };
+        info!("device_system_info_update_or_create request {:?}", request);
         let res = devices_api::system_info_update_or_create(&self.reqwest, device, request).await?;
         Ok(res)
     }
