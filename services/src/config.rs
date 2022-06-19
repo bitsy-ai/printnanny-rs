@@ -193,6 +193,7 @@ pub struct PrintNannyPaths {
     pub log: PathBuf,
     pub octoprint: PathBuf,
     pub run: PathBuf,
+    pub os_release: PathBuf,
 }
 
 impl Default for PrintNannyPaths {
@@ -206,6 +207,7 @@ impl Default for PrintNannyPaths {
         let events_socket = run.join("events.socket").into();
         let license = "/boot/license.txt".into();
         let octoprint = OCTOPRINT_DIR.into();
+        let os_release = "/etc/os-release".into();
         Self {
             etc,
             confd,
@@ -215,6 +217,7 @@ impl Default for PrintNannyPaths {
             events_socket,
             octoprint,
             license,
+            os_release,
         }
     }
 }
@@ -485,7 +488,7 @@ impl PrintNannyConfig {
 
     // Parse /etc/os-release into Map
     pub fn os_release(&self) -> Result<HashMap<String, Value>, std::io::Error> {
-        let content = fs::read_to_string("/etc/os-release")?;
+        let content = fs::read_to_string(&self.paths.os_release)?;
         let mut map = HashMap::<String, Value>::new();
         let lines = content.split("\n");
         for line in (lines).step_by(1) {
@@ -500,7 +503,7 @@ impl PrintNannyConfig {
                 map.insert(key, Value::from(value));
             }
         }
-        info!("Parsed Map from /etc/os-release: {:?}", map);
+        info!("Parsed Map from {:?}: {:?}", &self.paths.os_release, map);
         Ok(map)
     }
 }
@@ -683,8 +686,53 @@ mod tests {
 
     #[test_log::test]
     fn test_os_release() {
-        let config = PrintNannyConfig::new().unwrap();
-        let os_release = config.os_release().unwrap();
-        assert_eq!(true, os_release.contains_key("VERSION_ID"));
+        figment::Jail::expect_with(|jail| {
+            jail.create_file(
+                PRINTNANNY_CONFIG_FILENAME,
+                r#"
+                profile = "local"
+                [api]
+                base_path = "http://aurora:8000"
+                
+                "#,
+            )?;
+            jail.create_file(
+                "os-release",
+                r#"
+ID=printnanny
+ID_LIKE="BitsyLinux"
+BUILD_ID="2022-06-18T18:46:49Z"
+NAME="PrintNanny Linux"
+VERSION="0.1.2 (Amber)"
+VERSION_ID=0.1.2
+PRETTY_NAME="PrintNanny Linux 0.1.2 (Amber)"
+DISTRO_CODENAME="Amber"
+HOME_URL="https://printnanny.ai"
+BUG_REPORT_URL="https://github.com/bitsy-ai/printnanny-os/issues"
+YOCTO_VERSION="4.0.1"
+YOCTO_CODENAME="Kirkstone"
+SDK_VERSION="0.1.2"
+VARIANT="PrintNanny OctoPrint Edition"
+VARIANT_ID=printnanny-octoprint
+                "#,
+            )?;
+            jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
+            jail.set_env(
+                "PRINTNANNY_PATHS.os_release",
+                format!("{:?}", jail.directory().join("os-release")),
+            );
+
+            let config = PrintNannyConfig::new().unwrap();
+            let os_release = config.os_release().unwrap();
+            let unknown_value = Value::from("unknown");
+            let os_build_id: String = os_release
+                .get("BUILD_ID")
+                .unwrap_or(&unknown_value)
+                .as_str()
+                .unwrap()
+                .into();
+            assert_eq!("2022-06-18T18:46:49Z".to_string(), os_build_id);
+            Ok(())
+        });
     }
 }
