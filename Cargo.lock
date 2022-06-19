@@ -2539,7 +2539,6 @@ dependencies = [
  "serde_with",
  "sha2 0.9.9",
  "sys-info",
- "tempfile",
  "test-log",
  "thiserror",
  "tokio",
