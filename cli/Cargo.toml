@@ -8,6 +8,13 @@ edition = "2021"
 rust-version = "1.59"
 repository = "https://github.com/bitsy-ai/printnanny-cli.git"
 
+[build]
+targets = [
+    "aarch64-unknown-linux-gnu",
+    "armv7-unknown-linux-gnueabihf",
+    "x86_64-unknown-linux-gnu",
+]
+
 [dependencies]
 printnanny-dash = {path = "../dash"}
 printnanny-services = {path = "../services"}

@@ -7,6 +7,13 @@ authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2021"
 rust-version = "1.59"
 
+[build]
+targets = [
+    "aarch64-unknown-linux-gnu",
+    "armv7-unknown-linux-gnueabihf",
+    "x86_64-unknown-linux-gnu",
+]
+
 [dependencies]
 printnanny-services = {path = "../services"}
 printnanny-api-client = "0.85.3"
