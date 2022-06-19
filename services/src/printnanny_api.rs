@@ -6,6 +6,7 @@ use std::future::Future;
 use std::io::BufReader;
 use std::path::Path;
 
+use printnanny_api_client::apis::alert_settings_api;
 use printnanny_api_client::apis::auth_api;
 use printnanny_api_client::apis::config_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
@@ -57,6 +58,14 @@ impl ApiService {
             user: None,
         })
     }
+    // alert settings API
+    pub async fn alert_settings_get_or_create(
+        &self,
+    ) -> Result<models::AlertSettings, ServiceError> {
+        let res = alert_settings_api::alert_settings_get_or_create_retrieve(&self.reqwest).await?;
+        Ok(res)
+    }
+
     // auth APIs
     // fetch user associated with auth token
     pub async fn api_client_config_retieve(
@@ -204,6 +213,10 @@ impl ApiService {
             .cloudiot_device_update_or_create(device.id, public_key.id)
             .await?;
         info!("Success! Updated CloudiotDevice {:?}", cloudiot_device);
+
+        // get or create AlertSettings
+        let alert_settings = self.alert_settings_get_or_create().await?;
+        self.config.alert_settings = Some(alert_settings);
 
         // create OctoPrintInstall / RepetierInstall / MainsailInstall
         // let octoprint_install = match self.config.edition {

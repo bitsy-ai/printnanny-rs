@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use thiserror::Error;
 
+use printnanny_api_client::apis::alert_settings_api;
 use printnanny_api_client::apis::auth_api;
 use printnanny_api_client::apis::config_api;
 use printnanny_api_client::apis::devices_api;
@@ -31,6 +32,11 @@ pub enum PrintNannyConfigError {
 
 #[derive(Error, Debug)]
 pub enum ServiceError {
+    #[error(transparent)]
+    AlertSettingsGetOrCreateRetrieveError(
+        #[from] ApiError<alert_settings_api::AlertSettingsGetOrCreateRetrieveError>,
+    ),
+
     #[error(transparent)]
     ApiConfigRetreiveError(#[from] ApiError<config_api::ApiConfigRetreiveError>),
     #[error(transparent)]
