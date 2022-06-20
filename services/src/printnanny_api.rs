@@ -97,19 +97,6 @@ impl ApiService {
         Ok(auth_api::auth_token_create(&self.reqwest, req).await?)
     }
 
-    // device API
-    pub async fn device_create(&self) -> Result<models::Device, ServiceError> {
-        let hostname = sys_info::hostname()?;
-        let req = models::DeviceRequest {
-            hostname: Some(hostname),
-            monitoring_active: Some(false),
-            release_channel: None,
-            setup_complete: Some(false),
-            edition: printnanny_api_client::models::OsEdition::OctoprintDesktop, // TODO read from /etc/os-release
-        };
-        Ok(devices_api::devices_create(&self.reqwest, req).await?)
-    }
-
     pub async fn device_retrieve_hostname(&self) -> Result<models::Device, ServiceError> {
         let hostname = sys_info::hostname()?;
         let res = devices_api::devices_retrieve_hostname(&self.reqwest, &hostname).await?;
@@ -124,28 +111,6 @@ impl ApiService {
         let req = models::CloudiotDeviceRequest { public_key };
         let res = devices_api::cloudiot_device_update_or_create(&self.reqwest, device, req).await?;
         Ok(res)
-    }
-
-    pub async fn device_retrieve_or_create_hostname(&self) -> Result<models::Device, ServiceError> {
-        let res = self.device_retrieve_hostname().await;
-        match res {
-            Ok(device) => Ok(device),
-            // handle 404 / Not Found error by attempting to create device with hostname
-            Err(e) => match &e {
-                ServiceError::DevicesRetrieveHostnameError(ApiError::ResponseError(content)) => {
-                    match content.status {
-                        reqwest::StatusCode::NOT_FOUND => {
-                            warn!("Failed retreive device with error={:?} - attempting to create device", e);
-                            let res = self.device_create().await?;
-                            info!("Success! Created device={:?}", res);
-                            Ok(res)
-                        }
-                        _ => Err(e),
-                    }
-                }
-                _ => Err(e),
-            },
-        }
     }
 
     pub async fn device_patch(
@@ -190,13 +155,10 @@ impl ApiService {
         Ok(())
     }
 
-    pub async fn device_setup(&mut self) -> Result<(), ServiceError> {
+    pub async fn device_setup(&mut self, device: models::Device) -> Result<(), ServiceError> {
         // get or create device with matching hostname
         let hostname = sys_info::hostname()?;
         info!("Begin setup for host {}", hostname);
-        info!("Calling device_retrieve_or_create_hostname()");
-        let device = self.device_retrieve_or_create_hostname().await?;
-        info!("Success! Registered device: {:?}", device);
         // create SystemInfo
         info!("Calling device_system_info_update_or_create()");
         let system_info = self.device_system_info_update_or_create(device.id).await?;
