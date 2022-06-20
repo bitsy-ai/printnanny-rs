@@ -51,17 +51,9 @@ impl ConfigAction {
 }
 
 pub async fn handle_check_license() -> Result<(), ServiceError> {
-    let mut config: PrintNannyConfig = PrintNannyConfig::new()?;
-    let api_service = ApiService::new(config.clone())?;
-    info!("Reading license from {:?}", &config.paths.license);
-    // verify license + user id combo is valid, receive short-lived api credential
-    config.api = api_service.check_license().await?;
-    config.try_save_by_key("api")?;
-    // re-initialize api_service with api credential
+    let config: PrintNannyConfig = PrintNannyConfig::new()?;
+    info!("Loaded license from {:?}", &config.paths.license);
     let mut api_service = ApiService::new(config.clone())?;
-    // create or update device models
     api_service.device_setup().await?;
-    // mark license as active
-    api_service.license_activate().await?;
     Ok(())
 }

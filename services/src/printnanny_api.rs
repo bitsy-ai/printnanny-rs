@@ -12,7 +12,6 @@ use printnanny_api_client::apis::config_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::janus_api;
-use printnanny_api_client::apis::licenses_api;
 use printnanny_api_client::apis::users_api;
 use printnanny_api_client::apis::Error as ApiError;
 use printnanny_api_client::models;
@@ -96,13 +95,6 @@ impl ApiService {
         };
         Ok(auth_api::auth_token_create(&self.reqwest, req).await?)
     }
-
-    pub async fn device_retrieve_hostname(&self) -> Result<models::Device, ServiceError> {
-        let hostname = sys_info::hostname()?;
-        let res = devices_api::devices_retrieve_hostname(&self.reqwest, &hostname).await?;
-        Ok(res)
-    }
-
     pub async fn cloudiot_device_update_or_create(
         &self,
         device: i32,
@@ -110,20 +102,6 @@ impl ApiService {
     ) -> Result<models::CloudiotDevice, ServiceError> {
         let req = models::CloudiotDeviceRequest { public_key };
         let res = devices_api::cloudiot_device_update_or_create(&self.reqwest, device, req).await?;
-        Ok(res)
-    }
-
-    pub async fn device_patch(
-        &self,
-        device_id: i32,
-        request: models::PatchedDeviceRequest,
-    ) -> Result<models::Device, ServiceError> {
-        let res =
-            devices_api::devices_partial_update(&self.reqwest, device_id, Some(request)).await?;
-        info!(
-            "Success! Patched device_id={} with response={:?}",
-            device_id, res
-        );
         Ok(res)
     }
 
@@ -155,67 +133,45 @@ impl ApiService {
         Ok(())
     }
 
-    pub async fn device_setup(&mut self, device: models::Device) -> Result<(), ServiceError> {
-        // get or create device with matching hostname
-        let hostname = sys_info::hostname()?;
-        info!("Begin setup for host {}", hostname);
-        // create SystemInfo
-        info!("Calling device_system_info_update_or_create()");
-        let system_info = self.device_system_info_update_or_create(device.id).await?;
-        info!("Success! Updated SystemInfo {:?}", system_info);
+    pub async fn device_setup(&mut self) -> Result<(), ServiceError> {
+        // verify device is set
+        match &self.config.device {
+            Some(device) => {
+                info!("Calling device_system_info_update_or_create()");
+                let system_info = self.device_system_info_update_or_create(device.id).await?;
+                info!("Success! Updated SystemInfo {:?}", system_info);
 
-        // create PublicKey
-        info!("Calling device_public_key_update_or_create()");
-        let public_key = self.device_public_key_update_or_create(device.id).await?;
-        info!("Success! Updated PublicKey: {:?}", public_key);
+                // create PublicKey
+                info!("Calling device_public_key_update_or_create()");
+                let public_key = self.device_public_key_update_or_create(device.id).await?;
+                info!("Success! Updated PublicKey: {:?}", public_key);
 
-        // create GCP Cloudiot Device
-        info!("Calling cloudiot_device_update_or_create()");
-        let cloudiot_device = self
-            .cloudiot_device_update_or_create(device.id, public_key.id)
-            .await?;
-        info!("Success! Updated CloudiotDevice {:?}", cloudiot_device);
+                // create GCP Cloudiot Device
+                info!("Calling cloudiot_device_update_or_create()");
+                let cloudiot_device = self
+                    .cloudiot_device_update_or_create(device.id, public_key.id)
+                    .await?;
+                info!("Success! Updated CloudiotDevice {:?}", cloudiot_device);
 
-        // get or create AlertSettings
-        let alert_settings = self.alert_settings_get_or_create().await?;
-        self.config.alert_settings = Some(alert_settings);
+                // get or create AlertSettings
+                let alert_settings = self.alert_settings_get_or_create().await?;
+                self.config.alert_settings = Some(alert_settings);
+                let user = self.auth_user_retreive().await?;
 
-        // create OctoPrintInstall / RepetierInstall / MainsailInstall
-        // let octoprint_install = match self.config.edition {
-        //     models::OsEdition::OctoprintDesktop => {
-        //         Ok(self.octoprint_install_update_or_create(device.id).await?)
-        //     }
-        //     models::OsEdition::OctoprintLite => {
-        //         Ok(self.octoprint_install_update_or_create(device.id).await?)
-        //     }
-        //     _ => Err(PrintNannyConfigError::InvalidValue {
-        //         value: format!("edition={:?}", &self.config.edition),
-        //     }),
-        // }?;
-
-        // refresh user
-        let user = self.auth_user_retreive().await?;
-
-        // setup edge + cloud janus streams
-
-        let patched = models::PatchedDeviceRequest {
-            setup_complete: Some(true),
-            monitoring_active: None,
-            release_channel: None,
-            hostname: None,
-            edition: None,
-        };
-        let device = self.device_patch(device.id, patched).await?;
-
-        let api = self.api_client_config_retieve().await?;
-        self.config.api = api;
-        self.config.device = Some(device);
-        self.config.cloudiot_device = Some(cloudiot_device);
-        self.config.user = Some(user);
-        self.stream_setup().await?;
-        self.config.try_save()?;
-
-        Ok(())
+                // setup edge + cloud janus streams
+                let api = self.api_client_config_retieve().await?;
+                self.config.api = api;
+                self.config.cloudiot_device = Some(cloudiot_device);
+                self.config.user = Some(user);
+                self.stream_setup().await?;
+                self.config.try_save()?;
+                Ok(())
+            }
+            None => Err(ServiceError::SetupIncomplete {
+                field: "device".to_string(),
+                detail: None,
+            }),
+        }
     }
 
     pub async fn device_public_key_update_or_create(
@@ -334,24 +290,6 @@ impl ApiService {
         Ok(res)
     }
 
-    pub async fn license_activate(&self) -> Result<models::License, ServiceError> {
-        let license_file = File::open(&self.config.paths.license)?;
-        let mut req: models::LicenseRequest = serde_json::from_reader(license_file)?;
-        match &self.config.device {
-            Some(device) => {
-                req.device = Some(device.id);
-                Ok(())
-            }
-            None => Err(ServiceError::SetupIncomplete {
-                detail: Some("license_activate()".to_string()),
-                field: "device".into(),
-            }),
-        }?;
-        let license_id = req.id.clone();
-        let res = licenses_api::license_activate(&self.reqwest, &license_id, req).await?;
-        Ok(res)
-    }
-
     // pub async fn octoprint_install_update_or_create(
     //     &self,
     //     device: i32,
@@ -367,13 +305,6 @@ impl ApiService {
     //     let res = octoprint_api::octoprint_install_update_or_create(&self.reqwest, req).await?;
     //     Ok(res)
     // }
-
-    pub async fn check_license(&self) -> Result<models::PrintNannyApiConfig, ServiceError> {
-        let file = File::open(&self.config.paths.license)?;
-        let req: models::LicenseRequest = serde_json::from_reader(file)?;
-        let res = licenses_api::license_verify(&self.reqwest, req).await?;
-        Ok(res)
-    }
 
     // read <models::<T>>.json from disk cache @ /var/run/printnanny
     // hydrate cache if not found using fallback fn f (must return a Future)
