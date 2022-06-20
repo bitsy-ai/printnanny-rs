@@ -205,7 +205,7 @@ impl Default for PrintNannyPaths {
         let run: PathBuf = "/var/run/printnanny".into();
         let log: PathBuf = "/var/log/printnanny".into();
         let events_socket = run.join("events.socket").into();
-        let license = "/boot/license.txt".into();
+        let license = "/boot/license.json".into();
         let octoprint = OCTOPRINT_DIR.into();
         let os_release = "/etc/os-release".into();
         Self {
@@ -335,14 +335,21 @@ impl PrintNannyConfig {
         )))
         .merge(Env::prefixed("PRINTNANNY_").global());
 
-        let path: String = result
+        let confd_path: String = result
             .find_value("paths.confd")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
+        let license_json: String = result
+            .find_value("paths.license")
+            .unwrap()
+            .deserialize::<String>()
+            .unwrap();
+        // merge license.json contents
+        let result = result.merge(Json::file(&license_json));
 
-        let toml_glob = format!("{}/*.toml", &path);
-        let json_glob = format!("{}/*.json", &path);
+        let toml_glob = format!("{}/*.toml", &confd_path);
+        let json_glob = format!("{}/*.json", &confd_path);
 
         let result = Self::read_path_glob::<Json>(&json_glob, result);
         let result = Self::read_path_glob::<Toml>(&toml_glob, result);

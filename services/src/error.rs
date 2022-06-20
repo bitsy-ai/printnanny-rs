@@ -6,7 +6,6 @@ use printnanny_api_client::apis::auth_api;
 use printnanny_api_client::apis::config_api;
 use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::janus_api;
-use printnanny_api_client::apis::licenses_api;
 use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::apis::users_api;
 use printnanny_api_client::apis::Error as ApiError;
@@ -68,12 +67,6 @@ pub enum ServiceError {
     JanusCloudStreamGetOrCreateError(
         #[from] ApiError<janus_api::DevicesJanusCloudStreamGetOrCreateError>,
     ),
-    #[error(transparent)]
-    LicenseVerifyError(#[from] ApiError<licenses_api::LicenseVerifyError>),
-
-    #[error(transparent)]
-    LicenseActivateError(#[from] ApiError<licenses_api::LicenseActivateError>),
-
     #[error(transparent)]
     SystemInfoCreateError(#[from] ApiError<devices_api::DevicesSystemInfoCreateError>),
     #[error(transparent)]
