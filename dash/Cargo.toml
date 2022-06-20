@@ -15,7 +15,7 @@ targets = [
 ]
 
 [dependencies]
-printnanny-services = {path = "../services"}
+printnanny-services = {path = "../services", version = "0"}
 printnanny-api-client = "0.88.2"
 serde = "1"
 thiserror = "1"
