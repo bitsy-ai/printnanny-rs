@@ -60,16 +60,12 @@ pub fn parse_pip_version(stdout: &str) -> Option<String> {
 }
 
 impl OctoPrintConfig {
-    pub fn venv_path(&self) -> PathBuf {
-        self.base_path.join("venv")
-    }
-
     pub fn pip_path(&self) -> PathBuf {
-        self.base_path.join("bin/pip")
+        self.venv_path.join("bin/pip")
     }
 
     pub fn python_path(&self) -> PathBuf {
-        self.base_path.join("bin/python")
+        self.venv_path.join("bin/python")
     }
 
     pub fn pip_version(&self) -> Result<Option<String>, PrintNannyConfigError> {
