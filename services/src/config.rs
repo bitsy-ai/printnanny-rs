@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::path::PathBuf;
@@ -10,7 +9,6 @@ use figment::{Figment, Metadata, Profile, Provider};
 use glob::glob;
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use super::error::PrintNannyConfigError;
 use super::keys::PrintNannyKeys;
@@ -444,27 +442,6 @@ impl PrintNannyConfig {
         let config = figment.extract::<Self>()?;
         Ok(config)
     }
-
-    // Parse /etc/os-release into Map
-    pub fn os_release(&self) -> Result<HashMap<String, Value>, std::io::Error> {
-        let content = fs::read_to_string(&self.paths.os_release)?;
-        let mut map = HashMap::<String, Value>::new();
-        let lines = content.split("\n");
-        for line in (lines).step_by(1) {
-            if line.contains("=") {
-                let mut pair = line.split("=");
-                let key = pair.nth(0).unwrap_or("unknown").to_string();
-                let value = pair
-                    .nth(0)
-                    .unwrap_or("unknown")
-                    .replace("\"", "")
-                    .to_string();
-                map.insert(key, Value::from(value));
-            }
-        }
-        info!("Parsed Map from {:?}: {:?}", &self.paths.os_release, map);
-        Ok(map)
-    }
 }
 
 impl Provider for PrintNannyConfig {
@@ -481,6 +458,7 @@ impl Provider for PrintNannyConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::paths::PRINTNANNY_CONFIG_FILENAME;
     #[test_log::test]
     fn test_paths() {
         figment::Jail::expect_with(|jail| {
@@ -682,15 +660,15 @@ VARIANT_ID=printnanny-octoprint
             );
 
             let config = PrintNannyConfig::new().unwrap();
-            let os_release = config.os_release().unwrap();
-            let unknown_value = Value::from("unknown");
-            let os_build_id: String = os_release
-                .get("BUILD_ID")
-                .unwrap_or(&unknown_value)
-                .as_str()
-                .unwrap()
-                .into();
-            assert_eq!("2022-06-18T18:46:49Z".to_string(), os_build_id);
+            let os_release = config.paths.load_os_release().unwrap();
+            // let unknown_value = Value::from("unknown");
+            // let os_build_id: String = os_release
+            //     .get("BUILD_ID")
+            //     .unwrap_or(&unknown_value)
+            //     .as_str()
+            //     .unwrap()
+            //     .into();
+            assert_eq!("2022-06-18T18:46:49Z".to_string(), os_release.build_id);
             Ok(())
         });
     }

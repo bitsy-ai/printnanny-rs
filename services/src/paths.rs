@@ -1,5 +1,15 @@
+use log::info;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::fs::File;
+use std::io::{self, BufRead, BufReader};
+use std::iter::FromIterator;
+use std::path::Path;
 use std::path::PathBuf;
+
+use super::os_release::OsRelease;
 
 pub const OCTOPRINT_DIR: &str = "/home/octoprint/.octoprint";
 pub const PRINTNANNY_CONFIG_FILENAME: &str = "default.toml";
@@ -58,5 +68,32 @@ impl PrintNannyPaths {
 
     pub fn octoprint_python(&self) -> PathBuf {
         self.octoprint_venv().join("bin/pip")
+    }
+
+    // Parse /etc/os-release into OsRelease
+    // Strips out quotes
+    // pub fn os_release(&self) -> Result<OsRelease, std::io::Error> {
+    //     let content = fs::read_to_string(&self.os_release)?;
+    //     let mut map = HashMap::<String, Value>::new();
+    //     let lines = content.split("\n");
+    //     for line in (lines).step_by(1) {
+    //         if line.contains("=") {
+    //             let mut pair = line.split("=");
+    //             let key = pair.nth(0).unwrap_or("unknown").to_string();
+    //             let value = pair
+    //                 .nth(0)
+    //                 .unwrap_or("unknown")
+    //                 .replace("\"", "")
+    //                 .to_string();
+    //             map.insert(key, Value::from(value));
+    //         }
+    //     }
+    //     info!("Parsed Map from {:?}: {:?}", &self.os_release, map);
+    //     let result: OsRelease  =
+    //     Ok(OsRelease::from(map))
+    // }
+
+    pub fn load_os_release(&self) -> Result<OsRelease, std::io::Error> {
+        OsRelease::new_from(&self.os_release)
     }
 }

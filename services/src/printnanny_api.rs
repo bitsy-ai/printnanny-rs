@@ -250,27 +250,29 @@ impl ApiService {
         let meminfo = procfs::Meminfo::new()?;
         let ram = meminfo.mem_total.try_into().unwrap();
 
-        let os_release_json = self.config.os_release()?;
-        let unknown_value = Value::from("unknown");
-        let os_variant_id = os_release_json
-            .get("VARIANT_ID")
-            .unwrap_or(&unknown_value)
-            .as_str()
-            .unwrap()
-            .into();
-        let os_build_id = os_release_json
-            .get("BUILD_ID")
-            .unwrap_or(&unknown_value)
-            .as_str()
-            .unwrap()
-            .into();
-        let os_version_id = os_release_json
-            .get("VERSION_ID")
-            .unwrap_or(&unknown_value)
-            .as_str()
-            .unwrap()
-            .into();
+        let os_release = self.config.paths.load_os_release()?;
+        // let unknown_value = Value::from("unknown");
+        // let os_variant_id = os_release_json
+        //     .get("VARIANT_ID")
+        //     .unwrap_or(&unknown_value)
+        //     .as_str()
+        //     .unwrap()
+        //     .into();
+        // let os_build_id = os_release_json
+        //     .get("BUILD_ID")
+        //     .unwrap_or(&unknown_value)
+        //     .as_str()
+        //     .unwrap()
+        //     .into();
+        // let os_version_id = os_release_json
+        //     .get("VERSION_ID")
+        //     .unwrap_or(&unknown_value)
+        //     .as_str()
+        //     .unwrap()
+        //     .into();
 
+        // let os_release_json = serde_json::to_string(os_release)?;
+        // TODO fix json
         let request = models::SystemInfoRequest {
             machine_id,
             serial,
@@ -279,10 +281,10 @@ impl ApiService {
             cores,
             ram,
             device,
-            os_build_id,
-            os_variant_id,
-            os_version_id,
-            os_release_json: Some(os_release_json),
+            os_build_id: os_release.build_id,
+            os_variant_id: os_release.variant_id,
+            os_version_id: os_release.version_id,
+            os_release_json: None,
         };
         info!("device_system_info_update_or_create request {:?}", request);
         let res = devices_api::system_info_update_or_create(&self.reqwest, device, request).await?;

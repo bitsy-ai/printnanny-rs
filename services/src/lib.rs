@@ -5,5 +5,6 @@ pub mod janus;
 pub mod keys;
 pub mod mqtt;
 pub mod octoprint;
+pub mod os_release;
 pub mod paths;
 pub mod printnanny_api;
