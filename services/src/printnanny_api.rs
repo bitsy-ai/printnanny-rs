@@ -158,11 +158,10 @@ impl ApiService {
                 self.config.alert_settings = Some(alert_settings);
                 let user = self.auth_user_retreive().await?;
                 info!("Success! Got user: {:?}", user);
-
+                let api = self.api_client_config_retieve().await?;
                 let octoprint_server = self.octoprint_server_update_or_create().await?;
                 info!("Success! Updated OctoPrintServer {:?}", octoprint_server);
                 // setup edge + cloud janus streams
-                let api = self.api_client_config_retieve().await?;
                 self.config.api = api;
                 self.config.cloudiot_device = Some(cloudiot_device);
                 self.config.user = Some(user);
@@ -317,6 +316,10 @@ impl ApiService {
             device,
             python_version,
         };
+        debug!(
+            "Sending request {:?} to octoprint_server_update_or_create",
+            req
+        );
         let res = octoprint_api::octoprint_server_update_or_create(&self.reqwest, req).await?;
         Ok(res)
     }

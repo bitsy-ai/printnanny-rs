@@ -76,23 +76,61 @@ impl OctoPrintConfig {
             .output()
             .expect(&msg);
         let stdout = String::from_utf8_lossy(&output.stdout);
-        Ok(parse_pip_version(&stdout))
+        match output.status.success() {
+            true => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let result = parse_pip_version(&stdout);
+                debug!(
+                    "Found pip_packages in venv {:?} {:?}",
+                    &self.venv_path, &result
+                );
+                Ok(result)
+            }
+            false => {
+                let cmd = format!("{:?} --version", &self.pip_path());
+                let code = output.status.code();
+                let stderr = String::from_utf8_lossy(&output.stderr).into();
+                let stdout = stdout.into();
+                Err(PrintNannyConfigError::CommandError {
+                    cmd,
+                    stdout,
+                    stderr,
+                    code,
+                })
+            }
+        }
     }
 
     pub fn pip_packages(&self) -> Result<Vec<PipPackage>, PrintNannyConfigError> {
-        let msg = format!("{:?} list --json failed", &self.pip_path());
         let output = Command::new(&self.pip_path())
             .arg("list")
-            .arg("--json")
-            .output()
-            .expect(&msg);
+            .arg("--format")
+            .arg("json")
+            .output()?;
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let result = parse_pip_list_json(&stdout)?;
-        debug!(
-            "Found pip_packages in venv {:?} {:?}",
-            &self.venv_path, &result
-        );
-        Ok(result)
+        match output.status.success() {
+            true => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let result = parse_pip_list_json(&stdout)?;
+                debug!(
+                    "Found pip_packages in venv {:?} {:?}",
+                    &self.venv_path, &result
+                );
+                Ok(result)
+            }
+            false => {
+                let cmd = format!("{:?} list --format json", &self.pip_path());
+                let code = output.status.code();
+                let stderr = String::from_utf8_lossy(&output.stderr).into();
+                let stdout = stdout.into();
+                Err(PrintNannyConfigError::CommandError {
+                    cmd,
+                    stdout,
+                    stderr,
+                    code,
+                })
+            }
+        }
     }
 
     pub fn python_version(&self) -> Result<Option<String>, PrintNannyConfigError> {
@@ -102,12 +140,29 @@ impl OctoPrintConfig {
             .output()
             .expect(&msg);
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let result = parse_python_version(&stdout);
-        debug!(
-            "Parsed python_version in {:?} {:?}",
-            &self.venv_path, &result
-        );
-        Ok(result)
+        match output.status.success() {
+            true => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let result = parse_python_version(&stdout);
+                debug!(
+                    "Parsed python_version in {:?} {:?}",
+                    &self.venv_path, &result
+                );
+                Ok(result)
+            }
+            false => {
+                let cmd = format!("{:?} ", &self.pip_path());
+                let code = output.status.code();
+                let stderr = String::from_utf8_lossy(&output.stderr).into();
+                let stdout = stdout.into();
+                Err(PrintNannyConfigError::CommandError {
+                    cmd,
+                    stdout,
+                    stderr,
+                    code,
+                })
+            }
+        }
     }
 
     pub fn octoprint_version(

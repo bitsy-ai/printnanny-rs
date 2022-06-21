@@ -12,6 +12,14 @@ use printnanny_api_client::apis::Error as ApiError;
 
 #[derive(Error, Debug)]
 pub enum PrintNannyConfigError {
+    #[error("Command {cmd} exited with code {code:?} stdout: {stdout} stderr: {stderr}")]
+    CommandError {
+        cmd: String,
+        code: Option<i32>,
+        stdout: String,
+        stderr: String,
+    },
+
     #[error("Failed to parse OctoPrintServer field: {field} {detail:?}")]
     OctoPrintServerConfigError {
         field: String,
