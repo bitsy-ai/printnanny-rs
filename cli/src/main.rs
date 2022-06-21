@@ -244,7 +244,7 @@ async fn main() -> Result<()> {
             println!("{}", res);
 
         },
-        Some(("check-license", sub_m)) => {
+        Some(("check-license", _)) => {
             handle_check_license().await?;
         },
         _ => {}

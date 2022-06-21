@@ -1,15 +1,6 @@
-use log::info;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::BTreeMap;
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::{self, BufRead, BufReader};
-use std::iter::FromIterator;
-use std::path::Path;
-use std::path::PathBuf;
-
 use super::os_release::OsRelease;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 pub const OCTOPRINT_DIR: &str = "/home/octoprint/.octoprint";
 pub const PRINTNANNY_CONFIG_FILENAME: &str = "default.toml";
