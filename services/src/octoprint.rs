@@ -1,3 +1,4 @@
+use log::debug;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
@@ -69,7 +70,7 @@ impl OctoPrintConfig {
     }
 
     pub fn pip_version(&self) -> Result<Option<String>, PrintNannyConfigError> {
-        let msg = format!("{:?} --version failed", self.pip_path());
+        let msg = format!("{:?} --version failed", &self.pip_path());
         let output = Command::new(&self.pip_path())
             .arg("--version")
             .output()
@@ -79,14 +80,19 @@ impl OctoPrintConfig {
     }
 
     pub fn pip_packages(&self) -> Result<Vec<PipPackage>, PrintNannyConfigError> {
-        let msg = format!("{:?} freeze failed", self.pip_path());
+        let msg = format!("{:?} list --json failed", &self.pip_path());
         let output = Command::new(&self.pip_path())
             .arg("list")
             .arg("--json")
             .output()
             .expect(&msg);
         let stdout = String::from_utf8_lossy(&output.stdout);
-        parse_pip_list_json(&stdout)
+        let result = parse_pip_list_json(&stdout)?;
+        debug!(
+            "Found pip_packages in venv {:?} {:?}",
+            &self.venv_path, &result
+        );
+        Ok(result)
     }
 
     pub fn python_version(&self) -> Result<Option<String>, PrintNannyConfigError> {
@@ -96,7 +102,12 @@ impl OctoPrintConfig {
             .output()
             .expect(&msg);
         let stdout = String::from_utf8_lossy(&output.stdout);
-        Ok(parse_python_version(&stdout))
+        let result = parse_python_version(&stdout);
+        debug!(
+            "Parsed python_version in {:?} {:?}",
+            &self.venv_path, &result
+        );
+        Ok(result)
     }
 
     pub fn octoprint_version(
@@ -107,13 +118,18 @@ impl OctoPrintConfig {
             .into_iter()
             .filter(|p| p.name == "OctoPrint")
             .collect();
-        match v.first() {
+        let result = match v.first() {
             Some(p) => Ok(p.version.clone()),
             None => Err(PrintNannyConfigError::OctoPrintServerConfigError {
                 field: "octoprint_version".into(),
                 detail: None,
             }),
-        }
+        }?;
+        debug!(
+            "Parsed octoprint_version {:?} in venv {:?} ",
+            &result, &self.venv_path
+        );
+        Ok(result)
     }
     pub fn printnanny_plugin_version(
         &self,
@@ -123,13 +139,18 @@ impl OctoPrintConfig {
             .into_iter()
             .filter(|p| p.name == "OctoPrint-Nanny")
             .collect();
-        match v.first() {
+        let result = match v.first() {
             Some(p) => Ok(p.version.clone()),
             None => Err(PrintNannyConfigError::OctoPrintServerConfigError {
                 field: "printnanny_plugin_version".into(),
                 detail: None,
             }),
-        }
+        }?;
+        debug!(
+            "Parsed printnnny_plugin_version {:?} in venv {:?} ",
+            &result, &self.venv_path
+        );
+        Ok(result)
     }
 }
 
