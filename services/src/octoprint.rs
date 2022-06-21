@@ -104,6 +104,7 @@ impl OctoPrintConfig {
     pub fn pip_packages(&self) -> Result<Vec<PipPackage>, PrintNannyConfigError> {
         let output = Command::new(&self.pip_path())
             .arg("list")
+            .arg("--include-editable") // handle dev environment, where pip install -e . is used for plugin setup
             .arg("--format")
             .arg("json")
             .output()?;
