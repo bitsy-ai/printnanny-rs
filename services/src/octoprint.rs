@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::error::PrintNannyConfigError;
 
-pub const OCTOPRINT_base_path: &str = "/home/octoprint/.octoprint";
+pub const OCTOPRINT_BASE_PATH: &str = "/home/octoprint/.octoprint";
 pub const OCTOPRINT_VENV_DIR: &str = "/home/octoprint/.venv";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -27,7 +27,7 @@ impl Default for OctoPrintConfig {
     fn default() -> Self {
         Self {
             server: None,
-            base_path: OCTOPRINT_base_path.into(),
+            base_path: OCTOPRINT_BASE_PATH.into(),
             venv_path: OCTOPRINT_VENV_DIR.into(),
         }
     }
