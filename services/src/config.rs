@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::path::PathBuf;
@@ -10,15 +9,12 @@ use figment::{Figment, Metadata, Profile, Provider};
 use glob::glob;
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use super::error::PrintNannyConfigError;
 use super::keys::PrintNannyKeys;
+use super::octoprint::OctoPrintConfig;
+use super::paths::{PrintNannyPaths, PRINTNANNY_CONFIG_DEFAULT};
 use printnanny_api_client::models;
-
-pub const OCTOPRINT_DIR: &str = "/home/octoprint/.octoprint";
-pub const PRINTNANNY_CONFIG_FILENAME: &str = "default.toml";
-pub const PRINTNANNY_CONFIG_DEFAULT: &str = "/etc/printnanny/default.toml";
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
 pub enum ConfigFormat {
@@ -184,62 +180,6 @@ impl Default for PrintNannyCloudProxy {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct PrintNannyPaths {
-    pub etc: PathBuf,
-    pub confd: PathBuf,
-    pub events_socket: PathBuf,
-    pub license: PathBuf,
-    pub issue_txt: PathBuf,
-    pub log: PathBuf,
-    pub octoprint: PathBuf,
-    pub run: PathBuf,
-    pub os_release: PathBuf,
-}
-
-impl Default for PrintNannyPaths {
-    fn default() -> Self {
-        // /etc is mounted as an r/w overlay fs
-        let etc: PathBuf = "/etc/printnanny".into();
-        let confd: PathBuf = "/etc/printnanny/conf.d".into();
-        let issue_txt: PathBuf = "/boot/issue.txt".into();
-        let run: PathBuf = "/var/run/printnanny".into();
-        let log: PathBuf = "/var/log/printnanny".into();
-        let events_socket = run.join("events.socket").into();
-        let license = "/boot/license.json".into();
-        let octoprint = OCTOPRINT_DIR.into();
-        let os_release = "/etc/os-release".into();
-        Self {
-            etc,
-            confd,
-            run,
-            issue_txt,
-            log,
-            events_socket,
-            octoprint,
-            license,
-            os_release,
-        }
-    }
-}
-
-impl PrintNannyPaths {
-    pub fn data(&self) -> PathBuf {
-        self.etc.join("data")
-    }
-    pub fn octoprint_venv(&self) -> PathBuf {
-        self.octoprint.join("venv")
-    }
-
-    pub fn octoprint_pip(&self) -> PathBuf {
-        self.octoprint_venv().join("bin/pip")
-    }
-
-    pub fn octoprint_python(&self) -> PathBuf {
-        self.octoprint_venv().join("bin/pip")
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
     pub printnanny_cloud_proxy: PrintNannyCloudProxy,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -254,6 +194,7 @@ pub struct PrintNannyConfig {
     pub janus_edge_stream: Option<models::JanusEdgeStream>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub janus_cloud_stream: Option<models::JanusCloudStream>,
+    pub octoprint: OctoPrintConfig,
     pub paths: PrintNannyPaths,
     pub api: models::PrintNannyApiConfig,
     pub dash: DashConfig,
@@ -268,7 +209,7 @@ const FACTORY_RESET: [&'static str; 8] = [
     "device",
     "janus_edge",
     "janus_cloud",
-    "octoprint_install",
+    "octoprint_server",
     "user",
 ];
 
@@ -286,6 +227,7 @@ impl Default for PrintNannyConfig {
         let dash = DashConfig::default();
         let printnanny_cloud_proxy = PrintNannyCloudProxy::default();
         let keys = PrintNannyKeys::default();
+        let octoprint = OctoPrintConfig::default();
         PrintNannyConfig {
             api,
             dash,
@@ -293,6 +235,7 @@ impl Default for PrintNannyConfig {
             paths,
             printnanny_cloud_proxy,
             keys,
+            octoprint,
             alert_settings: None,
             cloudiot_device: None,
             device: None,
@@ -499,27 +442,6 @@ impl PrintNannyConfig {
         let config = figment.extract::<Self>()?;
         Ok(config)
     }
-
-    // Parse /etc/os-release into Map
-    pub fn os_release(&self) -> Result<HashMap<String, Value>, std::io::Error> {
-        let content = fs::read_to_string(&self.paths.os_release)?;
-        let mut map = HashMap::<String, Value>::new();
-        let lines = content.split("\n");
-        for line in (lines).step_by(1) {
-            if line.contains("=") {
-                let mut pair = line.split("=");
-                let key = pair.nth(0).unwrap_or("unknown").to_string();
-                let value = pair
-                    .nth(0)
-                    .unwrap_or("unknown")
-                    .replace("\"", "")
-                    .to_string();
-                map.insert(key, Value::from(value));
-            }
-        }
-        info!("Parsed Map from {:?}: {:?}", &self.paths.os_release, map);
-        Ok(map)
-    }
 }
 
 impl Provider for PrintNannyConfig {
@@ -536,6 +458,7 @@ impl Provider for PrintNannyConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::paths::PRINTNANNY_CONFIG_FILENAME;
     #[test_log::test]
     fn test_paths() {
         figment::Jail::expect_with(|jail| {
@@ -737,15 +660,15 @@ VARIANT_ID=printnanny-octoprint
             );
 
             let config = PrintNannyConfig::new().unwrap();
-            let os_release = config.os_release().unwrap();
-            let unknown_value = Value::from("unknown");
-            let os_build_id: String = os_release
-                .get("BUILD_ID")
-                .unwrap_or(&unknown_value)
-                .as_str()
-                .unwrap()
-                .into();
-            assert_eq!("2022-06-18T18:46:49Z".to_string(), os_build_id);
+            let os_release = config.paths.load_os_release().unwrap();
+            // let unknown_value = Value::from("unknown");
+            // let os_build_id: String = os_release
+            //     .get("BUILD_ID")
+            //     .unwrap_or(&unknown_value)
+            //     .as_str()
+            //     .unwrap()
+            //     .into();
+            assert_eq!("2022-06-18T18:46:49Z".to_string(), os_release.build_id);
             Ok(())
         });
     }
