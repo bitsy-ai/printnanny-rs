@@ -230,15 +230,12 @@ impl PrintNannyConfig {
     }
 
     pub fn figment() -> Figment {
-        let result = Figment::from(Self {
-            // profile,
-            ..Self::default()
-        })
-        .merge(Toml::file(Env::var_or(
-            "PRINTNANNY_CONFIG",
-            PRINTNANNY_CONFIG_DEFAULT,
-        )))
-        .merge(Env::prefixed("PRINTNANNY_").global());
+        let result = Figment::from(Self { ..Self::default() })
+            .merge(Toml::file(Env::var_or(
+                "PRINTNANNY_CONFIG",
+                PRINTNANNY_CONFIG_DEFAULT,
+            )))
+            .merge(Env::prefixed("PRINTNANNY_").global());
 
         let confd_path: String = result
             .find_value("paths.confd")
@@ -435,7 +432,7 @@ mod tests {
                 
                 [octoprint]
                 base_path = "/home/octoprint/.octoprint"
-
+                venv_path = "/home/octoprint/.octoprint/.venv"
                 
                 [api]
                 base_path = "https://print-nanny.com"
@@ -445,8 +442,8 @@ mod tests {
             let figment = PrintNannyConfig::figment();
             let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
-                config.octoprint.venv_path(),
-                PathBuf::from("/home/octoprint/.octoprint/venv")
+                config.octoprint.venv_path,
+                PathBuf::from("/home/octoprint/.octoprint/.venv")
             );
             Ok(())
         });
