@@ -434,7 +434,7 @@ mod tests {
                 data = "/opt/printnanny/default/data"
                 
                 [octoprint]
-                base_dir = "/home/octoprint/.octoprint"
+                base_path = "/home/octoprint/.octoprint"
 
                 
                 [api]
