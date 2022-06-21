@@ -470,7 +470,9 @@ mod tests {
                 [paths]
                 install = "/opt/printnanny/default"
                 data = "/opt/printnanny/default/data"
-                octoprint = "/home/octoprint/.octoprint"
+
+                [octoprint]
+                base_dir = "/home/octoprint/.octoprint"
 
                 
                 [api]
@@ -481,7 +483,7 @@ mod tests {
             let figment = PrintNannyConfig::figment();
             let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
-                config.paths.octoprint_venv(),
+                config.octoprint.venv_path(),
                 PathBuf::from("/home/octoprint/.octoprint/venv")
             );
             Ok(())

@@ -12,6 +12,7 @@ use printnanny_api_client::apis::config_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::janus_api;
+use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::apis::users_api;
 use printnanny_api_client::models;
 
@@ -157,6 +158,8 @@ impl ApiService {
                 self.config.alert_settings = Some(alert_settings);
                 let user = self.auth_user_retreive().await?;
 
+                self.octoprint_server_update_or_create(device.id).await?;
+
                 // setup edge + cloud janus streams
                 let api = self.api_client_config_retieve().await?;
                 self.config.api = api;
@@ -271,21 +274,52 @@ impl ApiService {
         Ok(res)
     }
 
-    // pub async fn octoprint_install_update_or_create(
-    //     &self,
-    //     device: i32,
-    // ) -> Result<models::OctoPrintInstall, ServiceError> {
-    //     let mut req = match &self.config.octoprint_install_request {
-    //         Some(octoprint_install) => Ok(octoprint_install.clone()),
-    //         None => Err(PrintNannyConfigError::InvalidValue {
-    //             value: "octoprint_install_request".into(),
-    //         }),
-    //     }?;
-    //     // place-holder device id is rendered in firstrun config.toml
-    //     req.device = device;
-    //     let res = octoprint_api::octoprint_install_update_or_create(&self.reqwest, req).await?;
-    //     Ok(res)
-    // }
+    pub async fn octoprint_server_update_or_create(
+        &self,
+        device: i32,
+    ) -> Result<models::OctoPrintServer, ServiceError> {
+        let pip_packages = self.config.octoprint.pip_packages()?;
+        let octoprint_version = self
+            .config
+            .octoprint
+            .octoprint_version(&pip_packages)?
+            .into();
+        let pip_version = self
+            .config
+            .octoprint
+            .pip_version()?
+            .unwrap_or("unknown".into())
+            .into();
+        let printnanny_plugin_version = self
+            .config
+            .octoprint
+            .printnanny_plugin_version(&pip_packages)?
+            .into();
+        let python_version = self
+            .config
+            .octoprint
+            .python_version()?
+            .unwrap_or("unknown".into())
+            .into();
+        let device = match &self.config.device {
+            Some(d) => Ok(d.id),
+            None => Err(ServiceError::SetupIncomplete {
+                field: "device".into(),
+                detail: Some(
+                    "Failed to read device in octoprint_install_update_or_create".to_string(),
+                ),
+            }),
+        }?;
+        let req = models::OctoPrintServerRequest {
+            octoprint_version,
+            pip_version,
+            printnanny_plugin_version,
+            device,
+            python_version,
+        };
+        let res = octoprint_api::octoprint_server_update_or_create(&self.reqwest, req).await?;
+        Ok(res)
+    }
 
     // read <models::<T>>.json from disk cache @ /var/run/printnanny
     // hydrate cache if not found using fallback fn f (must return a Future)
