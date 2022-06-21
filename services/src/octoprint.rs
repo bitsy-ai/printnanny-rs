@@ -1,3 +1,4 @@
+use log::debug;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
@@ -69,24 +70,68 @@ impl OctoPrintConfig {
     }
 
     pub fn pip_version(&self) -> Result<Option<String>, PrintNannyConfigError> {
-        let msg = format!("{:?} --version failed", self.pip_path());
+        let msg = format!("{:?} --version failed", &self.pip_path());
         let output = Command::new(&self.pip_path())
             .arg("--version")
             .output()
             .expect(&msg);
         let stdout = String::from_utf8_lossy(&output.stdout);
-        Ok(parse_pip_version(&stdout))
+        match output.status.success() {
+            true => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let result = parse_pip_version(&stdout);
+                debug!(
+                    "Found pip_packages in venv {:?} {:?}",
+                    &self.venv_path, &result
+                );
+                Ok(result)
+            }
+            false => {
+                let cmd = format!("{:?} --version", &self.pip_path());
+                let code = output.status.code();
+                let stderr = String::from_utf8_lossy(&output.stderr).into();
+                let stdout = stdout.into();
+                Err(PrintNannyConfigError::CommandError {
+                    cmd,
+                    stdout,
+                    stderr,
+                    code,
+                })
+            }
+        }
     }
 
     pub fn pip_packages(&self) -> Result<Vec<PipPackage>, PrintNannyConfigError> {
-        let msg = format!("{:?} freeze failed", self.pip_path());
         let output = Command::new(&self.pip_path())
             .arg("list")
-            .arg("--json")
-            .output()
-            .expect(&msg);
+            .arg("--include-editable") // handle dev environment, where pip install -e . is used for plugin setup
+            .arg("--format")
+            .arg("json")
+            .output()?;
         let stdout = String::from_utf8_lossy(&output.stdout);
-        parse_pip_list_json(&stdout)
+        match output.status.success() {
+            true => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let result = parse_pip_list_json(&stdout)?;
+                debug!(
+                    "Found pip_packages in venv {:?} {:?}",
+                    &self.venv_path, &result
+                );
+                Ok(result)
+            }
+            false => {
+                let cmd = format!("{:?} list --format json", &self.pip_path());
+                let code = output.status.code();
+                let stderr = String::from_utf8_lossy(&output.stderr).into();
+                let stdout = stdout.into();
+                Err(PrintNannyConfigError::CommandError {
+                    cmd,
+                    stdout,
+                    stderr,
+                    code,
+                })
+            }
+        }
     }
 
     pub fn python_version(&self) -> Result<Option<String>, PrintNannyConfigError> {
@@ -96,7 +141,29 @@ impl OctoPrintConfig {
             .output()
             .expect(&msg);
         let stdout = String::from_utf8_lossy(&output.stdout);
-        Ok(parse_python_version(&stdout))
+        match output.status.success() {
+            true => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let result = parse_python_version(&stdout);
+                debug!(
+                    "Parsed python_version in {:?} {:?}",
+                    &self.venv_path, &result
+                );
+                Ok(result)
+            }
+            false => {
+                let cmd = format!("{:?} ", &self.pip_path());
+                let code = output.status.code();
+                let stderr = String::from_utf8_lossy(&output.stderr).into();
+                let stdout = stdout.into();
+                Err(PrintNannyConfigError::CommandError {
+                    cmd,
+                    stdout,
+                    stderr,
+                    code,
+                })
+            }
+        }
     }
 
     pub fn octoprint_version(
@@ -107,14 +174,20 @@ impl OctoPrintConfig {
             .into_iter()
             .filter(|p| p.name == "OctoPrint")
             .collect();
-        match v.first() {
+        let result = match v.first() {
             Some(p) => Ok(p.version.clone()),
             None => Err(PrintNannyConfigError::OctoPrintServerConfigError {
                 field: "octoprint_version".into(),
                 detail: None,
             }),
-        }
+        }?;
+        debug!(
+            "Parsed octoprint_version {:?} in venv {:?} ",
+            &result, &self.venv_path
+        );
+        Ok(result)
     }
+
     pub fn printnanny_plugin_version(
         &self,
         packages: &Vec<PipPackage>,
@@ -123,20 +196,24 @@ impl OctoPrintConfig {
             .into_iter()
             .filter(|p| p.name == "OctoPrint-Nanny")
             .collect();
-        match v.first() {
+        let result = match v.first() {
             Some(p) => Ok(p.version.clone()),
             None => Err(PrintNannyConfigError::OctoPrintServerConfigError {
                 field: "printnanny_plugin_version".into(),
                 detail: None,
             }),
-        }
+        }?;
+        debug!(
+            "Parsed printnnny_plugin_version {:?} in venv {:?} ",
+            &result, &self.venv_path
+        );
+        Ok(result)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     const EXAMPLE: &str = r#"[{"name": "apturl", "version": "0.5.2"}, {"name": "astroid", "version": "2.9.3"}]
 "#;

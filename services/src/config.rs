@@ -323,12 +323,13 @@ impl PrintNannyConfig {
                 toml::Value::try_from(figment::util::map! { key => &self.cloudiot_device})
             }
             "device" => toml::Value::try_from(figment::util::map! {key => &self.device }),
-            "janus_cloud_stream" => {
+            "janus_cloud" => {
                 toml::Value::try_from(figment::util::map! {key =>  &self.janus_cloud_stream })
             }
-            "janus_edge_stream" => {
+            "janus_edge" => {
                 toml::Value::try_from(figment::util::map! {key =>  &self.janus_edge_stream })
             }
+            "octoprint" => toml::Value::try_from(figment::util::map! {key =>  &self.octoprint }),
             "user" => toml::Value::try_from(figment::util::map! {key =>  &self.user }),
             _ => {
                 warn!("try_save_fragment received unhandled key={:?} - serializing entire PrintNannyConfig", key);
