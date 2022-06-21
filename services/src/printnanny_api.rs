@@ -161,6 +161,7 @@ impl ApiService {
                 let api = self.api_client_config_retieve().await?;
                 let octoprint_server = self.octoprint_server_update_or_create().await?;
                 info!("Success! Updated OctoPrintServer {:?}", octoprint_server);
+                self.config.octoprint.server = Some(octoprint_server);
                 // setup edge + cloud janus streams
                 self.config.api = api;
                 self.config.cloudiot_device = Some(cloudiot_device);

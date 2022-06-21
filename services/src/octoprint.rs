@@ -186,6 +186,7 @@ impl OctoPrintConfig {
         );
         Ok(result)
     }
+
     pub fn printnanny_plugin_version(
         &self,
         packages: &Vec<PipPackage>,
@@ -212,7 +213,6 @@ impl OctoPrintConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     const EXAMPLE: &str = r#"[{"name": "apturl", "version": "0.5.2"}, {"name": "astroid", "version": "2.9.3"}]
 "#;
