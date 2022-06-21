@@ -13,7 +13,6 @@ use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::janus_api;
 use printnanny_api_client::apis::users_api;
-use printnanny_api_client::apis::Error as ApiError;
 use printnanny_api_client::models;
 
 use super::config::PrintNannyConfig;

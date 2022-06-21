@@ -4,4 +4,6 @@ pub mod error;
 pub mod janus;
 pub mod keys;
 pub mod mqtt;
+pub mod octoprint;
+pub mod paths;
 pub mod printnanny_api;
