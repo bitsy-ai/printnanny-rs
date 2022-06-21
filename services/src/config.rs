@@ -432,7 +432,7 @@ mod tests {
                 
                 [octoprint]
                 base_path = "/home/octoprint/.octoprint"
-
+                venv_path = "/home/octoprint/.octoprint/.venv"
                 
                 [api]
                 base_path = "https://print-nanny.com"
@@ -443,7 +443,7 @@ mod tests {
             let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
                 config.octoprint.venv_path,
-                PathBuf::from("/home/octoprint/.octoprint/venv")
+                PathBuf::from("/home/octoprint/.octoprint/.venv")
             );
             Ok(())
         });
