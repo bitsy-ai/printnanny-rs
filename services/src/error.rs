@@ -12,6 +12,12 @@ use printnanny_api_client::apis::Error as ApiError;
 
 #[derive(Error, Debug)]
 pub enum PrintNannyConfigError {
+    #[error("Failed to parse OctoPrintServer field: {field} {detail:?}")]
+    OctoPrintServerConfigError {
+        field: String,
+        detail: Option<String>,
+    },
+
     #[error("Failed to handle invalid config value {value:?}")]
     InvalidValue { value: String },
     #[error("Refusing to overwrite existing keypair at {path:?}.")]
