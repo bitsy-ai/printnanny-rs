@@ -150,7 +150,15 @@ impl MQTTWorker {
     }
 
     // re-publish printnanny events unix sock to mqtt topic
-    pub async fn publish(&self, value: serde_json::Value) -> Result<()> {
+    pub async fn publish(&self, data: &str) -> Result<()> {
+        // deserialize to PolymorphicEventCreateRequest to validate fieldset
+        let event: models::PolymorphicEventCreateRequest =
+            serde_json::from_str(data).expect("Failed to deserialize event data");
+        info!("Publishing event: {:?}", event);
+        // serialize event struct as serde_json::Value to send length-delimited bytes over unix socket
+        let value: serde_json::Value = serde_json::to_value(event)?;
+
+        // open a connection to unix socket
         let stream = UnixStream::connect(&self.config.paths.events_socket)
             .await
             .context(format!(
@@ -165,51 +173,12 @@ impl MQTTWorker {
             length_delimited,
             tokio_serde::formats::SymmetricalJson::<serde_json::Value>::default(),
         );
-        serialized
-            .send(value.clone())
-            .await
-            .context(format!("Failed to send {:?}", &value))?;
+        serialized.send(value).await?;
         Ok(())
     }
 
-    async fn spawn_socket_listener(&self) -> Result<()> {
-        let events_socket = self.config.paths.events_socket.clone();
-        tokio::spawn(async move {
-            let listener = UnixListener::bind(&events_socket)
-                .context(format!("Failed to bind to socket {:?}", &events_socket))
-                .unwrap();
-            let (mut socket, _) = listener.accept().await.unwrap();
-            loop {
-                info!("Accepted socket connection {:?}", socket);
-                let length_delimited = FramedRead::new(&mut socket, LengthDelimitedCodec::new());
-                let mut deserialized: tokio_serde::Framed<
-                    FramedRead<&mut tokio::net::UnixStream, LengthDelimitedCodec>,
-                    serde_json::Value,
-                    serde_json::Value,
-                    tokio_serde::formats::Json<serde_json::Value, serde_json::Value>,
-                > = tokio_serde::SymmetricallyFramed::new(
-                    length_delimited,
-                    tokio_serde::formats::SymmetricalJson::<serde_json::Value>::default(),
-                );
-                let msg = deserialized.try_next().await.unwrap();
-                info!("Deserialized msg {:?}", msg);
-            }
-        });
-        Ok(())
-    }
-    // subscribe to mqtt config, command topics + printnanny events unix sock
-    pub async fn subscribe(&self) -> Result<()> {
+    pub async fn subscribe_mqtt(&self) -> Result<()> {
         let (client, mut eventloop) = AsyncClient::new(self.mqttoptions.clone(), 64);
-        let maybe_delete = std::fs::remove_file(&self.config.paths.events_socket);
-        match maybe_delete {
-            Ok(_) => {
-                warn!(
-                    "Deleted socket {:?} without mercy. Refactor this code to run 2+ concurrent socket listeners/bindings.",
-                    &self.config.paths.events_socket
-                );
-            }
-            Err(_) => {}
-        };
         client
             .subscribe(&self.config_topic, QoS::AtLeastOnce)
             .await
@@ -222,8 +191,6 @@ impl MQTTWorker {
             .subscribe(&self.state_topic, QoS::AtLeastOnce)
             .await
             .unwrap();
-        self.spawn_socket_listener().await?;
-
         loop {
             let incoming = eventloop.poll().await?;
             match &incoming {
@@ -236,6 +203,30 @@ impl MQTTWorker {
                 Event::Incoming(Incoming::Publish(e)) => self.handle_event(e).await?,
                 _ => info!("Received = {:?}", &incoming),
             }
+        }
+    }
+    pub async fn subscribe_event_socket(&self) -> Result<()> {
+        let maybe_delete = std::fs::remove_file(&self.config.paths.events_socket);
+        match maybe_delete {
+            Ok(_) => {
+                warn!(
+                    "Deleted socket {:?} without mercy. Refactor this code to run 2+ concurrent socket listeners/bindings.",
+                    &self.config.paths.events_socket
+                );
+            }
+            Err(_) => {}
+        };
+        let listener = UnixListener::bind(&self.config.paths.events_socket)?;
+        loop {
+            let (mut socket, _) = listener.accept().await?;
+            info!("Accepted socket connection {:?}", &socket);
+            let length_delimited = FramedRead::new(&mut socket, LengthDelimitedCodec::new());
+            let mut deserialized = tokio_serde::SymmetricallyFramed::new(
+                length_delimited,
+                tokio_serde::formats::SymmetricalJson::<serde_json::Value>::default(),
+            );
+            let msg = deserialized.try_next().await?;
+            info!("Deserialized msg {:?}", msg);
         }
     }
 }

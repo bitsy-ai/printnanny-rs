@@ -2,7 +2,7 @@
 
 use anyhow::{ Result };
 use env_logger::Builder;
-use log::{ LevelFilter};
+use log::{ LevelFilter, info };
 use clap::{ 
     Arg, Command
 };
@@ -220,15 +220,14 @@ async fn main() -> Result<()> {
                 Some(("subscribe", _event_m)) => {
                     let worker = MQTTWorker::new(
                     ).await?;
-                    worker.subscribe().await?;
+                    // worker.subscribe().await?;
+                    let (_,_) = tokio::join!(worker.subscribe_mqtt(), worker.subscribe_event_socket());
                 }
                 Some(("publish", event_m)) => {
                     let worker = MQTTWorker::new(
                     ).await?;
                     let data = event_m.value_of("data").expect("Expected --data argument passed");
-                    let event: models::PolymorphicEventCreateRequest = serde_json::from_str(data).expect("Failed to deserialize event data");
-                    let value: serde_json::Value = serde_json::to_value(event)?;
-                    worker.publish(value).await?;
+                    worker.publish(&data).await?;
                 },
                 _ => panic!("Expected publish|subscribe subcommand")
             }
