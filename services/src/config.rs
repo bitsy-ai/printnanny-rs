@@ -52,44 +52,6 @@ impl std::str::FromStr for ConfigFormat {
     }
 }
 
-// #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-// pub struct CmdConfig {
-//     pub cmd: PathBuf,
-//     pub queue_dir: String,
-//     pub success_dir: String,
-//     pub error_dir: String,
-// }
-
-// impl Default for CmdConfig {
-//     fn default() -> Self {
-//         Self {
-//             queue_dir: "/var/run/printnanny/cmd/queue".into(),
-//             success_dir: "/var/run/printnanny/cmd/success".into(),
-//             error_dir: "/var/run/printnanny/cmd/error".into(),
-//         }
-//     }
-// }
-
-// impl CmdConfig {
-//     pub fn enqueue(&self, event: models::PolymorphicCommand) {
-//         let (event_id, event_name) = match &event {
-//             models::PolymorphicCommand::WebRtcCommand(e) => (e.id, e.event_name.to_string()),
-//         };
-//         let filename = format!("{}/{}_{}", self.queue_dir, event_name, event_id);
-//         let result = serde_json::to_writer(
-//             &File::create(&filename).expect(&format!("Failed to create file {}", &filename)),
-//             &event,
-//         );
-//         match result {
-//             Ok(_) => info!(
-//                 "Wrote event={:?} to file={:?} to await processing",
-//                 event, filename
-//             ),
-//             Err(e) => error!("Failed to serialize event {:?} with error {:?}", event, e),
-//         }
-//     }
-// }
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DashConfig {
     pub base_url: String,
@@ -209,7 +171,7 @@ const FACTORY_RESET: [&'static str; 8] = [
     "device",
     "janus_edge",
     "janus_cloud",
-    "octoprint_server",
+    "octoprint",
     "user",
 ];
 
@@ -470,7 +432,7 @@ mod tests {
                 [paths]
                 install = "/opt/printnanny/default"
                 data = "/opt/printnanny/default/data"
-
+                
                 [octoprint]
                 base_dir = "/home/octoprint/.octoprint"
 
