@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use super::error::PrintNannyConfigError;
 
-pub const OCTOPRINT_BASE_DIR: &str = "/home/octoprint/.octoprint";
+pub const OCTOPRINT_base_path: &str = "/home/octoprint/.octoprint";
+pub const OCTOPRINT_VENV_DIR: &str = "/home/octoprint/.venv";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PipPackage {
@@ -18,14 +19,16 @@ pub struct PipPackage {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OctoPrintConfig {
     pub server: Option<models::OctoPrintServer>,
-    pub base_dir: PathBuf,
+    pub base_path: PathBuf,
+    pub venv_path: PathBuf,
 }
 
 impl Default for OctoPrintConfig {
     fn default() -> Self {
         Self {
             server: None,
-            base_dir: OCTOPRINT_BASE_DIR.into(),
+            base_path: OCTOPRINT_base_path.into(),
+            venv_path: OCTOPRINT_VENV_DIR.into(),
         }
     }
 }
@@ -58,15 +61,15 @@ pub fn parse_pip_version(stdout: &str) -> Option<String> {
 
 impl OctoPrintConfig {
     pub fn venv_path(&self) -> PathBuf {
-        self.base_dir.join("venv")
+        self.base_path.join("venv")
     }
 
     pub fn pip_path(&self) -> PathBuf {
-        self.base_dir.join("bin/pip")
+        self.base_path.join("bin/pip")
     }
 
     pub fn python_path(&self) -> PathBuf {
-        self.base_dir.join("bin/python")
+        self.base_path.join("bin/python")
     }
 
     pub fn pip_version(&self) -> Result<Option<String>, PrintNannyConfigError> {
