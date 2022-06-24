@@ -1,5 +1,7 @@
-use super::file::open;
 use std::io::Read;
+
+use super::error::ServiceError;
+use super::file::open;
 
 /// Represents the data from `/proc/cpuinfo`.
 ///
@@ -54,7 +56,7 @@ impl RpiCpuInfo {
             serial,
         }
     }
-    pub fn new() -> Result<Self> {
+    pub fn new() -> Result<Self, ServiceError> {
         let file = open("/proc/cpuinfo")?;
         Ok(RpiCpuInfo::from_reader(file))
     }
@@ -114,7 +116,7 @@ Model           : Raspberry Pi 3 Model B Plus Rev 1.3
 
         let r = std::io::Cursor::new(data.as_bytes());
 
-        let info = RpiCpuInfo::from_reader(r).unwrap();
+        let info = RpiCpuInfo::from_reader(r);
         assert_eq!(info.hardware, Some("BCM2835".to_string()));
         assert_eq!(info.revision, Some("a020d3".to_string()));
         assert_eq!(info.serial, Some("0000000012345678".to_string()));

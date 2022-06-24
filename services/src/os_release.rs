@@ -24,7 +24,6 @@
 use super::file::open;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 use std::iter::FromIterator;
 use std::path::Path;

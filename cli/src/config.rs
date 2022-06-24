@@ -1,5 +1,5 @@
 use printnanny_services::config::{ConfigFormat, PrintNannyConfig};
-use printnanny_services::error::{PrintNannyConfigError, ServiceError};
+use printnanny_services::error::ServiceError;
 use printnanny_services::keys::PrintNannyKeys;
 use std::fs;
 use std::io::{self, Write};

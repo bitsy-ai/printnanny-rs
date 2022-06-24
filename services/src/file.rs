@@ -1,4 +1,5 @@
-use std::file::File;
+use std::fs::File;
+use std::io;
 use std::path::Path;
 
 pub fn open<P: AsRef<Path>>(path: P) -> io::Result<File> {
