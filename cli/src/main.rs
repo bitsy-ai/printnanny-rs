@@ -2,7 +2,7 @@
 
 use anyhow::{ Result };
 use env_logger::Builder;
-use log::{ LevelFilter, info };
+use log::{ LevelFilter };
 use clap::{ 
     Arg, Command
 };

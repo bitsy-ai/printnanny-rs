@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use super::error::PrintNannyConfigError;
 
 pub const OCTOPRINT_BASE_PATH: &str = "/home/octoprint/.octoprint";
-pub const OCTOPRINT_VENV_DIR: &str = "/home/octoprint/.venv";
+pub const PYTHON_BIN: &str = "/usr/bin/python3";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PipPackage {
@@ -20,7 +20,7 @@ pub struct PipPackage {
 pub struct OctoPrintConfig {
     pub server: Option<models::OctoPrintServer>,
     pub base_path: PathBuf,
-    pub venv_path: PathBuf,
+    pub python: PathBuf,
 }
 
 impl Default for OctoPrintConfig {
@@ -28,7 +28,7 @@ impl Default for OctoPrintConfig {
         Self {
             server: None,
             base_path: OCTOPRINT_BASE_PATH.into(),
-            venv_path: OCTOPRINT_VENV_DIR.into(),
+            python: PYTHON_BIN.into(),
         }
     }
 }
@@ -60,17 +60,11 @@ pub fn parse_pip_version(stdout: &str) -> Option<String> {
 }
 
 impl OctoPrintConfig {
-    pub fn pip_path(&self) -> PathBuf {
-        self.venv_path.join("bin/pip")
-    }
-
-    pub fn python_path(&self) -> PathBuf {
-        self.venv_path.join("bin/python")
-    }
-
     pub fn pip_version(&self) -> Result<Option<String>, PrintNannyConfigError> {
-        let msg = format!("{:?} --version failed", &self.pip_path());
-        let output = Command::new(&self.pip_path())
+        let msg = format!("{:?} -m pip --version failed", &self.python);
+        let output = Command::new(&self.python)
+            .arg("-m")
+            .arg("pip")
             .arg("--version")
             .output()
             .expect(&msg);
@@ -81,17 +75,16 @@ impl OctoPrintConfig {
                 let result = parse_pip_version(&stdout);
                 debug!(
                     "Found pip_packages in venv {:?} {:?}",
-                    &self.venv_path, &result
+                    &self.python, &result
                 );
                 Ok(result)
             }
             false => {
-                let cmd = format!("{:?} --version", &self.pip_path());
                 let code = output.status.code();
                 let stderr = String::from_utf8_lossy(&output.stderr).into();
                 let stdout = stdout.into();
                 Err(PrintNannyConfigError::CommandError {
-                    cmd,
+                    cmd: msg,
                     stdout,
                     stderr,
                     code,
@@ -101,7 +94,9 @@ impl OctoPrintConfig {
     }
 
     pub fn pip_packages(&self) -> Result<Vec<PipPackage>, PrintNannyConfigError> {
-        let output = Command::new(&self.pip_path())
+        let output = Command::new(&self.python)
+            .arg("-m")
+            .arg("pip")
             .arg("list")
             .arg("--include-editable") // handle dev environment, where pip install -e . is used for plugin setup
             .arg("--format")
@@ -113,13 +108,13 @@ impl OctoPrintConfig {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let result = parse_pip_list_json(&stdout)?;
                 debug!(
-                    "Found pip_packages in venv {:?} {:?}",
-                    &self.venv_path, &result
+                    "Found pip_packages for python at {:?} {:?}",
+                    &self.python, &result
                 );
                 Ok(result)
             }
             false => {
-                let cmd = format!("{:?} list --format json", &self.pip_path());
+                let cmd = format!("{:?} -m pip list --format json", &self.python);
                 let code = output.status.code();
                 let stderr = String::from_utf8_lossy(&output.stderr).into();
                 let stdout = stdout.into();
@@ -134,8 +129,8 @@ impl OctoPrintConfig {
     }
 
     pub fn python_version(&self) -> Result<Option<String>, PrintNannyConfigError> {
-        let msg = format!("{:?} --version failed", self.pip_path());
-        let output = Command::new(&self.python_path())
+        let msg = format!("{:?} --version failed", &self.python);
+        let output = Command::new(&self.python)
             .arg("--version")
             .output()
             .expect(&msg);
@@ -144,14 +139,11 @@ impl OctoPrintConfig {
             true => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let result = parse_python_version(&stdout);
-                debug!(
-                    "Parsed python_version in {:?} {:?}",
-                    &self.venv_path, &result
-                );
+                debug!("Parsed python_version in {:?} {:?}", &self.python, &result);
                 Ok(result)
             }
             false => {
-                let cmd = format!("{:?} ", &self.pip_path());
+                let cmd = format!("{:?} --version", &self.python);
                 let code = output.status.code();
                 let stderr = String::from_utf8_lossy(&output.stderr).into();
                 let stdout = stdout.into();
@@ -182,7 +174,7 @@ impl OctoPrintConfig {
         }?;
         debug!(
             "Parsed octoprint_version {:?} in venv {:?} ",
-            &result, &self.venv_path
+            &result, &self.python
         );
         Ok(result)
     }
@@ -204,7 +196,7 @@ impl OctoPrintConfig {
         }?;
         debug!(
             "Parsed printnnny_plugin_version {:?} in venv {:?} ",
-            &result, &self.venv_path
+            &result, &self.python
         );
         Ok(result)
     }

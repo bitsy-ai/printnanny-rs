@@ -8,10 +8,8 @@ use std::path::Path;
 
 use printnanny_api_client::apis::alert_settings_api;
 use printnanny_api_client::apis::auth_api;
-use printnanny_api_client::apis::config_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::apis::devices_api;
-use printnanny_api_client::apis::janus_api;
 use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::apis::users_api;
 use printnanny_api_client::models;
@@ -64,14 +62,6 @@ impl ApiService {
     ) -> Result<models::AlertSettings, ServiceError> {
         let res = alert_settings_api::alert_settings_get_or_create_retrieve(&self.reqwest).await?;
         Ok(res)
-    }
-
-    // auth APIs
-    // fetch user associated with auth token
-    pub async fn api_client_config_retieve(
-        &self,
-    ) -> Result<models::PrintNannyApiConfig, ServiceError> {
-        Ok(config_api::api_config_retreive(&self.reqwest).await?)
     }
     pub async fn auth_user_retreive(&self) -> Result<models::User, ServiceError> {
         Ok(users_api::users_me_retrieve(&self.reqwest).await?)
@@ -159,12 +149,10 @@ impl ApiService {
                 self.config.alert_settings = Some(alert_settings);
                 let user = self.auth_user_retreive().await?;
                 info!("Success! Got user: {:?}", user);
-                let api = self.api_client_config_retieve().await?;
                 let octoprint_server = self.octoprint_server_update_or_create().await?;
                 info!("Success! Updated OctoPrintServer {:?}", octoprint_server);
                 self.config.octoprint.server = Some(octoprint_server);
                 // setup edge + cloud janus streams
-                self.config.api = api;
                 self.config.cloudiot_device = Some(cloudiot_device);
                 self.config.user = Some(user);
                 // self.stream_setup().await?;
