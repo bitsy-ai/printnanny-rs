@@ -12,6 +12,9 @@ use printnanny_api_client::apis::Error as ApiError;
 
 #[derive(Error, Debug)]
 pub enum PrintNannyConfigError {
+    #[error("Failed to read {path:?}. Please download a license from https://printnanny.ai/dashboard/ and save to {path:?}")]
+    LicenseMissing { path: String },
+
     #[error("Command {cmd} exited with code {code:?} stdout: {stdout} stderr: {stderr}")]
     CommandError {
         cmd: String,

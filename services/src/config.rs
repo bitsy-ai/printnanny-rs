@@ -1,6 +1,6 @@
 use std::fs;
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::{ArgEnum, PossibleValue};
 use figment::providers::{Env, Format, Json, Serialized, Toml};
@@ -229,7 +229,7 @@ impl PrintNannyConfig {
         figment.merge(Self::figment())
     }
 
-    pub fn figment() -> Figment {
+    pub fn figment() -> Result<Figment> {
         let result = Figment::from(Self { ..Self::default() })
             .merge(Toml::file(Env::var_or(
                 "PRINTNANNY_CONFIG",
@@ -247,7 +247,14 @@ impl PrintNannyConfig {
             .unwrap()
             .deserialize::<String>()
             .unwrap();
+
         // merge license.json contents
+        let result = match PathBuf::from(&license_json).exists() {
+            true => Ok(result.merge(Json::file(&license_json))),
+            false => Err(PrintNannyConfigError::LicenseMissing {
+                path: license_json.clone(),
+            }),
+        }?;
         let result = result.merge(Json::file(&license_json));
 
         let toml_glob = format!("{}/*.toml", &confd_path);
@@ -256,7 +263,7 @@ impl PrintNannyConfig {
         let result = Self::read_path_glob::<Json>(&json_glob, result);
         let result = Self::read_path_glob::<Toml>(&toml_glob, result);
         info!("Finalized PrintNannyConfig: \n {:?}", result);
-        result
+        Ok(result)
     }
 
     fn read_path_glob<T: 'static + figment::providers::Format>(
