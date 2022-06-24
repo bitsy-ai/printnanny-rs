@@ -19,6 +19,7 @@ use printnanny_api_client::models;
 use super::config::PrintNannyConfig;
 use super::cpuinfo::RpiCpuInfo;
 use super::error::ServiceError;
+use super::file::open;
 
 #[derive(Debug, Clone)]
 pub struct ApiService {
@@ -29,7 +30,7 @@ pub struct ApiService {
 }
 
 pub fn read_model_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, std::io::Error> {
-    let file = File::open(path)?;
+    let file = open(path)?;
     let reader = BufReader::new(file);
     let result: T = serde_json::from_reader(reader)?;
     Ok(result)

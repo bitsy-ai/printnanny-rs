@@ -1,8 +1,6 @@
-use log::info;
 use printnanny_services::config::{ConfigFormat, PrintNannyConfig};
 use printnanny_services::error::{PrintNannyConfigError, ServiceError};
 use printnanny_services::keys::PrintNannyKeys;
-use printnanny_services::printnanny_api::ApiService;
 use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;

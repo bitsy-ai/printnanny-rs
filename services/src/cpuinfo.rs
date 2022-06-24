@@ -1,5 +1,5 @@
-use std::{io::Read};
-use std::fs::{ File };
+use super::file::open;
+use std::io::Read;
 
 /// Represents the data from `/proc/cpuinfo`.
 ///
@@ -15,7 +15,7 @@ pub struct RpiCpuInfo {
     pub model: Option<String>,
     pub revision: Option<String>,
     pub hardware: Option<String>,
-    pub serial: Option<String>
+    pub serial: Option<String>,
 }
 
 impl RpiCpuInfo {
@@ -42,17 +42,21 @@ impl RpiCpuInfo {
                         "Hardware" => hardware = Some(value.to_string()),
                         "Revision" => revision = Some(value.to_string()),
                         "Serial" => serial = Some(value.to_string()),
-                       _ => ()
+                        _ => (),
                     };
-
                 }
             }
         }
-        RpiCpuInfo{model, hardware, revision, serial}
+        RpiCpuInfo {
+            model,
+            hardware,
+            revision,
+            serial,
+        }
     }
-    pub fn new() -> Self {
-        let file = File::open("/proc/cpuinfo").unwrap();
-        RpiCpuInfo::from_reader(file)
+    pub fn new() -> Result<Self> {
+        let file = open("/proc/cpuinfo")?;
+        Ok(RpiCpuInfo::from_reader(file))
     }
 }
 
@@ -110,10 +114,13 @@ Model           : Raspberry Pi 3 Model B Plus Rev 1.3
 
         let r = std::io::Cursor::new(data.as_bytes());
 
-        let info = RpiCpuInfo::from_reader(r);
+        let info = RpiCpuInfo::from_reader(r).unwrap();
         assert_eq!(info.hardware, Some("BCM2835".to_string()));
         assert_eq!(info.revision, Some("a020d3".to_string()));
         assert_eq!(info.serial, Some("0000000012345678".to_string()));
-        assert_eq!(info.model, Some("Raspberry Pi 3 Model B Plus Rev 1.3".to_string()));
+        assert_eq!(
+            info.model,
+            Some("Raspberry Pi 3 Model B Plus Rev 1.3".to_string())
+        );
     }
 }
