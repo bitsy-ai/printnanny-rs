@@ -19,6 +19,7 @@ use printnanny_api_client::models;
 use super::config::PrintNannyConfig;
 use super::cpuinfo::RpiCpuInfo;
 use super::error::ServiceError;
+use super::file::open;
 
 #[derive(Debug, Clone)]
 pub struct ApiService {
@@ -29,7 +30,7 @@ pub struct ApiService {
 }
 
 pub fn read_model_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, std::io::Error> {
-    let file = File::open(path)?;
+    let file = open(path)?;
     let reader = BufReader::new(file);
     let result: T = serde_json::from_reader(reader)?;
     Ok(result)
@@ -107,14 +108,14 @@ impl ApiService {
 
     pub async fn stream_setup(&mut self) -> Result<(), ServiceError> {
         // get or create cloud JanusAuth
-        let device = match &self.config.device {
+        let _device = match &self.config.device {
             Some(r) => Ok(r),
             None => Err(ServiceError::SetupIncomplete {
                 field: "device".into(),
                 detail: None,
             }),
         }?;
-        let user = match &self.config.user {
+        let _user = match &self.config.user {
             Some(r) => Ok(r),
             None => Err(ServiceError::SetupIncomplete {
                 field: "user".into(),
@@ -195,21 +196,21 @@ impl ApiService {
         Ok(res)
     }
 
-    async fn janus_cloud_stream_get_or_create(
-        &self,
-        device: i32,
-    ) -> Result<models::JanusCloudStream, ServiceError> {
-        let req = models::JanusCloudStreamRequest {
-            device,
-            pin: None,
-            info: None,
-            active: None,
-            secret: None,
-        };
-        let res =
-            janus_api::devices_janus_cloud_stream_get_or_create(&self.reqwest, device, req).await?;
-        Ok(res)
-    }
+    // async fn janus_cloud_stream_get_or_create(
+    //     &self,
+    //     device: i32,
+    // ) -> Result<models::JanusCloudStream, ServiceError> {
+    //     let req = models::JanusCloudStreamRequest {
+    //         device,
+    //         pin: None,
+    //         info: None,
+    //         active: None,
+    //         secret: None,
+    //     };
+    //     let res =
+    //         janus_api::devices_janus_cloud_stream_get_or_create(&self.reqwest, device, req).await?;
+    //     Ok(res)
+    // }
 
     // async fn janus_edge_stream_get_or_create(
     //     &self,
@@ -241,7 +242,7 @@ impl ApiService {
         let machine_id: String = read_to_string("/etc/machine-id")?;
 
         // hacky parsing of rpi-specific /proc/cpuinfo
-        let rpi_cpuinfo = RpiCpuInfo::new();
+        let rpi_cpuinfo = RpiCpuInfo::new()?;
         let model = rpi_cpuinfo.model.unwrap_or_else(|| "unknown".to_string());
         let serial = rpi_cpuinfo.serial.unwrap_or_else(|| "unknown".to_string());
         let revision = rpi_cpuinfo

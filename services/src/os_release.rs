@@ -21,12 +21,13 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR
 
+use super::file::open;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 use std::iter::FromIterator;
 use std::path::Path;
+
 fn is_enclosed_with(line: &str, pattern: char) -> bool {
     line.starts_with(pattern) && line.ends_with(pattern)
 }
@@ -76,14 +77,14 @@ pub struct OsRelease {
 impl OsRelease {
     /// Attempt to parse the contents of `/etc/os-release`.
     pub fn new() -> io::Result<OsRelease> {
-        let file = File::open("/etc/os-release")?;
+        let file = open("/etc/os-release")?;
         let reader = BufReader::new(file);
         Ok(OsRelease::from_iter(reader.lines().flat_map(|line| line)))
     }
 
     /// Attempt to parse any `/etc/os-release`-like file.
     pub fn new_from<P: AsRef<Path>>(path: P) -> io::Result<OsRelease> {
-        let file = File::open(path)?;
+        let file = open(path)?;
         let reader = BufReader::new(file);
         Ok(OsRelease::from_iter(reader.lines().flat_map(|line| line)))
     }

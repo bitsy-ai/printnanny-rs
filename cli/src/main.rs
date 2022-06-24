@@ -19,7 +19,6 @@ use printnanny_services::config::ConfigFormat;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker };
 use printnanny_cli::config::{ConfigAction, handle_check_license};
-use printnanny_api_client::models;
 
 #[tokio::main]
 async fn main() -> Result<()> {
