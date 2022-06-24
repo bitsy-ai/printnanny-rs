@@ -10,10 +10,11 @@ use glob::glob;
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 
-use super::error::PrintNannyConfigError;
+use super::error::{PrintNannyConfigError, ServiceError};
 use super::keys::PrintNannyKeys;
 use super::octoprint::OctoPrintConfig;
 use super::paths::{PrintNannyPaths, PRINTNANNY_CONFIG_DEFAULT};
+use super::printnanny_api::ApiService;
 use printnanny_api_client::models;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
@@ -212,24 +213,43 @@ impl PrintNannyConfig {
     // See example: https://docs.rs/figment/latest/figment/index.html#extracting-and-profiles
     // Note the `nested` option on both `file` providers. This makes each
     // top-level dictionary act as a profile
-    pub fn new() -> figment::error::Result<Self> {
-        let figment = Self::figment();
+    pub fn new() -> Result<Self, ServiceError> {
+        let figment = Self::figment()?;
         let result = figment.extract()?;
         info!("Initialized config {:?}", result);
         Ok(result)
     }
 
-    pub fn find_value(key: &str) -> Result<figment::value::Value, figment::Error> {
-        let figment = Self::figment();
-        figment.find_value(key)
+    pub async fn check_license(&self) -> Result<(), ServiceError> {
+        match PathBuf::from(&self.paths.license).exists() {
+            true => Ok(()),
+            false => Err(PrintNannyConfigError::LicenseMissing {
+                path: self
+                    .paths
+                    .license
+                    .clone()
+                    .into_os_string()
+                    .into_string()
+                    .unwrap(),
+            }),
+        }?;
+        info!("Loaded license from {:?}", &self.paths.license);
+        let mut api_service = ApiService::new(self.clone())?;
+        api_service.device_setup().await?;
+        Ok(())
+    }
+
+    pub fn find_value(key: &str) -> Result<figment::value::Value, ServiceError> {
+        let figment = Self::figment()?;
+        Ok(figment.find_value(key)?)
     }
 
     // intended for use with Rocket's figmment
     pub fn from_figment(figment: Figment) -> Figment {
-        figment.merge(Self::figment())
+        figment.merge(Self::figment().unwrap())
     }
 
-    pub fn figment() -> Figment {
+    pub fn figment() -> Result<Figment, PrintNannyConfigError> {
         let result = Figment::from(Self { ..Self::default() })
             .merge(Toml::file(Env::var_or(
                 "PRINTNANNY_CONFIG",
@@ -247,6 +267,7 @@ impl PrintNannyConfig {
             .unwrap()
             .deserialize::<String>()
             .unwrap();
+
         // merge license.json contents
         let result = result.merge(Json::file(&license_json));
 
@@ -256,7 +277,7 @@ impl PrintNannyConfig {
         let result = Self::read_path_glob::<Json>(&json_glob, result);
         let result = Self::read_path_glob::<Toml>(&toml_glob, result);
         info!("Finalized PrintNannyConfig: \n {:?}", result);
-        result
+        Ok(result)
     }
 
     fn read_path_glob<T: 'static + figment::providers::Format>(
@@ -440,7 +461,7 @@ mod tests {
                 "#,
             )?;
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
-            let figment = PrintNannyConfig::figment();
+            let figment = PrintNannyConfig::figment().unwrap();
             let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
                 config.octoprint.venv_path,
@@ -466,7 +487,7 @@ mod tests {
                 "#,
             )?;
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
-            let config = PrintNannyConfig::new()?;
+            let config = PrintNannyConfig::new().unwrap();
             assert_eq!(
                 config.api,
                 models::PrintNannyApiConfig {
@@ -477,7 +498,7 @@ mod tests {
                 }
             );
             jail.set_env("PRINTNANNY_API.BEARER_ACCESS_TOKEN", "secret");
-            let figment = PrintNannyConfig::figment();
+            let figment = PrintNannyConfig::figment().unwrap();
             let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
                 config.api,
@@ -509,7 +530,7 @@ mod tests {
             )?;
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
 
-            let figment = PrintNannyConfig::figment();
+            let figment = PrintNannyConfig::figment().unwrap();
             let config: PrintNannyConfig = figment.extract()?;
 
             let base_path = "http://aurora:8000".into();
@@ -542,7 +563,7 @@ mod tests {
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
             jail.set_env("PRINTNANNY_PATHS.confd", format!("{:?}", jail.directory()));
 
-            let figment = PrintNannyConfig::figment();
+            let figment = PrintNannyConfig::figment().unwrap();
             let mut config: PrintNannyConfig = figment.extract()?;
             config.paths.etc = jail.directory().into();
 
@@ -554,7 +575,7 @@ mod tests {
             };
             config.api = expected.clone();
             config.try_save().unwrap();
-            let figment = PrintNannyConfig::figment();
+            let figment = PrintNannyConfig::figment().unwrap();
             let new: PrintNannyConfig = figment.extract()?;
             assert_eq!(new.api, expected);
             Ok(())
@@ -576,8 +597,9 @@ mod tests {
             jail.set_env("PRINTNANNY_PATHS.confd", format!("{:?}", jail.directory()));
 
             let expected: Option<String> = Some("http://aurora:8000".into());
-            let value: Option<String> =
-                PrintNannyConfig::find_value("api.base_path")?.into_string();
+            let value: Option<String> = PrintNannyConfig::find_value("api.base_path")
+                .unwrap()
+                .into_string();
             assert_eq!(value, expected);
             Ok(())
         });

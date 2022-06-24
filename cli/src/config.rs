@@ -1,7 +1,6 @@
 use log::info;
 use printnanny_services::config::{ConfigFormat, PrintNannyConfig};
-use printnanny_services::error::PrintNannyConfigError;
-use printnanny_services::error::ServiceError;
+use printnanny_services::error::{PrintNannyConfigError, ServiceError};
 use printnanny_services::keys::PrintNannyKeys;
 use printnanny_services::printnanny_api::ApiService;
 use std::fs;
@@ -11,7 +10,7 @@ use std::path::PathBuf;
 pub struct ConfigAction;
 
 impl ConfigAction {
-    pub fn handle(sub_m: &clap::ArgMatches) -> Result<(), PrintNannyConfigError> {
+    pub fn handle(sub_m: &clap::ArgMatches) -> Result<(), ServiceError> {
         let config: PrintNannyConfig = PrintNannyConfig::new()?;
         match sub_m.subcommand() {
             Some(("init", args)) => {
@@ -52,8 +51,6 @@ impl ConfigAction {
 
 pub async fn handle_check_license() -> Result<(), ServiceError> {
     let config: PrintNannyConfig = PrintNannyConfig::new()?;
-    info!("Loaded license from {:?}", &config.paths.license);
-    let mut api_service = ApiService::new(config.clone())?;
-    api_service.device_setup().await?;
+    config.check_license().await?;
     Ok(())
 }

@@ -12,6 +12,9 @@ use printnanny_api_client::apis::Error as ApiError;
 
 #[derive(Error, Debug)]
 pub enum PrintNannyConfigError {
+    #[error("Failed to read {path:?}. Please download a license from https://printnanny.ai/dashboard/ and save to {path:?}")]
+    LicenseMissing { path: String },
+
     #[error("Command {cmd} exited with code {code:?} stdout: {stdout} stderr: {stderr}")]
     CommandError {
         cmd: String,
@@ -45,6 +48,10 @@ pub enum PrintNannyConfigError {
 
 #[derive(Error, Debug)]
 pub enum ServiceError {
+    #[error(transparent)]
+    JsonSerError(#[from] serde_json::Error),
+    #[error(transparent)]
+    TomlSerError(#[from] toml::ser::Error),
     #[error(transparent)]
     AlertSettingsGetOrCreateRetrieveError(
         #[from] ApiError<alert_settings_api::AlertSettingsGetOrCreateRetrieveError>,
@@ -120,8 +127,6 @@ pub enum ServiceError {
 
     #[error(transparent)]
     IoError(#[from] std::io::Error),
-    #[error(transparent)]
-    SerdeError(#[from] serde_json::Error),
 
     #[error(transparent)]
     PrintNannyConfigError(#[from] PrintNannyConfigError),
