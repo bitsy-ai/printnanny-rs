@@ -8,10 +8,8 @@ use std::path::Path;
 
 use printnanny_api_client::apis::alert_settings_api;
 use printnanny_api_client::apis::auth_api;
-use printnanny_api_client::apis::config_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::apis::devices_api;
-use printnanny_api_client::apis::janus_api;
 use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::apis::users_api;
 use printnanny_api_client::models;
@@ -155,7 +153,6 @@ impl ApiService {
                 info!("Success! Updated OctoPrintServer {:?}", octoprint_server);
                 self.config.octoprint.server = Some(octoprint_server);
                 // setup edge + cloud janus streams
-                self.config.api = api;
                 self.config.cloudiot_device = Some(cloudiot_device);
                 self.config.user = Some(user);
                 // self.stream_setup().await?;

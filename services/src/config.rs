@@ -454,7 +454,7 @@ mod tests {
                 
                 [octoprint]
                 base_path = "/home/octoprint/.octoprint"
-                venv_path = "/home/octoprint/.octoprint/.venv"
+                python = "/usr/bin/python3"
                 
                 [api]
                 base_path = "https://print-nanny.com"
@@ -463,10 +463,7 @@ mod tests {
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
             let figment = PrintNannyConfig::figment().unwrap();
             let config: PrintNannyConfig = figment.extract()?;
-            assert_eq!(
-                config.octoprint.venv_path,
-                PathBuf::from("/home/octoprint/.octoprint/.venv")
-            );
+            assert_eq!(config.octoprint.python, PathBuf::from("/usr/bin/python3"));
             Ok(())
         });
     }
