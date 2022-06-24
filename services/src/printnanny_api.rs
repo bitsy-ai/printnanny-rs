@@ -65,14 +65,6 @@ impl ApiService {
         let res = alert_settings_api::alert_settings_get_or_create_retrieve(&self.reqwest).await?;
         Ok(res)
     }
-
-    // auth APIs
-    // fetch user associated with auth token
-    pub async fn api_client_config_retieve(
-        &self,
-    ) -> Result<models::PrintNannyApiConfig, ServiceError> {
-        Ok(config_api::api_config_retreive(&self.reqwest).await?)
-    }
     pub async fn auth_user_retreive(&self) -> Result<models::User, ServiceError> {
         Ok(users_api::users_me_retrieve(&self.reqwest).await?)
     }
@@ -159,7 +151,6 @@ impl ApiService {
                 self.config.alert_settings = Some(alert_settings);
                 let user = self.auth_user_retreive().await?;
                 info!("Success! Got user: {:?}", user);
-                let api = self.api_client_config_retieve().await?;
                 let octoprint_server = self.octoprint_server_update_or_create().await?;
                 info!("Success! Updated OctoPrintServer {:?}", octoprint_server);
                 self.config.octoprint.server = Some(octoprint_server);
