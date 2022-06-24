@@ -49,6 +49,10 @@ pub enum PrintNannyConfigError {
 #[derive(Error, Debug)]
 pub enum ServiceError {
     #[error(transparent)]
+    JsonSerError(#[from] serde_json::Error),
+    #[error(transparent)]
+    TomlSerError(#[from] toml::ser::Error),
+    #[error(transparent)]
     AlertSettingsGetOrCreateRetrieveError(
         #[from] ApiError<alert_settings_api::AlertSettingsGetOrCreateRetrieveError>,
     ),
@@ -123,8 +127,6 @@ pub enum ServiceError {
 
     #[error(transparent)]
     IoError(#[from] std::io::Error),
-    #[error(transparent)]
-    SerdeError(#[from] serde_json::Error),
 
     #[error(transparent)]
     PrintNannyConfigError(#[from] PrintNannyConfigError),
