@@ -12,9 +12,9 @@
 {% endblock head %}
 {% block body %}
 <div class="row is-center">
-    <div class="col-5">
-      <img src="https://cdn.print-nanny.com/www/device-dash/logo.svg" style="is-full-width" />
-    </div>
+  <div class="col-5">
+    <img src="https://cdn.print-nanny.com/www/device-dash/logo.svg" />
+  </div>
   {% if errors | length > 1 %}
   <small class="text-error" style="margin-top: -20px">
     {{ errors | length }} field(s) have errors
@@ -27,7 +27,7 @@
 
     <form action="/login" method="post" enctype="multipart/form-data">
       <fieldset>
-        <legend>Confirm your email to log in</legend>
+        <legend>Log into PrintNanny OS</legend>
         <div class="row">
           <div class="col-12">
             {{ m::input(label="Email Address", type="text", name="email") }}
@@ -36,7 +36,7 @@
           <div class="col-12">
             {{ m::checkbox(label="I agree to send anonymous debug and analytics info to PrintNanny.", name="analytics",
             required=true) }}
-            <a target="_blank" href='https://help.print-nanny.com/topic/privacy-policy-legal/'>View the Privacy
+            <a target="_blank" href="https://printnanny.ai/privacy-policy">View the Privacy
               Policy</a>
           </div>
         </div>

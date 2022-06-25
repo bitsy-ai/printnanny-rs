@@ -38,7 +38,7 @@
 
 <body>
   <div class="container">
-    <div class"row">
+    <div class="row">
       {% if flash %}
       <small class="field-{{flash.0}}-msg">
         {{ flash.1 }}
