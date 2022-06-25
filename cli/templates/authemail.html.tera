@@ -12,9 +12,9 @@
 {% endblock head %}
 {% block body %}
 <div class="row is-center">
-    <div class="col-5">
-      <img src="https://cdn.print-nanny.com/www/device-dash/logo.svg" style="is-full-width" />
-    </div>
+  <div class="col-5">
+    <img src="https://cdn.print-nanny.com/www/device-dash/logo.svg" />
+  </div>
   {% if errors | length > 1 %}
   <small class="text-error" style="margin-top: -20px">
     {{ errors | length }} field(s) have errors
