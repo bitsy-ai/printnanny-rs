@@ -156,6 +156,8 @@ impl ApiService {
                 self.config.cloudiot_device = Some(cloudiot_device);
                 self.config.user = Some(user);
                 // self.stream_setup().await?;
+                let device = self.device_retrieve(device.id).await?;
+                self.config.device = Some(device);
                 self.config.try_save()?;
                 Ok(())
             }
@@ -164,6 +166,11 @@ impl ApiService {
                 detail: None,
             }),
         }
+    }
+
+    pub async fn device_retrieve(&self, device_id: i32) -> Result<models::Device, ServiceError> {
+        let res = devices_api::devices_retrieve(&self.reqwest, device_id).await?;
+        Ok(res)
     }
 
     pub async fn device_public_key_update_or_create(
