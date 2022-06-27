@@ -1,6 +1,5 @@
 pub mod config;
 pub mod cpuinfo;
-pub mod edition;
 pub mod error;
 pub mod file;
 pub mod janus;

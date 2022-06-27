@@ -15,22 +15,56 @@ use printnanny_services::printnanny_api::ApiService;
 use super::response::Response;
 pub const COOKIE_USER: &str = "printnanny_user";
 
-pub fn is_auth_valid(jar: &CookieJar<'_>) -> Result<Option<PrintNannyConfig>, ServiceError> {
+pub async fn try_device_setup(config: PrintNannyConfig) -> Result<(), ServiceError> {
+    match config.api.bearer_access_token {
+        Some(_) => {
+            let mut service = ApiService::new(config)?;
+            service.device_setup().await?;
+            Ok(())
+        }
+        None => Err(ServiceError::SetupIncomplete {
+            field: "api.bearer_access_token".to_string(),
+            detail: Some("try_device_setup failed, api credentials are not set".to_string()),
+        }),
+    }
+}
+
+pub async fn is_auth_valid(jar: &CookieJar<'_>) -> Result<Option<PrintNannyConfig>, ServiceError> {
     let cookie = jar.get_private(COOKIE_USER);
     match cookie {
         Some(user_json) => {
-            let user: models::User = serde_json::from_str(user_json.value())?;
+            let browser_user: models::User = serde_json::from_str(user_json.value())?;
             let config = PrintNannyConfig::new()?;
 
-            // if config + cookie mismatch, nuke cookie (profile switch in developer mode)
-            if config.user != Some(user.clone()) {
-                warn!("config.user {:?} did not match COOKIE_USER {:?}, deleting cookie to force re-auth", config.user, &user);
-                jar.remove_private(Cookie::named(COOKIE_USER));
-                // config.try_factory_reset()?;
-                Ok(None)
-            } else {
-                info!("Auth success! COOKIE_USER matches config.user");
-                Ok(Some(config))
+            // if config + cookie mismatch, nuke cookie and force re-auth
+            match &config.device {
+                Some(device) => match &device.user {
+                    Some(remote_user) => {
+                        if remote_user.id != browser_user.id {
+                            warn!(
+                                "Remote user {:?} did not match COOKIE_USER {:?}, deleting cookie to force re-auth",
+                                &remote_user, &browser_user
+                            );
+                            jar.remove_private(Cookie::named(COOKIE_USER));
+                            // config.try_factory_reset()?;
+                            Ok(None)
+                        } else {
+                            info!("Auth success! COOKIE_USER matches config.user");
+                            Ok(Some(config))
+                        }
+                    }
+                    None => Err(ServiceError::SetupIncomplete {
+                        field: "device.user".to_string(),
+                        detail: Some(
+                            "Failed to read device.user from PrintNannyConfig".to_string(),
+                        ),
+                    }),
+                },
+                None => {
+                    try_device_setup(config).await?;
+                    let config = PrintNannyConfig::new()?;
+                    Ok(Some(config))
+                }
             }
         }
         None => Ok(None),
@@ -140,8 +174,13 @@ async fn login_step2_submit<'r>(
         Some(ref v) => {
             let token = v.token;
             let api_config: PrintNannyConfig = handle_token_validate(token, &email, config).await?;
-            let cookie_value =
-                serde_json::to_string(&api_config.user.expect("Failed to read user"))?;
+            let cookie_value = serde_json::to_string(
+                &api_config
+                    .device
+                    .expect("Failed to read device")
+                    .user
+                    .expect("Failed to read user"),
+            )?;
             info!(
                 "Saving COOKIE_USER={} value={}",
                 &COOKIE_USER, &cookie_value

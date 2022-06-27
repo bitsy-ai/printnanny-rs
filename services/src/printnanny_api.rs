@@ -19,6 +19,7 @@ use super::config::PrintNannyConfig;
 use super::cpuinfo::RpiCpuInfo;
 use super::error::ServiceError;
 use super::file::open;
+use super::octoprint::OctoPrintConfig;
 
 #[derive(Debug, Clone)]
 pub struct ApiService {
@@ -97,88 +98,66 @@ impl ApiService {
         Ok(res)
     }
 
-    pub async fn stream_setup(&mut self) -> Result<(), ServiceError> {
-        // get or create cloud JanusAuth
-        let _device = match &self.config.device {
-            Some(r) => Ok(r),
-            None => Err(ServiceError::SetupIncomplete {
-                field: "device".into(),
-                detail: None,
-            }),
-        }?;
-        let _user = match &self.config.user {
-            Some(r) => Ok(r),
-            None => Err(ServiceError::SetupIncomplete {
-                field: "user".into(),
-                detail: None,
-            }),
-        }?;
-        // TODO - JanusConfigs in next PR
-        // let janus_edge = self
-        //     .janus_edge_stream_get_or_create(device.id, user.id)
-        //     .await?;
-        // info!("Success! JanusEdgeStream={:?}", janus_edge);
-        // let janus_cloud = self.janus_cloud_stream_get_or_create(device.id).await?;
-        // info!("Success! Retreived JanusCloudStream {:?}", janus_cloud);
-        // self.config.janus_cloud = Some(janus_cloud);
-        // self.config.janus_edge = Some(janus_edge);
-        Ok(())
-    }
-
+    // refreshes device data from PrintNanny Cloud
+    // performs any necessary one-time setup tasks, like registering Cloudiot Device
     pub async fn device_setup(&mut self) -> Result<(), ServiceError> {
         // verify device is set
         match &self.config.device {
             Some(device) => {
-                // create public key if none configured locally
-                let public_key = match device.public_key {
+                // create public key if none configured
+                let public_key_id = match &device.public_key {
                     Some(public_key) => {
                         info!("device_setup: public_key already set {:?}", public_key);
-                        Ok(public_key)
+                        public_key.id
                     }
                     None => {
                         let public_key = self.device_public_key_update_or_create(device.id).await?;
                         info!("Success! Updated PublicKey: {:?}", public_key);
-                        Ok(Box::new(public_key))
+                        public_key.id
                     }
-                }?;
+                };
 
                 // create cloudiotdevice if none set locally
-                let cloudiot_device = match device.cloudiot_device {
+                match &device.cloudiot_device {
                     Some(cloudiot_device) => {
                         info!(
                             "device_setup: cloudiot_device already set {:?}",
                             cloudiot_device
                         );
-                        Ok(cloudiot_device)
                     }
                     None => {
                         let cloudiot_device = self
-                            .cloudiot_device_update_or_create(device.id, public_key.id)
+                            .cloudiot_device_update_or_create(device.id, public_key_id)
                             .await?;
                         info!("Success! Updated CloudiotDevice {:?}", cloudiot_device);
-                        Ok(Box::new(cloudiot_device))
                     }
-                }?;
-
-                // fetch user if none set locally
-                let user = self.auth_user_retreive().await?;
-                info!("Success! Got user: {:?}", user);
+                };
                 // always update SystemInfo
                 info!("Calling device_system_info_update_or_create()");
                 let system_info = self.device_system_info_update_or_create(device.id).await?;
                 info!("Success! Updated SystemInfo {:?}", system_info);
 
-                // always create or fetch AlertSettings
-                let alert_settings = self.alert_settings_get_or_create().await?;
-
-                let user = self.auth_user_retreive().await?;
-                info!("Success! Got user: {:?}", user);
-                let octoprint_server = self.octoprint_server_update_or_create().await?;
-                info!("Success! Updated OctoPrintServer {:?}", octoprint_server);
-                self.config.octoprint.server = Some(octoprint_server);
-                // setup edge + cloud janus streams
-                self.config.user = Some(user);
-                // self.stream_setup().await?;
+                // detect edition from os-release
+                // performs any necessary one-time setup tasks, like registering OctoPrint Server
+                let os_release = self.config.paths.load_os_release()?;
+                let octoprint = match OctoPrintConfig::required(&os_release.variant_id) {
+                    true => {
+                        let octoprint = OctoPrintConfig::default();
+                        let octoprint_server = self
+                            .octoprint_server_update_or_create(&octoprint, device.id)
+                            .await?;
+                        info!("Success! Updated OctoPrintServer {:?}", octoprint_server);
+                        Some(octoprint)
+                    }
+                    false => {
+                        debug!(
+                            "OctoPrintConfig is not required for {}",
+                            &os_release.variant_id
+                        );
+                        None
+                    }
+                };
+                self.config.octoprint = octoprint;
                 let device = self.device_retrieve(device.id).await?;
                 self.config.device = Some(device);
                 self.config.try_save()?;
@@ -296,39 +275,22 @@ impl ApiService {
 
     pub async fn octoprint_server_update_or_create(
         &self,
+        octoprint_config: &OctoPrintConfig,
+        device: i32,
     ) -> Result<models::OctoPrintServer, ServiceError> {
-        let pip_packages = self.config.octoprint.pip_packages()?;
-        let octoprint_version = self
-            .config
-            .octoprint
-            .octoprint_version(&pip_packages)?
-            .into();
-        let pip_version = self
-            .config
-            .octoprint
+        let pip_packages = octoprint_config.pip_packages()?;
+        let octoprint_version = octoprint_config.octoprint_version(&pip_packages)?.into();
+        let pip_version = octoprint_config
             .pip_version()?
             .unwrap_or("unknown".into())
             .into();
-        let printnanny_plugin_version = self
-            .config
-            .octoprint
+        let printnanny_plugin_version = octoprint_config
             .printnanny_plugin_version(&pip_packages)?
             .into();
-        let python_version = self
-            .config
-            .octoprint
+        let python_version = octoprint_config
             .python_version()?
             .unwrap_or("unknown".into())
             .into();
-        let device = match &self.config.device {
-            Some(d) => Ok(d.id),
-            None => Err(ServiceError::SetupIncomplete {
-                field: "device".into(),
-                detail: Some(
-                    "Failed to read device in octoprint_install_update_or_create".to_string(),
-                ),
-            }),
-        }?;
         let req = models::OctoPrintServerRequest {
             octoprint_version,
             pip_version,

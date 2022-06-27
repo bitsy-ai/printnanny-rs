@@ -17,6 +17,8 @@ use super::paths::{PrintNannyPaths, PRINTNANNY_CONFIG_DEFAULT};
 use super::printnanny_api::ApiService;
 use printnanny_api_client::models;
 
+const FACTORY_RESET: [&'static str; 3] = ["api", "device", "octoprint"];
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
 pub enum ConfigFormat {
     Json,
@@ -151,15 +153,13 @@ pub struct PrintNannyConfig {
     pub device: Option<models::Device>,
     // edition-specific data and settings
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub edition: Option<EditionConfig>,
+    pub octoprint: Option<OctoPrintConfig>,
     pub paths: PrintNannyPaths,
     pub api: models::PrintNannyApiConfig,
     pub dash: DashConfig,
     pub mqtt: MQTTConfig,
     pub keys: PrintNannyKeys,
 }
-
-const FACTORY_RESET: [&'static str; 3] = ["api", "device", "edition"];
 
 impl Default for PrintNannyConfig {
     fn default() -> Self {
@@ -175,7 +175,7 @@ impl Default for PrintNannyConfig {
         let dash = DashConfig::default();
         let printnanny_cloud_proxy = PrintNannyCloudProxy::default();
         let keys = PrintNannyKeys::default();
-        let edition = None;
+        let octoprint = None;
         PrintNannyConfig {
             api,
             dash,
@@ -183,7 +183,7 @@ impl Default for PrintNannyConfig {
             paths,
             printnanny_cloud_proxy,
             keys,
-            edition,
+            octoprint,
             device: None,
         }
     }
@@ -316,22 +316,10 @@ impl PrintNannyConfig {
         filename: &PathBuf,
     ) -> Result<(), PrintNannyConfigError> {
         let content = match key {
-            "alert_settings" => {
-                toml::Value::try_from(figment::util::map! { key => &self.alert_settings})
-            }
             "api" => toml::Value::try_from(figment::util::map! { key => &self.api}),
-            "cloudiot_device" => {
-                toml::Value::try_from(figment::util::map! { key => &self.cloudiot_device})
-            }
+
             "device" => toml::Value::try_from(figment::util::map! {key => &self.device }),
-            "janus_cloud" => {
-                toml::Value::try_from(figment::util::map! {key =>  &self.janus_cloud_stream })
-            }
-            "janus_edge" => {
-                toml::Value::try_from(figment::util::map! {key =>  &self.janus_edge_stream })
-            }
             "octoprint" => toml::Value::try_from(figment::util::map! {key =>  &self.octoprint }),
-            "user" => toml::Value::try_from(figment::util::map! {key =>  &self.user }),
             _ => {
                 warn!("try_save_fragment received unhandled key={:?} - serializing entire PrintNannyConfig", key);
                 toml::Value::try_from(self)
@@ -443,7 +431,10 @@ mod tests {
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
             let figment = PrintNannyConfig::figment().unwrap();
             let config: PrintNannyConfig = figment.extract()?;
-            assert_eq!(config.octoprint.python, PathBuf::from("/usr/bin/python3"));
+            assert_eq!(
+                config.octoprint.unwrap().python,
+                PathBuf::from("/usr/bin/python3")
+            );
             Ok(())
         });
     }
