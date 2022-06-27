@@ -159,6 +159,8 @@ impl ApiService {
                 self.config.octoprint = octoprint;
                 let device = self.device_retrieve(device.id).await?;
                 self.config.device = Some(device);
+                // copy license.json from /boot/license.json to /etc/printnanny/conf.d/license.json
+                self.config.try_copy_license()?;
                 self.config.try_save()?;
                 Ok(())
             }
