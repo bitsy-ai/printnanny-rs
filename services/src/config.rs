@@ -14,7 +14,6 @@ use super::error::{PrintNannyConfigError, ServiceError};
 use super::keys::PrintNannyKeys;
 use super::octoprint::OctoPrintConfig;
 use super::paths::{PrintNannyPaths, PRINTNANNY_CONFIG_DEFAULT};
-use super::printnanny_api::ApiService;
 use printnanny_api_client::models;
 
 const FACTORY_RESET: [&'static str; 3] = ["api", "device", "octoprint"];
@@ -199,26 +198,6 @@ impl PrintNannyConfig {
         info!("Initialized config {:?}", result);
         Ok(result)
     }
-
-    pub async fn check_license(&self) -> Result<(), ServiceError> {
-        match PathBuf::from(&self.paths.config).exists() {
-            true => Ok(()),
-            false => Err(PrintNannyConfigError::LicenseMissing {
-                path: self
-                    .paths
-                    .config
-                    .clone()
-                    .into_os_string()
-                    .into_string()
-                    .unwrap(),
-            }),
-        }?;
-        info!("Loaded license from {:?}", &self.paths.config);
-        let mut api_service = ApiService::new(self.clone())?;
-        api_service.device_setup().await?;
-        Ok(())
-    }
-
     pub fn find_value(key: &str) -> Result<figment::value::Value, ServiceError> {
         let figment = Self::figment()?;
         Ok(figment.find_value(key)?)
@@ -242,14 +221,14 @@ impl PrintNannyConfig {
             .unwrap()
             .deserialize::<String>()
             .unwrap();
-        let license_json: String = result
+        let seed_config: String = result
             .find_value("paths.config")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
 
         // merge license.json contents
-        let result = result.merge(Json::file(&license_json));
+        let result = result.merge(Toml::file(&seed_config));
 
         let toml_glob = format!("{}/*.toml", &confd_path);
         let json_glob = format!("{}/*.json", &confd_path);
