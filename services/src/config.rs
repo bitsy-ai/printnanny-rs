@@ -201,19 +201,19 @@ impl PrintNannyConfig {
     }
 
     pub async fn check_license(&self) -> Result<(), ServiceError> {
-        match PathBuf::from(&self.paths.license).exists() {
+        match PathBuf::from(&self.paths.config).exists() {
             true => Ok(()),
             false => Err(PrintNannyConfigError::LicenseMissing {
                 path: self
                     .paths
-                    .license
+                    .config
                     .clone()
                     .into_os_string()
                     .into_string()
                     .unwrap(),
             }),
         }?;
-        info!("Loaded license from {:?}", &self.paths.license);
+        info!("Loaded license from {:?}", &self.paths.config);
         let mut api_service = ApiService::new(self.clone())?;
         api_service.device_setup().await?;
         Ok(())
@@ -243,7 +243,7 @@ impl PrintNannyConfig {
             .deserialize::<String>()
             .unwrap();
         let license_json: String = result
-            .find_value("paths.license")
+            .find_value("paths.config")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
@@ -359,9 +359,10 @@ impl PrintNannyConfig {
 
     // Move license.json from boot partition to conf.d directory
     pub fn try_copy_license(&self) -> Result<(), ServiceError> {
-        if self.paths.license.exists() {
-            info!("Copying {:?} to {:?}", self.paths.license, self.paths.confd);
-            fs::copy(&self.paths.license, self.paths.confd.join("license.json"))?;
+        if self.paths.config.exists() {
+            info!("Copying {:?} to {:?}", self.paths.config, self.paths.confd);
+            let dest = self.paths.confd.join(self.paths.config.filename()?);
+            fs::copy(&self.paths.config, dest)?;
         }
         Ok(())
     }

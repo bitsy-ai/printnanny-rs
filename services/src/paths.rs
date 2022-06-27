@@ -10,7 +10,7 @@ pub struct PrintNannyPaths {
     pub etc: PathBuf,
     pub confd: PathBuf,
     pub events_socket: PathBuf,
-    pub license: PathBuf,
+    pub config PathBuf,
     pub issue_txt: PathBuf,
     pub log: PathBuf,
     pub run: PathBuf,
@@ -26,7 +26,7 @@ impl Default for PrintNannyPaths {
         let run: PathBuf = "/var/run/printnanny".into();
         let log: PathBuf = "/var/log/printnanny".into();
         let events_socket = run.join("events.socket").into();
-        let license = "/boot/license.json".into();
+        let config = "/boot/PrintNanny.toml".into();
         let os_release = "/etc/os-release".into();
         Self {
             etc,
@@ -35,7 +35,7 @@ impl Default for PrintNannyPaths {
             issue_txt,
             log,
             events_socket,
-            license,
+            config,
             os_release,
         }
     }
