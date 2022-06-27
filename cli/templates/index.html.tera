@@ -8,7 +8,7 @@
         <h1>Welcome to PrintNanny OS!</h1>
         <dl class="row">
             <dt class="col-4">Username</dt>
-            <dd class="col-8">{{ config.user.email }}</dd>
+            <dd class="col-8">{{ config.device.user.email }}</dd>
             <dt class="col-4">Hostname</dt>
             <dd class="col-8">{{ config.device.hostname }}</dd>
             <dt class="col-4">Fingerprint</dt>

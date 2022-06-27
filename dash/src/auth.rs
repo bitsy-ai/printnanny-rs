@@ -49,7 +49,7 @@ pub async fn is_auth_valid(jar: &CookieJar<'_>) -> Result<Option<PrintNannyConfi
                             // config.try_factory_reset()?;
                             Ok(None)
                         } else {
-                            info!("Auth success! COOKIE_USER matches config.user");
+                            info!("Auth success! COOKIE_USER matches config.device.user");
                             Ok(Some(config))
                         }
                     }
