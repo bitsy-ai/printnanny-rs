@@ -47,6 +47,10 @@ impl PrintNannyKeys {
         let private_key = EcKey::generate(&group)?;
         let public_key = EcKey::from_public_key(&group, private_key.public_key())?;
         let pcks8_key = PKey::try_from(private_key)?.private_key_to_pem_pkcs8()?;
+        // create directory
+        if !self.path.exists() {
+            fs::create_dir_all(&self.path)?;
+        }
         fs::write(self.ec_private_key_file(), pcks8_key)?;
         fs::write(self.ec_public_key_file(), public_key.public_key_to_pem()?)?;
 
