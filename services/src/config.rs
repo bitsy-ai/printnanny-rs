@@ -361,7 +361,10 @@ impl PrintNannyConfig {
     pub fn try_copy_license(&self) -> Result<(), ServiceError> {
         if self.paths.config.exists() {
             info!("Copying {:?} to {:?}", self.paths.config, self.paths.confd);
-            let dest = self.paths.confd.join(self.paths.config.filename()?);
+            let dest = self
+                .paths
+                .confd
+                .join(self.paths.config.file_name().unwrap());
             fs::copy(&self.paths.config, dest)?;
         }
         Ok(())

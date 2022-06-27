@@ -10,7 +10,7 @@ pub struct PrintNannyPaths {
     pub etc: PathBuf,
     pub confd: PathBuf,
     pub events_socket: PathBuf,
-    pub config PathBuf,
+    pub config: PathBuf,
     pub issue_txt: PathBuf,
     pub log: PathBuf,
     pub run: PathBuf,
