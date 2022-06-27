@@ -5,9 +5,7 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
 
-use crate::config::PrintNannyConfig;
 use printnanny_api_client::models;
-use reqwest;
 
 #[derive(PartialEq, Debug, Clone, Copy, ArgEnum)]
 pub enum JanusAdminEndpoint {
@@ -175,14 +173,15 @@ fn build_request_body(
 }
 
 pub async fn janus_admin_api_call(endpoint: JanusAdminEndpoint) -> Result<String> {
-    let janus_config = PrintNannyConfig::new()?
-        .janus_edge_stream
-        .expect("janus_edge config is not set");
-    let body = build_request_body(&endpoint, &janus_config)?;
-    let client = reqwest::Client::new();
-    let host = &janus_config.admin_url;
-    let res = client.post(host).json(&body).send().await?.text().await?;
-    Ok(res)
+    unimplemented!("janus_admin_api_call is not yet implemented")
+    // let janus_config = PrintNannyConfig::new()?
+    //     .janus_edge_stream
+    //     .expect("janus_edge config is not set");
+    // let body = build_request_body(&endpoint, &janus_config)?;
+    // let client = reqwest::Client::new();
+    // let host = &janus_config.admin_url;
+    // let res = client.post(host).json(&body).send().await?.text().await?;
+    // Ok(res)
 }
 
 impl JanusAdminService {

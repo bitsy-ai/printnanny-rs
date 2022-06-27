@@ -60,6 +60,13 @@ pub fn parse_pip_version(stdout: &str) -> Option<String> {
 }
 
 impl OctoPrintConfig {
+    // return boolean indicating whether PrintNanny OS edition requires OctoPrintConfig
+    pub fn required(variant_id: &str) -> bool {
+        match variant_id {
+            "octoprint" => true,
+            _ => false,
+        }
+    }
     pub fn pip_version(&self) -> Result<Option<String>, PrintNannyConfigError> {
         let msg = format!("{:?} -m pip --version failed", &self.python);
         let output = Command::new(&self.python)
