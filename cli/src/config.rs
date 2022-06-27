@@ -26,8 +26,8 @@ impl ConfigAction {
                 // setup action is idempotent, so KeypairExists error is non-fatal. Just log if generation was skipped
                 match result {
                     Ok(_) => Ok(()),
-                    Err(e) => match e {
-                        PrintNannyConfigError::KeypairExists => {
+                    Err(e) => match &e {
+                        PrintNannyConfigError::KeypairExists { .. } => {
                             info!("{}", e);
                             Ok(())
                         }
