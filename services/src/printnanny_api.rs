@@ -1,5 +1,4 @@
 use log::{debug, info, warn};
-use std::boxed::Box;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fs::{read_to_string, File};

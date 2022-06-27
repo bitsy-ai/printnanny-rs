@@ -18,7 +18,7 @@ use printnanny_dash::home;
 use printnanny_services::config::ConfigFormat;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker };
-use printnanny_cli::config::{ConfigAction, handle_check_license};
+use printnanny_cli::config::{ConfigAction};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -181,12 +181,6 @@ async fn main() -> Result<()> {
                 .short('d')
                 .takes_value(false)
                 .long("dryrun"))
-        )
-        .subcommand(Command::new("check-license")
-            .author(crate_authors!())
-            .about(crate_description!())
-            .version(&version[..])
-            .about("Exchange license key for a short-lived PrintNanny API credential")
         );
     
     
@@ -232,7 +226,7 @@ async fn main() -> Result<()> {
             }
         },
         Some(("config", subm)) => {
-            ConfigAction::handle(subm)?;
+            ConfigAction::handle(subm).await?;
         },
         Some(("janus-admin", sub_m)) => {
             let endpoint: JanusAdminEndpoint = sub_m.value_of_t("endpoint").unwrap_or_else(|e| e.exit());
@@ -241,9 +235,6 @@ async fn main() -> Result<()> {
             ).await?;
             println!("{}", res);
 
-        },
-        Some(("check-license", _)) => {
-            handle_check_license().await?;
         },
         _ => {}
     };
