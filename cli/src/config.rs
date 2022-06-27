@@ -9,11 +9,6 @@ impl ConfigAction {
     pub async fn handle(sub_m: &clap::ArgMatches) -> Result<(), ServiceError> {
         let config: PrintNannyConfig = PrintNannyConfig::new()?;
         match sub_m.subcommand() {
-            Some(("init", args)) => {
-                let output = args.value_of("output").unwrap();
-                let f: ConfigFormat = args.value_of_t("format").unwrap();
-                config.try_init(output, &f)?
-            }
             Some(("get", args)) => {
                 let key = args.value_of("key").unwrap();
                 let f: ConfigFormat = args.value_of_t("format").unwrap();
