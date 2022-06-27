@@ -1,4 +1,5 @@
 use log::{debug, info, warn};
+use std::boxed::Box;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fs::{read_to_string, File};
@@ -128,32 +129,54 @@ impl ApiService {
         // verify device is set
         match &self.config.device {
             Some(device) => {
+                // create public key if none configured locally
+                let public_key = match device.public_key {
+                    Some(public_key) => {
+                        info!("device_setup: public_key already set {:?}", public_key);
+                        Ok(public_key)
+                    }
+                    None => {
+                        let public_key = self.device_public_key_update_or_create(device.id).await?;
+                        info!("Success! Updated PublicKey: {:?}", public_key);
+                        Ok(Box::new(public_key))
+                    }
+                }?;
+
+                // create cloudiotdevice if none set locally
+                let cloudiot_device = match device.cloudiot_device {
+                    Some(cloudiot_device) => {
+                        info!(
+                            "device_setup: cloudiot_device already set {:?}",
+                            cloudiot_device
+                        );
+                        Ok(cloudiot_device)
+                    }
+                    None => {
+                        let cloudiot_device = self
+                            .cloudiot_device_update_or_create(device.id, public_key.id)
+                            .await?;
+                        info!("Success! Updated CloudiotDevice {:?}", cloudiot_device);
+                        Ok(Box::new(cloudiot_device))
+                    }
+                }?;
+
+                // fetch user if none set locally
+                let user = self.auth_user_retreive().await?;
+                info!("Success! Got user: {:?}", user);
+                // always update SystemInfo
                 info!("Calling device_system_info_update_or_create()");
                 let system_info = self.device_system_info_update_or_create(device.id).await?;
                 info!("Success! Updated SystemInfo {:?}", system_info);
 
-                // create PublicKey
-                info!("Calling device_public_key_update_or_create()");
-                let public_key = self.device_public_key_update_or_create(device.id).await?;
-                info!("Success! Updated PublicKey: {:?}", public_key);
-
-                // create GCP Cloudiot Device
-                info!("Calling cloudiot_device_update_or_create()");
-                let cloudiot_device = self
-                    .cloudiot_device_update_or_create(device.id, public_key.id)
-                    .await?;
-                info!("Success! Updated CloudiotDevice {:?}", cloudiot_device);
-
-                // get or create AlertSettings
+                // always create or fetch AlertSettings
                 let alert_settings = self.alert_settings_get_or_create().await?;
-                self.config.alert_settings = Some(alert_settings);
+
                 let user = self.auth_user_retreive().await?;
                 info!("Success! Got user: {:?}", user);
                 let octoprint_server = self.octoprint_server_update_or_create().await?;
                 info!("Success! Updated OctoPrintServer {:?}", octoprint_server);
                 self.config.octoprint.server = Some(octoprint_server);
                 // setup edge + cloud janus streams
-                self.config.cloudiot_device = Some(cloudiot_device);
                 self.config.user = Some(user);
                 // self.stream_setup().await?;
                 let device = self.device_retrieve(device.id).await?;
