@@ -357,6 +357,15 @@ impl PrintNannyConfig {
         Ok(())
     }
 
+    // Move license.json from boot partition to conf.d directory
+    pub fn try_copy_license(&self) -> Result<(), ServiceError> {
+        if self.paths.license.exists() {
+            info!("Copying {:?} to {:?}", self.paths.license, self.paths.confd);
+            fs::copy(&self.paths.license, self.paths.confd.join("license.json"))?;
+        }
+        Ok(())
+    }
+
     /// Save FACTORY_RESET fields as <field>.toml Figment fragments
     ///
     /// # Panics
