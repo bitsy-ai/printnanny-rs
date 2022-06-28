@@ -7,8 +7,8 @@ use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct JanusEdgeConfig {
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct JanusEdgeConfig {
     pub admin_base_path: String,
     pub admin_http_port: i32,
     pub admin_secret: String,
