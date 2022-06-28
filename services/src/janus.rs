@@ -1,11 +1,63 @@
 use anyhow::Result;
 use clap::ArgEnum;
 use log::info;
+use printnanny_api_client::models;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use printnanny_api_client::models;
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct JanusEdgeConfig {
+    pub admin_base_path: String,
+    pub admin_http_port: i32,
+    pub admin_secret: String,
+    pub admin_http_url: String,
+    pub api_base_path: String,
+    pub api_http_port: i32,
+    pub api_http_url: String,
+    pub api_token: String,
+    pub ws_port: i32,
+    pub ws_url: String,
+}
+
+impl Default for JanusEdgeConfig {
+    fn default() -> Self {
+        let admin_http_port = 7088;
+        let admin_base_path = "/admin".into();
+        let admin_secret = "".into();
+        let api_http_port = 8088;
+        let api_base_path = "janus".into();
+        let api_token = "".into();
+        let ws_port = 8188;
+
+        let hostname = sys_info::hostname().unwrap_or("localhost".to_string());
+        let admin_http_url = format!(
+            "http://{}.local:{}{}",
+            &hostname, &admin_http_port, &admin_base_path
+        )
+        .into();
+        let api_http_url = format!(
+            "http://{}.local:{}{}",
+            &hostname, &api_http_port, &api_base_path
+        )
+        .into();
+        let ws_url = format!("http://{}.local:{}/", &hostname, &ws_port).into();
+
+        return Self {
+            admin_base_path,
+            admin_http_port,
+            admin_secret,
+            api_http_port,
+            api_base_path,
+            api_token,
+            ws_port,
+            admin_http_url,
+            api_http_url,
+            ws_url,
+        };
+    }
+}
 
 #[derive(PartialEq, Debug, Clone, Copy, ArgEnum)]
 pub enum JanusAdminEndpoint {

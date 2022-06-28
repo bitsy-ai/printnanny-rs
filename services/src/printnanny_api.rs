@@ -131,6 +131,9 @@ impl ApiService {
                         info!("Success! Updated CloudiotDevice {:?}", cloudiot_device);
                     }
                 };
+
+                // always update Janus (Edge) Gateway model
+
                 // always update SystemInfo
                 info!("Calling device_system_info_update_or_create()");
                 let system_info = self.device_system_info_update_or_create(device.id).await?;

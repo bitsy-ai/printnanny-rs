@@ -11,12 +11,13 @@ use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 
 use super::error::{PrintNannyConfigError, ServiceError};
+use super::janus::JanusEdgeConfig;
 use super::keys::PrintNannyKeys;
 use super::octoprint::OctoPrintConfig;
 use super::paths::{PrintNannyPaths, PRINTNANNY_CONFIG_DEFAULT};
 use printnanny_api_client::models;
 
-const FACTORY_RESET: [&'static str; 3] = ["api", "device", "octoprint"];
+const FACTORY_RESET: [&'static str; 4] = ["api", "device", "janus_edge", "octoprint"];
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
 pub enum ConfigFormat {
@@ -146,7 +147,6 @@ impl Default for PrintNannyCloudProxy {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
     pub printnanny_cloud_proxy: PrintNannyCloudProxy,
-
     #[serde(skip_serializing_if = "Option::is_none")]
     // generic device data present on all Print Nanny OS editions
     pub device: Option<models::Device>,
@@ -158,6 +158,7 @@ pub struct PrintNannyConfig {
     pub dash: DashConfig,
     pub mqtt: MQTTConfig,
     pub keys: PrintNannyKeys,
+    pub janus_edge: JanusEdgeConfig,
 }
 
 impl Default for PrintNannyConfig {
@@ -175,6 +176,7 @@ impl Default for PrintNannyConfig {
         let printnanny_cloud_proxy = PrintNannyCloudProxy::default();
         let keys = PrintNannyKeys::default();
         let octoprint = None;
+        let janus_edge = JanusEdgeConfig::default();
         PrintNannyConfig {
             api,
             dash,
@@ -183,6 +185,7 @@ impl Default for PrintNannyConfig {
             printnanny_cloud_proxy,
             keys,
             octoprint,
+            janus_edge,
             device: None,
         }
     }
