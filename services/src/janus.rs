@@ -27,7 +27,7 @@ impl Default for JanusEdgeConfig {
         let admin_base_path = "/admin".into();
         let admin_secret = "".into();
         let api_http_port = 8088;
-        let api_base_path = "janus".into();
+        let api_base_path = "/janus".into();
         let api_token = "".into();
         let ws_port = 8188;
 
