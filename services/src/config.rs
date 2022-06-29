@@ -1,13 +1,15 @@
 use std::fs;
 use std::fs::File;
+use std::io::prelude::*;
 use std::path::PathBuf;
 
 use clap::{ArgEnum, PossibleValue};
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
+use file_lock::{FileLock, FileOptions};
 use glob::glob;
-use log::{error, info, warn};
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 
 use super::error::{PrintNannyConfigError, ServiceError};
@@ -240,7 +242,7 @@ impl PrintNannyConfig {
             .deserialize::<String>()
             .unwrap();
         let seed_config: String = result
-            .find_value("paths.config")
+            .find_value("paths.seed")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
@@ -254,6 +256,8 @@ impl PrintNannyConfig {
         let result = Self::read_path_glob::<Json>(&json_glob, result);
         let result = Self::read_path_glob::<Toml>(&toml_glob, result);
         info!("Finalized PrintNannyConfig: \n {:?}", result);
+        use file_lock::{FileLock, FileOptions};
+
         Ok(result)
     }
 
@@ -340,7 +344,13 @@ impl PrintNannyConfig {
             _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
         }?;
         info!("Saving {}.toml to {:?}", &key, &filename);
-        fs::write(&filename, content.to_string())?;
+
+        // lock fragment for writing
+        let lock_for_writing = FileOptions::new().write(true).create(true).truncate(true);
+        let mut filelock = FileLock::lock(&filename, true, lock_for_writing)?;
+        filelock.file.write(content.to_string().as_bytes())?;
+        // Manually unlocking is optional as we unlock on Drop
+        filelock.unlock()?;
         info!("Wrote {} to {:?}", key, filename);
         Ok(())
     }
@@ -373,13 +383,10 @@ impl PrintNannyConfig {
 
     // Move license.json from boot partition to conf.d directory
     pub fn try_copy_license(&self) -> Result<(), ServiceError> {
-        if self.paths.config.exists() {
-            info!("Copying {:?} to {:?}", self.paths.config, self.paths.confd);
-            let dest = self
-                .paths
-                .confd
-                .join(self.paths.config.file_name().unwrap());
-            fs::copy(&self.paths.config, dest)?;
+        if self.paths.seed.exists() {
+            info!("Copying {:?} to {:?}", self.paths.seed, self.paths.confd);
+            let dest = self.paths.confd.join(self.paths.seed.file_name().unwrap());
+            fs::copy(&self.paths.seed, dest)?;
         }
         Ok(())
     }
