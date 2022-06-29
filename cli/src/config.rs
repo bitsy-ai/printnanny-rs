@@ -11,14 +11,34 @@ impl ConfigAction {
         let config: PrintNannyConfig = PrintNannyConfig::new()?;
         match sub_m.subcommand() {
             Some(("get", args)) => {
-                let key = args.value_of("key").unwrap();
+                let key = args.value_of("key");
                 let f: ConfigFormat = args.value_of_t("format").unwrap();
-                let data = PrintNannyConfig::find_value(key)?;
                 let v = match f {
-                    ConfigFormat::Json => serde_json::to_vec_pretty(&data)?,
-                    ConfigFormat::Toml => toml::ser::to_vec(&data)?,
+                    ConfigFormat::Json => match key {
+                        Some(k) => {
+                            let data = PrintNannyConfig::find_value(k)?;
+                            serde_json::to_vec_pretty(&data)?
+                        }
+                        None => {
+                            let data = PrintNannyConfig::new()?;
+                            serde_json::to_vec_pretty(&data)?
+                        }
+                    },
+                    ConfigFormat::Toml => match key {
+                        Some(k) => {
+                            let data = PrintNannyConfig::find_value(k)?;
+                            toml::ser::to_vec(&data)?
+                        }
+                        None => {
+                            let data = PrintNannyConfig::new()?;
+                            toml::ser::to_vec(&data)?
+                        }
+                    },
                 };
                 io::stdout().write_all(&v)?;
+            }
+            Some(("set", args)) => {
+                let key = args.value_of("key").unwrap();
             }
             Some(("setup", _args)) => {
                 let config = PrintNannyConfig::new()?;
