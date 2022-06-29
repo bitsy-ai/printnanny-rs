@@ -217,7 +217,9 @@ impl PrintNannyConfig {
                 "PRINTNANNY_CONFIG",
                 PRINTNANNY_CONFIG_DEFAULT,
             )))
-            .merge(Env::prefixed("PRINTNANNY_").global());
+            // allow nested environment variables:
+            // PRINTNANNY_KEY__SUBKEY
+            .merge(Env::prefixed("PRINTNANNY_").split("__"));
 
         let confd_path: String = result
             .find_value("paths.confd")
@@ -403,6 +405,36 @@ impl Provider for PrintNannyConfig {
 mod tests {
     use super::*;
     use crate::paths::PRINTNANNY_CONFIG_FILENAME;
+    #[test_log::test]
+    fn test_nested_env_var() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_file(
+                PRINTNANNY_CONFIG_FILENAME,
+                r#"
+                profile = "default"
+
+                [paths]
+                install = "/opt/printnanny/default"
+                data = "/opt/printnanny/default/data"
+                
+                [octoprint]
+                base_path = "/home/octoprint/.octoprint"
+                python = "/usr/bin/python3"
+                
+                [api]
+                base_path = "https://print-nanny.com"
+                "#,
+            )?;
+            jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
+            let expected = "testing".to_string();
+            jail.set_env("PRINTNANNY_JANUS_EDGE__API_TOKEN", &expected);
+            let figment = PrintNannyConfig::figment().unwrap();
+            let config: PrintNannyConfig = figment.extract()?;
+            assert_eq!(config.janus_edge.api_token, expected);
+            Ok(())
+        });
+    }
+
     #[test_log::test]
     fn test_paths() {
         figment::Jail::expect_with(|jail| {
@@ -602,7 +634,7 @@ VARIANT_ID=printnanny-octoprint
             )?;
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
             jail.set_env(
-                "PRINTNANNY_PATHS.os_release",
+                "PRINTNANNY_PATHS__OS_RELEASE",
                 format!("{:?}", jail.directory().join("os-release")),
             );
 
