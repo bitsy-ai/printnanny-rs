@@ -22,7 +22,7 @@ use printnanny_api_client::models;
 // FACTORY_RESET holds the struct field names of PrintNannyConfig
 // each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
 // as the name implies, this const is used for performing a reset of any config data modified from defaults
-const FACTORY_RESET: [&'static str; 9] = [
+const FACTORY_RESET: [&str; 9] = [
     "api",
     "device",
     "janus_edge",
@@ -256,8 +256,6 @@ impl PrintNannyConfig {
         let result = Self::read_path_glob::<Json>(&json_glob, result);
         let result = Self::read_path_glob::<Toml>(&toml_glob, result);
         info!("Finalized PrintNannyConfig: \n {:?}", result);
-        use file_lock::{FileLock, FileOptions};
-
         Ok(result)
     }
 
@@ -342,13 +340,15 @@ impl PrintNannyConfig {
                 figment::util::map! {key =>  &self.janus_edge },
             )?),
             _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
-        }?;
+        }?
+        .to_string();
+
         info!("Saving {}.toml to {:?}", &key, &filename);
 
         // lock fragment for writing
         let lock_for_writing = FileOptions::new().write(true).create(true).truncate(true);
         let mut filelock = FileLock::lock(&filename, true, lock_for_writing)?;
-        filelock.file.write(content.to_string().as_bytes())?;
+        filelock.file.write_all(&content.as_bytes())?;
         // Manually unlocking is optional as we unlock on Drop
         filelock.unlock()?;
         info!("Wrote {} to {:?}", key, filename);

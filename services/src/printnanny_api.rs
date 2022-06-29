@@ -284,15 +284,12 @@ impl ApiService {
         let octoprint_version = octoprint_config.octoprint_version(&pip_packages)?.into();
         let pip_version = octoprint_config
             .pip_version()?
-            .unwrap_or("unknown".into())
-            .into();
-        let printnanny_plugin_version = octoprint_config
-            .printnanny_plugin_version(&pip_packages)?
-            .into();
+            .unwrap_or_else(|| "unknown".into());
+        let printnanny_plugin_version =
+            octoprint_config.printnanny_plugin_version(&pip_packages)?;
         let python_version = octoprint_config
             .python_version()?
-            .unwrap_or("unknown".into())
-            .into();
+            .unwrap_or_else(|| "unknown".into());
         let req = models::OctoPrintServerRequest {
             octoprint_version,
             pip_version,

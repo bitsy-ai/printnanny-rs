@@ -42,10 +42,9 @@ pub fn parse_pip_list_json(stdout: &str) -> Result<Vec<PipPackage>, PrintNannyCo
 // $ python3 --version
 // Python 3.10.4
 pub fn parse_python_version(stdout: &str) -> Option<String> {
-    match stdout.split_once(" ") {
-        Some((_, version)) => Some(version.to_string()),
-        None => None,
-    }
+    stdout
+        .split_once(" ")
+        .map(|(_, version)| version.to_string())
 }
 
 // parse output of:
@@ -53,10 +52,7 @@ pub fn parse_python_version(stdout: &str) -> Option<String> {
 // pip 22.0.2 from /usr/lib/python3/dist-packages/pip (python 3.10)
 pub fn parse_pip_version(stdout: &str) -> Option<String> {
     let split = stdout.splitn(3, " ").nth(1);
-    match split {
-        Some(v) => Some(v.to_string()),
-        None => None,
-    }
+    split.map(|v| v.to_string())
 }
 
 impl OctoPrintConfig {
@@ -168,10 +164,7 @@ impl OctoPrintConfig {
         &self,
         packages: &Vec<PipPackage>,
     ) -> Result<String, PrintNannyConfigError> {
-        let v: Vec<&PipPackage> = packages
-            .into_iter()
-            .filter(|p| p.name == "OctoPrint")
-            .collect();
+        let v: Vec<&PipPackage> = packages.iter().filter(|p| p.name == "OctoPrint").collect();
         let result = match v.first() {
             Some(p) => Ok(p.version.clone()),
             None => Err(PrintNannyConfigError::OctoPrintServerConfigError {
