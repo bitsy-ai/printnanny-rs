@@ -2325,6 +2325,7 @@ dependencies = [
  "anyhow",
  "clap",
  "env_logger",
+ "figment",
  "function_name",
  "git-version",
  "log",

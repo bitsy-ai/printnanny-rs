@@ -17,7 +17,20 @@ use super::octoprint::OctoPrintConfig;
 use super::paths::{PrintNannyPaths, PRINTNANNY_CONFIG_DEFAULT};
 use printnanny_api_client::models;
 
-const FACTORY_RESET: [&'static str; 4] = ["api", "device", "janus_edge", "octoprint"];
+// FACTORY_RESET holds the struct field names of PrintNannyConfig
+// each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
+// as the name implies, this const is used for performing a reset of any config data modified from defaults
+const FACTORY_RESET: [&'static str; 9] = [
+    "api",
+    "device",
+    "janus_edge",
+    "octoprint",
+    "printnanny_cloud_proxy",
+    "paths",
+    "mqtt",
+    "keys",
+    "janus_edge",
+];
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
 pub enum ConfigFormat {
@@ -300,14 +313,31 @@ impl PrintNannyConfig {
         filename: &PathBuf,
     ) -> Result<(), PrintNannyConfigError> {
         let content = match key {
-            "api" => toml::Value::try_from(figment::util::map! { key => &self.api}),
-
-            "device" => toml::Value::try_from(figment::util::map! {key => &self.device }),
-            "octoprint" => toml::Value::try_from(figment::util::map! {key =>  &self.octoprint }),
-            _ => {
-                warn!("try_save_fragment received unhandled key={:?} - serializing entire PrintNannyConfig", key);
-                toml::Value::try_from(self)
-            }
+            "api" => Ok(toml::Value::try_from(
+                figment::util::map! { key => &self.api},
+            )?),
+            "device" => Ok(toml::Value::try_from(
+                figment::util::map! {key => &self.device },
+            )?),
+            "octoprint" => Ok(toml::Value::try_from(
+                figment::util::map! {key =>  &self.octoprint },
+            )?),
+            "printnanny_cloud_proxy" => Ok(toml::Value::try_from(
+                figment::util::map! {key =>  &self.printnanny_cloud_proxy },
+            )?),
+            "paths" => Ok(toml::Value::try_from(
+                figment::util::map! {key =>  &self.paths },
+            )?),
+            "mqtt" => Ok(toml::Value::try_from(
+                figment::util::map! {key =>  &self.mqtt },
+            )?),
+            "keys" => Ok(toml::Value::try_from(
+                figment::util::map! {key =>  &self.keys },
+            )?),
+            "janus_edge" => Ok(toml::Value::try_from(
+                figment::util::map! {key =>  &self.janus_edge },
+            )?),
+            _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
         }?;
         info!("Saving {}.toml to {:?}", &key, &filename);
         fs::write(&filename, content.to_string())?;
