@@ -9,10 +9,10 @@ set -euo pipefail
 main() {
     # arch in the rust target
     local arch="${1}" \
-          kversion=4.19.0-20
+          kversion=5.15.0-37
 
-    local debsource="deb http://http.debian.net/debian/ buster main"
-    debsource="${debsource}\ndeb http://security.debian.org/ buster/updates main"
+    local debsource="deb http://http.debian.net/debian/ jammy main"
+    debsource="${debsource}\ndeb http://security.debian.org/ jammy/updates main"
 
     local dropbear="dropbear-bin"
 

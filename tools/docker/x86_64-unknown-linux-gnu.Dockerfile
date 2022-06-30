@@ -1,5 +1,7 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install --assume-yes libssl-dev
 
 COPY common.sh lib.sh /
 RUN /common.sh
@@ -21,6 +23,5 @@ RUN /linux-image.sh x86_64
 
 COPY linux-runner /
 
-RUN apt-get update && apt-get install --assume-yes libssl-dev
 
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="/linux-runner x86_64"
