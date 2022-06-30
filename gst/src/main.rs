@@ -5,19 +5,39 @@ use anyhow::{bail, Result};
 use clap::{Arg, Command};
 use env_logger::Builder;
 use git_version::git_version;
-use gstreamer::prelude::*;
 use log::LevelFilter;
+
+use printnanny_gst::options::{
+    InputOption, VideoEncodingOption, VideoParameter, H264_HARDWARE, H264_SOFTWARE,
+};
+
+pub struct App {
+    encoding: VideoParameter,
+    input: InputOption,
+    tflite: bool,
+}
 
 // Check if all GStreamer plugins we require are available
 fn check_plugins(args: &clap::ArgMatches) -> Result<(), anyhow::Error> {
-    let mut required = vec![
-        "libcamerasrc",
-        "videoconvert",
-        "videoscale",
-        "v4l2h264enc",
-        "rtph264pay",
-        "udpsink",
-    ];
+    let mut required = vec!["videoconvert", "videoscale", "udp", "rtp"];
+
+    // input src requirement
+    let mut input_reqs = match args.value_of_t("input")? {
+        InputOption::Libcamerasrc => vec!["libcamerasrc"],
+        InputOption::Videotestsrc => vec!["videotestsrc"],
+    };
+    required.append(&mut input_reqs);
+
+    // encode in software vs hardware-accelerated
+    let mut encoder_reqs = match args.value_of_t("encoder")? {
+        VideoEncodingOption::H264Hardware => {
+            H264_HARDWARE.requirements.split(' ').collect::<Vec<&str>>()
+        }
+        VideoEncodingOption::H264Software => {
+            H264_SOFTWARE.requirements.split(' ').collect::<Vec<&str>>()
+        }
+    };
+    required.append(&mut encoder_reqs);
 
     // tensorflow and nnstreamer requirements
     match args.is_present("tflite") {
@@ -65,6 +85,24 @@ fn main() -> Result<()> {
                 .help("Sets the level of verbosity"),
         )
         .arg(
+            Arg::new("input")
+                .short('i')
+                .long("input")
+                .required(true)
+                .takes_value(true)
+                .possible_values(InputOption::possible_values())
+                .help("Run TensorFlow lite model on output"),
+        )
+        .arg(
+            Arg::new("encoder")
+                .short('e')
+                .long("encoder")
+                .required(true)
+                .takes_value(true)
+                .possible_values(VideoEncodingOption::possible_values())
+                .help("Run TensorFlow lite model on output"),
+        )
+        .arg(
             Arg::new("tflite")
                 .required(false)
                 .takes_value(false)
@@ -87,5 +125,6 @@ fn main() -> Result<()> {
     gstreamer::init()?;
     // Check required plugins are installed
     check_plugins(&app_m)?;
+
     Ok(())
 }
