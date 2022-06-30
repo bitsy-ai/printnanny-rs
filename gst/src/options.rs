@@ -64,6 +64,15 @@ pub enum VideoEncodingOption {
     H264Hardware,
 }
 
+impl From<VideoEncodingOption> for VideoParameter {
+    fn from(opt: VideoEncodingOption) -> Self {
+        match opt {
+            VideoEncodingOption::H264Hardware => H264_HARDWARE,
+            VideoEncodingOption::H264Software => H264_SOFTWARE,
+        }
+    }
+}
+
 impl VideoEncodingOption {
     pub fn possible_values() -> impl Iterator<Item = PossibleValue<'static>> {
         VideoEncodingOption::value_variants()

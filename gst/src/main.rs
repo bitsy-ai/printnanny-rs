@@ -2,67 +2,150 @@
 extern crate clap;
 
 use anyhow::{bail, Result};
-use clap::{Arg, Command};
+use clap::{Arg, ArgMatches, Command};
 use env_logger::Builder;
 use git_version::git_version;
+use gstreamer::prelude::*;
 use log::LevelFilter;
 
-use printnanny_gst::options::{
-    InputOption, VideoEncodingOption, VideoParameter, H264_HARDWARE, H264_SOFTWARE,
-};
+use printnanny_gst::error::ErrorMessage;
+use printnanny_gst::options::{InputOption, VideoEncodingOption, VideoParameter};
 
-pub struct App {
-    encoding: VideoParameter,
+pub struct App<'a> {
+    video: VideoParameter,
     input: InputOption,
     tflite: bool,
+    height: i32,
+    width: i32,
+    required_plugins: Vec<&'a str>,
 }
 
-// Check if all GStreamer plugins we require are available
-fn check_plugins(args: &clap::ArgMatches) -> Result<(), anyhow::Error> {
-    let mut required = vec!["videoconvert", "videoscale", "udp", "rtp"];
+impl App<'_> {
+    pub fn new(args: &ArgMatches) -> Result<Self> {
+        let mut required_plugins = vec!["videoconvert", "videoscale", "udp", "rtp"];
+        // input src requirement
+        let input = args.value_of_t("input")?;
+        let mut input_reqs = match input {
+            InputOption::Libcamerasrc => vec!["libcamerasrc"],
+            InputOption::Videotestsrc => vec!["videotestsrc"],
+        };
+        required_plugins.append(&mut input_reqs);
+        // encode in software vs hardware-accelerated
+        let encoder_opt: VideoEncodingOption = args.value_of_t("encoder")?;
+        let video: VideoParameter = encoder_opt.into();
+        let mut encoder_reqs = video.requirements.split(' ').collect::<Vec<&str>>();
+        required_plugins.append(&mut encoder_reqs);
 
-    // input src requirement
-    let mut input_reqs = match args.value_of_t("input")? {
-        InputOption::Libcamerasrc => vec!["libcamerasrc"],
-        InputOption::Videotestsrc => vec!["videotestsrc"],
-    };
-    required.append(&mut input_reqs);
+        // tensorflow and nnstreamer requirements
+        let tflite = args.is_present("tflite");
+        match tflite {
+            true => {
+                let mut tf_reqs = vec![
+                    "tensor_converter",
+                    "tensor_transform",
+                    "tensor_filter",
+                    "tensor_decoder",
+                ];
+                required_plugins.append(&mut tf_reqs)
+            }
+            false => (),
+        };
 
-    // encode in software vs hardware-accelerated
-    let mut encoder_reqs = match args.value_of_t("encoder")? {
-        VideoEncodingOption::H264Hardware => {
-            H264_HARDWARE.requirements.split(' ').collect::<Vec<&str>>()
+        let height: i32 = args.value_of_t("height").unwrap_or(480);
+        let width: i32 = args.value_of_t("width").unwrap_or(480);
+        Ok(Self {
+            video,
+            input,
+            tflite,
+            required_plugins,
+            height,
+            width,
+        })
+    }
+
+    pub fn check_plugins(&self) -> Result<()> {
+        let registry = gstreamer::Registry::get();
+        let missing = self
+            .required_plugins
+            .iter()
+            .filter(|n| registry.find_plugin(n).is_none())
+            .cloned()
+            .collect::<Vec<_>>();
+
+        if !missing.is_empty() {
+            bail!("Missing plugins: {:?}", missing);
+        } else {
+            Ok(())
         }
-        VideoEncodingOption::H264Software => {
-            H264_SOFTWARE.requirements.split(' ').collect::<Vec<&str>>()
+    }
+    // build a video-only pipeline without tflite inference
+    fn build_simple_pipeline(&self) -> Result<gstreamer::Pipeline> {
+        let p = format!(
+            "{} \
+            ! capsfilter caps=video/x-raw,width={},height={},framerate=0/1
+            ! {} 
+            ! {}
+            ! testsink ",
+            &self.input, &self.width, &self.height, &self.video.encoder, &self.video.payloader
+        );
+        let pipeline = gstreamer::parse_launch(&p)?;
+        Ok(pipeline
+            .downcast::<gstreamer::Pipeline>()
+            .expect("Invalid gstreamer pipeline"))
+    }
+
+    fn build_tflite_pipeline(&self) -> Result<gstreamer::Pipeline> {
+        let p = format!(
+            "{} \
+            ! capsfilter caps=video/x-raw,format=RGB,width={},height={},framerate=0/1
+            ! {} 
+            ! {}
+            ! testsink ",
+            &self.input, &self.width, &self.height, &self.video.encoder, &self.video.payloader
+        );
+        let pipeline = gstreamer::parse_launch(&p)?;
+        Ok(pipeline
+            .downcast::<gstreamer::Pipeline>()
+            .expect("Invalid gstreamer pipeline"))
+    }
+
+    pub fn pipeline(&self) -> Result<gstreamer::Pipeline> {
+        let p = match &self.tflite {
+            true => self.build_tflite_pipeline(),
+            false => self.build_simple_pipeline(),
+        }?;
+        Ok(p)
+    }
+
+    pub fn run(&self) -> Result<()> {
+        let pipeline = self.pipeline()?;
+        pipeline.set_state(gstreamer::State::Playing)?;
+
+        // Create a stream for handling the GStreamer message asynchronously
+        let bus = pipeline
+            .bus()
+            .expect("Pipeline without bus. Shouldn't happen!");
+        let send_gst_msg_rx = bus.stream();
+        for msg in bus.iter_timed(gstreamer::ClockTime::NONE) {
+            use gstreamer::MessageView;
+            match msg.view() {
+                MessageView::Eos(..) => break,
+                MessageView::Error(err) => {
+                    pipeline.set_state(gstreamer::State::Null)?;
+                    return Err(ErrorMessage {
+                        src: msg
+                            .src()
+                            .map(|s| String::from(s.path_string()))
+                            .unwrap_or_else(|| String::from("None")),
+                        error: err.error().to_string(),
+                        debug: err.debug(),
+                    }
+                    .into());
+                }
+                _ => (),
+            }
         }
-    };
-    required.append(&mut encoder_reqs);
-
-    // tensorflow and nnstreamer requirements
-    match args.is_present("tflite") {
-        true => {
-            let mut tf_reqs = vec![
-                "tensor_converter",
-                "tensor_transform",
-                "tensor_filter",
-                "tensor_decoder",
-            ];
-            required.append(&mut tf_reqs)
-        }
-        false => (),
-    };
-
-    let registry = gstreamer::Registry::get();
-    let missing = required
-        .iter()
-        .filter(|n| registry.find_plugin(n).is_none())
-        .cloned()
-        .collect::<Vec<_>>();
-
-    if !missing.is_empty() {
-        bail!("Missing plugins: {:?}", missing);
-    } else {
+        pipeline.set_state(gstreamer::State::Null)?;
         Ok(())
     }
 }
@@ -85,13 +168,27 @@ fn main() -> Result<()> {
                 .help("Sets the level of verbosity"),
         )
         .arg(
+            Arg::new("height")
+                .long("height")
+                .default_value("480")
+                .takes_value(true)
+                .help("Input resolution height"),
+        )
+        .arg(
+            Arg::new("width")
+                .long("width")
+                .default_value("640")
+                .takes_value(true)
+                .help("Input resolution width"),
+        )
+        .arg(
             Arg::new("input")
                 .short('i')
                 .long("input")
                 .required(true)
                 .takes_value(true)
                 .possible_values(InputOption::possible_values())
-                .help("Run TensorFlow lite model on output"),
+                .help(""),
         )
         .arg(
             Arg::new("encoder")
@@ -123,8 +220,11 @@ fn main() -> Result<()> {
 
     // Initialize GStreamer first
     gstreamer::init()?;
-    // Check required plugins are installed
-    check_plugins(&app_m)?;
+    // Check required_plugins plugins are installed
+    let app = App::new(&app_m)?;
+
+    app.check_plugins()?;
+    app.run()?;
 
     Ok(())
 }
