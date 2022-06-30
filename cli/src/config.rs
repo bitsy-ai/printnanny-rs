@@ -41,7 +41,7 @@ impl ConfigAction {
                 let key = args.value_of("key").unwrap();
                 let value = args.value_of("value").unwrap();
                 let figment = PrintNannyConfig::figment()?;
-                let data = figment::providers::Serialized::global(&key, &value);
+                let data = figment::providers::Serialized::global(key, &value);
                 let figment = figment.merge(data);
                 let config: PrintNannyConfig = figment.extract()?;
                 config.try_save()?;

@@ -198,7 +198,7 @@ async fn main() -> Result<()> {
                     let worker = MQTTWorker::new(
                     ).await?;
                     let data = event_m.value_of("data").expect("Expected --data argument passed");
-                    worker.publish(&data).await?;
+                    worker.publish(data).await?;
                 },
                 _ => panic!("Expected publish|subscribe subcommand")
             }

@@ -1,13 +1,15 @@
 use std::fs;
 use std::fs::File;
+use std::io::prelude::*;
 use std::path::PathBuf;
 
 use clap::{ArgEnum, PossibleValue};
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
+use file_lock::{FileLock, FileOptions};
 use glob::glob;
-use log::{error, info, warn};
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 
 use super::error::{PrintNannyConfigError, ServiceError};
@@ -20,7 +22,7 @@ use printnanny_api_client::models;
 // FACTORY_RESET holds the struct field names of PrintNannyConfig
 // each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
 // as the name implies, this const is used for performing a reset of any config data modified from defaults
-const FACTORY_RESET: [&'static str; 9] = [
+const FACTORY_RESET: [&str; 9] = [
     "api",
     "device",
     "janus_edge",
@@ -240,7 +242,7 @@ impl PrintNannyConfig {
             .deserialize::<String>()
             .unwrap();
         let seed_config: String = result
-            .find_value("paths.config")
+            .find_value("paths.seed")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
@@ -338,9 +340,17 @@ impl PrintNannyConfig {
                 figment::util::map! {key =>  &self.janus_edge },
             )?),
             _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
-        }?;
+        }?
+        .to_string();
+
         info!("Saving {}.toml to {:?}", &key, &filename);
-        fs::write(&filename, content.to_string())?;
+
+        // lock fragment for writing
+        let lock_for_writing = FileOptions::new().write(true).create(true).truncate(true);
+        let mut filelock = FileLock::lock(&filename, true, lock_for_writing)?;
+        filelock.file.write_all(&content.as_bytes())?;
+        // Manually unlocking is optional as we unlock on Drop
+        filelock.unlock()?;
         info!("Wrote {} to {:?}", key, filename);
         Ok(())
     }
@@ -373,13 +383,10 @@ impl PrintNannyConfig {
 
     // Move license.json from boot partition to conf.d directory
     pub fn try_copy_license(&self) -> Result<(), ServiceError> {
-        if self.paths.config.exists() {
-            info!("Copying {:?} to {:?}", self.paths.config, self.paths.confd);
-            let dest = self
-                .paths
-                .confd
-                .join(self.paths.config.file_name().unwrap());
-            fs::copy(&self.paths.config, dest)?;
+        if self.paths.seed.exists() {
+            info!("Copying {:?} to {:?}", self.paths.seed, self.paths.confd);
+            let dest = self.paths.confd.join(self.paths.seed.file_name().unwrap());
+            fs::copy(&self.paths.seed, dest)?;
         }
         Ok(())
     }
