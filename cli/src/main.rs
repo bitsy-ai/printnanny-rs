@@ -119,11 +119,11 @@ async fn main() -> Result<()> {
                     .help("Overwrite any existing configuration")
                 )            
             )
-            .subcommand(Command::new("setup")
+            .subcommand(Command::new("sync")
                 .author(crate_authors!())
                 .about(crate_description!())
                 .version(&version[..])
-                .about("Setup and synchronize PrintNanny config")
+                .about("Synchronize device with PrintNanny Cloud")
             ))
         // mqtt <subscribe|publish>
         .subcommand(Command::new("event")

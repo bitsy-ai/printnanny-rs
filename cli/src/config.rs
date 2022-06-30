@@ -46,7 +46,7 @@ impl ConfigAction {
                 let config: PrintNannyConfig = figment.extract()?;
                 config.try_save()?;
             }
-            Some(("setup", _args)) => {
+            Some(("sync", _args)) => {
                 let config = PrintNannyConfig::new()?;
                 let result = config.keys.try_generate();
                 // setup action is idempotent, so KeypairExists error is non-fatal. Just log if generation was skipped
