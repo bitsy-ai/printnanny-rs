@@ -12,15 +12,15 @@ use printnanny_gst::error::ErrorMessage;
 use printnanny_gst::options::{InputOption, VideoEncodingOption, VideoParameter};
 
 pub struct BroadcastRtpVideo {
-    host: String,
+    pub host: String,
     video_port: i32,
 }
 
 pub struct BroadcastRtpVideoOverlay {
-    host: String,
-    video_port: i32,
-    data_port: i32,
-    overlay_port: i32,
+    pub host: String,
+    pub video_port: i32,
+    pub data_port: i32,
+    pub overlay_port: i32,
 }
 
 pub enum AppVariant {
@@ -42,7 +42,7 @@ pub struct App<'a> {
 }
 
 impl App<'_> {
-    pub fn new(args: &ArgMatches, subcommand: &str) -> Result<Self> {
+    pub fn new(args: &ArgMatches, sub_args: &ArgMatches, subcommand: &str) -> Result<Self> {
         let mut required_plugins = vec!["videoconvert", "videoscale"];
         // input src requirement
         let input = args.value_of_t("input")?;
@@ -63,8 +63,8 @@ impl App<'_> {
                 // append rtp broadcast requirements
                 let mut reqs = vec!["rtp", "udp"];
                 required_plugins.append(&mut reqs);
-                let host = args.value_of("host").unwrap().into();
-                let video_port: i32 = args.value_of_t("video_port").unwrap();
+                let host = sub_args.value_of("host").unwrap().into();
+                let video_port: i32 = sub_args.value_of_t("video_port").unwrap();
                 let subapp = BroadcastRtpVideo { host, video_port };
                 AppVariant::BroadcastRtpVideo(subapp)
             }
@@ -79,10 +79,10 @@ impl App<'_> {
                     "udp",
                 ];
                 required_plugins.append(&mut reqs);
-                let host = args.value_of("host").unwrap().into();
-                let video_port: i32 = args.value_of_t("video_port").unwrap();
-                let data_port: i32 = args.value_of_t("data_port").unwrap();
-                let overlay_port: i32 = args.value_of_t("overlay_port").unwrap();
+                let host = sub_args.value_of("host").unwrap().into();
+                let video_port: i32 = sub_args.value_of_t("video_port").unwrap();
+                let data_port: i32 = sub_args.value_of_t("data_port").unwrap();
+                let overlay_port: i32 = sub_args.value_of_t("overlay_port").unwrap();
                 let subapp = BroadcastRtpVideoOverlay {
                     host,
                     video_port,
@@ -319,8 +319,8 @@ fn main() -> Result<()> {
     gstreamer::init()?;
     // Check required_plugins plugins are installed
 
-    let (subcommand, _args) = app_m.subcommand().unwrap();
-    let app = App::new(&app_m, &subcommand)?;
+    let (subcommand, sub_m) = app_m.subcommand().unwrap();
+    let app = App::new(&app_m, &sub_m, &subcommand)?;
 
     app.check_plugins()?;
     app.run()?;
