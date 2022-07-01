@@ -52,7 +52,7 @@ pub const H264_SOFTWARE: VideoParameter = VideoParameter {
 };
 
 pub const H264_HARDWARE: VideoParameter = VideoParameter {
-    requirements: "x264",
+    requirements: "v4l2",
     encoder: "v4l2h264enc extra-controls='controls,repeat_sequence_header=1'",
     encoding_name: "h264",
     payloader: "rtph264pay aggregate-mode=zero-latency",
