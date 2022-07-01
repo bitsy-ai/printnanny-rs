@@ -76,10 +76,7 @@ impl App<'_> {
             "broadcast-rtp-tflite" => {
                 // append rtp broadcast and tflite requirements
                 let mut reqs = vec![
-                    "tensor_converter",
-                    "tensor_transform",
-                    "tensor_filter",
-                    "tensor_decoder",
+                    "nnstreamer",
                     "rtp",
                     "udp",
                 ];
