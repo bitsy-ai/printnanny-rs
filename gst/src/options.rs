@@ -41,20 +41,23 @@ pub struct VideoParameter {
     pub encoder: &'static str,
     pub encoding_name: &'static str,
     pub payloader: &'static str,
+    pub parser: &'static str,
     pub requirements: &'static str,
 }
 
 pub const H264_SOFTWARE: VideoParameter = VideoParameter {
     requirements: "x264",
-    encoder: "x264enc tune=zerolatency",
+    encoder: "x264enc tune=zerolatency ! 'video/x-h264,level=(string)4'",
     encoding_name: "h264",
+    parser: "h264parse",
     payloader: "rtph264pay aggregate-mode=zero-latency",
 };
 
 pub const H264_HARDWARE: VideoParameter = VideoParameter {
     requirements: "v4l2",
-    encoder: "v4l2h264enc extra-controls='controls,repeat_sequence_header=1'",
+    encoder: "v4l2h264enc extra-controls='controls,repeat_sequence_header=1' ! 'video/x-h264,level=(string)4'",
     encoding_name: "h264",
+    parser: "h264parse",
     payloader: "rtph264pay aggregate-mode=zero-latency",
 };
 

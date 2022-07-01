@@ -9,7 +9,6 @@ use gstreamer::prelude::*;
 use log::info;
 use log::LevelFilter;
 
-use printnanny_gst::error::ErrorMessage;
 use printnanny_gst::options::{InputOption, VideoEncodingOption, VideoParameter};
 
 pub struct BroadcastRtpVideo {
@@ -22,6 +21,11 @@ pub struct BroadcastRtpVideoOverlay {
     pub video_port: i32,
     pub data_port: i32,
     pub overlay_port: i32,
+
+    pub tensor_height: i32,
+    pub tensor_width: i32,
+    pub tflite_model: String,
+    pub tflite_labels: String,
 }
 
 pub enum AppVariant {
@@ -84,11 +88,21 @@ impl App<'_> {
                 let video_port: i32 = sub_args.value_of_t("video_port").unwrap();
                 let data_port: i32 = sub_args.value_of_t("data_port").unwrap();
                 let overlay_port: i32 = sub_args.value_of_t("overlay_port").unwrap();
+
+                let tflite_model = sub_args.value_of("tflite_model").unwrap().into();
+                let tflite_labels = sub_args.value_of("tflite_labels").unwrap().into();
+                let tensor_height: i32 = sub_args.value_of_t("tensor_height").unwrap();
+                let tensor_width: i32 = sub_args.value_of_t("tensor_width").unwrap();
+
                 let subapp = BroadcastRtpVideoOverlay {
                     host,
                     video_port,
                     data_port,
                     overlay_port,
+                    tflite_labels,
+                    tflite_model,
+                    tensor_height,
+                    tensor_width
                 };
                 AppVariant::BroadcastRtpTfliteOverlay(subapp)
             }
@@ -149,11 +163,51 @@ impl App<'_> {
     }
 
     // build a tflite pipeline where inference results are rendered to overlay
+    // overlay and original stream are broadcast to overlay_port and video_port
     fn build_broadcast_rtp_tflite_overlay_pipeline(
         &self,
         app: &BroadcastRtpVideoOverlay,
     ) -> Result<gstreamer::Pipeline> {
-        unimplemented!("build_broadcast_rtp_tflite_overlay_pipeline is not yet implemented")
+        let p = format!(
+            "{input}
+            ! tee name=t
+                t.  ! queue leaky=2 max-size-buffers=2
+                    ! capsfilter caps=video/x-raw,format=RGB,width={width},height={height},framerate=0/1
+                    ! videoconvert
+                    ! videoscale ! video/x-raw,width={tensor_width},height={tensor_height}
+                    ! tensor_converter
+                    ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1
+                    ! other/tensors,num_tensors=1,format=static
+                    ! tensor_filter framework=tensorflow2-lite model={model}
+                    ! tensor_decoder mode=bounding_boxes option1=mobilenet-ssd-postprocess option2={labels} option3=0:1:2:3,66 option4={width}:{height} option5={tensor_height}:{tensor_width}
+                    ! videoconvert
+                    ! {encoder}
+                    ! {parser}
+                    ! {payloader}
+                    ! udpsink host={host} port={overlay_port}
+                t.  ! queue leaky=2 max-size-buffers=2
+                    ! videoconvert
+                    ! {encoder}
+                    ! {payloader}
+                    ! udpsink host={host} port={video_port}",
+            input = self.input,
+            width = self.width,
+            height = self.height,
+            encoder = self.video.encoder,
+            payloader = self.video.payloader,
+            host = app.host,
+            video_port = app.video_port,
+            overlay_port = app.overlay_port,
+            tensor_height = app.tensor_height,
+            tensor_width = app.tensor_width,
+            model = app.tflite_model,
+            labels = app.tflite_labels,
+            parser = self.video.parser
+        );
+        let pipeline = gstreamer::parse_launch(&p)?;
+        Ok(pipeline
+            .downcast::<gstreamer::Pipeline>()
+            .expect("Invalid gstreamer pipeline"))
     }
 
     // build a tflite pipeline where inference results are composited to overlay
@@ -256,7 +310,63 @@ fn main() -> Result<()> {
                 .author(crate_authors!())
                 .about(
                 "Run TensorFlow Lite inference over stream, broadcast encoded video stream and inference results over rtp",
-            ),
+            )
+            .arg(
+                Arg::new("host")
+                    .long("host")
+                    .default_value("localhost")
+                    .takes_value(true)
+                    .help("udpsink host value"),
+            )
+            .arg(
+                Arg::new("video_port")
+                    .long("video-port")
+                    .default_value("5104")
+                    .takes_value(true)
+                    .help("udpsink port value (original video stream)"),
+            )
+            .arg(
+                Arg::new("overlay_port")
+                    .long("overlay-port")
+                    .default_value("5106")
+                    .takes_value(true)
+                    .help("udpsink port value (inference video overlay)"),
+            )
+            .arg(
+                Arg::new("data_port")
+                    .long("data-port")
+                    .default_value("5107")
+                    .takes_value(true)
+                    .help("udpsink port value (inference tensor data)"),
+            )
+            .arg(
+                Arg::new("tflite_model")
+                    .long("tflite-model")
+                    .default_value("/usr/share/printnanny/model/model.tflite")
+                    .takes_value(true)
+                    .help("Path to model.tflite file"),
+            )
+            .arg(
+                Arg::new("tflite_labels")
+                    .long("tflite-labels")
+                    .default_value("/usr/share/printnanny/model/dict.txt")
+                    .takes_value(true)
+                    .help("Path to tflite labels file"),
+            )
+            .arg(
+                Arg::new("tensor_height")
+                    .long("tensor-height")
+                    .default_value("320")
+                    .takes_value(true)
+                    .help("Height of input tensor"),
+            )
+            .arg(
+                Arg::new("tensor_width")
+                    .long("tensor-width")
+                    .default_value("320")
+                    .takes_value(true)
+                    .help("Width of input tensor"),
+            )
         )
         // simple video app args
         .subcommand(
@@ -277,6 +387,7 @@ fn main() -> Result<()> {
                     .takes_value(true)
                     .help("udpsink port value"),
             )
+            
         );
 
     let app_m = app.get_matches();
