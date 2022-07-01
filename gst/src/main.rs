@@ -6,6 +6,7 @@ use clap::{Arg, ArgMatches, Command};
 use env_logger::Builder;
 use git_version::git_version;
 use gstreamer::prelude::*;
+use log::info;
 use log::LevelFilter;
 
 use printnanny_gst::error::ErrorMessage;
@@ -190,35 +191,10 @@ impl App<'_> {
         }
     }
 
-    pub fn run(&self) -> Result<()> {
+    pub fn play(&self) -> Result<()> {
         let pipeline = self.build_pipeline()?;
+        info!("Setting pipeline {:?} state to Playing", pipeline);
         pipeline.set_state(gstreamer::State::Playing)?;
-
-        // Create a stream for handling the GStreamer message asynchronously
-        let bus = pipeline
-            .bus()
-            .expect("Pipeline without bus. Shouldn't happen!");
-        let send_gst_msg_rx = bus.stream();
-        for msg in bus.iter_timed(gstreamer::ClockTime::NONE) {
-            use gstreamer::MessageView;
-            match msg.view() {
-                MessageView::Eos(..) => break,
-                MessageView::Error(err) => {
-                    pipeline.set_state(gstreamer::State::Null)?;
-                    return Err(ErrorMessage {
-                        src: msg
-                            .src()
-                            .map(|s| String::from(s.path_string()))
-                            .unwrap_or_else(|| String::from("None")),
-                        error: err.error().to_string(),
-                        debug: err.debug(),
-                    }
-                    .into());
-                }
-                _ => (),
-            }
-        }
-        pipeline.set_state(gstreamer::State::Null)?;
         Ok(())
     }
 }
@@ -323,7 +299,7 @@ fn main() -> Result<()> {
     let app = App::new(&app_m, &sub_m, &subcommand)?;
 
     app.check_plugins()?;
-    app.run()?;
+    app.play()?;
 
     Ok(())
 }
