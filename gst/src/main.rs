@@ -129,18 +129,18 @@ impl App<'_> {
         app: &BroadcastRtpVideo,
     ) -> Result<gstreamer::Pipeline> {
         let p = format!(
-            "{}
-            ! capsfilter caps=video/x-raw,width={},height={},framerate=0/1
-            ! {} 
-            ! {}
-            ! udpsink host={} port={} ",
-            &self.input,
-            &self.width,
-            &self.height,
-            &self.video.encoder,
-            &self.video.payloader,
-            &app.host,
-            &app.video_port
+            "{input}
+            ! capsfilter caps=video/x-raw,width={width},height={height},framerate=0/1
+            ! {encoder} 
+            ! {payloader}
+            ! udpsink host={host} port={port} ",
+            input = &self.input,
+            width = &self.width,
+            height = &self.height,
+            encoder = &self.video.encoder,
+            payloader = &self.video.payloader,
+            host = &app.host,
+            port = &app.video_port
         );
         let pipeline = gstreamer::parse_launch(&p)?;
         Ok(pipeline
