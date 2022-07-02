@@ -265,14 +265,6 @@ impl App<'_> {
         tensor_transform.set_property_from_str("mode", "arithmetic");
         tensor_transform.set_property_from_str("option", "typecast:uint8,add:0,div:1");
 
-        let tensor_capsfilter = gst::ElementFactory::make("capsfilter", None)
-            .map_err(|_| MissingElement("capsfilter"))?;
-        let tensor_caps = gst::Caps::builder("other/tensors")
-            .field("num_tensors", "1")
-            .field("format", "static")
-            .build();
-        tensor_capsfilter.set_property("caps", tensor_caps);
-
         let predict_tensor_filter = gst::ElementFactory::make("tensor_filter", None)
             .map_err(|_| MissingElement("tensor_filter"))?;
         predict_tensor_filter.set_property("framework", "tensorflow2-lite");
@@ -335,7 +327,6 @@ impl App<'_> {
             &post_videoconvert,
             &pre_capsfilter,
             &post_capsfilter,
-            // &tensor_capsfilter,
             &videoscale,
             &tensor_transform,
             &tensor_converter,
@@ -354,7 +345,6 @@ impl App<'_> {
             &pre_capsfilter,
             &tensor_converter,
             &tensor_transform,
-            // &tensor_capsfilter,
             &predict_tensor_filter,
             &tensor_decoder,
             &post_videoconvert,
