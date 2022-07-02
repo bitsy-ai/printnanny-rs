@@ -55,3 +55,6 @@ gst-image:
 		-f gst/Dockerfile \
 		-t bitsyai/printnanny-gst \
 		.
+
+lint:
+	cargo clippy --workspace
