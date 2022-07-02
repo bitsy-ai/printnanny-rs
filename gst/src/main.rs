@@ -1,21 +1,29 @@
 #[macro_use]
 extern crate clap;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Result, anyhow};
 use clap::{Arg, ArgMatches, Command};
 use env_logger::Builder;
 use git_version::git_version;
-use gstreamer::prelude::*;
-use log::info;
+use gst::prelude::*;
+use log::{ error, info};
 use log::LevelFilter;
+use anyhow::Error;
+use derive_more::{Display, Error};
 
-use printnanny_gst::options::{InputOption, VideoEncodingOption, VideoParameter};
 
+use printnanny_gst::options::{SrcOption, VideoEncodingOption, VideoParameter, SinkOption};
+use printnanny_gst::error::MissingElement;
+
+#[derive(Debug)]
 pub struct BroadcastRtpVideo {
     pub host: String,
-    video_port: i32,
+    pub video_port: i32,
+    pub src: SrcOption,
+    pub sink: SinkOption
 }
 
+#[derive(Debug)]
 pub struct BroadcastRtpVideoOverlay {
     pub host: String,
     pub video_port: i32,
@@ -28,6 +36,7 @@ pub struct BroadcastRtpVideoOverlay {
     pub tflite_labels: String,
 }
 
+#[derive(Debug)]
 pub enum AppVariant {
     // broadcast source video stream over 1 rtp port (light compute)
     BroadcastRtpVideo(BroadcastRtpVideo),
@@ -37,28 +46,31 @@ pub enum AppVariant {
     BroadcastRtpTfliteComposite(BroadcastRtpVideoOverlay),
 }
 
+#[derive(Debug)]
 pub struct App<'a> {
+    debug: bool,
     video: VideoParameter,
-    input: InputOption,
     height: i32,
     width: i32,
     required_plugins: Vec<&'a str>,
     variant: AppVariant,
+    encoder: VideoEncodingOption,
 }
 
 impl App<'_> {
     pub fn new(args: &ArgMatches, sub_args: &ArgMatches, subcommand: &str) -> Result<Self> {
+        let debug = args.is_present("debug");
         let mut required_plugins = vec!["videoconvert", "videoscale"];
         // input src requirement
-        let input = args.value_of_t("input")?;
-        let mut input_reqs = match input {
-            InputOption::Libcamerasrc => vec!["libcamerasrc"],
-            InputOption::Videotestsrc => vec!["videotestsrc"],
+        let src: SrcOption = args.value_of_t("src")?;
+        let mut input_reqs = match &src {
+            SrcOption::Libcamerasrc => vec!["libcamerasrc"],
+            SrcOption::Videotestsrc => vec!["videotestsrc"],
         };
         required_plugins.append(&mut input_reqs);
         // encode in software vs hardware-accelerated
-        let encoder_opt: VideoEncodingOption = args.value_of_t("encoder")?;
-        let video: VideoParameter = encoder_opt.into();
+        let encoder: VideoEncodingOption = args.value_of_t("encoder")?;
+        let video: VideoParameter = encoder.into();
         let mut encoder_reqs = video.requirements.split(' ').collect::<Vec<&str>>();
         required_plugins.append(&mut encoder_reqs);
 
@@ -70,7 +82,8 @@ impl App<'_> {
                 required_plugins.append(&mut reqs);
                 let host = sub_args.value_of("host").unwrap().into();
                 let video_port: i32 = sub_args.value_of_t("video_port").unwrap();
-                let subapp = BroadcastRtpVideo { host, video_port };
+                let sink = sub_args.value_of_t("sink").unwrap();
+                let subapp = BroadcastRtpVideo { host, video_port, sink, src };
                 AppVariant::BroadcastRtpVideo(subapp)
             }
             "broadcast-rtp-tflite" => {
@@ -110,8 +123,9 @@ impl App<'_> {
         let width: i32 = args.value_of_t("width").unwrap_or(480);
 
         Ok(Self {
+            debug,
+            encoder,
             video,
-            input,
             required_plugins,
             height,
             width,
@@ -120,7 +134,7 @@ impl App<'_> {
     }
 
     pub fn check_plugins(&self) -> Result<()> {
-        let registry = gstreamer::Registry::get();
+        let registry = gst::Registry::get();
         let missing = self
             .required_plugins
             .iter()
@@ -138,25 +152,74 @@ impl App<'_> {
     fn build_broadcast_rtp_video_pipeline(
         &self,
         app: &BroadcastRtpVideo,
-    ) -> Result<gstreamer::Pipeline> {
-        let p = format!(
-            "{input}
-            ! capsfilter caps=video/x-raw,width={width},height={height},framerate=0/1
-            ! {encoder} 
-            ! {payloader}
-            ! udpsink host={host} port={port} ",
-            input = &self.input,
-            width = &self.width,
-            height = &self.height,
-            encoder = &self.video.encoder,
-            payloader = &self.video.payloader,
-            host = &app.host,
-            port = &app.video_port
-        );
-        let pipeline = gstreamer::parse_launch(&p)?;
-        Ok(pipeline
-            .downcast::<gstreamer::Pipeline>()
-            .expect("Invalid gstreamer pipeline"))
+    ) -> Result<gst::Pipeline> {
+
+        let src = gst::ElementFactory::make(&app.src.to_string(), None)?;
+        let sink = gst::ElementFactory::make(&app.sink.to_string(), None)?;
+
+        let queue = gst::ElementFactory::make("queue", None).map_err(|_| MissingElement("queue"))?;
+        let videoconvert = gst::ElementFactory::make("videoconvert", None).map_err(|_| MissingElement("videoconvert"))?;
+
+        info!("Created from app: {:?} {:?}", self, app);
+        
+        // set properties on src
+        match &app.src {
+            SrcOption::Videotestsrc => src.set_property("is-live", true),
+            _ => ()
+        };
+        // set host / port on sink
+        match &app.sink {
+            SinkOption::Fakesink => (),
+            SinkOption::Udpsink => {
+                sink.set_property("host", &app.host);
+                sink.set_property("port", &app.video_port);
+            }
+        };
+
+        let incapsfilter = gst::ElementFactory::make("capsfilter", None).map_err(|_| MissingElement("capsfilter"))?;
+        let incaps = gst::Caps::builder("video/x-raw")
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .build();
+        incapsfilter.set_property("caps", incaps);
+ 
+        let encoder = match &self.encoder {
+            VideoEncodingOption::H264Software => {
+                let e = gst::ElementFactory::make("x264enc", None).map_err(|_| MissingElement("x264enc"))?;
+                e.set_property_from_str("tune", "zerolatency");
+                e
+            }
+            VideoEncodingOption::H264Hardware => {
+                let e = gst::ElementFactory::make("v4l2h264enc", None).map_err(|_| MissingElement("v4l2h264enc"))?;
+                e.set_property_from_str("extra-controls", "controls,repeat_sequence_header=1");
+                e
+            }
+        };
+        let payloader = gst::ElementFactory::make("rtph264pay", None).map_err(|_| MissingElement("rtph264pay"))?;
+        payloader.set_property_from_str("aggregate-mode", "zero-latency");
+
+        let h264capsfilter = gst::ElementFactory::make("capsfilter", None).map_err(|_| MissingElement("capsfilter"))?;
+        let h264caps = gst::Caps::builder("video/x-h264")
+            .field("level", "4")
+            .build();
+        h264capsfilter.set_property("caps", h264caps);
+
+        let pipeline = gst::Pipeline::new(None);
+
+        // pipeline.add_many(&[&src, &incapsfilter, &sink ])?;
+        // src.link(&incapsfilter)?;
+        // incapsfilter.link(&sink)?;
+
+        pipeline.add_many(&[&src, &sink, &incapsfilter, &queue, &videoconvert, &encoder, &h264capsfilter, &payloader])?;
+        src.link(&incapsfilter)?;
+        incapsfilter.link(&queue)?;
+        queue.link(&videoconvert)?;
+        videoconvert.link(&encoder)?;
+        encoder.link(&h264capsfilter)?;
+        h264capsfilter.link(&payloader)?;
+        payloader.link(&sink)?;
+        Ok(pipeline)
+    
     }
 
     // build a tflite pipeline where inference results are rendered to overlay
@@ -164,73 +227,63 @@ impl App<'_> {
     fn build_broadcast_rtp_tflite_overlay_pipeline(
         &self,
         app: &BroadcastRtpVideoOverlay,
-    ) -> Result<gstreamer::Pipeline> {
-        let p = format!(
-            "{input}
-            ! tee name=t
-                t.  ! queue leaky=2 max-size-buffers=2
-                    ! capsfilter caps=video/x-raw,format=RGB,width={width},height={height},framerate=0/1
-                    ! videoconvert
-                    ! videoscale ! video/x-raw,width={tensor_width},height={tensor_height}
-                    ! tensor_converter
-                    ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1
-                    ! other/tensors,num_tensors=1,format=static
-                    ! tensor_filter framework=tensorflow2-lite model={model}
-                    ! tensor_decoder mode=bounding_boxes option1=mobilenet-ssd-postprocess option2={labels} option3=0:1:2:3,66 option4={width}:{height} option5={tensor_height}:{tensor_width}
-                    ! videoconvert
-                    ! {encoder}
-                    ! {parser}
-                    ! {payloader}
-                    ! udpsink host={host} port={overlay_port}
-                t.  ! queue leaky=2 max-size-buffers=2
-                    ! videoconvert
-                    ! {encoder}
-                    ! {payloader}
-                    ! udpsink host={host} port={video_port}",
-            input = self.input,
-            width = self.width,
-            height = self.height,
-            encoder = self.video.encoder,
-            payloader = self.video.payloader,
-            host = app.host,
-            video_port = app.video_port,
-            overlay_port = app.overlay_port,
-            tensor_height = app.tensor_height,
-            tensor_width = app.tensor_width,
-            model = app.tflite_model,
-            labels = app.tflite_labels,
-            parser = self.video.parser
-        );
-        let pipeline = gstreamer::parse_launch(&p)?;
-        Ok(pipeline
-            .downcast::<gstreamer::Pipeline>()
-            .expect("Invalid gstreamer pipeline"))
+    ) -> Result<gst::Pipeline> {
+        unimplemented!("build_broadcast_rtp_tflite_overlay_pipeline")
+        // let p = format!(
+        //     "{input}
+        //     ! capsfilter caps=video/x-raw,format=RGB,width={width},height={height},framerate=0/1
+        //     ! tee name=t
+        //         t.  ! queue leaky=2 max-size-buffers=2
+        //             ! videoconvert
+        //             ! videoscale ! video/x-raw,width={tensor_width},height={tensor_height}
+        //             ! tensor_converter
+        //             ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1
+        //             ! other/tensors,num_tensors=1,format=static
+        //             ! tensor_filter framework=tensorflow2-lite model={model}
+        //             ! tensor_decoder mode=bounding_boxes option1=mobilenet-ssd-postprocess option2={labels} option3=0:1:2:3,66 option4={width}:{height} option5={tensor_height}:{tensor_width}
+        //             ! videoconvert
+        //             ! {encoder}
+        //             ! 'video/x-h264,width=640,height=480,level=(string)4'
+        //             ! {parser}
+        //             ! {payloader}
+        //             ! udpsink host={host} port={overlay_port}
+        //         t.  ! queue leaky=2 max-size-buffers=2
+        //             ! videoconvert
+        //             ! {encoder}
+        //             ! 'video/x-h264,width=640,height=480,level=(string)4'
+        //             ! {parser}
+        //             ! {payloader}
+        //             ! udpsink host={host} port={video_port}",
+        //     input = self.input,
+        //     width = self.width,
+        //     height = self.height,
+        //     encoder = self.video.encoder,
+        //     payloader = self.video.payloader,
+        //     host = app.host,
+        //     video_port = app.video_port,
+        //     overlay_port = app.overlay_port,
+        //     tensor_height = app.tensor_height,
+        //     tensor_width = app.tensor_width,
+        //     model = app.tflite_model,
+        //     labels = app.tflite_labels,
+        //     parser = self.video.parser
+        // );
+        // let pipeline = gst::parse_launch(&p)?;
+        // Ok(pipeline
+        //     .downcast::<gst::Pipeline>()
+        //     .expect("Invalid gstreamer pipeline"))
     }
 
     // build a tflite pipeline where inference results are composited to overlay
     fn build_broadcast_rtp_tflite_composite_pipeline(
         &self,
         app: &BroadcastRtpVideoOverlay,
-    ) -> Result<gstreamer::Pipeline> {
+    ) -> Result<gst::Pipeline> {
         unimplemented!("build_broadcast_rtp_tflite_composite_pipeline is not yet implemented")
     }
 
-    fn build_tflite_pipeline(&self) -> Result<gstreamer::Pipeline> {
-        let p = format!(
-            "{} \
-            ! capsfilter caps=video/x-raw,format=RGB,width={},height={},framerate=0/1
-            ! {} 
-            ! {}
-            ! testsink ",
-            &self.input, &self.width, &self.height, &self.video.encoder, &self.video.payloader
-        );
-        let pipeline = gstreamer::parse_launch(&p)?;
-        Ok(pipeline
-            .downcast::<gstreamer::Pipeline>()
-            .expect("Invalid gstreamer pipeline"))
-    }
 
-    pub fn build_pipeline(&self) -> Result<gstreamer::Pipeline> {
+    pub fn build_pipeline(&self) -> Result<gst::Pipeline> {
         match &self.variant {
             AppVariant::BroadcastRtpVideo(app) => self.build_broadcast_rtp_video_pipeline(app),
             AppVariant::BroadcastRtpTfliteOverlay(app) => {
@@ -245,7 +298,34 @@ impl App<'_> {
     pub fn play(&self) -> Result<()> {
         let pipeline = self.build_pipeline()?;
         info!("Setting pipeline {:?} state to Playing", pipeline);
-        pipeline.set_state(gstreamer::State::Playing)?;
+        let bus = pipeline
+        .bus()
+        .expect("Pipeline without bus. Shouldn't happen!");
+        pipeline.set_state(gst::State::Playing)?;
+
+        for msg in bus.iter_timed(gst::ClockTime::NONE) {
+            use gst::MessageView;
+    
+            match msg.view() {
+                MessageView::Eos(..) => break,
+                MessageView::Error(err) => {
+                    error!(
+                        "Error from {:?}: {} ({:?})",
+                        err.src().map(|s| s.path_string()),
+                        err.error(),
+                        err.debug()
+                    );
+                    break;
+                }
+                _ => (),
+            }
+        }
+        info!("Setting pipeline {:?} state to Null", pipeline);    
+        pipeline
+            .set_state(gst::State::Null)
+            .expect("Unable to set the pipeline to the `Null` state");
+
+
         Ok(())
     }
 }
@@ -256,7 +336,6 @@ fn main() -> Result<()> {
 
     // parse args
     let app_name = "printnanny-gst";
-
     let app = Command::new(app_name)
         .author(crate_authors!())
         .about(crate_description!())
@@ -268,6 +347,10 @@ fn main() -> Result<()> {
                 .short('v')
                 .multiple_occurrences(true)
                 .help("Sets the level of verbosity"),
+        )
+        .arg(
+            Arg::new("debug")
+                .help("Run pipeline with debug src/sink"),
         )
         .arg(
             Arg::new("height")
@@ -284,12 +367,11 @@ fn main() -> Result<()> {
                 .help("Input resolution width"),
         )
         .arg(
-            Arg::new("input")
-                .short('i')
-                .long("input")
+            Arg::new("src")
+                .long("src")
                 .required(true)
                 .takes_value(true)
-                .possible_values(InputOption::possible_values())
+                .possible_values(SrcOption::possible_values())
                 .help(""),
         )
         .arg(
@@ -371,10 +453,19 @@ fn main() -> Result<()> {
                 .author(crate_authors!())
                 .about("Encode video and broadcast over rtp")
             .arg(
+                Arg::new("sink")
+                    .long("sink")
+                    .required(true)
+                    .takes_value(true)
+                    .possible_values(SinkOption::possible_values())
+                    .help("Gstreamer sink"),
+               )
+            .arg(
                 Arg::new("host")
                     .long("host")
                     .default_value("localhost")
                     .takes_value(true)
+                    .required_if("sink", "udpsink" )
                     .help("udpsink host value"),
             )
             .arg(
@@ -382,6 +473,7 @@ fn main() -> Result<()> {
                     .long("video-port")
                     .default_value("5104")
                     .takes_value(true)
+                    .required_if("sink", "udpsink")
                     .help("udpsink port value"),
             )
             
@@ -393,14 +485,28 @@ fn main() -> Result<()> {
     let verbosity = app_m.occurrences_of("v");
     let mut builder = Builder::new();
     match verbosity {
-        0 => builder.filter_level(LevelFilter::Warn).init(),
-        1 => builder.filter_level(LevelFilter::Info).init(),
-        2 => builder.filter_level(LevelFilter::Debug).init(),
-        _ => builder.filter_level(LevelFilter::Trace).init(),
+        0 => {
+            builder.filter_level(LevelFilter::Warn).init();
+            gst::debug_set_default_threshold(gst::DebugLevel::Warning);
+        },
+        1 => {
+            builder.filter_level(LevelFilter::Info).init();
+            gst::debug_set_default_threshold(gst::DebugLevel::Info);
+        },
+        2 => {
+            builder.filter_level(LevelFilter::Debug).init();
+            gst::debug_set_default_threshold(gst::DebugLevel::Debug);
+
+        },
+        _ => {
+            gst::debug_set_default_threshold(gst::DebugLevel::Trace);
+            builder.filter_level(LevelFilter::Trace).init()
+        },
     };
+    
 
     // Initialize GStreamer first
-    gstreamer::init()?;
+    gst::init()?;
     // Check required_plugins plugins are installed
 
     let (subcommand, sub_m) = app_m.subcommand().unwrap();
