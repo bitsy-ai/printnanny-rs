@@ -241,8 +241,8 @@ impl App<'_> {
     ) -> Result<()> {
         let queue =
             gst::ElementFactory::make("queue", None).map_err(|_| MissingElement("queue"))?;
-        queue.set_property("leaky", "2");
-        queue.set_property("max-size-buffers", "2");
+        queue.set_property_from_str("leaky", "2");
+        queue.set_property_from_str("max-size-buffers", "2");
 
         let pre_videoconvert = gst::ElementFactory::make("videoconvert", None)
             .map_err(|_| MissingElement("videoconvert"))?;
@@ -295,6 +295,13 @@ impl App<'_> {
 
         let post_capsfilter = gst::ElementFactory::make("capsfilter", None)
             .map_err(|_| MissingElement("capsfilter"))?;
+        let post_caps = gst::Caps::builder("video/x-h264")
+            .field("width", self.width)
+            .field("height", self.height)
+            .field("level", "4")
+            .build();
+        post_capsfilter.set_property("caps", post_caps);
+
         let post_videoenc = match &self.encoder {
             VideoEncodingOption::H264Software => {
                 let e = gst::ElementFactory::make("x264enc", None)
@@ -328,6 +335,7 @@ impl App<'_> {
             &post_videoconvert,
             &pre_capsfilter,
             &post_capsfilter,
+            // &tensor_capsfilter,
             &videoscale,
             &tensor_transform,
             &tensor_converter,
@@ -346,11 +354,12 @@ impl App<'_> {
             &pre_capsfilter,
             &tensor_converter,
             &tensor_transform,
-            &tensor_capsfilter,
+            // &tensor_capsfilter,
             &predict_tensor_filter,
             &tensor_decoder,
             &post_videoconvert,
             &post_videoenc,
+            &post_capsfilter,
             &payloader,
             &sink,
         ])?;
