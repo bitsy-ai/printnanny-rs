@@ -41,9 +41,8 @@ pub enum AppVariant {
     BroadcastRtpTfliteComposite(BroadcastRtpVideoOverlay),
 }
 
-#[derive(Debug)]
 pub struct App<'a> {
-    video: VideoParameter,
+    pub video: VideoParameter,
     height: i32,
     width: i32,
     required_plugins: Vec<&'a str>,
@@ -55,7 +54,6 @@ pub struct App<'a> {
 
 impl App<'_> {
     pub fn new(args: &ArgMatches, sub_args: &ArgMatches, subcommand: &str) -> Result<Self> {
-        let debug = args.is_present("debug");
         let mut required_plugins = vec!["videoconvert", "videoscale"];
         // input src requirement
         let src: SrcOption = args.value_of_t("src")?;
@@ -206,9 +204,6 @@ impl App<'_> {
             .field("level", "4")
             .build();
         h264capsfilter.set_property("caps", h264caps);
-
-        let pipeline = gst::Pipeline::new(None);
-
         pipeline.add_many(&[
             &src,
             &sink,
@@ -296,13 +291,13 @@ impl App<'_> {
         let predict_tensor_filter = gst::ElementFactory::make("tensor_filter", None)
             .map_err(|_| MissingElement("tensor_filter"))?;
         predict_tensor_filter.set_property("framework", "tensorflow2-lite");
-        predict_tensor_filter.set_property("model", &tflite_model);
+        predict_tensor_filter.set_property("model", tflite_model);
 
         let tensor_decoder = gst::ElementFactory::make("tensor_decoder", None)
             .map_err(|_| MissingElement("tensor_decoder"))?;
         tensor_decoder.set_property_from_str("mode", "bounding_boxes");
         tensor_decoder.set_property_from_str("option1", "mobilenet-ssd-postprocess");
-        tensor_decoder.set_property_from_str("option2", &tflite_labels);
+        tensor_decoder.set_property_from_str("option2", tflite_labels);
         tensor_decoder.set_property_from_str("option3", "0:1:2:3,66");
         tensor_decoder.set_property_from_str("option4", &format!("{}:{}", self.width, self.height));
         tensor_decoder
@@ -410,29 +405,29 @@ impl App<'_> {
         };
 
         let tee = gst::ElementFactory::make("tee", None)?;
-        pipeline.add_many(&[&src, &tee]);
-        gst::Element::link_many(&[&src, &tee]);
-        self.build_tflite_pipeline(&pipeline, Some(&tee))?;
-        self.build_video_pipeline(&pipeline, Some(&tee))?;
+        pipeline.add_many(&[&src, &tee])?;
+        gst::Element::link_many(&[&src, &tee])?;
+        self.build_tflite_pipeline(pipeline, Some(&tee))?;
+        self.build_video_pipeline(pipeline, Some(&tee))?;
         Ok(())
     }
 
     // build a tflite pipeline where inference results are composited to overlay
-    fn build_broadcast_rtp_tflite_composite_pipeline(&self) -> Result<gst::Pipeline> {
+    fn build_broadcast_rtp_tflite_composite_pipeline(&self) -> Result<()> {
         unimplemented!("build_broadcast_rtp_tflite_composite_pipeline is not yet implemented")
     }
 
     pub fn build_pipeline(&self) -> Result<gst::Pipeline> {
         let pipeline = gst::Pipeline::new(None);
         match &self.variant {
-            AppVariant::BroadcastRtpVideo(app) => self.build_video_pipeline(&pipeline, None),
-            AppVariant::BroadcastRtpTfliteOverlay(app) => {
+            AppVariant::BroadcastRtpVideo(_) => self.build_video_pipeline(&pipeline, None),
+            AppVariant::BroadcastRtpTfliteOverlay(_) => {
                 self.build_broadcast_rtp_tflite_overlay_pipeline(&pipeline)
             }
-            AppVariant::BroadcastRtpTfliteComposite(app) => {
-                unimplemented!("AppVariant::BroadcastRtpTfliteComposite not implemented")
+            AppVariant::BroadcastRtpTfliteComposite(_) => {
+                self.build_broadcast_rtp_tflite_composite_pipeline()
             }
-        };
+        }?;
         Ok(pipeline)
     }
 
@@ -655,7 +650,7 @@ fn main() -> Result<()> {
     // Check required_plugins plugins are installed
 
     let (subcommand, sub_m) = app_m.subcommand().unwrap();
-    let app = App::new(&app_m, &sub_m, &subcommand)?;
+    let app = App::new(&app_m, sub_m, subcommand)?;
 
     app.check_plugins()?;
     app.play()?;
