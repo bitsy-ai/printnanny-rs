@@ -66,7 +66,7 @@ impl App<'_> {
         required_plugins.append(&mut encoder_reqs);
 
         // tensorflow and nnstreamer requirements
-        let app_mode = args.value_of_t("mode")?;
+        let app_mode = args.value_of_t("app")?;
         let variant: AppVariant = match &app_mode {
             AppModeOption::RtpVideo => {
                 // append rtp broadcast requirements
