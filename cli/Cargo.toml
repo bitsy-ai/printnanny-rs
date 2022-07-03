@@ -2,6 +2,7 @@
 name = "printnanny-cli"
 description = "PrintNanny Command-line Interface"
 license = "AGPL-3.0-or-later"
+license-file = "LICENSE"
 version = "0.23.0"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2021"
