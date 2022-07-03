@@ -61,7 +61,7 @@ impl App<'_> {
         let host = sub_args.value_of("host").unwrap().into();
 
         let mut input_reqs = match &src {
-            SrcOption::Libcamerasrc => vec!["libcamerasrc"],
+            SrcOption::Libcamerasrc => vec!["libcamera"],
             SrcOption::Videotestsrc => vec!["videotestsrc"],
         };
         required_plugins.append(&mut input_reqs);
