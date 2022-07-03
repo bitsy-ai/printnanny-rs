@@ -21,7 +21,6 @@ fn main() -> Result<()> {
         .author(crate_authors!())
         .about(crate_description!())
         .version(&version[..])
-        .subcommand_required(true)
         // generic app args
         .arg(
             Arg::new("v")
