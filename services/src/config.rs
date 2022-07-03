@@ -159,44 +159,8 @@ impl Default for PrintNannyCloudProxy {
     }
 }
 
-// start gst config experiment
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct BroadcastRtpVideo {
-    pub host: String,
-    pub port_video: i32,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct BroadcastRtpVideoOverlay {
-    pub host: String,
-    pub port_video: i32,
-    pub port_data: i32,
-    pub port_overlay: i32,
-
-    pub tensor_height: i32,
-    pub tensor_width: i32,
-    pub tflite_model: String,
-    pub tflite_labels: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub enum AppVariant {
-    // broadcast source video stream over 1 rtp port (light compute)
-    BroadcastRtpVideo(BroadcastRtpVideo),
-    // broadcast source video, model inference video, and model inference tensor over 3 rtp ports (medium compute)
-    BroadcastRtpTfliteOverlay(BroadcastRtpVideoOverlay),
-    // broadcast video composited from source / inference (heavy compute)
-    BroadcastRtpTfliteComposite(BroadcastRtpVideoOverlay),
-}
-
-// end gst config experiment
-
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub webcam: Option<WebcamConfig>,
-
     pub printnanny_cloud_proxy: PrintNannyCloudProxy,
     #[serde(skip_serializing_if = "Option::is_none")]
     // generic device data present on all Print Nanny OS editions
@@ -238,7 +202,6 @@ impl Default for PrintNannyConfig {
             octoprint,
             janus_edge,
             device: None,
-            gst: None,
         }
     }
 }
