@@ -3,8 +3,8 @@ use clap::ArgMatches;
 use gst::prelude::*;
 use log::{error, info};
 
-use printnanny_gst::error::MissingElement;
-use printnanny_gst::options::{SinkOption, SrcOption, VideoEncodingOption, VideoParameter};
+use super::error::MissingElement;
+use super::options::{AppModeOption, SinkOption, SrcOption, VideoEncodingOption, VideoParameter};
 
 #[derive(Debug)]
 pub struct BroadcastRtpVideo {
@@ -37,22 +37,22 @@ pub enum AppVariant {
 
 pub struct App<'a> {
     pub video: VideoParameter,
-    height: i32,
-    width: i32,
-    required_plugins: Vec<&'a str>,
-    variant: AppVariant,
-    encoder: VideoEncodingOption,
+    pub height: i32,
+    pub width: i32,
+    pub required_plugins: Vec<&'a str>,
+    pub variant: AppVariant,
+    pub encoder: VideoEncodingOption,
     pub src: SrcOption,
     pub sink: SinkOption,
 }
 
 impl App<'_> {
-    pub fn new(args: &ArgMatches, sub_args: &ArgMatches, subcommand: &str) -> Result<Self> {
+    pub fn new(args: &ArgMatches) -> Result<Self> {
         let mut required_plugins = vec!["videoconvert", "videoscale"];
         // input src requirement
         let src: SrcOption = args.value_of_t("src")?;
-        let sink = sub_args.value_of_t("sink").unwrap();
-        let host = sub_args.value_of("host").unwrap().into();
+        let sink = args.value_of_t("sink")?;
+        let host = args.value_of("host").unwrap().into();
 
         let mut input_reqs = match &src {
             SrcOption::Libcamerasrc => vec!["libcamera"],
@@ -66,27 +66,28 @@ impl App<'_> {
         required_plugins.append(&mut encoder_reqs);
 
         // tensorflow and nnstreamer requirements
-        let variant: AppVariant = match subcommand {
-            "broadcast-rtp-video" => {
+        let app_mode = args.value_of_t("mode")?;
+        let variant: AppVariant = match &app_mode {
+            AppModeOption::RtpVideo => {
                 // append rtp broadcast requirements
                 let mut reqs = vec!["rtp", "udp"];
                 required_plugins.append(&mut reqs);
-                let video_port: i32 = sub_args.value_of_t("video_port").unwrap();
+                let video_port: i32 = args.value_of_t("video_port").unwrap();
                 let subapp = BroadcastRtpVideo { host, video_port };
                 AppVariant::BroadcastRtpVideo(subapp)
             }
-            "broadcast-rtp-tflite" => {
+            AppModeOption::RtpTfliteOverlay => {
                 // append rtp broadcast and tflite requirements
                 let mut reqs = vec!["nnstreamer", "rtp", "udp"];
                 required_plugins.append(&mut reqs);
-                let video_port: i32 = sub_args.value_of_t("video_port").unwrap();
-                let data_port: i32 = sub_args.value_of_t("data_port").unwrap();
-                let overlay_port: i32 = sub_args.value_of_t("overlay_port").unwrap();
+                let video_port: i32 = args.value_of_t("video_port").unwrap();
+                let data_port: i32 = args.value_of_t("data_port").unwrap();
+                let overlay_port: i32 = args.value_of_t("overlay_port").unwrap();
 
-                let tflite_model = sub_args.value_of("tflite_model").unwrap().into();
-                let tflite_labels = sub_args.value_of("tflite_labels").unwrap().into();
-                let tensor_height: i32 = sub_args.value_of_t("tensor_height").unwrap();
-                let tensor_width: i32 = sub_args.value_of_t("tensor_width").unwrap();
+                let tflite_model = args.value_of("tflite_model").unwrap().into();
+                let tflite_labels = args.value_of("tflite_labels").unwrap().into();
+                let tensor_height: i32 = args.value_of_t("tensor_height").unwrap();
+                let tensor_width: i32 = args.value_of_t("tensor_width").unwrap();
 
                 let subapp = BroadcastRtpVideoOverlay {
                     host,
@@ -100,7 +101,9 @@ impl App<'_> {
                 };
                 AppVariant::BroadcastRtpTfliteOverlay(subapp)
             }
-            _ => bail!("Received unknown subcommand {}", subcommand),
+            AppModeOption::RtpTfliteComposite => {
+                unimplemented!("AppModeOption::RtpTfliteOverlay mode is not implemented")
+            }
         };
 
         let height: i32 = args.value_of_t("height").unwrap_or(480);
@@ -454,6 +457,13 @@ impl App<'_> {
             .set_state(gst::State::Null)
             .expect("Unable to set the pipeline to the `Null` state");
 
+        Ok(())
+    }
+
+    pub fn run(&self) -> Result<()> {
+        // Check required_plugins plugins are installed
+        self.check_plugins()?;
+        self.play()?;
         Ok(())
     }
 }

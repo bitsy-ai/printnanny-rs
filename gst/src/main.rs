@@ -2,10 +2,12 @@
 extern crate clap;
 
 use anyhow::Result;
-use clap::{Arg, ArgMatches, Command};
+use clap::{Arg, Command};
 use env_logger::Builder;
 use git_version::git_version;
 use log::LevelFilter;
+
+use printnanny_gst::app::App;
 use printnanny_gst::options::{AppModeOption, SinkOption, SrcOption, VideoEncodingOption};
 
 fn main() -> Result<()> {
@@ -15,9 +17,6 @@ fn main() -> Result<()> {
     // parse args
     let app_name = "printnanny-gst";
 
-    let default_sink = SinkOption::Udpsink.to_string();
-    let default_src = SrcOption::Libcamerasrc.to_string();
-    let default_app = AppModeOption::RtpVideo.to_string();
     let app = Command::new(app_name)
         .author(crate_authors!())
         .about(crate_description!())
@@ -32,7 +31,7 @@ fn main() -> Result<()> {
         )
         .arg(
             Arg::new("app")
-                .default_value(&default_app)
+                .default_value("rtp-video")
                 .possible_values(AppModeOption::possible_values())
                 .help("Application mode to run"),
         )
@@ -54,9 +53,10 @@ fn main() -> Result<()> {
             Arg::new("src")
                 .long("src")
                 .required(true)
+                .default_value("libcamerasrc")
                 .takes_value(true)
                 .possible_values(SrcOption::possible_values())
-                .help(""),
+                .help("Pipeline source element"),
         )
         .arg(
             Arg::new("encoder")
@@ -65,14 +65,14 @@ fn main() -> Result<()> {
                 .required(true)
                 .takes_value(true)
                 .possible_values(VideoEncodingOption::possible_values())
-                .help("Run TensorFlow lite model on output"),
+                .help("Video encoding mdoe"),
         )
         .arg(
             Arg::new("sink")
                 .long("sink")
                 .required(true)
                 .takes_value(true)
-                .default_value(&default_sink)
+                .default_value("udpsink")
                 .possible_values(SinkOption::possible_values())
                 .help("Gstreamer sink"),
         )
@@ -113,7 +113,10 @@ fn main() -> Result<()> {
                 .long("tflite-model")
                 .default_value("/usr/share/printnanny/model/model.tflite")
                 .takes_value(true)
-                .required_if_eq_any(&[("app", "rtptfliteoverlay"), ("app", "rtptflitecomposite")])
+                .required_if_eq_any(&[
+                    ("app", "rtp-tflite-overlay"),
+                    ("app", "rtp-tflite-composite"),
+                ])
                 .help("Path to model.tflite file"),
         )
         .arg(
@@ -121,7 +124,10 @@ fn main() -> Result<()> {
                 .long("tflite-labels")
                 .default_value("/usr/share/printnanny/model/dict.txt")
                 .takes_value(true)
-                .required_if_eq_any(&[("app", "rtptfliteoverlay"), ("app", "rtptflitecomposite")])
+                .required_if_eq_any(&[
+                    ("app", "rtp-tflite-overlay"),
+                    ("app", "rtp-tflite-composite"),
+                ])
                 .help("Path to tflite labels file"),
         )
         .arg(
@@ -129,7 +135,10 @@ fn main() -> Result<()> {
                 .long("tensor-height")
                 .default_value("320")
                 .takes_value(true)
-                .required_if_eq_any(&[("app", "rtptfliteoverlay"), ("app", "rtptflitecomposite")])
+                .required_if_eq_any(&[
+                    ("app", "rtp-tflite-overlay"),
+                    ("app", "rtp-tflite-composite"),
+                ])
                 .help("Height of input tensor"),
         )
         .arg(
@@ -137,7 +146,10 @@ fn main() -> Result<()> {
                 .long("tensor-width")
                 .default_value("320")
                 .takes_value(true)
-                .required_if_eq_any(&[("app", "rtptfliteoverlay"), ("app", "rtptflitecomposite")])
+                .required_if_eq_any(&[
+                    ("app", "rtp-tflite-overlay"),
+                    ("app", "rtp-tflite-composite"),
+                ])
                 .help("Width of input tensor"),
         );
 
@@ -167,13 +179,7 @@ fn main() -> Result<()> {
 
     // Initialize GStreamer first
     gst::init()?;
-    // Check required_plugins plugins are installed
-
-    let (subcommand, sub_m) = app_m.subcommand().unwrap();
-    let app = App::new(&app_m, sub_m, subcommand)?;
-
-    app.check_plugins()?;
-    app.play()?;
-
+    let app = App::new(&app_m)?;
+    app.run()?;
     Ok(())
 }
