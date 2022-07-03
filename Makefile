@@ -49,3 +49,12 @@ dev-build:
 	ssh -o StrictHostKeyChecking=no $(DEV_USER)@$(DEV_MACHINE) "sudo cp ~/printnanny-cli /usr/bin/printnanny-cli"
 	ssh -o StrictHostKeyChecking=no $(DEV_USER)@$(DEV_MACHINE) "sudo cp ~/printnanny-dash /usr/bin/printnanny-dash"
 	ssh -o StrictHostKeyChecking=no $(DEV_USER)@$(DEV_MACHINE) "sudo systemctl start printnanny*"
+
+gst-image:
+	docker build \
+		-f gst/Dockerfile \
+		-t bitsyai/printnanny-gst \
+		.
+
+lint:
+	cargo clippy --workspace

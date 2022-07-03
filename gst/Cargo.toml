@@ -1,0 +1,19 @@
+[package]
+name = "printnanny-gst"
+description = "PrintNanny Gstreamer App"
+license = "AGPL-3.0-or-later"
+version = "0.22.8"
+authors = ["Leigh Johnson <leigh@bitsy.ai>"]
+edition = "2021"
+rust-version = "1.59"
+repository = "https://github.com/bitsy-ai/printnanny-cli.git"
+
+[dependencies]
+anyhow = { version = "1", features = ["backtrace"] }
+derive_more = "0.99"
+clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
+env_logger = "0.9"
+git-version = "0.3"
+gst = { package = "gstreamer", version="0.18.8" }
+log = "0.4"
+tokio = { version = "1.19", features = ["macros"] }
