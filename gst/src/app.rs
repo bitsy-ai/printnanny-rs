@@ -9,14 +9,14 @@ use super::options::{AppModeOption, SinkOption, SrcOption, VideoEncodingOption, 
 #[derive(Debug)]
 pub struct BroadcastRtpVideo {
     pub host: String,
-    pub video_port: i32,
+    pub port_video: i32,
 }
 
 #[derive(Debug)]
 pub struct BroadcastRtpVideoOverlay {
     pub host: String,
-    pub video_port: i32,
-    pub data_port: i32,
+    pub port_video: i32,
+    pub port_data: i32,
     pub overlay_port: i32,
 
     pub tensor_height: i32,
@@ -37,8 +37,8 @@ pub enum AppVariant {
 
 pub struct App<'a> {
     pub video: VideoParameter,
-    pub height: i32,
-    pub width: i32,
+    pub video_height: i32,
+    pub video_width: i32,
     pub required_plugins: Vec<&'a str>,
     pub variant: AppVariant,
     pub encoder: VideoEncodingOption,
@@ -72,16 +72,16 @@ impl App<'_> {
                 // append rtp broadcast requirements
                 let mut reqs = vec!["rtp", "udp"];
                 required_plugins.append(&mut reqs);
-                let video_port: i32 = args.value_of_t("video_port").unwrap();
-                let subapp = BroadcastRtpVideo { host, video_port };
+                let port_video: i32 = args.value_of_t("port_video").unwrap();
+                let subapp = BroadcastRtpVideo { host, port_video };
                 AppVariant::BroadcastRtpVideo(subapp)
             }
             AppModeOption::RtpTfliteOverlay => {
                 // append rtp broadcast and tflite requirements
                 let mut reqs = vec!["nnstreamer", "rtp", "udp"];
                 required_plugins.append(&mut reqs);
-                let video_port: i32 = args.value_of_t("video_port").unwrap();
-                let data_port: i32 = args.value_of_t("data_port").unwrap();
+                let port_video: i32 = args.value_of_t("port_video").unwrap();
+                let port_data: i32 = args.value_of_t("port_data").unwrap();
                 let overlay_port: i32 = args.value_of_t("overlay_port").unwrap();
 
                 let tflite_model = args.value_of("tflite_model").unwrap().into();
@@ -91,8 +91,8 @@ impl App<'_> {
 
                 let subapp = BroadcastRtpVideoOverlay {
                     host,
-                    video_port,
-                    data_port,
+                    port_video,
+                    port_data,
                     overlay_port,
                     tflite_labels,
                     tflite_model,
@@ -106,8 +106,8 @@ impl App<'_> {
             }
         };
 
-        let height: i32 = args.value_of_t("height").unwrap_or(480);
-        let width: i32 = args.value_of_t("width").unwrap_or(480);
+        let video_height: i32 = args.value_of_t("video_height").unwrap_or(480);
+        let video_width: i32 = args.value_of_t("video_width").unwrap_or(640);
 
         Ok(Self {
             src,
@@ -115,8 +115,8 @@ impl App<'_> {
             encoder,
             video,
             required_plugins,
-            height,
-            width,
+            video_height,
+            video_width,
             variant,
         })
     }
@@ -156,25 +156,25 @@ impl App<'_> {
             _ => (),
         };
         // set host / port on sink
-        let (host, video_port) = match &self.variant {
-            AppVariant::BroadcastRtpVideo(app) => (&app.host, &app.video_port),
-            AppVariant::BroadcastRtpTfliteOverlay(app) => (&app.host, &app.video_port),
-            AppVariant::BroadcastRtpTfliteComposite(app) => (&app.host, &app.video_port),
+        let (host, port_video) = match &self.variant {
+            AppVariant::BroadcastRtpVideo(app) => (&app.host, &app.port_video),
+            AppVariant::BroadcastRtpTfliteOverlay(app) => (&app.host, &app.port_video),
+            AppVariant::BroadcastRtpTfliteComposite(app) => (&app.host, &app.port_video),
         };
 
         match &self.sink {
             SinkOption::Fakesink => (),
             SinkOption::Udpsink => {
                 sink.set_property("host", &host);
-                sink.set_property("port", &video_port);
+                sink.set_property("port", &port_video);
             }
         };
 
         let incapsfilter = gst::ElementFactory::make("capsfilter", None)
             .map_err(|_| MissingElement("capsfilter"))?;
         let incaps = gst::Caps::builder("video/x-raw")
-            .field("width", &self.width)
-            .field("height", &self.height)
+            .field("width", &self.video_width)
+            .field("height", &self.video_height)
             .build();
         incapsfilter.set_property("caps", incaps);
         let encoder = match &self.encoder {
@@ -296,7 +296,10 @@ impl App<'_> {
         tensor_decoder.set_property_from_str("option1", "mobilenet-ssd-postprocess");
         tensor_decoder.set_property_from_str("option2", tflite_labels);
         tensor_decoder.set_property_from_str("option3", "0:1:2:3,66");
-        tensor_decoder.set_property_from_str("option4", &format!("{}:{}", self.width, self.height));
+        tensor_decoder.set_property_from_str(
+            "option4",
+            &format!("{}:{}", self.video_width, self.video_height),
+        );
         tensor_decoder
             .set_property_from_str("option5", &format!("{}:{}", tensor_width, tensor_height));
 
@@ -306,8 +309,8 @@ impl App<'_> {
         let post_capsfilter = gst::ElementFactory::make("capsfilter", None)
             .map_err(|_| MissingElement("capsfilter"))?;
         let post_caps = gst::Caps::builder("video/x-h264")
-            .field("width", self.width)
-            .field("height", self.height)
+            .field("width", self.video_width)
+            .field("height", self.video_height)
             .field("level", "4")
             .build();
         post_capsfilter.set_property("caps", post_caps);
@@ -392,7 +395,7 @@ impl App<'_> {
     }
 
     // build a tflite pipeline where inference results are rendered to overlay
-    // overlay and original stream are broadcast to overlay_port and video_port
+    // overlay and original stream are broadcast to overlay_port and port_video
     fn build_broadcast_rtp_tflite_overlay_pipeline(&self, pipeline: &gst::Pipeline) -> Result<()> {
         let src = gst::ElementFactory::make(&self.src.to_string(), None)?;
         // set properties on src

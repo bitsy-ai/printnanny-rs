@@ -36,18 +36,18 @@ fn main() -> Result<()> {
                 .help("Application mode to run"),
         )
         .arg(
-            Arg::new("height")
-                .long("height")
+            Arg::new("video_height")
+                .long("video_height")
                 .default_value("480")
                 .takes_value(true)
-                .help("Input resolution height"),
+                .help("Input video height"),
         )
         .arg(
-            Arg::new("width")
-                .long("width")
+            Arg::new("video_width")
+                .long("video_width")
                 .default_value("640")
                 .takes_value(true)
-                .help("Input resolution width"),
+                .help("Input video width"),
         )
         .arg(
             Arg::new("src")
@@ -85,8 +85,8 @@ fn main() -> Result<()> {
                 .help("udpsink host value"),
         )
         .arg(
-            Arg::new("video_port")
-                .long("video-port")
+            Arg::new("port_video")
+                .long("port-video")
                 .default_value("5104")
                 .takes_value(true)
                 .required_if("sink", "udpsink")
@@ -101,8 +101,8 @@ fn main() -> Result<()> {
                 .help("udpsink port value (inference video overlay)"),
         )
         .arg(
-            Arg::new("data_port")
-                .long("data-port")
+            Arg::new("port_data")
+                .long("port-data")
                 .default_value("5107")
                 .takes_value(true)
                 .required_if("sink", "udpsink")
