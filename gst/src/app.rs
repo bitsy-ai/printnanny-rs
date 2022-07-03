@@ -205,8 +205,8 @@ impl App<'_> {
 
         // create edges between element nodes
         gst::Element::link_many(&[
-            &incapsfilter,
             &queue,
+            &incapsfilter,
             &videoconvert,
             &encoder,
             &h264capsfilter,
