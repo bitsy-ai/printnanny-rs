@@ -17,7 +17,7 @@ pub struct BroadcastRtpVideoOverlay {
     pub host: String,
     pub port_video: i32,
     pub port_data: i32,
-    pub overlay_port: i32,
+    pub port_overlay: i32,
 
     pub tensor_height: i32,
     pub tensor_width: i32,
@@ -82,7 +82,7 @@ impl App<'_> {
                 required_plugins.append(&mut reqs);
                 let port_video: i32 = args.value_of_t("port_video").unwrap();
                 let port_data: i32 = args.value_of_t("port_data").unwrap();
-                let overlay_port: i32 = args.value_of_t("overlay_port").unwrap();
+                let port_overlay: i32 = args.value_of_t("port_overlay").unwrap();
 
                 let tflite_model = args.value_of("tflite_model").unwrap().into();
                 let tflite_labels = args.value_of("tflite_labels").unwrap().into();
@@ -93,7 +93,7 @@ impl App<'_> {
                     host,
                     port_video,
                     port_data,
-                    overlay_port,
+                    port_overlay,
                     tflite_labels,
                     tflite_model,
                     tensor_height,
@@ -256,7 +256,7 @@ impl App<'_> {
         let pre_capsfilter = gst::ElementFactory::make("capsfilter", None)
             .map_err(|_| MissingElement("capsfilter"))?;
 
-        let (tensor_width, tensor_height, tflite_model, tflite_labels, host, overlay_port) =
+        let (tensor_width, tensor_height, tflite_model, tflite_labels, host, port_overlay) =
             match &self.variant {
                 AppVariant::BroadcastRtpTfliteOverlay(app) => (
                     &app.tensor_width,
@@ -264,7 +264,7 @@ impl App<'_> {
                     &app.tflite_model,
                     &app.tflite_labels,
                     &app.host,
-                    &app.overlay_port,
+                    &app.port_overlay,
                 ),
                 _ => unimplemented!(
                     "build_tflite_pipeline is not implemented for {:?}",
@@ -338,7 +338,7 @@ impl App<'_> {
             SinkOption::Fakesink => (),
             SinkOption::Udpsink => {
                 sink.set_property("host", &host);
-                sink.set_property("port", &overlay_port);
+                sink.set_property("port", &port_overlay);
             }
         };
 
@@ -395,7 +395,7 @@ impl App<'_> {
     }
 
     // build a tflite pipeline where inference results are rendered to overlay
-    // overlay and original stream are broadcast to overlay_port and port_video
+    // overlay and original stream are broadcast to port_overlay and port_video
     fn build_broadcast_rtp_tflite_overlay_pipeline(&self, pipeline: &gst::Pipeline) -> Result<()> {
         let src = gst::ElementFactory::make(&self.src.to_string(), None)?;
         // set properties on src

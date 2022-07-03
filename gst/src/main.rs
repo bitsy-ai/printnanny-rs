@@ -93,8 +93,8 @@ fn main() -> Result<()> {
                 .help("udpsink port value (original video stream)"),
         )
         .arg(
-            Arg::new("overlay_port")
-                .long("overlay-port")
+            Arg::new("port_overlay")
+                .long("port-overlay")
                 .default_value("5106")
                 .takes_value(true)
                 .required_if("sink", "udpsink")
