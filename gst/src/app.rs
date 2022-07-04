@@ -139,6 +139,7 @@ impl App<'_> {
     // build a video pipeline, optionally linked from tee element
     fn build_video_pipeline(&self, pipeline: &gst::Pipeline, tee: &gst::Element) -> Result<()> {
         let sink = gst::ElementFactory::make(&self.sink.to_string(), None)?;
+        sink.set_property("async", false);
 
         let queue =
             gst::ElementFactory::make("queue", None).map_err(|_| MissingElement("queue"))?;
@@ -277,6 +278,8 @@ impl App<'_> {
             .map_err(|_| MissingElement("tensor_filter"))?;
         predict_tensor_filter.set_property("framework", "tensorflow2-lite");
         predict_tensor_filter.set_property("model", tflite_model);
+        predict_tensor_filter.set_property("latency", "1");
+        predict_tensor_filter.set_property("throughput", "1");
 
         let tensor_decoder = gst::ElementFactory::make("tensor_decoder", None)
             .map_err(|_| MissingElement("tensor_decoder"))?;
@@ -322,6 +325,7 @@ impl App<'_> {
         payloader.set_property_from_str("aggregate-mode", "zero-latency");
 
         let sink = gst::ElementFactory::make(&self.sink.to_string(), None)?;
+        sink.set_property("async", false);
         match &self.sink {
             SinkOption::Fakesink => (),
             SinkOption::Udpsink => {
