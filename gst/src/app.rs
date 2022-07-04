@@ -423,7 +423,7 @@ impl App<'_> {
                     if state_changed.src().map(|s| s == pipeline).unwrap_or(false) {
                         pipeline.debug_to_dot_file(
                             gst::DebugGraphDetails::all(),
-                            format!("{:?}", &state_changed),
+                            format!("{:?}-{:?}", &state_changed.old(), &state_changed.current()),
                         );
                     }
                 }
