@@ -137,24 +137,17 @@ impl App<'_> {
         }
     }
     // build a video pipeline, optionally linked from tee element
-    fn build_video_pipeline(
-        &self,
-        pipeline: &gst::Pipeline,
-        tee: Option<&gst::Element>,
-    ) -> Result<()> {
-        let src = gst::ElementFactory::make(&self.src.to_string(), None)?;
+    fn build_video_pipeline(&self, pipeline: &gst::Pipeline, tee: &gst::Element) -> Result<()> {
         let sink = gst::ElementFactory::make(&self.sink.to_string(), None)?;
+        sink.set_property("sync", false);
 
         let queue =
             gst::ElementFactory::make("queue", None).map_err(|_| MissingElement("queue"))?;
+        queue.set_property_from_str("leaky", "2");
+        queue.set_property_from_str("max-size-buffers", "10");
         let videoconvert = gst::ElementFactory::make("videoconvert", None)
             .map_err(|_| MissingElement("videoconvert"))?;
 
-        // set properties on src
-        match &self.src {
-            SrcOption::Videotestsrc => src.set_property("is-live", true),
-            _ => (),
-        };
         // set host / port on sink
         let (host, port_video) = match &self.variant {
             AppVariant::BroadcastRtpVideo(app) => (&app.host, &app.port_video),
@@ -201,8 +194,9 @@ impl App<'_> {
             .field("level", "4")
             .build();
         h264capsfilter.set_property("caps", h264caps);
+
+        // add element nodes to pipeline graph
         pipeline.add_many(&[
-            &src,
             &sink,
             &incapsfilter,
             &queue,
@@ -211,42 +205,36 @@ impl App<'_> {
             &h264capsfilter,
             &payloader,
         ])?;
-        match tee {
-            Some(t) => gst::Element::link_many(&[
-                t,
-                &src,
-                &incapsfilter,
-                &queue,
-                &videoconvert,
-                &encoder,
-                &h264capsfilter,
-                &payloader,
-                &sink,
-            ])?,
-            None => gst::Element::link_many(&[
-                &src,
-                &incapsfilter,
-                &queue,
-                &videoconvert,
-                &encoder,
-                &h264capsfilter,
-                &payloader,
-                &sink,
-            ])?,
-        };
+
+        // create edges between element nodes
+        gst::Element::link_many(&[
+            &queue,
+            &incapsfilter,
+            &videoconvert,
+            &encoder,
+            &h264capsfilter,
+            &payloader,
+            &sink,
+        ])?;
+
+        // create edges between tee and queue elements
+        let tee_pad = tee
+            .request_pad_simple("src_%u")
+            .expect(&format!("Failed to get src pad from tee element {:?}", tee));
+        let queue_pad = queue.static_pad("sink").expect(&format!(
+            "Failed to get sink pad from queue element {:?}",
+            &queue
+        ));
+        tee_pad.link(&queue_pad)?;
         Ok(())
     }
 
     // build a tflite pipeline branch, intended for use with tee element
-    fn build_tflite_pipeline(
-        &self,
-        pipeline: &gst::Pipeline,
-        tee: Option<&gst::Element>,
-    ) -> Result<()> {
+    fn build_tflite_pipeline(&self, pipeline: &gst::Pipeline, tee: &gst::Element) -> Result<()> {
         let queue =
             gst::ElementFactory::make("queue", None).map_err(|_| MissingElement("queue"))?;
         queue.set_property_from_str("leaky", "2");
-        queue.set_property_from_str("max-size-buffers", "2");
+        queue.set_property_from_str("max-size-buffers", "200");
 
         let pre_videoconvert = gst::ElementFactory::make("videoconvert", None)
             .map_err(|_| MissingElement("videoconvert"))?;
@@ -274,6 +262,7 @@ impl App<'_> {
         let precaps = gst::Caps::builder("video/x-raw")
             .field("width", &tensor_width)
             .field("height", &tensor_height)
+            .field("format", "RGB")
             .build();
         pre_capsfilter.set_property("caps", precaps);
 
@@ -289,6 +278,8 @@ impl App<'_> {
             .map_err(|_| MissingElement("tensor_filter"))?;
         predict_tensor_filter.set_property("framework", "tensorflow2-lite");
         predict_tensor_filter.set_property("model", tflite_model);
+        predict_tensor_filter.set_property("latency", 1);
+        predict_tensor_filter.set_property("throughput", 1);
 
         let tensor_decoder = gst::ElementFactory::make("tensor_decoder", None)
             .map_err(|_| MissingElement("tensor_decoder"))?;
@@ -334,6 +325,7 @@ impl App<'_> {
         payloader.set_property_from_str("aggregate-mode", "zero-latency");
 
         let sink = gst::ElementFactory::make(&self.sink.to_string(), None)?;
+        sink.set_property("sync", false);
         match &self.sink {
             SinkOption::Fakesink => (),
             SinkOption::Udpsink => {
@@ -342,6 +334,7 @@ impl App<'_> {
             }
         };
 
+        // add elements nodes to pipeline graph
         pipeline.add_many(&[
             &queue,
             &pre_videoconvert,
@@ -358,76 +351,53 @@ impl App<'_> {
             &sink,
         ])?;
 
-        match tee {
-            Some(t) => gst::Element::link_many(&[
-                t,
-                &queue,
-                &pre_videoconvert,
-                &videoscale,
-                &pre_capsfilter,
-                &tensor_converter,
-                &tensor_transform,
-                &predict_tensor_filter,
-                &tensor_decoder,
-                &post_videoconvert,
-                &post_videoenc,
-                &post_capsfilter,
-                &payloader,
-                &sink,
-            ])?,
-            None => gst::Element::link_many(&[
-                &queue,
-                &pre_videoconvert,
-                &videoscale,
-                &pre_capsfilter,
-                &tensor_converter,
-                &tensor_transform,
-                &predict_tensor_filter,
-                &tensor_decoder,
-                &post_videoconvert,
-                &post_videoenc,
-                &post_capsfilter,
-                &payloader,
-                &sink,
-            ])?,
-        };
+        // link edges between elements
+        gst::Element::link_many(&[
+            &queue,
+            &pre_videoconvert,
+            &videoscale,
+            &pre_capsfilter,
+            &tensor_converter,
+            &tensor_transform,
+            &predict_tensor_filter,
+            &tensor_decoder,
+            &post_videoconvert,
+            &post_videoenc,
+            &post_capsfilter,
+            &payloader,
+            &sink,
+        ])?;
+
+        // create edges between tee and queue elements
+        let tee_pad = tee
+            .request_pad_simple("src_%u")
+            .expect(&format!("Failed to get src pad from tee element {:?}", tee));
+        let queue_pad = queue.static_pad("sink").expect(&format!(
+            "Failed to get sink pad from queue element {:?}",
+            &queue
+        ));
+        tee_pad.link(&queue_pad)?;
         Ok(())
-    }
-
-    // build a tflite pipeline where inference results are rendered to overlay
-    // overlay and original stream are broadcast to port_overlay and port_video
-    fn build_broadcast_rtp_tflite_overlay_pipeline(&self, pipeline: &gst::Pipeline) -> Result<()> {
-        let src = gst::ElementFactory::make(&self.src.to_string(), None)?;
-        // set properties on src
-        match &self.src {
-            SrcOption::Videotestsrc => src.set_property("is-live", true),
-            _ => (),
-        };
-
-        let tee = gst::ElementFactory::make("tee", None)?;
-        pipeline.add_many(&[&src, &tee])?;
-        gst::Element::link_many(&[&src, &tee])?;
-        self.build_tflite_pipeline(pipeline, Some(&tee))?;
-        self.build_video_pipeline(pipeline, Some(&tee))?;
-        Ok(())
-    }
-
-    // build a tflite pipeline where inference results are composited to overlay
-    fn build_broadcast_rtp_tflite_composite_pipeline(&self) -> Result<()> {
-        unimplemented!("build_broadcast_rtp_tflite_composite_pipeline is not yet implemented")
     }
 
     pub fn build_pipeline(&self) -> Result<gst::Pipeline> {
         let pipeline = gst::Pipeline::new(None);
+        let src = gst::ElementFactory::make(&self.src.to_string(), None)?;
+        let tee = gst::ElementFactory::make("tee", None)?;
+        pipeline.add_many(&[&src, &tee])?;
+        gst::Element::link_many(&[&src, &tee])?;
         match &self.variant {
-            AppVariant::BroadcastRtpVideo(_) => self.build_video_pipeline(&pipeline, None),
+            AppVariant::BroadcastRtpVideo(_) => self.build_video_pipeline(&pipeline, &tee)?,
+            // build a tflite pipeline where inference results are rendered to overlay
+            // overlay and original stream are broadcast to port_overlay and port_video
             AppVariant::BroadcastRtpTfliteOverlay(_) => {
-                self.build_broadcast_rtp_tflite_overlay_pipeline(&pipeline)
+                self.build_video_pipeline(&pipeline, &tee)?;
+                self.build_tflite_pipeline(&pipeline, &tee)?;
             }
-            AppVariant::BroadcastRtpTfliteComposite(_) => {
-                self.build_broadcast_rtp_tflite_composite_pipeline()
-            }
-        }?;
+            AppVariant::BroadcastRtpTfliteComposite(_) => unimplemented!(
+                "build_broadcast_rtp_tflite_composite_pipeline is not yet implemented"
+            ),
+        };
         Ok(pipeline)
     }
 
@@ -452,6 +422,16 @@ impl App<'_> {
                     );
                     break;
                 }
+                MessageView::StateChanged(state_changed) => {
+                    // Generate a dot graph of the pipeline to GST_DEBUG_DUMP_DOT_DIR if defined
+
+                    if state_changed.src().map(|s| s == pipeline).unwrap_or(false) {
+                        pipeline.debug_to_dot_file(
+                            gst::DebugGraphDetails::all(),
+                            format!("{:?}-{:?}", &state_changed.old(), &state_changed.current()),
+                        );
+                    }
+                }
                 _ => (),
             }
         }
@@ -462,7 +442,6 @@ impl App<'_> {
 
         Ok(())
     }
-
     pub fn run(&self) -> Result<()> {
         // Check required_plugins plugins are installed
         self.check_plugins()?;
