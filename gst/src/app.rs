@@ -143,7 +143,7 @@ impl App<'_> {
         let queue =
             gst::ElementFactory::make("queue", None).map_err(|_| MissingElement("queue"))?;
         queue.set_property_from_str("leaky", "2");
-        queue.set_property_from_str("max-size-buffers", "2");
+        queue.set_property_from_str("max-size-buffers", "10");
         let videoconvert = gst::ElementFactory::make("videoconvert", None)
             .map_err(|_| MissingElement("videoconvert"))?;
 
@@ -233,7 +233,7 @@ impl App<'_> {
         let queue =
             gst::ElementFactory::make("queue", None).map_err(|_| MissingElement("queue"))?;
         queue.set_property_from_str("leaky", "2");
-        queue.set_property_from_str("max-size-buffers", "2");
+        queue.set_property_from_str("max-size-buffers", "200");
 
         let pre_videoconvert = gst::ElementFactory::make("videoconvert", None)
             .map_err(|_| MissingElement("videoconvert"))?;
@@ -261,6 +261,7 @@ impl App<'_> {
         let precaps = gst::Caps::builder("video/x-raw")
             .field("width", &tensor_width)
             .field("height", &tensor_height)
+            .field("format", "RGB")
             .build();
         pre_capsfilter.set_property("caps", precaps);
 
