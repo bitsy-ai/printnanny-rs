@@ -417,6 +417,16 @@ impl App<'_> {
                     );
                     break;
                 }
+                MessageView::StateChanged(state_changed) => {
+                    // Generate a dot graph of the pipeline to GST_DEBUG_DUMP_DOT_DIR if defined
+
+                    if state_changed.src().map(|s| s == pipeline).unwrap_or(false) {
+                        pipeline.debug_to_dot_file(
+                            gst::DebugGraphDetails::all(),
+                            format!("{:?}", &state_changed),
+                        );
+                    }
+                }
                 _ => (),
             }
         }
@@ -427,7 +437,6 @@ impl App<'_> {
 
         Ok(())
     }
-
     pub fn run(&self) -> Result<()> {
         // Check required_plugins plugins are installed
         self.check_plugins()?;
