@@ -8,8 +8,7 @@ use git_version::git_version;
 use gst::prelude::*;
 use log::{error, info, LevelFilter};
 
-use printnanny_gst::options::{AppModeOption, SinkOption, SrcOption, VideoEncodingOption};
-use printnanny_services::config::PrintNannyConfig;
+use printnanny_gst::options::SrcOption;
 
 pub struct PrintNannyCamApp {
     pub video_height: i32,
