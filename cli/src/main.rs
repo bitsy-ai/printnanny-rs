@@ -130,10 +130,11 @@ async fn main() -> Result<()> {
             .author(crate_authors!())
             .about(crate_description!())
             .version(&version[..])
-            .about("Run MQTT-based event pubish/subscribe workers")
+            .about("Run MQTT-based event publish/subscribe workers")
             .subcommand_required(true)
             .subcommand(
                 Command::new("publish")
+                .about("Publish event to MQTT topic")
                 .arg(Arg::new("data")
                     .short('d')
                     .long("data")
@@ -141,6 +142,7 @@ async fn main() -> Result<()> {
             ))
             .subcommand(
                 Command::new("subscribe")
+                .about("Subscribe to events from MQTT topic")
             ))
 
         .subcommand(Command::new("remote")
