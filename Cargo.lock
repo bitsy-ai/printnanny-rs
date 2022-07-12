@@ -2496,20 +2496,6 @@ checksum = "c6fa0831dd7cc608c38a5e323422a0077678fa5744aa2be4ad91c4ece8eec8d5"
 
 [[package]]
 name = "printnanny-api-client"
-version = "0.92.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a091bac5776993cafafb40792714d16fd4cb39e2641ce62143a215ec90b2ba78"
-dependencies = [
- "bytes",
- "reqwest",
- "serde 1.0.137",
- "serde_derive",
- "serde_json",
- "url",
-]
-
-[[package]]
-name = "printnanny-api-client"
 version = "0.93.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1498d57dca0da5a89bef150bc9bd000593fcd30cb8ee4be64a21a1c008bf17a"
@@ -2533,7 +2519,7 @@ dependencies = [
  "function_name",
  "git-version",
  "log",
- "printnanny-api-client 0.93.2",
+ "printnanny-api-client",
  "printnanny-dash",
  "printnanny-services",
  "rocket",
@@ -2553,7 +2539,7 @@ dependencies = [
  "clap",
  "indexmap",
  "log",
- "printnanny-api-client 0.92.0",
+ "printnanny-api-client",
  "printnanny-services",
  "rocket",
  "rocket_dyn_templates",
@@ -2604,7 +2590,7 @@ dependencies = [
  "mockall",
  "openssl",
  "predicates 2.1.1",
- "printnanny-api-client 0.92.0",
+ "printnanny-api-client",
  "procfs",
  "rand",
  "reqwest",
