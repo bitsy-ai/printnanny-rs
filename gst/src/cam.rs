@@ -69,16 +69,28 @@ impl PrintNannyCamApp {
         let config = PrintNannyConfig::new()?;
         let device_settings: models::DeviceSettings = *config
             .device
+            .clone()
             .expect("PrintNannyConfig.device is not set")
             .settings
             .expect("PrintNannyConfig.device.settings is not set");
-        let janus_config = config.janus.expect("PrintNannyConfig.janus is not set");
+
+        let janus_cloud_config = *config
+            .device
+            .clone()
+            .expect("PrintNannyConfig.device is not set")
+            .janus_cloud
+            .expect("PrintNannyConfig.device.janus_edge is not set");
+        let janus_edge_config = *config
+            .device
+            .clone()
+            .expect("PrintNannyConfig.device is not set")
+            .janus_edge
+            .expect("PrintNannyConfig.device.janus_edge is not set");
 
         // sink to Janus Streaming plugin API (Cloud) if cloud_video_enabled
         if device_settings.cloud_video_enabled.unwrap() {
-            let janus_cloud_host = janus_config.cloud.rtp_domain;
-            let janus_cloud_port = janus_config
-                .cloud
+            let janus_cloud_host = janus_cloud_config.rtp_domain;
+            let janus_cloud_port = janus_cloud_config
                 .rtp_port
                 .expect("PrintNannyConfig.janus.cloud.rtp_port is not set")
                 .to_string();
@@ -98,7 +110,7 @@ impl PrintNannyCamApp {
         }
 
         // sink to Janus Streaming plugin API (Edge)
-        let janus_edge_port = janus_config.edge.rtp_port.unwrap_or(5105).to_string();
+        let janus_edge_port = janus_edge_config.rtp_port.unwrap_or(5105).to_string();
         let janus_edge_queue = gst::ElementFactory::make("queue2", Some("janusedge_queue"))?;
         let janus_edge_sink = gst::ElementFactory::make("udpsink", Some("janusedge_udpsink"))?;
         janus_edge_sink.set_property_from_str("host", "127.0.0.1");

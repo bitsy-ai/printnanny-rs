@@ -18,7 +18,6 @@ use super::config::PrintNannyConfig;
 use super::cpuinfo::RpiCpuInfo;
 use super::error::ServiceError;
 use super::file::open;
-use super::janus::JanusConfig;
 use super::octoprint::OctoPrintConfig;
 
 #[derive(Debug, Clone)]
@@ -159,20 +158,7 @@ impl ApiService {
                         None
                     }
                 };
-                let janus_edge = device
-                    .janus_edge
-                    .clone()
-                    .expect("Expected Device.janus_edge to be set");
-                let janus_cloud = device
-                    .janus_cloud
-                    .clone()
-                    .expect("Expected Device.janus_cloud to be set");
 
-                let janus_config = JanusConfig {
-                    edge: *janus_edge,
-                    cloud: *janus_cloud,
-                };
-                self.config.janus = Some(janus_config);
                 self.config.octoprint = octoprint;
                 let device = self.device_retrieve(device.id).await?;
                 self.config.device = Some(device);
