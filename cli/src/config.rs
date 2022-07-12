@@ -4,9 +4,9 @@ use printnanny_services::error::{PrintNannyConfigError, ServiceError};
 use printnanny_services::printnanny_api::ApiService;
 use std::io::{self, Write};
 
-pub struct ConfigAction;
+pub struct ConfigCommand;
 
-impl ConfigAction {
+impl ConfigCommand {
     pub async fn handle(sub_m: &clap::ArgMatches) -> Result<(), ServiceError> {
         let config: PrintNannyConfig = PrintNannyConfig::new()?;
         match sub_m.subcommand() {
