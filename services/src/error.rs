@@ -5,7 +5,6 @@ use printnanny_api_client::apis::alert_settings_api;
 use printnanny_api_client::apis::auth_api;
 use printnanny_api_client::apis::config_api;
 use printnanny_api_client::apis::devices_api;
-use printnanny_api_client::apis::janus_api;
 use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::apis::users_api;
 use printnanny_api_client::apis::Error as ApiError;

@@ -13,7 +13,7 @@ use log::{error, info};
 use serde::{Deserialize, Serialize};
 
 use super::error::{PrintNannyConfigError, ServiceError};
-use super::janus::JanusEdgeConfig;
+use super::janus::JanusConfig;
 use super::keys::PrintNannyKeys;
 use super::octoprint::OctoPrintConfig;
 use super::paths::{PrintNannyPaths, PRINTNANNY_CONFIG_DEFAULT};
@@ -22,7 +22,7 @@ use printnanny_api_client::models;
 // FACTORY_RESET holds the struct field names of PrintNannyConfig
 // each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
 // as the name implies, this const is used for performing a reset of any config data modified from defaults
-const FACTORY_RESET: [&str; 7] = [
+const FACTORY_RESET: [&str; 8] = [
     "api",
     "device",
     "octoprint",
@@ -30,6 +30,7 @@ const FACTORY_RESET: [&str; 7] = [
     "paths",
     "mqtt",
     "keys",
+    "janus",
 ];
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
@@ -166,12 +167,13 @@ pub struct PrintNannyConfig {
     // edition-specific data and settings
     #[serde(skip_serializing_if = "Option::is_none")]
     pub octoprint: Option<OctoPrintConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub janus: Option<JanusConfig>,
     pub paths: PrintNannyPaths,
     pub api: models::PrintNannyApiConfig,
     pub dash: DashConfig,
     pub mqtt: MQTTConfig,
     pub keys: PrintNannyKeys,
-    pub janus_edge: JanusEdgeConfig,
 }
 
 impl Default for PrintNannyConfig {
@@ -188,8 +190,6 @@ impl Default for PrintNannyConfig {
         let dash = DashConfig::default();
         let printnanny_cloud_proxy = PrintNannyCloudProxy::default();
         let keys = PrintNannyKeys::default();
-        let octoprint = None;
-        let janus_edge = JanusEdgeConfig::default();
         PrintNannyConfig {
             api,
             dash,
@@ -197,9 +197,9 @@ impl Default for PrintNannyConfig {
             paths,
             printnanny_cloud_proxy,
             keys,
-            octoprint,
-            janus_edge,
+            octoprint: None,
             device: None,
+            janus: None,
         }
     }
 }
@@ -334,8 +334,8 @@ impl PrintNannyConfig {
             "keys" => Ok(toml::Value::try_from(
                 figment::util::map! {key =>  &self.keys },
             )?),
-            "janus_edge" => Ok(toml::Value::try_from(
-                figment::util::map! {key =>  &self.janus_edge },
+            "janus" => Ok(toml::Value::try_from(
+                figment::util::map! {key =>  &self.janus },
             )?),
             _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
         }?
