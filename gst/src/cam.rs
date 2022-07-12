@@ -15,6 +15,8 @@ pub struct PrintNannyCamApp {
     pub video_src: SrcOption,
 }
 
+const GIT_VERSION: &str = git_version!();
+
 impl PrintNannyCamApp {
     pub fn new(args: &ArgMatches) -> Self {
         let video_height: i32 = args
@@ -214,12 +216,11 @@ impl PrintNannyCamApp {
 }
 
 pub fn clap_command() -> Command<'static> {
-    let version = Box::leak(format!("{} {}", crate_version!(), git_version!()).into_boxed_str());
     let app_name = "cam";
     let app = Command::new(app_name)
         .author(crate_authors!())
         .about("Encode live video camera stream")
-        .version(&version[..])
+        .version(GIT_VERSION)
         // generic app args
         .arg(
             Arg::new("v")
