@@ -182,7 +182,7 @@ impl OctoPrintConfig {
     pub fn printnanny_plugin_version(
         &self,
         packages: &Vec<PipPackage>,
-    ) -> Result<String, PrintNannyConfigError> {
+    ) -> Result<Option<String>, PrintNannyConfigError> {
         let v: Vec<&PipPackage> = packages
             .into_iter()
             .filter(|p| p.name == "OctoPrint-Nanny")
@@ -198,7 +198,7 @@ impl OctoPrintConfig {
             "Parsed printnnny_plugin_version {:?} in venv {:?} ",
             &result, &self.python
         );
-        Ok(result)
+        Ok(Some(result))
     }
 }
 

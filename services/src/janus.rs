@@ -8,55 +8,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct JanusEdgeConfig {
-    pub admin_base_path: String,
-    pub admin_http_port: i32,
-    pub admin_secret: String,
-    pub admin_http_url: String,
-    pub api_base_path: String,
-    pub api_http_port: i32,
-    pub api_http_url: String,
-    pub api_token: String,
-    pub ws_port: i32,
-    pub ws_url: String,
-}
-
-impl Default for JanusEdgeConfig {
-    fn default() -> Self {
-        let admin_http_port = 7088;
-        let admin_base_path = "/admin".into();
-        let admin_secret = "".into();
-        let api_http_port = 8088;
-        let api_base_path = "/janus".into();
-        let api_token = "".into();
-        let ws_port = 8188;
-
-        let hostname = sys_info::hostname().unwrap_or("localhost".to_string());
-        let admin_http_url = format!(
-            "http://{}.local:{}{}",
-            &hostname, &admin_http_port, &admin_base_path
-        )
-        .into();
-        let api_http_url = format!(
-            "http://{}.local:{}{}",
-            &hostname, &api_http_port, &api_base_path
-        )
-        .into();
-        let ws_url = format!("http://{}.local:{}/", &hostname, &ws_port).into();
-
-        return Self {
-            admin_base_path,
-            admin_http_port,
-            admin_secret,
-            api_http_port,
-            api_base_path,
-            api_token,
-            ws_port,
-            admin_http_url,
-            api_http_url,
-            ws_url,
-        };
-    }
+pub struct JanusConfig {
+    pub edge: models::JanusStream,
+    pub cloud: models::JanusStream,
 }
 
 #[derive(PartialEq, Debug, Clone, Copy, ArgEnum)]
@@ -112,7 +66,7 @@ pub struct JanusAdminService {
 
 fn build_request_body(
     endpoint: &JanusAdminEndpoint,
-    janus_config: &models::JanusEdgeStream,
+    janus_config: &models::JanusStream,
 ) -> Result<HashMap<String, String>> {
     let transaction: String = thread_rng()
         .sample_iter(&Alphanumeric)
@@ -130,94 +84,19 @@ fn build_request_body(
     );
     match endpoint {
         JanusAdminEndpoint::AddToken => {
-            map.insert(
-                String::from("token"),
-                janus_config
-                    .auth
-                    .as_ref()
-                    .api_token
-                    .as_ref()
-                    .expect("api_token not set")
-                    .clone(),
-            );
-            map.insert(
-                String::from("admin_secret"),
-                janus_config
-                    .auth
-                    .as_ref()
-                    .admin_secret
-                    .as_ref()
-                    .expect("admin_secret not set")
-                    .clone(),
-            );
+            unimplemented!("JanusAdminEndpoint::AddToken not implemented");
         }
         JanusAdminEndpoint::RemoveToken => {
-            map.insert(
-                String::from("token"),
-                janus_config
-                    .auth
-                    .as_ref()
-                    .api_token
-                    .as_ref()
-                    .expect("api_token not set")
-                    .clone(),
-            );
-            map.insert(
-                String::from("admin_secret"),
-                janus_config
-                    .auth
-                    .as_ref()
-                    .admin_secret
-                    .as_ref()
-                    .expect("admin_secret not set")
-                    .clone(),
-            );
+            unimplemented!("JanusAdminEndpoint::RemoveToken not implemented");
         }
         JanusAdminEndpoint::ListTokens => {
-            map.insert(
-                String::from("admin_secret"),
-                janus_config
-                    .auth
-                    .as_ref()
-                    .admin_secret
-                    .as_ref()
-                    .expect("admin_secret not set")
-                    .clone(),
-            );
+            unimplemented!("JanusAdminEndpoint::ListTokens not implemented");
         }
         JanusAdminEndpoint::GetStatus => {
-            map.insert(
-                String::from("token"),
-                janus_config
-                    .auth
-                    .as_ref()
-                    .api_token
-                    .as_ref()
-                    .expect("api_token not set")
-                    .clone(),
-            );
-            map.insert(
-                String::from("admin_secret"),
-                janus_config
-                    .auth
-                    .as_ref()
-                    .admin_secret
-                    .as_ref()
-                    .expect("admin_secret not set")
-                    .clone(),
-            );
+            unimplemented!("JanusAdminEndpoint::GetStatus not implemented");
         }
         JanusAdminEndpoint::TestStun => {
-            map.insert(
-                String::from("admin_secret"),
-                janus_config
-                    .auth
-                    .as_ref()
-                    .admin_secret
-                    .as_ref()
-                    .expect("admin_secret not set")
-                    .clone(),
-            );
+            unimplemented!("JanusAdminEndpoint::TestStun not implemented");
         }
         _ => {}
     };

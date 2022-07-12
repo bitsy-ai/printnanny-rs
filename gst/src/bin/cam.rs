@@ -8,7 +8,9 @@ use git_version::git_version;
 use gst::prelude::*;
 use log::{error, info, LevelFilter};
 
+use printnanny_api_client::models;
 use printnanny_gst::options::SrcOption;
+use printnanny_services::config::PrintNannyConfig;
 
 pub struct PrintNannyCamApp {
     pub video_height: i32,
@@ -68,14 +70,43 @@ impl PrintNannyCamApp {
         let payloader = gst::ElementFactory::make("rtph264pay", None)?;
         // TODO: read janus gateway edge/cloud from settings
 
-        // let config = PrintNannyConfig::new()?;
-        // sink to Janus Streaming plugin API (Edge)
-        let janus_edge_queue = gst::ElementFactory::make("queue2", None)?;
-        let janus_edge_sink = gst::ElementFactory::make("udpsink", None)?;
-        janus_edge_sink.set_property_from_str("host", "127.0.0.1");
-        janus_edge_sink.set_property_from_str("port", "5105");
+        let config = PrintNannyConfig::new()?;
+        let device_settings: models::DeviceSettings = *config
+            .device
+            .expect("PrintNannyConfig.device is not set")
+            .settings
+            .expect("PrintNannyConfig.device.settings is not set");
+        let janus_config = config.janus.expect("PrintNannyConfig.janus is not set");
 
-        // TODO: sink to Janus Streaming plugin API (Cloud)
+        // sink to Janus Streaming plugin API (Cloud) if cloud_video_enabled
+        if device_settings.cloud_video_enabled.unwrap() {
+            let janus_cloud_host = janus_config.cloud.rtp_domain;
+            let janus_cloud_port = janus_config
+                .cloud
+                .rtp_port
+                .expect("PrintNannyConfig.janus.cloud.rtp_port is not set")
+                .to_string();
+            let janus_cloud_queue = gst::ElementFactory::make("queue2", Some("januscloud_queue"))?;
+            let janus_cloud_sink = gst::ElementFactory::make("udpsink", Some("januscloud_sink"))?;
+            janus_cloud_sink.set_property_from_str("host", &janus_cloud_host);
+            janus_cloud_sink.set_property_from_str("port", &janus_cloud_port.to_string());
+            pipeline.add_many(&[&janus_cloud_queue, &janus_cloud_sink])?;
+            let janus_cloud_tee_pad = tee
+                .request_pad_simple("src_%u")
+                .expect(&format!("Failed to get src pad from tee element {:?}", tee));
+            let janus_cloud_q_pad = janus_cloud_queue.static_pad("sink").expect(&format!(
+                "Failed to get sink pad from queue element {:?}",
+                &janus_cloud_queue
+            ));
+            janus_cloud_tee_pad.link(&janus_cloud_q_pad)?;
+        }
+
+        // sink to Janus Streaming plugin API (Edge)
+        let janus_edge_port = janus_config.edge.rtp_port.unwrap_or(5105).to_string();
+        let janus_edge_queue = gst::ElementFactory::make("queue2", Some("janusedge_queue"))?;
+        let janus_edge_sink = gst::ElementFactory::make("udpsink", Some("janusedge_udpsink"))?;
+        janus_edge_sink.set_property_from_str("host", "127.0.0.1");
+        janus_edge_sink.set_property_from_str("port", &janus_edge_port);
 
         // sink to PrintNanny Vision service
         let vision_edge_queue = gst::ElementFactory::make("queue2", None)?;
