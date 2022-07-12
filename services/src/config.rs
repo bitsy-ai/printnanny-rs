@@ -13,7 +13,6 @@ use log::{error, info};
 use serde::{Deserialize, Serialize};
 
 use super::error::{PrintNannyConfigError, ServiceError};
-use super::janus::JanusConfig;
 use super::keys::PrintNannyKeys;
 use super::octoprint::OctoPrintConfig;
 use super::paths::{PrintNannyPaths, PRINTNANNY_CONFIG_DEFAULT};
@@ -168,7 +167,6 @@ pub struct PrintNannyConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub octoprint: Option<OctoPrintConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub janus: Option<JanusConfig>,
     pub paths: PrintNannyPaths,
     pub api: models::PrintNannyApiConfig,
     pub dash: DashConfig,

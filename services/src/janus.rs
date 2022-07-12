@@ -10,12 +10,6 @@ use super::config::PrintNannyConfig;
 use super::error::ServiceError;
 use printnanny_api_client::models;
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct JanusConfig {
-    pub edge: models::JanusStream,
-    pub cloud: models::JanusStream,
-}
-
 #[derive(PartialEq, Debug, Clone, Copy, ArgEnum)]
 pub enum JanusAdminEndpoint {
     GetStatus,
