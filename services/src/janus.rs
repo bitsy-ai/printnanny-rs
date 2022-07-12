@@ -1,11 +1,14 @@
 use anyhow::Result;
 use clap::ArgEnum;
 use log::info;
-use printnanny_api_client::models;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use super::config::PrintNannyConfig;
+use super::error::ServiceError;
+use printnanny_api_client::models;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct JanusConfig {
@@ -64,55 +67,55 @@ pub struct JanusAdminService {
     pub token: Option<String>,
 }
 
-fn _build_request_body(
-    endpoint: &JanusAdminEndpoint,
-    janus_config: &models::JanusStream,
-) -> Result<HashMap<String, String>> {
+pub async fn janus_admin_api_call(endpoint: JanusAdminEndpoint) -> Result<String> {
+    let config = PrintNannyConfig::new()?;
+    let err = ServiceError::SetupIncomplete {
+        field: "device.janus_edge".to_string(),
+        detail: None,
+    };
+    let janus_config = match config.device {
+        Some(device) => match device.janus_edge {
+            Some(janus_edge) => Ok(janus_edge),
+            None => Err(err),
+        },
+        None => Err(err),
+    }?;
+
+    // transaction id
     let transaction: String = thread_rng()
         .sample_iter(&Alphanumeric)
         .take(30)
         .map(char::from)
         .collect();
+
     let action = endpoint.to_action();
-    let mut map = HashMap::new();
-    map.insert(String::from("transaction"), transaction);
-    map.insert(String::from("janus"), action);
+
+    // build request body
+    let mut body = HashMap::new();
+    body.insert("transaction", transaction.as_str());
+    body.insert("janus", &action);
     info!("Loaded JanusEdgeConfig={:?}", janus_config);
     info!(
         "Building Janus Admin API {:?} request body {:?}",
-        &endpoint, &map
+        &endpoint, &body
     );
+    body.insert("admin_secret", &janus_config.admin_secret);
+
+    let token = janus_config.api_token.unwrap_or_else(|| "".to_string());
+
     match endpoint {
         JanusAdminEndpoint::AddToken => {
-            unimplemented!("JanusAdminEndpoint::AddToken not implemented");
+            body.insert("token", &token);
         }
         JanusAdminEndpoint::RemoveToken => {
-            unimplemented!("JanusAdminEndpoint::RemoveToken not implemented");
-        }
-        JanusAdminEndpoint::ListTokens => {
-            unimplemented!("JanusAdminEndpoint::ListTokens not implemented");
-        }
-        JanusAdminEndpoint::GetStatus => {
-            unimplemented!("JanusAdminEndpoint::GetStatus not implemented");
-        }
-        JanusAdminEndpoint::TestStun => {
-            unimplemented!("JanusAdminEndpoint::TestStun not implemented");
+            body.insert("token", &token);
         }
         _ => {}
     };
-    Ok(map)
-}
-
-pub async fn janus_admin_api_call(_endpoint: JanusAdminEndpoint) -> Result<String> {
-    unimplemented!("janus_admin_api_call is not yet implemented")
-    // let janus_config = PrintNannyConfig::new()?
-    //     .janus_edge_stream
-    //     .expect("janus_edge config is not set");
-    // let body = build_request_body(&endpoint, &janus_config)?;
-    // let client = reqwest::Client::new();
-    // let host = &janus_config.admin_url;
-    // let res = client.post(host).json(&body).send().await?.text().await?;
-    // Ok(res)
+    let client = reqwest::Client::new();
+    let host = &janus_config.admin_url;
+    let res = client.post(host).json(&body).send().await?.text().await?;
+    Ok(res)
 }
 
 impl JanusAdminService {
