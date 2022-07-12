@@ -166,7 +166,6 @@ pub struct PrintNannyConfig {
     // edition-specific data and settings
     #[serde(skip_serializing_if = "Option::is_none")]
     pub octoprint: Option<OctoPrintConfig>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub paths: PrintNannyPaths,
     pub api: models::PrintNannyApiConfig,
     pub dash: DashConfig,
@@ -197,7 +196,6 @@ impl Default for PrintNannyConfig {
             keys,
             octoprint: None,
             device: None,
-            janus: None,
         }
     }
 }
@@ -331,9 +329,6 @@ impl PrintNannyConfig {
             )?),
             "keys" => Ok(toml::Value::try_from(
                 figment::util::map! {key =>  &self.keys },
-            )?),
-            "janus" => Ok(toml::Value::try_from(
-                figment::util::map! {key =>  &self.janus },
             )?),
             _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
         }?

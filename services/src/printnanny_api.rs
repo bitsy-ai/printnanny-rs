@@ -158,14 +158,6 @@ impl ApiService {
                         None
                     }
                 };
-                let janus_edge = device
-                    .janus_edge
-                    .clone()
-                    .expect("Expected Device.janus_edge to be set");
-                let janus_cloud = device
-                    .janus_cloud
-                    .clone()
-                    .expect("Expected Device.janus_cloud to be set");
 
                 self.config.octoprint = octoprint;
                 let device = self.device_retrieve(device.id).await?;

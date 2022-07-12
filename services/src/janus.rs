@@ -3,12 +3,10 @@ use clap::ArgEnum;
 use log::info;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use super::config::PrintNannyConfig;
 use super::error::ServiceError;
-use printnanny_api_client::models;
 
 #[derive(PartialEq, Debug, Clone, Copy, ArgEnum)]
 pub enum JanusAdminEndpoint {
