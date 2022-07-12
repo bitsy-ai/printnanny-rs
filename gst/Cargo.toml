@@ -14,7 +14,6 @@ anyhow = { version = "1", features = ["backtrace"] }
 derive_more = "0.99"
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
 env_logger = "0.9"
-git-version = "0.3"
 gst = { package = "gstreamer", version="0.18.8" }
 log = "0.4"
 tokio = { version = "1.19", features = ["macros"] }
