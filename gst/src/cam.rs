@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{crate_authors, crate_version, Arg, ArgMatches, Command};
+use clap::{crate_authors, Arg, ArgMatches, Command};
 use git_version::git_version;
 use gst::prelude::*;
 use log::{error, info};
@@ -14,6 +14,8 @@ pub struct PrintNannyCamApp {
     pub video_fps: i32,
     pub video_src: SrcOption,
 }
+
+const GIT_VERSION: &str = git_version!();
 
 impl PrintNannyCamApp {
     pub fn new(args: &ArgMatches) -> Self {
@@ -214,13 +216,11 @@ impl PrintNannyCamApp {
 }
 
 pub fn clap_command() -> Command<'static> {
-    let version = Box::leak(format!("{} {}", crate_version!(), git_version!()).into_boxed_str());
     let app_name = "cam";
     let app = Command::new(app_name)
         .author(crate_authors!())
         .about("Encode live video camera stream")
-        .version(&version[..])
-        // generic app args
+        .version(GIT_VERSION)
         .arg(
             Arg::new("v")
                 .short('v')

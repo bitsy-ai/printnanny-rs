@@ -21,18 +21,17 @@ use printnanny_services::mqtt::{ MQTTWorker };
 use printnanny_cli::config::{ConfigAction};
 use printnanny_gst::cam;
 
+const GIT_VERSION: &str = git_version!();
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let mut builder = Builder::new();
     let app_name = "printnanny";
-
-    let version = Box::leak(format!("{} {}", crate_version!(), git_version!()).into_boxed_str());
-
     let app = Command::new(app_name)
         .subcommand_required(true)
         .author(crate_authors!())
         .about(crate_description!())
-        .version(&version[..])
+        .version(GIT_VERSION)
         .arg(Arg::new("v")
         .short('v')
         .multiple_occurrences(true)
@@ -45,13 +44,13 @@ async fn main() -> Result<()> {
         .subcommand(Command::new("dash")
             .author(crate_authors!())
             .about("PrintNanny device dashboard and system status")
-            .version(&version[..]))
+            .version(GIT_VERSION))
 
         // janusadmin
         .subcommand(Command::new("janus-admin")
             .author(crate_authors!())
             .about("Interact with Janus admin/monitoring APIs")
-            .version(&version[..])
+            .version(GIT_VERSION)
             .arg_required_else_help(true)
             .about("Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/admin.html")
             .arg(Arg::new("endpoint")
@@ -75,13 +74,13 @@ async fn main() -> Result<()> {
         .subcommand(Command::new("config")
             .author(crate_authors!())
             .about(crate_description!())
-            .version(&version[..])
+            .version(GIT_VERSION)
             .arg_required_else_help(true)
             .about("Interact with PrintNanny device configuration and user settings")
             .subcommand(Command::new("get")
                 .author(crate_authors!())
                 .about(crate_description!())
-                .version(&version[..])
+                .version(GIT_VERSION)
                 .about("Print PrintNanny config to console")
                 .arg(Arg::new("key").required(false))
                 .arg(Arg::new("format")
@@ -96,7 +95,7 @@ async fn main() -> Result<()> {
             .subcommand(Command::new("set")
                 .author(crate_authors!())
                 .about(crate_description!())
-                .version(&version[..])
+                .version(GIT_VERSION)
                 .about("Sets PrintNanny config fragments from environment variables")
                 .arg(Arg::new("key").required(true))
                 .arg(Arg::new("value").required(true))
@@ -112,7 +111,7 @@ async fn main() -> Result<()> {
             .subcommand(Command::new("show")
                 .author(crate_authors!())
                 .about(crate_description!())
-                .version(&version[..])
+                .version(GIT_VERSION)
                 .about("Print PrintNanny config to console")
                 .arg(Arg::new("format")
                     .short('F')
@@ -126,14 +125,14 @@ async fn main() -> Result<()> {
             .subcommand(Command::new("sync")
                 .author(crate_authors!())
                 .about(crate_description!())
-                .version(&version[..])
+                .version(GIT_VERSION)
                 .about("Synchronize device with PrintNanny Cloud")
             ))
         // mqtt <subscribe|publish>
         .subcommand(Command::new("event")
             .author(crate_authors!())
             .about(crate_description!())
-            .version(&version[..])
+            .version(GIT_VERSION)
             .about("Run MQTT-based event publish/subscribe workers")
             .subcommand_required(true)
             .subcommand(
@@ -152,7 +151,7 @@ async fn main() -> Result<()> {
         .subcommand(Command::new("remote")
             .author(crate_authors!())
             .about(crate_description!())
-            .version(&version[..])
+            .version(GIT_VERSION)
             .about("Run pre-configured event/command handler")
             .arg(Arg::new("event")
                 .help("JSON-serialized PrintNanny Event. See /api/events schema for supported events")
