@@ -42,7 +42,6 @@ impl PrintNannyCamApp {
         // initialize pipeline, input source, and rtpbin
         let pipeline = gst::Pipeline::new(None);
         let src = gst::ElementFactory::make(&self.video_src.to_string(), Some("video_src"))?;
-        let rtpbin = gst::ElementFactory::make("rtpbin", Some("rtpbin0"))?;
         // set input caps
         let incapsfilter = gst::ElementFactory::make("capsfilter", Some("incapsfilter"))?;
         let incaps = gst::Caps::builder("video/x-raw")
@@ -61,8 +60,7 @@ impl PrintNannyCamApp {
         let encaps = gst::Caps::builder("video/x-h264")
             .field("width", &self.video_width)
             .field("height", &self.video_height)
-            .field("fps", &self.video_fps)
-            .field("level", "level=(string)4")
+            .field("level", "4")
             .build();
         encapsfilter.set_property("caps", encaps);
 
@@ -72,6 +70,7 @@ impl PrintNannyCamApp {
 
         // let config = PrintNannyConfig::new()?;
         // sink to Janus Streaming plugin API (Edge)
+        let janus_edge_queue = gst::ElementFactory::make("queue2", None)?;
         let janus_edge_sink = gst::ElementFactory::make("udpsink", None)?;
         janus_edge_sink.set_property_from_str("host", "127.0.0.1");
         janus_edge_sink.set_property_from_str("port", "5105");
@@ -79,20 +78,44 @@ impl PrintNannyCamApp {
         // TODO: sink to Janus Streaming plugin API (Cloud)
 
         // sink to PrintNanny Vision service
+        let vision_edge_queue = gst::ElementFactory::make("queue2", None)?;
         let vision_edge_sink = gst::ElementFactory::make("udpsink", None)?;
         vision_edge_sink.set_property_from_str("host", "127.0.0.1");
         vision_edge_sink.set_property_from_str("port", "5205");
 
+        // tee payloader to each rtp receiver
+        let janus_edge_tee_pad = tee
+            .request_pad_simple("src_%u")
+            .expect(&format!("Failed to get src pad from tee element {:?}", tee));
+
+        let janus_edge_q_pad = janus_edge_queue.static_pad("sink").expect(&format!(
+            "Failed to get sink pad from queue element {:?}",
+            &janus_edge_queue
+        ));
+        janus_edge_tee_pad.link(&janus_edge_q_pad)?;
+
+        let vision_edge_tee_pad = tee
+            .request_pad_simple("src_%u")
+            .expect(&format!("Failed to get src pad from tee element {:?}", tee));
+        let vision_edge_q_pad = vision_edge_sink.static_pad("sink").expect(&format!(
+            "Failed to get sink pad from queue element {:?}",
+            &vision_edge_queue
+        ));
+        vision_edge_tee_pad.link(&vision_edge_q_pad)?;
+
         pipeline.add_many(&[
             &src,
-            &rtpbin,
             &incapsfilter,
             &converter,
             &encoder,
             &encapsfilter,
             &payloader,
             &tee,
-        ]);
+            &janus_edge_queue,
+            &janus_edge_sink,
+            &vision_edge_queue,
+            &vision_edge_sink,
+        ])?;
 
         // src -> payload pipeline segment
         gst::Element::link_many(&[
@@ -104,20 +127,7 @@ impl PrintNannyCamApp {
             &payloader,
             &tee,
         ])?;
-        // tee payloader to each rtp receiver
-        let tee_pad = tee
-            .request_pad_simple("src_%u")
-            .expect(&format!("Failed to get src pad from tee element {:?}", tee));
-        let janus_edge_sink_pad = janus_edge_sink.static_pad("sink").expect(&format!(
-            "Failed to get sink pad from udpsink element {:?}",
-            &janus_edge_sink
-        ));
-        let vision_edge_sink_pad = vision_edge_sink.static_pad("sink").expect(&format!(
-            "Failed to get sink pad from udpsink element {:?}",
-            &vision_edge_sink
-        ));
-        tee_pad.link(&janus_edge_sink_pad)?;
-        tee_pad.link(&vision_edge_sink_pad)?;
+        // queue -> sink pipeline segments
         Ok(pipeline)
     }
 
