@@ -1,6 +1,5 @@
 use anyhow::Result;
 use clap::{crate_authors, crate_version, Arg, ArgMatches, Command};
-use env_logger::Builder;
 use git_version::git_version;
 use gst::prelude::*;
 use log::{error, info};
@@ -114,7 +113,7 @@ impl PrintNannyCamApp {
         // tee payloader to each rtp receiver
         let janus_edge_tee_pad = tee
             .request_pad_simple("src_%u")
-            .expect(&format!("Failed to get src pad from tee element {:?}", tee));
+            .unwrap_or_else(|| panic!("Failed to get src pad from tee element {:?}", tee));
 
         let janus_edge_q_pad = janus_edge_queue.static_pad("sink").expect(&format!(
             "Failed to get sink pad from queue element {:?}",
@@ -125,10 +124,12 @@ impl PrintNannyCamApp {
         let vision_edge_tee_pad = tee
             .request_pad_simple("src_%u")
             .expect(&format!("Failed to get src pad from tee element {:?}", tee));
-        let vision_edge_q_pad = vision_edge_sink.static_pad("sink").expect(&format!(
-            "Failed to get sink pad from queue element {:?}",
-            &vision_edge_queue
-        ));
+        let vision_edge_q_pad = vision_edge_sink.static_pad("sink").unwrap_or_else(|| {
+            panic!(
+                "Failed to get sink pad from queue element {:?}",
+                &vision_edge_queue
+            )
+        });
         vision_edge_tee_pad.link(&vision_edge_q_pad)?;
 
         pipeline.add_many(&[

@@ -64,7 +64,7 @@ pub struct JanusAdminService {
     pub token: Option<String>,
 }
 
-fn build_request_body(
+fn _build_request_body(
     endpoint: &JanusAdminEndpoint,
     janus_config: &models::JanusStream,
 ) -> Result<HashMap<String, String>> {
@@ -103,7 +103,7 @@ fn build_request_body(
     Ok(map)
 }
 
-pub async fn janus_admin_api_call(endpoint: JanusAdminEndpoint) -> Result<String> {
+pub async fn janus_admin_api_call(_endpoint: JanusAdminEndpoint) -> Result<String> {
     unimplemented!("janus_admin_api_call is not yet implemented")
     // let janus_config = PrintNannyConfig::new()?
     //     .janus_edge_stream

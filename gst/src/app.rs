@@ -220,7 +220,7 @@ impl App<'_> {
         // create edges between tee and queue elements
         let tee_pad = tee
             .request_pad_simple("src_%u")
-            .expect(&format!("Failed to get src pad from tee element {:?}", tee));
+            .unwrap_or_else(|| panic!("Failed to get src pad from tee element {:?}", tee))
         let queue_pad = queue.static_pad("sink").expect(&format!(
             "Failed to get sink pad from queue element {:?}",
             &queue

@@ -43,7 +43,7 @@ pub fn parse_pip_list_json(stdout: &str) -> Result<Vec<PipPackage>, PrintNannyCo
 // Python 3.10.4
 pub fn parse_python_version(stdout: &str) -> Option<String> {
     stdout
-        .split_once(" ")
+        .split_once(' ')
         .map(|(_, version)| version.to_string())
 }
 

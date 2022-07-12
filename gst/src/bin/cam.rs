@@ -1,3 +1,6 @@
+use anyhow::Result;
+use env_logger::Builder;
+use log::LevelFilter;
 use printnanny_gst::cam;
 
 fn main() -> Result<()> {
@@ -30,7 +33,7 @@ fn main() -> Result<()> {
 
     // Initialize GStreamer first
     gst::init()?;
-    let app = PrintNannyCamApp::new(&app_m);
+    let app = cam::PrintNannyCamApp::new(&app_m);
     app.run()?;
     Ok(())
 }
