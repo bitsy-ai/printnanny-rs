@@ -19,7 +19,7 @@ targets = [
 [dependencies]
 printnanny-dash = {path = "../dash", version = "0"}
 printnanny-services = {path = "../services", version = "0"}
-printnanny-api-client = "0.92.0"
+printnanny-api-client = "0.93.2"
 figment = { version = "0.10", features = ["env", "json", "toml"] }
 anyhow = { version = "1", features = ["backtrace"] }
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }

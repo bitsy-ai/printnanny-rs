@@ -22,16 +22,14 @@ use printnanny_api_client::models;
 // FACTORY_RESET holds the struct field names of PrintNannyConfig
 // each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
 // as the name implies, this const is used for performing a reset of any config data modified from defaults
-const FACTORY_RESET: [&str; 9] = [
+const FACTORY_RESET: [&str; 7] = [
     "api",
     "device",
-    "janus_edge",
     "octoprint",
     "printnanny_cloud_proxy",
     "paths",
     "mqtt",
     "keys",
-    "janus_edge",
 ];
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
