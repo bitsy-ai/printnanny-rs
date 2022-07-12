@@ -148,7 +148,7 @@ async fn main() -> Result<()> {
                 Command::new("subscribe")
                 .about("Subscribe to events from MQTT topic")
             ))
-        // os <issue|>
+        // os <issue|motd>
         .subcommand(Command::new("os")
             .author(crate_authors!())
             .about(crate_description!())
@@ -157,6 +157,10 @@ async fn main() -> Result<()> {
             .subcommand(
                 Command::new("issue")
                 .about("Show contents of /etc/issue")
+            )
+            .subcommand(
+                Command::new("motd")
+                .about("Show message of the day")
             )
             .about("Interact with PrintNanny OS"))
         // remote <args>
