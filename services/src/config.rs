@@ -461,11 +461,11 @@ mod tests {
                 "#,
             )?;
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
-            let expected = "testing".to_string();
-            jail.set_env("PRINTNANNY_JANUS_EDGE__API_TOKEN", &expected);
+            let expected = PathBuf::from("testing");
+            jail.set_env("PRINTNANNY_OCTOPRINT__BASE_PATH", &expected.display());
             let figment = PrintNannyConfig::figment().unwrap();
             let config: PrintNannyConfig = figment.extract()?;
-            assert_eq!(config.janus_edge.api_token, expected);
+            assert_eq!(config.octoprint.unwrap().base_path, expected);
             Ok(())
         });
     }
