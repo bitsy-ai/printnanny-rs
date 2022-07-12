@@ -18,7 +18,8 @@ use printnanny_dash::home;
 use printnanny_services::config::ConfigFormat;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker };
-use printnanny_cli::config::{ConfigAction};
+use printnanny_cli::config::{ConfigCommand};
+use printnanny_cli::os::{OsCommand};
 use printnanny_gst::cam;
 
 const GIT_VERSION: &str = git_version!();
@@ -147,7 +148,18 @@ async fn main() -> Result<()> {
                 Command::new("subscribe")
                 .about("Subscribe to events from MQTT topic")
             ))
-
+        // os <issue|>
+        .subcommand(Command::new("os")
+            .author(crate_authors!())
+            .about(crate_description!())
+            .version(GIT_VERSION)
+            .subcommand_required(true)
+            .subcommand(
+                Command::new("issue")
+                .about("Show contents of /etc/issue")
+            )
+            .about("Interact with PrintNanny OS"))
+        // remote <args>
         .subcommand(Command::new("remote")
             .author(crate_authors!())
             .about(crate_description!())
@@ -221,7 +233,10 @@ async fn main() -> Result<()> {
             }
         },
         Some(("config", subm)) => {
-            ConfigAction::handle(subm).await?;
+            ConfigCommand::handle(subm).await?;
+        },
+        Some(("os", subm)) => {
+            OsCommand::handle(subm)?;
         },
         Some(("janus-admin", sub_m)) => {
             let endpoint: JanusAdminEndpoint = sub_m.value_of_t("endpoint").unwrap_or_else(|e| e.exit());
