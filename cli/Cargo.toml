@@ -3,7 +3,7 @@ name = "printnanny-cli"
 description = "PrintNanny Command-line Interface"
 license = "AGPL-3.0-or-later"
 license-file = "LICENSE"
-version = "0.24.3"
+version = "0.24.4"
 authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2021"
 rust-version = "1.59"
@@ -17,9 +17,9 @@ targets = [
 ]
 
 [dependencies]
-printnanny-gst = {path = "../gst", version = "0.24.3"}
-printnanny-dash = {path = "../dash", version = "0.24.3"}
-printnanny-services = {path = "../services", version = "0.24.3"}
+printnanny-gst = {path = "../gst", version = "^0.24.4"}
+printnanny-dash = {path = "../dash", version = "^0.24.4"}
+printnanny-services = {path = "../services", version = "^0.24.4"}
 printnanny-api-client = "0.93.4"
 gst = { package = "gstreamer", version="0.18.8" }
 figment = { version = "0.10", features = ["env", "json", "toml"] }
