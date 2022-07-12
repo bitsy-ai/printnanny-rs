@@ -282,20 +282,16 @@ impl ApiService {
     ) -> Result<models::OctoPrintServer, ServiceError> {
         let pip_packages = octoprint_config.pip_packages()?;
         let octoprint_version = octoprint_config.octoprint_version(&pip_packages)?.into();
-        let pip_version = octoprint_config
-            .pip_version()?
-            .unwrap_or_else(|| "unknown".into());
+        let pip_version = octoprint_config.pip_version()?;
         let printnanny_plugin_version =
             octoprint_config.printnanny_plugin_version(&pip_packages)?;
-        let python_version = octoprint_config
-            .python_version()?
-            .unwrap_or_else(|| "unknown".into());
+        let python_version = octoprint_config.python_version()?;
         let req = models::OctoPrintServerRequest {
             octoprint_version,
             pip_version,
             printnanny_plugin_version,
-            device,
             python_version,
+            device,
         };
         debug!(
             "Sending request {:?} to octoprint_server_update_or_create",
