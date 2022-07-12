@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{crate_authors, crate_version, Arg, ArgMatches, Command};
+use clap::{crate_authors, Arg, ArgMatches, Command};
 use git_version::git_version;
 use gst::prelude::*;
 use log::{error, info};
@@ -221,7 +221,6 @@ pub fn clap_command() -> Command<'static> {
         .author(crate_authors!())
         .about("Encode live video camera stream")
         .version(GIT_VERSION)
-        // generic app args
         .arg(
             Arg::new("v")
                 .short('v')
