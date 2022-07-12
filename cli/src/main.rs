@@ -153,9 +153,12 @@ async fn main() -> Result<()> {
             .author(crate_authors!())
             .about(crate_description!())
             .version(GIT_VERSION)
-            .about("Interact with PrintNanny OS")
-            .arg(Arg::new("issue")
-                .help("Show contents of /etc/issue")))
+            .subcommand_required(true)
+            .subcommand(
+                Command::new("issue")
+                .about("Show contents of /etc/issue")
+            )
+            .about("Interact with PrintNanny OS"))
         // remote <args>
         .subcommand(Command::new("remote")
             .author(crate_authors!())
