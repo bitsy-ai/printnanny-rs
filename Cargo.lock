@@ -2560,7 +2560,6 @@ dependencies = [
  "clap",
  "derive_more",
  "env_logger",
- "git-version",
  "gstreamer",
  "log",
  "printnanny-api-client",
