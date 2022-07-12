@@ -18,5 +18,5 @@ git-version = "0.3"
 gst = { package = "gstreamer", version="0.18.8" }
 log = "0.4"
 tokio = { version = "1.19", features = ["macros"] }
-printnanny-services = {path = "../services"}
+printnanny-services = {path = "../services", version = "0.24.3"}
 printnanny-api-client = "0.93.4"
