@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
 use log::error;
 use printnanny_services::config::PrintNannyConfig;
-use printnanny_services::error::ServiceError;
 use std::fs;
 
 pub struct OsCommand;
