@@ -152,12 +152,7 @@ async fn handle_token_validate(
     let bearer_access_token = res.token;
     info!("Success! Authenticated and received bearer token");
 
-    let api_config = models::PrintNannyApiConfig {
-        base_path: service.config.api.base_path,
-        bearer_access_token: Some(bearer_access_token),
-        ..auth_config.api
-    };
-    auth_config.api = api_config;
+    auth_config.api.bearer_access_token = Some(bearer_access_token);
     auth_config.try_save_by_key("api")?;
     Ok(auth_config)
 }
