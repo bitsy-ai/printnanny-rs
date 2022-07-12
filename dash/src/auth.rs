@@ -149,7 +149,7 @@ async fn handle_token_validate(
     let mut auth_config = config.clone();
     let service = ApiService::new(config)?;
     let res = service.auth_token_validate(email, token).await?;
-    let bearer_access_token = res.token.to_string();
+    let bearer_access_token = res.token;
     info!("Success! Authenticated and received bearer token");
 
     let api_config = models::PrintNannyApiConfig {

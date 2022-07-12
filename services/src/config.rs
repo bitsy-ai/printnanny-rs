@@ -78,7 +78,7 @@ pub struct DashConfig {
 
 impl Default for DashConfig {
     fn default() -> Self {
-        let hostname = sys_info::hostname().unwrap_or("localhost".to_string());
+        let hostname = sys_info::hostname().unwrap_or_else(|_| "localhost".to_string());
         Self {
             base_url: format!("http://{}/", hostname),
             base_path: "/".into(),
@@ -346,7 +346,7 @@ impl PrintNannyConfig {
         // lock fragment for writing
         let lock_for_writing = FileOptions::new().write(true).create(true).truncate(true);
         let mut filelock = FileLock::lock(&filename, true, lock_for_writing)?;
-        filelock.file.write_all(&content.as_bytes())?;
+        filelock.file.write_all(content.as_bytes())?;
         // Manually unlocking is optional as we unlock on Drop
         filelock.unlock()?;
         info!("Wrote {} to {:?}", key, filename);
@@ -375,7 +375,7 @@ impl PrintNannyConfig {
             ConfigFormat::Json => serde_json::to_string_pretty(self)?,
             ConfigFormat::Toml => toml::ser::to_string_pretty(self)?,
         };
-        fs::write(&filename, content.to_string())?;
+        fs::write(&filename, content)?;
         Ok(())
     }
 

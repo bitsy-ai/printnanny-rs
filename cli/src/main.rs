@@ -19,6 +19,7 @@ use printnanny_services::config::ConfigFormat;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_services::mqtt::{ MQTTWorker };
 use printnanny_cli::config::{ConfigAction};
+use printnanny_gst::cam;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -36,6 +37,9 @@ async fn main() -> Result<()> {
         .short('v')
         .multiple_occurrences(true)
         .help("Sets the level of verbosity"))
+
+        // cam
+        .subcommand(cam::clap_command())
 
         // dash
         .subcommand(Command::new("dash")
@@ -171,10 +175,22 @@ async fn main() -> Result<()> {
     // (i.e. 'printnanny v v v' or 'printnanny vvv' vs 'printnanny v'
     let verbosity = app_m.occurrences_of("v");
     match verbosity {
-        0 => builder.filter_level(LevelFilter::Warn).init(),
-        1 => builder.filter_level(LevelFilter::Info).init(),
-        2 => builder.filter_level(LevelFilter::Debug).init(),
-        _ => builder.filter_level(LevelFilter::Trace).init(),
+        0 => {
+            builder.filter_level(LevelFilter::Warn).init();
+            gst::debug_set_default_threshold(gst::DebugLevel::Warning);
+        }
+        1 => {
+            builder.filter_level(LevelFilter::Info).init();
+            gst::debug_set_default_threshold(gst::DebugLevel::Info);
+        }
+        2 => {
+            builder.filter_level(LevelFilter::Debug).init();
+            gst::debug_set_default_threshold(gst::DebugLevel::Debug);
+        }
+        _ => {
+            gst::debug_set_default_threshold(gst::DebugLevel::Trace);
+            builder.filter_level(LevelFilter::Trace).init()
+        }
     };
 
     match app_m.subcommand() {

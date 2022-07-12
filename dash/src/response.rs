@@ -29,7 +29,7 @@ impl From<rocket::figment::error::Error> for Response {
         let msg = format!("Error de/serializing content {:?}", error);
         let config = PrintNannyConfig::new().expect("Failed to read PrintNannyConfig");
         let issue_txt = fs::read_to_string(&config.paths.issue_txt)
-            .unwrap_or("Failed to open issue.txt".into());
+            .unwrap_or_else(|_| "Failed to open issue.txt".into());
 
         let mut context = HashMap::new();
         context.insert("errors", &msg);
