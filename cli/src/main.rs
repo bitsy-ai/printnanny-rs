@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
         .help("Sets the level of verbosity"))
 
         // cam
-        .subcommand(cam::clap_command())
+        .subcommand(cam::PrintNannyCam::clap_command())
 
         // dash
         .subcommand(Command::new("dash")
@@ -235,6 +235,10 @@ async fn main() -> Result<()> {
                 },
                 _ => panic!("Expected publish|subscribe subcommand")
             }
+        },
+        Some(("cam", subm)) => {
+            let app = cam::PrintNannyCam::new(&subm);
+            app.run()?;
         },
         Some(("config", subm)) => {
             ConfigCommand::handle(subm).await?;

@@ -7,14 +7,56 @@ use super::options::SrcOption;
 use printnanny_api_client::models;
 use printnanny_services::config::PrintNannyConfig;
 
-pub struct PrintNannyCamApp {
+pub struct PrintNannyCam {
     pub video_height: i32,
     pub video_width: i32,
     pub video_fps: i32,
     pub video_src: SrcOption,
 }
 
-impl PrintNannyCamApp {
+impl PrintNannyCam {
+    pub fn clap_command() -> Command<'static> {
+        let app_name = "cam";
+        let app = Command::new(app_name)
+            .author(crate_authors!())
+            .about("Encode live video camera stream")
+            .arg(
+                Arg::new("v")
+                    .short('v')
+                    .multiple_occurrences(true)
+                    .help("Sets the level of verbosity"),
+            )
+            .arg(
+                Arg::new("video_src")
+                    .long("video-src")
+                    .default_value("libcamerasrc")
+                    .takes_value(true)
+                    .possible_values(SrcOption::possible_values())
+                    .help("Input video source element"),
+            )
+            .arg(
+                Arg::new("video_height")
+                    .long("video-height")
+                    .default_value("480")
+                    .takes_value(true)
+                    .help("Input video height"),
+            )
+            .arg(
+                Arg::new("video_width")
+                    .long("video-width")
+                    .default_value("640")
+                    .takes_value(true)
+                    .help("Input video width"),
+            )
+            .arg(
+                Arg::new("video_fps")
+                    .long("video-fps")
+                    .default_value("24")
+                    .takes_value(true)
+                    .help("Input video frames per second"),
+            );
+        app
+    }
     pub fn new(args: &ArgMatches) -> Self {
         let video_height: i32 = args
             .value_of_t("video_height")
@@ -172,6 +214,7 @@ impl PrintNannyCamApp {
     }
 
     pub fn run(&self) -> Result<()> {
+        gst::init()?;
         let pipeline = self.build_pipeline()?;
         let bus = pipeline
             .bus()
@@ -210,47 +253,4 @@ impl PrintNannyCamApp {
 
         Ok(())
     }
-}
-
-pub fn clap_command() -> Command<'static> {
-    let app_name = "cam";
-    let app = Command::new(app_name)
-        .author(crate_authors!())
-        .about("Encode live video camera stream")
-        .arg(
-            Arg::new("v")
-                .short('v')
-                .multiple_occurrences(true)
-                .help("Sets the level of verbosity"),
-        )
-        .arg(
-            Arg::new("video_src")
-                .long("video-src")
-                .default_value("libcamerasrc")
-                .takes_value(true)
-                .possible_values(SrcOption::possible_values())
-                .help("Input video source element"),
-        )
-        .arg(
-            Arg::new("video_height")
-                .long("video-height")
-                .default_value("480")
-                .takes_value(true)
-                .help("Input video height"),
-        )
-        .arg(
-            Arg::new("video_width")
-                .long("video-width")
-                .default_value("640")
-                .takes_value(true)
-                .help("Input video width"),
-        )
-        .arg(
-            Arg::new("video_fps")
-                .long("video-fps")
-                .default_value("24")
-                .takes_value(true)
-                .help("Input video frames per second"),
-        );
-    app
 }

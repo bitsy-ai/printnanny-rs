@@ -6,8 +6,8 @@ use printnanny_gst::cam;
 fn main() -> Result<()> {
     // include git sha in version, which requires passing a boxed string to clap's .version() builder
     // parse args
-    let app = cam::clap_command();
-    let app_m = app.get_matches();
+    let cmd = cam::PrintNannyCam::clap_command();
+    let app_m = cmd.get_matches();
     // Vary the output based on how many times the user used the "verbose" flag
     // (i.e. 'printnanny v v v' or 'printnanny vvv' vs 'printnanny v'
     let verbosity = app_m.occurrences_of("v");
@@ -30,9 +30,6 @@ fn main() -> Result<()> {
             builder.filter_level(LevelFilter::Trace).init()
         }
     };
-
-    // Initialize GStreamer first
-    gst::init()?;
     let app = cam::PrintNannyCamApp::new(&app_m);
     app.run()?;
     Ok(())
