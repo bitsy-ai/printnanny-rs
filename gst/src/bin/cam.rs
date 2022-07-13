@@ -30,7 +30,7 @@ fn main() -> Result<()> {
             builder.filter_level(LevelFilter::Trace).init()
         }
     };
-    let app = cam::PrintNannyCamApp::new(&app_m);
+    let app = cam::PrintNannyCam::new(&app_m);
     app.run()?;
     Ok(())
 }
