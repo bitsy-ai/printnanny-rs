@@ -40,10 +40,9 @@ minor:
 major:
 	cargo release major --workspace --execute --tag
 
-$(TMPDIR)/PrintNanny-$(DEV_MACHINE):
-	make -C $(PRINTNANNY_WEBAPP_WORKSPACE) TMPDIR=$(TMPDIR) DEV_MACHINE=$(DEV_MACHINE)
-
-
+$(TMPDIR)/PrintNanny-$(DEV_MACHINE).zip:
+	make -C $(PRINTNANNY_WEBAPP_WORKSPACE) $(TMPDIR)/PrintNanny-$(DEV_MACHINE).zip DEV_CONFIG=$(TMPDIR)/PrintNanny-$(DEV_MACHINE).zip
+	cp $(PRINTNANNY_WEBAPP_WORKSPACE)/$(TMPDIR)/PrintNanny-$(DEV_MACHINE).zip $(TMPDIR)/PrintNanny-$(DEV_MACHINE).zip
 
 dev-build:
 	cross build --workspace --target=aarch64-unknown-linux-gnu
