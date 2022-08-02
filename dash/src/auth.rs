@@ -15,16 +15,16 @@ use printnanny_services::printnanny_api::ApiService;
 use super::response::Response;
 pub const COOKIE_USER: &str = "printnanny_user";
 
-pub async fn try_device_setup(config: PrintNannyConfig) -> Result<(), ServiceError> {
+pub async fn try_sync(config: PrintNannyConfig) -> Result<(), ServiceError> {
     match config.api.bearer_access_token {
         Some(_) => {
             let mut service = ApiService::new(config)?;
-            service.device_setup().await?;
+            service.sync().await?;
             Ok(())
         }
         None => Err(ServiceError::SetupIncomplete {
             field: "api.bearer_access_token".to_string(),
-            detail: Some("try_device_setup failed, api credentials are not set".to_string()),
+            detail: Some("try_sync failed, api credentials are not set".to_string()),
         }),
     }
 }
@@ -37,7 +37,7 @@ pub async fn is_auth_valid(jar: &CookieJar<'_>) -> Result<Option<PrintNannyConfi
             let config = PrintNannyConfig::new()?;
 
             // if config + cookie mismatch, nuke cookie and force re-auth
-            match &config.device {
+            match &config.pi {
                 Some(device) => match &device.user {
                     Some(remote_user) => {
                         if remote_user.id != browser_user.id {
@@ -61,7 +61,7 @@ pub async fn is_auth_valid(jar: &CookieJar<'_>) -> Result<Option<PrintNannyConfi
                     }),
                 },
                 None => {
-                    try_device_setup(config).await?;
+                    try_sync(config).await?;
                     let config = PrintNannyConfig::new()?;
                     Ok(Some(config))
                 }
@@ -136,7 +136,7 @@ pub async fn handle_device_update(
 ) -> Result<PrintNannyConfig, ServiceError> {
     info!("Sending device info using config {:?}", &config);
     let mut service = ApiService::new(config)?;
-    let new_config = service.device_setup().await?;
+    let new_config = service.sync().await?;
     info!("Success! Config updated: {:?}", &new_config);
     Ok(service.config.clone())
 }
@@ -171,8 +171,8 @@ async fn login_step2_submit<'r>(
             let api_config: PrintNannyConfig = handle_token_validate(token, &email, config).await?;
             let cookie_value = serde_json::to_string(
                 &api_config
-                    .device
-                    .expect("Failed to read device")
+                    .pi
+                    .expect("Failed to read pi")
                     .user
                     .expect("Failed to read user"),
             )?;

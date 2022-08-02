@@ -1,6 +1,15 @@
+extern crate glob;
+use self::glob::glob;
 use super::os_release::OsRelease;
+use log::info;
+use serde;
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::io::Read;
 use std::path::PathBuf;
+use zip::ZipArchive;
+
+use super::error::PrintNannyConfigError;
 
 pub const PRINTNANNY_CONFIG_FILENAME: &str = "default.toml";
 pub const PRINTNANNY_CONFIG_DEFAULT: &str = "/etc/printnanny/default.toml";
@@ -8,10 +17,9 @@ pub const PRINTNANNY_CONFIG_DEFAULT: &str = "/etc/printnanny/default.toml";
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyPaths {
     pub etc: PathBuf,
-    pub confd: PathBuf,
     pub confd_lock: PathBuf,
     pub events_socket: PathBuf,
-    pub seed: PathBuf,
+    pub seed_file_pattern: String,
     pub issue_txt: PathBuf,
     pub log: PathBuf,
     pub run: PathBuf,
@@ -22,22 +30,20 @@ impl Default for PrintNannyPaths {
     fn default() -> Self {
         // /etc is mounted as an r/w overlay fs
         let etc: PathBuf = "/etc/printnanny".into();
-        let confd: PathBuf = "/etc/printnanny/conf.d".into();
         let issue_txt: PathBuf = "/etc/issue".into();
         let run: PathBuf = "/var/run/printnanny".into();
         let log: PathBuf = "/var/log/printnanny".into();
         let events_socket = run.join("events.socket").into();
-        let seed = "/boot/PrintNanny.toml".into();
+        let seed_file_pattern = "/boot/PrintNanny*.zip".into();
         let os_release = "/etc/os-release".into();
         let confd_lock = run.join("confd.lock");
         Self {
             etc,
-            confd,
             run,
             issue_txt,
             log,
             events_socket,
-            seed,
+            seed_file_pattern,
             os_release,
             confd_lock,
         }
@@ -46,9 +52,157 @@ impl Default for PrintNannyPaths {
 
 impl PrintNannyPaths {
     pub fn data(&self) -> PathBuf {
-        self.etc.join("data")
+        return self.etc.join("data");
+    }
+
+    pub fn recovery(&self) -> PathBuf {
+        return self.etc.join("recovery");
+    }
+
+    pub fn creds(&self) -> PathBuf {
+        return self.etc.join("creds");
+    }
+
+    pub fn confd(&self) -> PathBuf {
+        return self.etc.join("confd");
+    }
+
+    pub fn try_init_dirs(&self) -> Result<(), PrintNannyConfigError> {
+        let dirs = [
+            &self.etc,
+            &self.recovery(),
+            &self.data(),
+            &self.creds(),
+            &self.confd(),
+            &self.run,
+            &self.log,
+        ];
+
+        for dir in dirs.iter() {
+            match dir.exists() {
+                true => Ok(info!("Skipping mkdir, directory {:?} already exists", dir)),
+                false => match fs::create_dir(&dir) {
+                    Ok(()) => Ok(info!("Created directory {:?}", &dir)),
+                    Err(error) => Err(PrintNannyConfigError::WriteIOError {
+                        path: dir.to_path_buf(),
+                        error,
+                    }),
+                },
+            }?;
+        }
+        Ok(())
+    }
+    pub fn try_load_nats_creds(&self) -> Result<String, std::io::Error> {
+        std::fs::read_to_string(self.creds().join("nats.creds"))
     }
     pub fn load_os_release(&self) -> Result<OsRelease, std::io::Error> {
         OsRelease::new_from(&self.os_release)
+    }
+
+    fn try_find_seed(&self, pattern: &str) -> Result<PathBuf, PrintNannyConfigError> {
+        // find seed file zip using glob pattern
+        // the zip file is named PrintNanny-${hostname}.zip to make it easy for users to differentiate configs for multiple Pis
+        let matched_zip = glob(&pattern);
+        let mut matched_zip = match matched_zip {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PrintNannyConfigError::PatternNotFound {
+                pattern: pattern.to_string(),
+            }),
+        }?;
+
+        let matched_zip = matched_zip.next();
+        match matched_zip {
+            Some(result) => match result {
+                Ok(v) => Ok(v),
+                Err(_) => Err(PrintNannyConfigError::PatternNotFound {
+                    pattern: pattern.to_string(),
+                }),
+            },
+            None => Err(PrintNannyConfigError::PatternNotFound {
+                pattern: pattern.to_string(),
+            }),
+        }
+    }
+
+    // backup PrintNanny.zip to data partition
+    pub fn try_copy_seed(&self, force: bool) -> Result<(), PrintNannyConfigError> {
+        let matched_zip = self.try_find_seed(&self.seed_file_pattern)?;
+        let filename = matched_zip.file_name().unwrap();
+        let dest = self.recovery().join(filename);
+        if !(dest).exists() || force {
+            match fs::copy(&matched_zip, &dest) {
+                Ok(_) => Ok(info!("Copied {:?} to {:?}", &matched_zip, &dest)),
+                Err(error) => Err(PrintNannyConfigError::CopyIOError {
+                    src: matched_zip,
+                    dest,
+                    error,
+                }),
+            }
+        } else {
+            Err(PrintNannyConfigError::FileExists { path: dest })
+        }
+    }
+
+    // unpack seed file to printnanny conf.d and credentials dir (defaults to /etc/printnanny/data)
+    // returns a Vector of unzipped file PathBuf
+    pub fn unpack_seed(
+        &self,
+        force: bool,
+    ) -> Result<[(String, PathBuf); 3], PrintNannyConfigError> {
+        let matched_zip = self.try_find_seed(&self.seed_file_pattern)?;
+        let file = match std::fs::File::open(&matched_zip) {
+            Ok(f) => Ok(f),
+            Err(error) => Err(PrintNannyConfigError::ReadIOError {
+                path: matched_zip.clone(),
+                error: error,
+            }),
+        }?;
+        let mut archive = ZipArchive::new(file)?;
+
+        // filenames configured in creds_bundle here: https://github.com/bitsy-ai/printnanny-webapp/blob/d33b99ede33f02b0282c006d5549ae6f76866da5/print_nanny_webapp/devices/services.py#L233
+
+        let results = [
+            ("pi.json".to_string(), self.confd().join("pi.json")),
+            ("api.json".to_string(), self.creds().join("api.json")),
+            ("nats.creds".to_string(), self.creds().join("nats.creds")),
+        ];
+
+        for (filename, dest) in results.iter() {
+            // if target file already fails and --force flag not passed, bail
+            if dest.exists() && force == false {
+                return Err(PrintNannyConfigError::FileExists {
+                    path: dest.to_path_buf(),
+                });
+            }
+            // read filename from archive
+            let file = archive.by_name(filename);
+            let mut file = match file {
+                Ok(f) => Ok(f),
+                Err(_) => Err(PrintNannyConfigError::ArchiveMissingFile {
+                    filename: filename.to_string(),
+                    archive: matched_zip.clone(),
+                }),
+            }?;
+
+            let mut contents = String::new();
+
+            match file.read_to_string(&mut contents) {
+                Ok(_) => Ok(()),
+                Err(error) => Err(PrintNannyConfigError::ReadIOError {
+                    path: PathBuf::from(filename),
+                    error,
+                }),
+            }?;
+
+            match std::fs::write(&dest, contents) {
+                Ok(_) => Ok(()),
+                Err(error) => Err(PrintNannyConfigError::WriteIOError {
+                    path: PathBuf::from(filename),
+                    error,
+                }),
+            }?;
+            info!("Wrote {:?}", dest);
+        }
+        Ok(results)
     }
 }

@@ -7,3 +7,4 @@ env/
 *.bb
 
 target/
+.vscode
