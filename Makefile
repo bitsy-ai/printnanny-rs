@@ -1,19 +1,21 @@
 
 VERSION ?= latest
-TMP_DIR ?= .tmp
+TMPDIR ?= .tmp
 DEV_MACHINE ?= pn-dev
 DEV_USER ?= root
 
-$(TMP_DIR)/printnanny_license.zip:
-	PRINTNANNY_INSTALL_DIR=$(TMP_DIR) ./tools/download-license.sh
+PRINTNANNY_WEBAPP_WORKSPACE ?= $(HOME)/projects/octoprint-nanny-webapp
 
-$(TMP_DIR):
-	mkdir -p $(TMP_DIR)
+$(TMPDIR)/printnanny_license.zip:
+	PRINTNANNY_INSTALL_DIR=$(TMPDIR) ./tools/download-license.sh
 
-test-license: $(TMP_DIR)/printnanny_license.zip
+$(TMPDIR):
+	mkdir -p $(TMPDIR)
+
+test-license: $(TMPDIR)/printnanny_license.zip
 
 clean:
-	rm -rf $(TMP_DIR)
+	rm -rf $(TMPDIR)
 
 images:
 	docker build \
@@ -38,8 +40,10 @@ minor:
 major:
 	cargo release major --workspace --execute --tag
 
-test-profile: clean
-	./tools/test-profile.sh
+$(TMPDIR)/PrintNanny-$(DEV_MACHINE):
+	make -C $(PRINTNANNY_WEBAPP_WORKSPACE) TMPDIR=$(TMPDIR) DEV_MACHINE=$(DEV_MACHINE)
+
+
 
 dev-build:
 	cross build --workspace --target=aarch64-unknown-linux-gnu
