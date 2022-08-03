@@ -574,9 +574,7 @@ mod tests {
             config.api = expected.clone();
             config.try_save().unwrap();
             let figment = PrintNannyConfig::figment().unwrap();
-            let mut new: PrintNannyConfig = figment.extract()?;
-            // new.paths.etc = jail.directory().into();
-
+            let new: PrintNannyConfig = figment.extract()?;
             assert_eq!(new.api, expected);
             Ok(())
         });
