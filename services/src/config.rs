@@ -255,6 +255,20 @@ impl PrintNannyConfig {
         result
     }
 
+    pub fn is_authenticated(&self) -> bool {
+        let pi_is_registered = match &self.pi {
+            Some(_) => true,
+            None => false,
+        };
+
+        let api_auth_set = match &self.api.bearer_access_token {
+            Some(_) => true,
+            None => false,
+        };
+
+        return pi_is_registered && api_auth_set && self.paths.nats_creds().exists();
+    }
+
     pub fn try_factory_reset(&self) -> Result<(), PrintNannyConfigError> {
         // for each key/value pair in FACTORY_RESET, remove file
         for key in FACTORY_RESET.iter() {

@@ -79,7 +79,7 @@ impl Worker {
     }
 
     pub fn clap_command() -> Command<'static> {
-        let app_name = "printnanny-pub";
+        let app_name = "printnanny-pub-worker";
         let app = Command::new(app_name)
             .author(crate_authors!())
             .about("Relay Unix socket data frames to NATS connection")

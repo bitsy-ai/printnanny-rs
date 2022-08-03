@@ -67,6 +67,10 @@ impl PrintNannyPaths {
         return self.etc.join("conf.d");
     }
 
+    pub fn nats_creds(&self) -> PathBuf {
+        return self.creds().join("nats.creds");
+    }
+
     pub fn try_init_dirs(&self) -> Result<(), PrintNannyConfigError> {
         let dirs = [
             &self.etc,
@@ -93,7 +97,7 @@ impl PrintNannyPaths {
         Ok(())
     }
     pub fn try_load_nats_creds(&self) -> Result<String, std::io::Error> {
-        std::fs::read_to_string(self.creds().join("nats.creds"))
+        std::fs::read_to_string(self.nats_creds())
     }
     pub fn load_os_release(&self) -> Result<OsRelease, std::io::Error> {
         OsRelease::new_from(&self.os_release)

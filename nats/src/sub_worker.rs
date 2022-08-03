@@ -3,9 +3,14 @@ use futures::prelude::*;
 use std::path::PathBuf;
 
 use anyhow::Result;
+use bytes::Buf;
+use bytes::Bytes;
 use clap::{crate_authors, Arg, ArgMatches, Command};
 use env_logger::Builder;
-use log::{info, LevelFilter};
+use log::{debug, info, LevelFilter};
+use printnanny_api_client::models;
+
+use super::commands;
 
 use super::nats::NatsConfig;
 
@@ -35,12 +40,17 @@ impl Worker {
         );
         let mut subscriber = nats_client.subscribe(self.subject.clone()).await.unwrap();
         while let Some(message) = subscriber.next().await {
-            println!("Received message {:?}", message);
+            debug!("Received NATS Message: {:?}", message);
+            // try deserializing payload
+            let payload: models::PolymorphicPiEvent =
+                serde_json::from_reader(message.payload.reader())?;
+            debug!("Deserialized PolymorphicPiEvent: {:?}", payload);
+            commands::handle_incoming(payload).await?;
         }
         Ok(())
     }
     pub fn clap_command() -> Command<'static> {
-        let app_name = "printnanny-sub";
+        let app_name = "printnanny-sub-worker";
         let app = Command::new(app_name)
             .author(crate_authors!())
             .about("Relay Unix socket data frames to NATS connection")
