@@ -64,7 +64,7 @@ impl PrintNannyPaths {
     }
 
     pub fn confd(&self) -> PathBuf {
-        return self.etc.join("confd");
+        return self.etc.join("conf.d");
     }
 
     pub fn try_init_dirs(&self) -> Result<(), PrintNannyConfigError> {

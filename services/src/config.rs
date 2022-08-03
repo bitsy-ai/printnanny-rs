@@ -19,7 +19,7 @@ use printnanny_api_client::models;
 // FACTORY_RESET holds the struct field names of PrintNannyConfig
 // each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
 // as the name implies, this const is used for performing a reset of any config data modified from defaults
-const FACTORY_RESET: [&str; 5] = ["api", "pi", "octoprint", "printnanny_cloud_proxy", "paths"];
+const FACTORY_RESET: [&str; 4] = ["api", "pi", "octoprint", "printnanny_cloud_proxy"];
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
 pub enum ConfigFormat {
@@ -215,19 +215,21 @@ impl PrintNannyConfig {
             // allow nested environment variables:
             // PRINTNANNY_KEY__SUBKEY
             .merge(Env::prefixed("PRINTNANNY_").split("__"));
+
         let etc_path: String = result
             .find_value("paths.etc")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
+
         let confd_path = PrintNannyPaths {
             etc: PathBuf::from(etc_path),
             ..PrintNannyPaths::default()
         }
         .confd();
 
-        let toml_glob = format!("{:?}/*.toml", &confd_path);
-        let json_glob = format!("{:?}/*.json", &confd_path);
+        let toml_glob = format!("{}/*.toml", &confd_path.display());
+        let json_glob = format!("{}/*.json", &confd_path.display());
 
         let result = Self::read_path_glob::<Json>(&json_glob, result);
         let result = Self::read_path_glob::<Toml>(&toml_glob, result);
@@ -303,9 +305,9 @@ impl PrintNannyConfig {
             "printnanny_cloud_proxy" => Ok(toml::Value::try_from(
                 figment::util::map! {key =>  &self.printnanny_cloud_proxy },
             )?),
-            "paths" => Ok(toml::Value::try_from(
-                figment::util::map! {key =>  &self.paths },
-            )?),
+            // "paths" => Ok(toml::Value::try_from(
+            //     figment::util::map! {key =>  &self.paths },
+            // )?),
             // "mqtt" => Ok(toml::Value::try_from(
             //     figment::util::map! {key =>  &self.mqtt },
             // )?),
@@ -488,8 +490,6 @@ mod tests {
                 models::PrintNannyApiConfig {
                     base_path: "https://print-nanny.com".into(),
                     bearer_access_token: None,
-                    static_url: "https://printnanny.ai/static/".into(),
-                    dashboard_url: "https://printnanny.ai/dashboard/".into(),
                 }
             );
             jail.set_env("PRINTNANNY_API.BEARER_ACCESS_TOKEN", "secret");
@@ -500,8 +500,6 @@ mod tests {
                 models::PrintNannyApiConfig {
                     base_path: "https://print-nanny.com".into(),
                     bearer_access_token: Some("secret".into()),
-                    static_url: "https://printnanny.ai/static/".into(),
-                    dashboard_url: "https://printnanny.ai/dashboard/".into(),
                 }
             );
             Ok(())
@@ -517,7 +515,7 @@ mod tests {
                 profile = "local"
 
                 [paths]
-                confd = ".tmp/"
+                etc = ".tmp"
                 
                 [api]
                 base_path = "http://aurora:8000"
@@ -529,7 +527,7 @@ mod tests {
             let config: PrintNannyConfig = figment.extract()?;
 
             let base_path = "http://aurora:8000".into();
-            assert_eq!(config.paths.confd, PathBuf::from(".tmp/"));
+            assert_eq!(config.paths.confd(), PathBuf::from(".tmp/conf.d"));
             assert_eq!(config.api.base_path, base_path);
 
             assert_eq!(
@@ -543,70 +541,44 @@ mod tests {
         });
     }
 
-    // TODO: re-enable when user-facing gst app config is finalized
-    // #[test_log::test]
-    // fn test_deserialize_enum() {
-    //     figment::Jail::expect_with(|jail| {
-    //         jail.create_file(
-    //             "Local.toml",
-    //             r#"
-    //             profile = "local"
-
-    //             [paths]
-    //             confd = ".tmp/"
-    //             [api]
-    //             base_path = "http://aurora:8000"
-
-    //             [gst.BroadcastRtpVideo]
-    //             host = "localhost"
-    //             port_video = 5105
-    //             "#,
-    //         )?;
-    //         jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
-
-    //         let figment = PrintNannyConfig::figment().unwrap();
-    //         let config: PrintNannyConfig = figment.extract()?;
-
-    //         assert_eq!(
-    //             config.gst,
-    //             Some(AppVariant::BroadcastRtpVideo(BroadcastRtpVideo {
-    //                 host: "localhost".into(),
-    //                 port_video: 5105
-    //             }))
-    //         );
-
-    //         Ok(())
-    //     });
-    // }
-
     #[test_log::test]
     fn test_save_fragment() {
         figment::Jail::expect_with(|jail| {
+            let output = jail.directory().to_str().unwrap();
             jail.create_file(
                 "Local.toml",
-                r#"
+                &format!(
+                    r#"
                 profile = "local"
                 [api]
                 base_path = "http://aurora:8000"
+
+                [paths]
+                etc = "{}"
+                seed_file_pattern = "/home/leigh/projects/printnanny-cli/.tmp/PrintNanny*.zip"
+                run = "/home/leigh/projects/printnanny-cli/.tmp/run"
+                log = "/home/leigh/projects/printnanny-cli/.tmp/log"
+                issue_txt = "/home/leigh/projects/printnanny-cli/.tmp/issue.txt"                
                 "#,
+                    output
+                ),
             )?;
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
-            jail.set_env("PRINTNANNY_PATHS.confd", format!("{:?}", jail.directory()));
 
             let figment = PrintNannyConfig::figment().unwrap();
             let mut config: PrintNannyConfig = figment.extract()?;
-            config.paths.etc = jail.directory().into();
+            config.paths.try_init_dirs().unwrap();
 
             let expected = models::PrintNannyApiConfig {
                 base_path: config.api.base_path,
                 bearer_access_token: Some("secret_token".to_string()),
-                static_url: "https://printnanny.ai/static/".into(),
-                dashboard_url: "https://printnanny.ai/dashboard/".into(),
             };
             config.api = expected.clone();
             config.try_save().unwrap();
             let figment = PrintNannyConfig::figment().unwrap();
-            let new: PrintNannyConfig = figment.extract()?;
+            let mut new: PrintNannyConfig = figment.extract()?;
+            // new.paths.etc = jail.directory().into();
+
             assert_eq!(new.api, expected);
             Ok(())
         });
@@ -675,13 +647,6 @@ VARIANT_ID=printnanny-octoprint
 
             let config = PrintNannyConfig::new().unwrap();
             let os_release = config.paths.load_os_release().unwrap();
-            // let unknown_value = Value::from("unknown");
-            // let os_build_id: String = os_release
-            //     .get("BUILD_ID")
-            //     .unwrap_or(&unknown_value)
-            //     .as_str()
-            //     .unwrap()
-            //     .into();
             assert_eq!("2022-06-18T18:46:49Z".to_string(), os_release.build_id);
             Ok(())
         });
