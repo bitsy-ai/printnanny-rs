@@ -215,16 +215,12 @@ impl PrintNannyConfig {
             // allow nested environment variables:
             // PRINTNANNY_KEY__SUBKEY
             .merge(Env::prefixed("PRINTNANNY_").split("__"));
+
         let etc_path: String = result
             .find_value("paths.etc")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
-        let confd_path = PrintNannyPaths {
-            etc: PathBuf::from(etc_path),
-            ..PrintNannyPaths::default()
-        }
-        .confd();
 
         let confd_path = PrintNannyPaths {
             etc: PathBuf::from(etc_path),
@@ -578,7 +574,9 @@ mod tests {
             config.api = expected.clone();
             config.try_save().unwrap();
             let figment = PrintNannyConfig::figment().unwrap();
-            let new: PrintNannyConfig = figment.extract()?;
+            let mut new: PrintNannyConfig = figment.extract()?;
+            // new.paths.etc = jail.directory().into();
+
             assert_eq!(new.api, expected);
             Ok(())
         });
