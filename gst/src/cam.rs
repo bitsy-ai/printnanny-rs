@@ -108,54 +108,54 @@ impl PrintNannyCam {
         // TODO: read janus gateway edge/cloud from settings
 
         let config = PrintNannyConfig::new()?;
-        let device_settings: models::DeviceSettings = *config
-            .device
+        let device_settings: models::PiSettings = *config
+            .pi
             .clone()
-            .expect("PrintNannyConfig.device is not set")
+            .expect("PrintNannyConfig.pi is not set")
             .settings
-            .expect("PrintNannyConfig.device.settings is not set");
+            .expect("PrintNannyConfig.pi.settings is not set");
 
-        let janus_cloud_config = *config
-            .device
+        let webrtc_cloud_config = *config
+            .pi
             .clone()
-            .expect("PrintNannyConfig.device is not set")
-            .janus_cloud
-            .expect("PrintNannyConfig.device.janus_edge is not set");
-        let janus_edge_config = *config
-            .device
+            .expect("PrintNannyConfig.pi is not set")
+            .webrtc_cloud
+            .expect("PrintNannyConfig.pi.webrtc_edge is not set");
+        let webrtc_edge_config = *config
+            .pi
             .clone()
-            .expect("PrintNannyConfig.device is not set")
-            .janus_edge
-            .expect("PrintNannyConfig.device.janus_edge is not set");
+            .expect("PrintNannyConfig.pi is not set")
+            .webrtc_edge
+            .expect("PrintNannyConfig.pi.webrtc_edge is not set");
 
         // sink to Janus Streaming plugin API (Cloud) if cloud_video_enabled
         if device_settings.cloud_video_enabled.unwrap() {
-            let janus_cloud_host = janus_cloud_config.rtp_domain;
-            let janus_cloud_port = janus_cloud_config
+            let webrtc_cloud_host = webrtc_cloud_config.rtp_domain;
+            let webrtc_cloud_port = webrtc_cloud_config
                 .rtp_port
                 .expect("PrintNannyConfig.janus.cloud.rtp_port is not set")
                 .to_string();
-            let janus_cloud_queue = gst::ElementFactory::make("queue2", Some("januscloud_queue"))?;
-            let janus_cloud_sink = gst::ElementFactory::make("udpsink", Some("januscloud_sink"))?;
-            janus_cloud_sink.set_property_from_str("host", &janus_cloud_host);
-            janus_cloud_sink.set_property_from_str("port", &janus_cloud_port.to_string());
-            pipeline.add_many(&[&janus_cloud_queue, &janus_cloud_sink])?;
-            let janus_cloud_tee_pad = tee
+            let webrtc_cloud_queue = gst::ElementFactory::make("queue2", Some("januscloud_queue"))?;
+            let webrtc_cloud_sink = gst::ElementFactory::make("udpsink", Some("januscloud_sink"))?;
+            webrtc_cloud_sink.set_property_from_str("host", &webrtc_cloud_host);
+            webrtc_cloud_sink.set_property_from_str("port", &webrtc_cloud_port.to_string());
+            pipeline.add_many(&[&webrtc_cloud_queue, &webrtc_cloud_sink])?;
+            let webrtc_cloud_tee_pad = tee
                 .request_pad_simple("src_%u")
                 .expect(&format!("Failed to get src pad from tee element {:?}", tee));
-            let janus_cloud_q_pad = janus_cloud_queue.static_pad("sink").expect(&format!(
+            let webrtc_cloud_q_pad = webrtc_cloud_queue.static_pad("sink").expect(&format!(
                 "Failed to get sink pad from queue element {:?}",
-                &janus_cloud_queue
+                &webrtc_cloud_queue
             ));
-            janus_cloud_tee_pad.link(&janus_cloud_q_pad)?;
+            webrtc_cloud_tee_pad.link(&webrtc_cloud_q_pad)?;
         }
 
         // sink to Janus Streaming plugin API (Edge)
-        let janus_edge_port = janus_edge_config.rtp_port.unwrap_or(5105).to_string();
-        let janus_edge_queue = gst::ElementFactory::make("queue2", Some("janusedge_queue"))?;
-        let janus_edge_sink = gst::ElementFactory::make("udpsink", Some("janusedge_udpsink"))?;
-        janus_edge_sink.set_property_from_str("host", "127.0.0.1");
-        janus_edge_sink.set_property_from_str("port", &janus_edge_port);
+        let webrtc_edge_port = webrtc_edge_config.rtp_port.unwrap_or(5105).to_string();
+        let webrtc_edge_queue = gst::ElementFactory::make("queue2", Some("janusedge_queue"))?;
+        let webrtc_edge_sink = gst::ElementFactory::make("udpsink", Some("janusedge_udpsink"))?;
+        webrtc_edge_sink.set_property_from_str("host", "127.0.0.1");
+        webrtc_edge_sink.set_property_from_str("port", &webrtc_edge_port);
 
         // sink to PrintNanny Vision service
         let vision_edge_queue = gst::ElementFactory::make("queue2", None)?;
@@ -164,15 +164,15 @@ impl PrintNannyCam {
         vision_edge_sink.set_property_from_str("port", "5205");
 
         // tee payloader to each rtp receiver
-        let janus_edge_tee_pad = tee
+        let webrtc_edge_tee_pad = tee
             .request_pad_simple("src_%u")
             .unwrap_or_else(|| panic!("Failed to get src pad from tee element {:?}", tee));
 
-        let janus_edge_q_pad = janus_edge_queue.static_pad("sink").expect(&format!(
+        let webrtc_edge_q_pad = webrtc_edge_queue.static_pad("sink").expect(&format!(
             "Failed to get sink pad from queue element {:?}",
-            &janus_edge_queue
+            &webrtc_edge_queue
         ));
-        janus_edge_tee_pad.link(&janus_edge_q_pad)?;
+        webrtc_edge_tee_pad.link(&webrtc_edge_q_pad)?;
 
         let vision_edge_tee_pad = tee
             .request_pad_simple("src_%u")
@@ -193,8 +193,8 @@ impl PrintNannyCam {
             &encapsfilter,
             &payloader,
             &tee,
-            &janus_edge_queue,
-            &janus_edge_sink,
+            &webrtc_edge_queue,
+            &webrtc_edge_sink,
             &vision_edge_queue,
             &vision_edge_sink,
         ])?;

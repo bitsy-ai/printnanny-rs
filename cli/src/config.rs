@@ -1,6 +1,6 @@
 use log::info;
 use printnanny_services::config::{ConfigFormat, PrintNannyConfig};
-use printnanny_services::error::{PrintNannyConfigError, ServiceError};
+use printnanny_services::error::ServiceError;
 use printnanny_services::printnanny_api::ApiService;
 use std::io::{self, Write};
 
@@ -48,21 +48,8 @@ impl ConfigCommand {
             }
             Some(("sync", _args)) => {
                 let config = PrintNannyConfig::new()?;
-                let result = config.keys.try_generate();
-                // setup action is idempotent, so KeypairExists error is non-fatal. Just log if generation was skipped
-                match result {
-                    Ok(_) => Ok(()),
-                    Err(e) => match &e {
-                        PrintNannyConfigError::KeypairExists { .. } => {
-                            info!("{}", e);
-                            Ok(())
-                        }
-                        // surface all other errors
-                        _ => Err(e),
-                    },
-                }?;
                 let mut service = ApiService::new(config)?;
-                service.device_setup().await?;
+                service.sync().await?;
             }
             Some(("show", args)) => {
                 let f: ConfigFormat = args.value_of_t("format").unwrap();
@@ -71,6 +58,13 @@ impl ConfigCommand {
                     ConfigFormat::Toml => toml::ser::to_vec(&config)?,
                 };
                 io::stdout().write_all(&v)?;
+            }
+            Some(("init", args)) => {
+                let force = args.is_present("force");
+                info!("PrintNannyConfig.paths {:?}", config.paths);
+                config.paths.try_init_dirs()?;
+                config.paths.unpack_seed(force)?;
+                config.paths.try_copy_seed(force)?;
             }
             _ => panic!("Expected generate-keys|get|init|generate-keys subcommand"),
         };

@@ -2496,9 +2496,9 @@ checksum = "c6fa0831dd7cc608c38a5e323422a0077678fa5744aa2be4ad91c4ece8eec8d5"
 
 [[package]]
 name = "printnanny-api-client"
-version = "0.93.4"
+version = "0.99.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9f8ffce1f2075c9ade0fe4d913cb48f8f7019b2eca33315b28e90d23bc4edb9"
+checksum = "9e55d619d8a634ea4ce1c67a0d65c03fcc96f8343dca8eecbfaea7378facd95d"
 dependencies = [
  "bytes",
  "reqwest",
@@ -2611,6 +2611,7 @@ dependencies = [
  "tokio-util 0.7.3",
  "toml",
  "warp",
+ "zip",
 ]
 
 [[package]]
@@ -4369,3 +4370,14 @@ name = "zeroize"
 version = "1.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94693807d016b2f2d2e14420eb3bfcca689311ff775dcf113d74ea624b7cdf07"
+
+[[package]]
+name = "zip"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf225bcf73bb52cbb496e70475c7bd7a3f769df699c0020f6c7bd9a96dcf0b8d"
+dependencies = [
+ "byteorder",
+ "crc32fast",
+ "crossbeam-utils",
+]

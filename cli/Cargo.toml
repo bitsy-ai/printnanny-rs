@@ -20,7 +20,7 @@ targets = [
 printnanny-gst = {path = "../gst", version = "^0.24.4"}
 printnanny-dash = {path = "../dash", version = "^0.24.4"}
 printnanny-services = {path = "../services", version = "^0.24.4"}
-printnanny-api-client = "0.93.4"
+printnanny-api-client = "0.99.3"
 gst = { package = "gstreamer", version="0.18.8" }
 figment = { version = "0.10", features = ["env", "json", "toml"] }
 anyhow = { version = "1", features = ["backtrace"] }

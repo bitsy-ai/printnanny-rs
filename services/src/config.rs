@@ -1,5 +1,4 @@
 use std::fs;
-use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
 
@@ -12,8 +11,7 @@ use glob::glob;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 
-use super::error::{PrintNannyConfigError, ServiceError};
-use super::keys::PrintNannyKeys;
+use super::error::PrintNannyConfigError;
 use super::octoprint::OctoPrintConfig;
 use super::paths::{PrintNannyPaths, PRINTNANNY_CONFIG_DEFAULT};
 use printnanny_api_client::models;
@@ -21,15 +19,7 @@ use printnanny_api_client::models;
 // FACTORY_RESET holds the struct field names of PrintNannyConfig
 // each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
 // as the name implies, this const is used for performing a reset of any config data modified from defaults
-const FACTORY_RESET: [&str; 7] = [
-    "api",
-    "device",
-    "octoprint",
-    "printnanny_cloud_proxy",
-    "paths",
-    "mqtt",
-    "keys",
-];
+const FACTORY_RESET: [&str; 4] = ["api", "pi", "octoprint", "printnanny_cloud_proxy"];
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
 pub enum ConfigFormat {
@@ -85,56 +75,56 @@ impl Default for DashConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MQTTConfig {
-    pub cmd: PathBuf,
-    pub cipher: String,
-    pub keepalive: u64,
-    pub ca_certs: Vec<String>,
-}
+// #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+// pub struct MQTTConfig {
+//     pub cmd: PathBuf,
+//     pub cipher: String,
+//     pub keepalive: u64,
+//     pub ca_certs: Vec<String>,
+// }
 
-impl Default for MQTTConfig {
-    fn default() -> Self {
-        Self {
-            cmd: "/var/run/printnanny/cmd".into(),
-            ca_certs: vec![
-                "/etc/ca-certificates/gtsltsr.crt".into(),
-                "/etc/ca-certificates/GSR4.crt".into(),
-            ],
-            cipher: "secp256r1".into(),
-            keepalive: 300, // seconds
-        }
-    }
-}
+// impl Default for MQTTConfig {
+//     fn default() -> Self {
+//         Self {
+//             cmd: "/var/run/printnanny/cmd".into(),
+//             ca_certs: vec![
+//                 "/etc/ca-certificates/gtsltsr.crt".into(),
+//                 "/etc/ca-certificates/GSR4.crt".into(),
+//             ],
+//             cipher: "secp256r1".into(),
+//             keepalive: 300, // seconds
+//         }
+//     }
+// }
 
-impl MQTTConfig {
-    pub fn cmd_queue(&self) -> PathBuf {
-        self.cmd.join("queue")
-    }
-    pub fn cmd_error(&self) -> PathBuf {
-        self.cmd.join("error")
-    }
-    pub fn cmd_success(&self) -> PathBuf {
-        self.cmd.join("success")
-    }
-    pub fn enqueue_cmd(&self, event: models::PolymorphicCommand) {
-        let (event_id, event_name) = match &event {
-            models::PolymorphicCommand::WebRtcCommand(e) => (e.id, e.event_name.to_string()),
-        };
-        let filename = format!("{:?}/{}_{}", self.cmd_queue(), event_name, event_id);
-        let result = serde_json::to_writer(
-            &File::create(&filename).expect(&format!("Failed to create file {}", &filename)),
-            &event,
-        );
-        match result {
-            Ok(_) => info!(
-                "Wrote event={:?} to file={:?} to await processing",
-                event, filename
-            ),
-            Err(e) => error!("Failed to serialize event {:?} with error {:?}", event, e),
-        }
-    }
-}
+// impl MQTTConfig {
+//     pub fn cmd_queue(&self) -> PathBuf {
+//         self.cmd.join("queue")
+//     }
+//     pub fn cmd_error(&self) -> PathBuf {
+//         self.cmd.join("error")
+//     }
+//     pub fn cmd_success(&self) -> PathBuf {
+//         self.cmd.join("success")
+//     }
+//     pub fn enqueue_cmd(&self, event: models::PolymorphicCommand) {
+//         let (event_id, event_name) = match &event {
+//             models::PolymorphicCommand::WebRtcCommand(e) => (e.id, e.event_name.to_string()),
+//         };
+//         let filename = format!("{:?}/{}_{}", self.cmd_queue(), event_name, event_id);
+//         let result = serde_json::to_writer(
+//             &File::create(&filename).expect(&format!("Failed to create file {}", &filename)),
+//             &event,
+//         );
+//         match result {
+//             Ok(_) => info!(
+//                 "Wrote event={:?} to file={:?} to await processing",
+//                 event, filename
+//             ),
+//             Err(e) => error!("Failed to serialize event {:?} with error {:?}", event, e),
+//         }
+//     }
+// }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PrintNannyCloudProxy {
@@ -161,40 +151,37 @@ pub struct PrintNannyConfig {
     pub printnanny_cloud_proxy: PrintNannyCloudProxy,
     #[serde(skip_serializing_if = "Option::is_none")]
     // generic device data present on all Print Nanny OS editions
-    pub device: Option<models::Device>,
+    pub pi: Option<models::Pi>,
     // edition-specific data and settings
     #[serde(skip_serializing_if = "Option::is_none")]
     pub octoprint: Option<OctoPrintConfig>,
     pub paths: PrintNannyPaths,
     pub api: models::PrintNannyApiConfig,
     pub dash: DashConfig,
-    pub mqtt: MQTTConfig,
-    pub keys: PrintNannyKeys,
+    // pub mqtt: MQTTConfig,
+    // pub keys: PrintNannyKeys,
 }
 
 impl Default for PrintNannyConfig {
     fn default() -> Self {
+        // default to unauthenticated api config, until api creds are unpacked from seed archive
         let api = models::PrintNannyApiConfig {
             base_path: "https://printnanny.ai".into(),
             bearer_access_token: None,
-            static_url: "https://printnanny.ai/static/".into(),
-            dashboard_url: "https://printnanny.ai/dashboard/".into(),
         };
 
         let paths = PrintNannyPaths::default();
-        let mqtt = MQTTConfig::default();
+        // let mqtt = MQTTConfig::default();
         let dash = DashConfig::default();
         let printnanny_cloud_proxy = PrintNannyCloudProxy::default();
-        let keys = PrintNannyKeys::default();
+        // let keys = PrintNannyKeys::default();
         PrintNannyConfig {
             api,
             dash,
-            mqtt,
             paths,
             printnanny_cloud_proxy,
-            keys,
             octoprint: None,
-            device: None,
+            pi: None,
         }
     }
 }
@@ -203,13 +190,13 @@ impl PrintNannyConfig {
     // See example: https://docs.rs/figment/latest/figment/index.html#extracting-and-profiles
     // Note the `nested` option on both `file` providers. This makes each
     // top-level dictionary act as a profile
-    pub fn new() -> Result<Self, ServiceError> {
+    pub fn new() -> Result<Self, PrintNannyConfigError> {
         let figment = Self::figment()?;
         let result = figment.extract()?;
         info!("Initialized config {:?}", result);
         Ok(result)
     }
-    pub fn find_value(key: &str) -> Result<figment::value::Value, ServiceError> {
+    pub fn find_value(key: &str) -> Result<figment::value::Value, PrintNannyConfigError> {
         let figment = Self::figment()?;
         Ok(figment.find_value(key)?)
     }
@@ -229,22 +216,20 @@ impl PrintNannyConfig {
             // PRINTNANNY_KEY__SUBKEY
             .merge(Env::prefixed("PRINTNANNY_").split("__"));
 
-        let confd_path: String = result
-            .find_value("paths.confd")
-            .unwrap()
-            .deserialize::<String>()
-            .unwrap();
-        let seed_config: String = result
-            .find_value("paths.seed")
+        let etc_path: String = result
+            .find_value("paths.etc")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
 
-        // merge license.json contents
-        let result = result.merge(Toml::file(&seed_config));
+        let confd_path = PrintNannyPaths {
+            etc: PathBuf::from(etc_path),
+            ..PrintNannyPaths::default()
+        }
+        .confd();
 
-        let toml_glob = format!("{}/*.toml", &confd_path);
-        let json_glob = format!("{}/*.json", &confd_path);
+        let toml_glob = format!("{}/*.toml", &confd_path.display());
+        let json_glob = format!("{}/*.json", &confd_path.display());
 
         let result = Self::read_path_glob::<Json>(&json_glob, result);
         let result = Self::read_path_glob::<Toml>(&toml_glob, result);
@@ -274,7 +259,7 @@ impl PrintNannyConfig {
         // for each key/value pair in FACTORY_RESET, remove file
         for key in FACTORY_RESET.iter() {
             let filename = format!("{}.toml", key);
-            let filename = self.paths.data().join(filename);
+            let filename = self.paths.confd().join(filename);
             fs::remove_file(&filename)?;
             info!("Removed {} data {:?}", key, filename);
         }
@@ -296,7 +281,7 @@ impl PrintNannyConfig {
     /// If serialization or fs write fails, prints an error message indicating the failure
     pub fn try_save_by_key(&self, key: &str) -> Result<PathBuf, PrintNannyConfigError> {
         let filename = format!("{}.toml", key);
-        let filename = self.paths.confd.join(filename);
+        let filename = self.paths.confd().join(filename);
         self.try_save_fragment(key, &filename)?;
         info!("Saved config fragment: {:?}", &filename);
         Ok(filename)
@@ -311,8 +296,8 @@ impl PrintNannyConfig {
             "api" => Ok(toml::Value::try_from(
                 figment::util::map! { key => &self.api},
             )?),
-            "device" => Ok(toml::Value::try_from(
-                figment::util::map! {key => &self.device },
+            "pi" => Ok(toml::Value::try_from(
+                figment::util::map! {key => &self.pi },
             )?),
             "octoprint" => Ok(toml::Value::try_from(
                 figment::util::map! {key =>  &self.octoprint },
@@ -320,15 +305,15 @@ impl PrintNannyConfig {
             "printnanny_cloud_proxy" => Ok(toml::Value::try_from(
                 figment::util::map! {key =>  &self.printnanny_cloud_proxy },
             )?),
-            "paths" => Ok(toml::Value::try_from(
-                figment::util::map! {key =>  &self.paths },
-            )?),
-            "mqtt" => Ok(toml::Value::try_from(
-                figment::util::map! {key =>  &self.mqtt },
-            )?),
-            "keys" => Ok(toml::Value::try_from(
-                figment::util::map! {key =>  &self.keys },
-            )?),
+            // "paths" => Ok(toml::Value::try_from(
+            //     figment::util::map! {key =>  &self.paths },
+            // )?),
+            // "mqtt" => Ok(toml::Value::try_from(
+            //     figment::util::map! {key =>  &self.mqtt },
+            // )?),
+            // "keys" => Ok(toml::Value::try_from(
+            //     figment::util::map! {key =>  &self.keys },
+            // )?),
             _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
         }?
         .to_string();
@@ -368,16 +353,6 @@ impl PrintNannyConfig {
             ConfigFormat::Toml => toml::ser::to_string_pretty(self)?,
         };
         fs::write(&filename, content)?;
-        Ok(())
-    }
-
-    // Move license.json from boot partition to conf.d directory
-    pub fn try_copy_license(&self) -> Result<(), ServiceError> {
-        if self.paths.seed.exists() {
-            info!("Copying {:?} to {:?}", self.paths.seed, self.paths.confd);
-            let dest = self.paths.confd.join(self.paths.seed.file_name().unwrap());
-            fs::copy(&self.paths.seed, dest)?;
-        }
         Ok(())
     }
 
@@ -515,8 +490,6 @@ mod tests {
                 models::PrintNannyApiConfig {
                     base_path: "https://print-nanny.com".into(),
                     bearer_access_token: None,
-                    static_url: "https://printnanny.ai/static/".into(),
-                    dashboard_url: "https://printnanny.ai/dashboard/".into(),
                 }
             );
             jail.set_env("PRINTNANNY_API.BEARER_ACCESS_TOKEN", "secret");
@@ -527,8 +500,6 @@ mod tests {
                 models::PrintNannyApiConfig {
                     base_path: "https://print-nanny.com".into(),
                     bearer_access_token: Some("secret".into()),
-                    static_url: "https://printnanny.ai/static/".into(),
-                    dashboard_url: "https://printnanny.ai/dashboard/".into(),
                 }
             );
             Ok(())
@@ -544,7 +515,7 @@ mod tests {
                 profile = "local"
 
                 [paths]
-                confd = ".tmp/"
+                etc = ".tmp"
                 
                 [api]
                 base_path = "http://aurora:8000"
@@ -556,7 +527,7 @@ mod tests {
             let config: PrintNannyConfig = figment.extract()?;
 
             let base_path = "http://aurora:8000".into();
-            assert_eq!(config.paths.confd, PathBuf::from(".tmp/"));
+            assert_eq!(config.paths.confd(), PathBuf::from(".tmp/conf.d"));
             assert_eq!(config.api.base_path, base_path);
 
             assert_eq!(
@@ -564,73 +535,41 @@ mod tests {
                 models::PrintNannyApiConfig {
                     base_path: base_path,
                     bearer_access_token: None,
-                    static_url: "https://printnanny.ai/static/".into(),
-                    dashboard_url: "https://printnanny.ai/dashboard/".into(),
                 }
             );
             Ok(())
         });
     }
 
-    // TODO: re-enable when user-facing gst app config is finalized
-    // #[test_log::test]
-    // fn test_deserialize_enum() {
-    //     figment::Jail::expect_with(|jail| {
-    //         jail.create_file(
-    //             "Local.toml",
-    //             r#"
-    //             profile = "local"
-
-    //             [paths]
-    //             confd = ".tmp/"
-    //             [api]
-    //             base_path = "http://aurora:8000"
-
-    //             [gst.BroadcastRtpVideo]
-    //             host = "localhost"
-    //             port_video = 5105
-    //             "#,
-    //         )?;
-    //         jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
-
-    //         let figment = PrintNannyConfig::figment().unwrap();
-    //         let config: PrintNannyConfig = figment.extract()?;
-
-    //         assert_eq!(
-    //             config.gst,
-    //             Some(AppVariant::BroadcastRtpVideo(BroadcastRtpVideo {
-    //                 host: "localhost".into(),
-    //                 port_video: 5105
-    //             }))
-    //         );
-
-    //         Ok(())
-    //     });
-    // }
-
     #[test_log::test]
     fn test_save_fragment() {
         figment::Jail::expect_with(|jail| {
+            let output = jail.directory().to_str().unwrap();
             jail.create_file(
                 "Local.toml",
-                r#"
+                &format!(
+                    r#"
                 profile = "local"
                 [api]
                 base_path = "http://aurora:8000"
+
+                [paths]
+                etc = "{}/etc"
+                run = "{}/run"
+                log = "{}/log"
                 "#,
+                    output, output, output
+                ),
             )?;
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
-            jail.set_env("PRINTNANNY_PATHS.confd", format!("{:?}", jail.directory()));
 
             let figment = PrintNannyConfig::figment().unwrap();
             let mut config: PrintNannyConfig = figment.extract()?;
-            config.paths.etc = jail.directory().into();
+            config.paths.try_init_dirs().unwrap();
 
             let expected = models::PrintNannyApiConfig {
                 base_path: config.api.base_path,
                 bearer_access_token: Some("secret_token".to_string()),
-                static_url: "https://printnanny.ai/static/".into(),
-                dashboard_url: "https://printnanny.ai/dashboard/".into(),
             };
             config.api = expected.clone();
             config.try_save().unwrap();
@@ -704,13 +643,6 @@ VARIANT_ID=printnanny-octoprint
 
             let config = PrintNannyConfig::new().unwrap();
             let os_release = config.paths.load_os_release().unwrap();
-            // let unknown_value = Value::from("unknown");
-            // let os_build_id: String = os_release
-            //     .get("BUILD_ID")
-            //     .unwrap_or(&unknown_value)
-            //     .as_str()
-            //     .unwrap()
-            //     .into();
             assert_eq!("2022-06-18T18:46:49Z".to_string(), os_release.build_id);
             Ok(())
         });

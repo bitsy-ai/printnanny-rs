@@ -17,7 +17,7 @@ use printnanny_dash::home;
 
 use printnanny_services::config::ConfigFormat;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
-use printnanny_services::mqtt::{ MQTTWorker };
+// use printnanny_services::mqtt::{ MQTTWorker };
 use printnanny_cli::config::{ConfigCommand};
 use printnanny_cli::os::{OsCommand};
 use printnanny_gst::cam;
@@ -85,12 +85,12 @@ async fn main() -> Result<()> {
                 .about("Print PrintNanny config to console")
                 .arg(Arg::new("key").required(false))
                 .arg(Arg::new("format")
-                    .short('F')
+                    .short('f')
                     .long("format")
                     .takes_value(true)
                     .possible_values(ConfigFormat::possible_values())
                     .default_value("toml")
-                    .help("Overwrite any existing configuration")
+                    .help("Output format")
                 )
             )
             .subcommand(Command::new("set")
@@ -101,11 +101,22 @@ async fn main() -> Result<()> {
                 .arg(Arg::new("key").required(true))
                 .arg(Arg::new("value").required(true))
                 .arg(Arg::new("format")
-                    .short('F')
+                    .short('f')
                     .long("format")
                     .takes_value(true)
                     .possible_values(ConfigFormat::possible_values())
                     .default_value("toml")
+                    .help("Output format")
+                )
+            )
+            .subcommand(Command::new("init")
+                .author(crate_authors!())
+                .about(crate_description!())
+                .version(GIT_VERSION)
+                .about("Initialize config from printnanny.zip")
+                .arg(Arg::new("force")
+                    .short('F')
+                    .long("force")
                     .help("Overwrite any existing configuration")
                 )
             )
@@ -115,12 +126,12 @@ async fn main() -> Result<()> {
                 .version(GIT_VERSION)
                 .about("Print PrintNanny config to console")
                 .arg(Arg::new("format")
-                    .short('F')
+                    .short('f')
                     .long("format")
                     .takes_value(true)
                     .possible_values(ConfigFormat::possible_values())
                     .default_value("toml")
-                    .help("Overwrite any existing configuration")
+                    .help("Output format")
                 )            
             )
             .subcommand(Command::new("sync")
@@ -130,24 +141,24 @@ async fn main() -> Result<()> {
                 .about("Synchronize device with PrintNanny Cloud")
             ))
         // mqtt <subscribe|publish>
-        .subcommand(Command::new("event")
-            .author(crate_authors!())
-            .about(crate_description!())
-            .version(GIT_VERSION)
-            .about("Run MQTT-based event publish/subscribe workers")
-            .subcommand_required(true)
-            .subcommand(
-                Command::new("publish")
-                .about("Publish event to MQTT topic")
-                .arg(Arg::new("data")
-                    .short('d')
-                    .long("data")
-                    .takes_value(true)
-            ))
-            .subcommand(
-                Command::new("subscribe")
-                .about("Subscribe to events from MQTT topic")
-            ))
+        // .subcommand(Command::new("event")
+        //     .author(crate_authors!())
+        //     .about(crate_description!())
+        //     .version(GIT_VERSION)
+        //     .about("Run MQTT-based event publish/subscribe workers")
+        //     .subcommand_required(true)
+        //     .subcommand(
+        //         Command::new("publish")
+        //         .about("Publish event to MQTT topic")
+        //         .arg(Arg::new("data")
+        //             .short('d')
+        //             .long("data")
+        //             .takes_value(true)
+        //     ))
+        //     .subcommand(
+        //         Command::new("subscribe")
+        //         .about("Subscribe to events from MQTT topic")
+        //     ))
         // os <issue|motd>
         .subcommand(Command::new("os")
             .author(crate_authors!())
@@ -219,23 +230,23 @@ async fn main() -> Result<()> {
             .launch()
             .await?;
         },
-        Some(("event", sub_m)) => {
-            match sub_m.subcommand() {
-                Some(("subscribe", _event_m)) => {
-                    let worker = MQTTWorker::new(
-                    ).await?;
-                    // worker.subscribe().await?;
-                    let (_,_) = tokio::join!(worker.subscribe_mqtt(), worker.subscribe_event_socket());
-                }
-                Some(("publish", event_m)) => {
-                    let worker = MQTTWorker::new(
-                    ).await?;
-                    let data = event_m.value_of("data").expect("Expected --data argument passed");
-                    worker.publish(data).await?;
-                },
-                _ => panic!("Expected publish|subscribe subcommand")
-            }
-        },
+        // Some(("event", sub_m)) => {
+        //     match sub_m.subcommand() {
+        //         Some(("subscribe", _event_m)) => {
+        //             let worker = MQTTWorker::new(
+        //             ).await?;
+        //             // worker.subscribe().await?;
+        //             let (_,_) = tokio::join!(worker.subscribe_mqtt(), worker.subscribe_event_socket());
+        //         }
+        //         Some(("publish", event_m)) => {
+        //             let worker = MQTTWorker::new(
+        //             ).await?;
+        //             let data = event_m.value_of("data").expect("Expected --data argument passed");
+        //             worker.publish(data).await?;
+        //         },
+        //         _ => panic!("Expected publish|subscribe subcommand")
+        //     }
+        // },
         Some(("cam", subm)) => {
             let app = cam::PrintNannyCam::new(&subm);
             app.run()?;
