@@ -1,61 +1,23 @@
 use futures::prelude::*;
+
 use std::path::PathBuf;
 
-use super::nats::{NatsConfig, NatsJsonEvent};
 use anyhow::Result;
 use clap::{crate_authors, Arg, ArgMatches, Command};
 use env_logger::Builder;
-use log::{debug, error, info, warn, LevelFilter};
-use tokio::net::{UnixListener, UnixStream};
-use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
+use log::{info, LevelFilter};
+
+use super::nats::NatsConfig;
 
 #[derive(Debug, Clone)]
 pub struct Worker {
     nats: NatsConfig,
-    socket: PathBuf,
+    subject: String,
 }
 
-// Relays NatsJsonEvent published to Unix socket to NATS
+// Subscribes to NATS command subject
 impl Worker {
-    pub async fn relay_to_nats(
-        mut stream: UnixStream,
-        nats_client: &async_nats::Client,
-    ) -> Result<()> {
-        debug!("Accepted socket connection {:?}", &stream);
-        // read length-delimited JSON frames deserializable into NatsJsonEvent
-        let length_delimited = FramedRead::new(&mut stream, LengthDelimitedCodec::new());
-        let mut deserialized = tokio_serde::SymmetricallyFramed::new(
-            length_delimited,
-            tokio_serde::formats::SymmetricalJson::<NatsJsonEvent>::default(),
-        );
-        let maybe_msg: Option<NatsJsonEvent> = deserialized.try_next().await?;
-
-        match maybe_msg {
-            Some(msg) => {
-                debug!("Deserialized NatsJsonEvent {:?}", msg);
-                // publish over NATS connection
-                let payload = serde_json::ser::to_vec(&msg.payload)?;
-                nats_client.publish(msg.subject, payload.into()).await?;
-            }
-            None => error!("Failed to deserialize msg {:?}", maybe_msg),
-        };
-        Ok(())
-    }
-
-    pub async fn subscribe_event_socket(&self) -> Result<()> {
-        let maybe_delete = std::fs::remove_file(&self.socket);
-        match maybe_delete {
-            Ok(_) => {
-                warn!(
-                    "Deleted socket {:?} without mercy. Refactor this code to run 2+ concurrent socket listeners/bindings.",
-                    &self.socket
-                );
-            }
-            Err(_) => {}
-        };
-        let listener = UnixListener::bind(&self.socket)?;
-        info!("Listening for events on {:?}", self.socket);
-
+    pub async fn subscribe_nats_subject(&self) -> Result<()> {
         // initialize nats connection
         let nats_client = match &self.nats.creds_file {
             Some(creds_file) => {
@@ -67,19 +29,18 @@ impl Worker {
             }
             None => async_nats::connect(&self.nats.uri).await?,
         };
-        info!("Initialized nats client {:?}", nats_client);
-        loop {
-            match listener.accept().await {
-                Ok((stream, _addr)) => Worker::relay_to_nats(stream, &nats_client).await?,
-                Err(e) => {
-                    error!("Connection to {} broken {}", &self.socket.display(), e);
-                }
-            }
+        info!(
+            "Subscribing to subect {} with nats client {:?}",
+            self.subject, &nats_client
+        );
+        let mut subscriber = nats_client.subscribe(self.subject.clone()).await.unwrap();
+        while let Some(message) = subscriber.next().await {
+            println!("Received message {:?}", message);
         }
+        Ok(())
     }
-
     pub fn clap_command() -> Command<'static> {
-        let app_name = "printnanny-pub";
+        let app_name = "printnanny-sub";
         let app = Command::new(app_name)
             .author(crate_authors!())
             .about("Relay Unix socket data frames to NATS connection")
@@ -90,11 +51,10 @@ impl Worker {
                     .help("Sets the level of verbosity"),
             )
             .arg(
-                Arg::new("socket")
-                    .long("socket")
-                    .default_value(".tmp/events.sock")
+                Arg::new("subject")
+                    .long("subject")
                     .takes_value(true)
-                    .help("Path to Unix socket"),
+                    .help("Subscribe to subject/pattern"),
             )
             .arg(
                 Arg::new("nats_uri")
@@ -116,11 +76,10 @@ impl Worker {
             );
         app
     }
-
     pub fn new(args: ArgMatches) -> Self {
-        let socket = args
-            .value_of("socket")
-            .expect("--socket is required")
+        let subject = args
+            .value_of("subject")
+            .expect("--subject is required")
             .into();
         let uri = args
             .value_of("nats_uri")
@@ -147,10 +106,10 @@ impl Worker {
             }
             _ => builder.filter_level(LevelFilter::Trace).init(),
         };
-        return Self { nats, socket };
+        return Self { nats, subject };
     }
 
     pub async fn run(&self) -> Result<()> {
-        self.subscribe_event_socket().await
+        self.subscribe_nats_subject().await
     }
 }
