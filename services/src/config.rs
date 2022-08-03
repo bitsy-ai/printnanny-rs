@@ -554,13 +554,11 @@ mod tests {
                 base_path = "http://aurora:8000"
 
                 [paths]
-                etc = "{}"
-                seed_file_pattern = "/home/leigh/projects/printnanny-cli/.tmp/PrintNanny*.zip"
-                run = "/home/leigh/projects/printnanny-cli/.tmp/run"
-                log = "/home/leigh/projects/printnanny-cli/.tmp/log"
-                issue_txt = "/home/leigh/projects/printnanny-cli/.tmp/issue.txt"                
+                etc = "{}/etc"
+                run = "{}/run"
+                log = "{}/log"
                 "#,
-                    output
+                    output, output, output
                 ),
             )?;
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
@@ -576,9 +574,7 @@ mod tests {
             config.api = expected.clone();
             config.try_save().unwrap();
             let figment = PrintNannyConfig::figment().unwrap();
-            let mut new: PrintNannyConfig = figment.extract()?;
-            // new.paths.etc = jail.directory().into();
-
+            let new: PrintNannyConfig = figment.extract()?;
             assert_eq!(new.api, expected);
             Ok(())
         });
