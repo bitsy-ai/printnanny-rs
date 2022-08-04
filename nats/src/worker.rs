@@ -10,8 +10,7 @@ use tokio::net::{UnixListener, UnixStream};
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
 use printnanny_api_client::models;
-use printnanny_services::config::{NatsConfig, PrintNannyConfig};
-use printnanny_services::error::PrintNannyConfigError;
+use printnanny_services::config::PrintNannyConfig;
 
 use crate::commands;
 use crate::nats::NatsJsonEvent;
@@ -108,6 +107,12 @@ impl Worker {
 
     pub async fn new(args: ArgMatches) -> Result<Self> {
         let config = PrintNannyConfig::new()?;
+        // ensure pi, nats_app, nats_creds are provided
+        config.try_check_license()?;
+
+        // try_check_license guards the following properties set, so it's safe to unwrap here
+        let nats_app = config.nats_app.unwrap();
+        let pi = config.pi.unwrap();
 
         let verbosity = args.occurrences_of("v");
         let mut builder = Builder::new();
@@ -123,18 +128,18 @@ impl Worker {
             }
             _ => builder.filter_level(LevelFilter::Trace).init(),
         };
-        let subscribe_subject = match config.pi {
-            Some(pi) => Ok(format!("pi.{}.*.command", pi.id)),
-            None => Err(PrintNannyConfigError::LicenseMissing {
-                path: "pi".to_string(),
-            }),
-        }?;
+
+        let subscribe_subject = format!("pi.{}.*.command", pi.id);
+
+        // check if uri requires tls
+        let require_tls = nats_app.nats_uri.contains("tls");
+
         // initialize nats connection
         let nats_client =
             async_nats::ConnectOptions::with_credentials_file(config.paths.nats_creds().clone())
                 .await?
-                .require_tls(config.nats.require_tls)
-                .connect(config.nats.uri)
+                .require_tls(require_tls)
+                .connect(nats_app.nats_uri)
                 .await?;
         return Ok(Self {
             socket: config.paths.events_socket.clone(),
@@ -144,7 +149,10 @@ impl Worker {
     }
 
     pub async fn run(&self) -> Result<()> {
-        tokio::join!(self.subscribe_event_socket(), self.subscribe_nats_subject());
+        let (socket_task, nats_sub_task) =
+            tokio::join!(self.subscribe_event_socket(), self.subscribe_nats_subject());
+        socket_task?;
+        nats_sub_task?;
         Ok(())
     }
 }

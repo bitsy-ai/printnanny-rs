@@ -4,10 +4,10 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::{crate_authors, value_parser, Arg, ArgMatches, Command};
 use env_logger::Builder;
-use log::{debug, error, info, warn, LevelFilter};
+use log::{debug, error, LevelFilter};
 use printnanny_services::{config::PrintNannyConfig, error::PrintNannyConfigError};
-use tokio::net::{UnixListener, UnixStream};
-use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
+use tokio::net::UnixStream;
+use tokio_util::codec::{FramedWrite, LengthDelimitedCodec};
 
 use printnanny_api_client::models;
 
