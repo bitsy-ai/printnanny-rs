@@ -1,0 +1,29 @@
+[package]
+name = "printnanny-nats"
+description = "Library of MQTT, API, and other services used by PrintNanny"
+license = "AGPL-3.0-or-later"
+version = "0.24.4"
+authors = ["Leigh Johnson <leigh@bitsy.ai>"]
+edition = "2021"
+rust-version = "1.59"
+
+[dependencies]
+async-process = "1.4.0"
+bytes = "1.2"
+anyhow = "1"
+clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
+async-nats = "0.17.0"
+env_logger = "0.9"
+futures = "0.3"
+printnanny-services = {path = "../services", version = "^0.24.4"}
+printnanny-api-client = "0.99.9"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_bytes = "0.11"
+tokio = "1.20"
+tokio-serde = { version="0.8", features = ["json"] }
+thiserror = "1"
+tokio-util = { version="0.7", features = ["codec"] }
+log = "0.4"
+
+[dev-dependencies]

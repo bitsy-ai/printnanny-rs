@@ -4,7 +4,6 @@ pub mod error;
 pub mod file;
 pub mod janus;
 pub mod keys;
-pub mod mqtt;
 pub mod octoprint;
 pub mod os_release;
 pub mod paths;

@@ -8,7 +8,7 @@ use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
 use file_lock::{FileLock, FileOptions};
 use glob::glob;
-use log::{error, info};
+use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 
 use super::error::PrintNannyConfigError;
@@ -25,6 +25,21 @@ const FACTORY_RESET: [&str; 4] = ["api", "pi", "octoprint", "printnanny_cloud_pr
 pub enum ConfigFormat {
     Json,
     Toml,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub struct NatsConfig {
+    pub uri: String,
+    pub require_tls: bool,
+}
+
+impl Default for NatsConfig {
+    fn default() -> Self {
+        Self {
+            uri: "nats://localhost:4222".to_string(),
+            require_tls: false,
+        }
+    }
 }
 
 impl ConfigFormat {
@@ -75,57 +90,6 @@ impl Default for DashConfig {
     }
 }
 
-// #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-// pub struct MQTTConfig {
-//     pub cmd: PathBuf,
-//     pub cipher: String,
-//     pub keepalive: u64,
-//     pub ca_certs: Vec<String>,
-// }
-
-// impl Default for MQTTConfig {
-//     fn default() -> Self {
-//         Self {
-//             cmd: "/var/run/printnanny/cmd".into(),
-//             ca_certs: vec![
-//                 "/etc/ca-certificates/gtsltsr.crt".into(),
-//                 "/etc/ca-certificates/GSR4.crt".into(),
-//             ],
-//             cipher: "secp256r1".into(),
-//             keepalive: 300, // seconds
-//         }
-//     }
-// }
-
-// impl MQTTConfig {
-//     pub fn cmd_queue(&self) -> PathBuf {
-//         self.cmd.join("queue")
-//     }
-//     pub fn cmd_error(&self) -> PathBuf {
-//         self.cmd.join("error")
-//     }
-//     pub fn cmd_success(&self) -> PathBuf {
-//         self.cmd.join("success")
-//     }
-//     pub fn enqueue_cmd(&self, event: models::PolymorphicCommand) {
-//         let (event_id, event_name) = match &event {
-//             models::PolymorphicCommand::WebRtcCommand(e) => (e.id, e.event_name.to_string()),
-//         };
-//         let filename = format!("{:?}/{}_{}", self.cmd_queue(), event_name, event_id);
-//         let result = serde_json::to_writer(
-//             &File::create(&filename).expect(&format!("Failed to create file {}", &filename)),
-//             &event,
-//         );
-//         match result {
-//             Ok(_) => info!(
-//                 "Wrote event={:?} to file={:?} to await processing",
-//                 event, filename
-//             ),
-//             Err(e) => error!("Failed to serialize event {:?} with error {:?}", event, e),
-//         }
-//     }
-// }
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PrintNannyCloudProxy {
     pub hostname: String,
@@ -152,14 +116,14 @@ pub struct PrintNannyConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     // generic device data present on all Print Nanny OS editions
     pub pi: Option<models::Pi>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nats_app: Option<models::NatsApp>,
     // edition-specific data and settings
     #[serde(skip_serializing_if = "Option::is_none")]
     pub octoprint: Option<OctoPrintConfig>,
     pub paths: PrintNannyPaths,
     pub api: models::PrintNannyApiConfig,
     pub dash: DashConfig,
-    // pub mqtt: MQTTConfig,
-    // pub keys: PrintNannyKeys,
 }
 
 impl Default for PrintNannyConfig {
@@ -169,12 +133,9 @@ impl Default for PrintNannyConfig {
             base_path: "https://printnanny.ai".into(),
             bearer_access_token: None,
         };
-
         let paths = PrintNannyPaths::default();
-        // let mqtt = MQTTConfig::default();
         let dash = DashConfig::default();
         let printnanny_cloud_proxy = PrintNannyCloudProxy::default();
-        // let keys = PrintNannyKeys::default();
         PrintNannyConfig {
             api,
             dash,
@@ -182,6 +143,7 @@ impl Default for PrintNannyConfig {
             printnanny_cloud_proxy,
             octoprint: None,
             pi: None,
+            nats_app: None,
         }
     }
 }
@@ -193,7 +155,7 @@ impl PrintNannyConfig {
     pub fn new() -> Result<Self, PrintNannyConfigError> {
         let figment = Self::figment()?;
         let result = figment.extract()?;
-        info!("Initialized config {:?}", result);
+        debug!("Initialized config {:?}", result);
         Ok(result)
     }
     pub fn find_value(key: &str) -> Result<figment::value::Value, PrintNannyConfigError> {
@@ -206,7 +168,20 @@ impl PrintNannyConfig {
         figment.merge(Self::figment().unwrap())
     }
 
+    // Load configuration with the following order of precedence:
+    //
+    // 1) Environment variables prefixed with PRINTNANNY_ (highest)
+    // Example:
+    //    PRINTNANNY_NATS_APP__NATS_URI="nats://localhost:4222" will override all other nats_uri settings
+    //
+    // 2) PRINTNANNY_CONFIG .toml. configuration file
+    //
+    // 3) Glob pattern of .toml and .json configuration file fragments in conf.d folder
+    //
+    // 4) Defaults (from implement Default)
+
     pub fn figment() -> Result<Figment, PrintNannyConfigError> {
+        // merge file in PRINTNANNY_CONFIG env var (if set)
         let result = Figment::from(Self { ..Self::default() })
             .merge(Toml::file(Env::var_or(
                 "PRINTNANNY_CONFIG",
@@ -216,23 +191,42 @@ impl PrintNannyConfig {
             // PRINTNANNY_KEY__SUBKEY
             .merge(Env::prefixed("PRINTNANNY_").split("__"));
 
+        // extract paths, to load conf.d fragments
         let etc_path: String = result
             .find_value("paths.etc")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
-
-        let confd_path = PrintNannyPaths {
+        let paths = PrintNannyPaths {
             etc: PathBuf::from(etc_path),
             ..PrintNannyPaths::default()
-        }
-        .confd();
+        };
+
+        let confd_path = paths.confd();
+        let license_path = paths.license();
+
+        // if license.json exists, load config from license.json
+        let result = match license_path.exists() {
+            true => result.merge(Json::file(&license_path)),
+            false => result,
+        };
 
         let toml_glob = format!("{}/*.toml", &confd_path.display());
         let json_glob = format!("{}/*.json", &confd_path.display());
 
         let result = Self::read_path_glob::<Json>(&json_glob, result);
         let result = Self::read_path_glob::<Toml>(&toml_glob, result);
+
+        // finally, re-merge PRINTNANNY_CONFIG and PRINTNANNY_ENV so these values take highest precedence
+        let result = result
+            .merge(Toml::file(Env::var_or(
+                "PRINTNANNY_CONFIG",
+                PRINTNANNY_CONFIG_DEFAULT,
+            )))
+            // allow nested environment variables:
+            // PRINTNANNY_KEY__SUBKEY
+            .merge(Env::prefixed("PRINTNANNY_").split("__"));
+
         info!("Finalized PrintNannyConfig: \n {:?}", result);
         Ok(result)
     }
@@ -241,18 +235,50 @@ impl PrintNannyConfig {
         pattern: &str,
         figment: Figment,
     ) -> Figment {
-        info!("Merging config from {}", &pattern);
+        debug!("Merging config from {}", &pattern);
         let mut result = figment;
         for entry in glob(pattern).expect("Failed to read glob pattern") {
             match entry {
                 Ok(path) => {
-                    info!("Merging config from {:?}", &path);
-                    result = result.clone().merge(T::file(path))
+                    let key = path.file_stem().unwrap().to_str().unwrap();
+                    debug!("Merging key={} config from {}", &key, &path.display());
+                    result = result.clone().merge(T::file(&path));
                 }
                 Err(e) => error!("{:?}", e),
             }
         }
         result
+    }
+
+    pub fn try_check_license(&self) -> Result<(), PrintNannyConfigError> {
+        match &self.pi {
+            Some(_) => Ok(()),
+            None => Err(PrintNannyConfigError::LicenseMissing {
+                path: "pi".to_string(),
+            }),
+        }?;
+
+        match &self.api.bearer_access_token {
+            Some(_) => Ok(()),
+            None => Err(PrintNannyConfigError::LicenseMissing {
+                path: "api.bearer_access_token".to_string(),
+            }),
+        }?;
+
+        match self.paths.nats_creds().exists() {
+            true => Ok(()),
+            false => Err(PrintNannyConfigError::LicenseMissing {
+                path: self.paths.nats_creds().display().to_string(),
+            }),
+        }?;
+
+        match self.nats_app {
+            Some(_) => Ok(()),
+            None => Err(PrintNannyConfigError::LicenseMissing {
+                path: "nats_app".to_string(),
+            }),
+        }?;
+        Ok(())
     }
 
     pub fn try_factory_reset(&self) -> Result<(), PrintNannyConfigError> {

@@ -17,7 +17,6 @@ use printnanny_dash::home;
 
 use printnanny_services::config::ConfigFormat;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
-// use printnanny_services::mqtt::{ MQTTWorker };
 use printnanny_cli::config::{ConfigCommand};
 use printnanny_cli::os::{OsCommand};
 use printnanny_gst::cam;
@@ -36,7 +35,7 @@ async fn main() -> Result<()> {
         .arg(Arg::new("v")
         .short('v')
         .multiple_occurrences(true)
-        .help("Sets the level of verbosity"))
+        .help("Sets the level of verbosity. Info: -v Debug: -vv Trace: -vvv"))
 
         // cam
         .subcommand(cam::PrintNannyCam::clap_command())
@@ -140,25 +139,16 @@ async fn main() -> Result<()> {
                 .version(GIT_VERSION)
                 .about("Synchronize device with PrintNanny Cloud")
             ))
-        // mqtt <subscribe|publish>
-        // .subcommand(Command::new("event")
-        //     .author(crate_authors!())
-        //     .about(crate_description!())
-        //     .version(GIT_VERSION)
-        //     .about("Run MQTT-based event publish/subscribe workers")
-        //     .subcommand_required(true)
-        //     .subcommand(
-        //         Command::new("publish")
-        //         .about("Publish event to MQTT topic")
-        //         .arg(Arg::new("data")
-        //             .short('d')
-        //             .long("data")
-        //             .takes_value(true)
-        //     ))
-        //     .subcommand(
-        //         Command::new("subscribe")
-        //         .about("Subscribe to events from MQTT topic")
-        //     ))
+        // nats <subscribe|publish>
+        .subcommand(Command::new("event")
+            .author(crate_authors!())
+            .about(crate_description!())
+            .version(GIT_VERSION)
+            .about("Interact with PrintNanny async events/commands API")
+            // .subcommand_required(true)
+            .subcommand(printnanny_nats::worker::Worker::clap_command())
+            .subcommand(printnanny_nats::events::EventCommand::clap_command())
+        )
         // os <issue|motd>
         .subcommand(Command::new("os")
             .author(crate_authors!())
@@ -173,24 +163,7 @@ async fn main() -> Result<()> {
                 Command::new("motd")
                 .about("Show message of the day")
             )
-            .about("Interact with PrintNanny OS"))
-        // remote <args>
-        .subcommand(Command::new("remote")
-            .author(crate_authors!())
-            .about(crate_description!())
-            .version(GIT_VERSION)
-            .about("Run pre-configured event/command handler")
-            .arg(Arg::new("event")
-                .help("JSON-serialized PrintNanny Event. See /api/events schema for supported events")
-                .short('e')
-                .long("event")
-                .required(true)
-                .takes_value(true))
-            .arg(Arg::new("dryrun")
-                .help("Print output but do not run. Ansible playbooks executed with --check flag")
-                .short('d')
-                .takes_value(false)
-                .long("dryrun"))
+            .about("Interact with PrintNanny OS")
         );
     
     
@@ -230,23 +203,20 @@ async fn main() -> Result<()> {
             .launch()
             .await?;
         },
-        // Some(("event", sub_m)) => {
-        //     match sub_m.subcommand() {
-        //         Some(("subscribe", _event_m)) => {
-        //             let worker = MQTTWorker::new(
-        //             ).await?;
-        //             // worker.subscribe().await?;
-        //             let (_,_) = tokio::join!(worker.subscribe_mqtt(), worker.subscribe_event_socket());
-        //         }
-        //         Some(("publish", event_m)) => {
-        //             let worker = MQTTWorker::new(
-        //             ).await?;
-        //             let data = event_m.value_of("data").expect("Expected --data argument passed");
-        //             worker.publish(data).await?;
-        //         },
-        //         _ => panic!("Expected publish|subscribe subcommand")
-        //     }
-        // },
+        Some(("event", sub_m)) => {
+            match sub_m.subcommand() {
+                Some(("worker", args)) => {
+                    let app = printnanny_nats::worker::Worker::new(args).await?;
+                    app.run().await?;
+                }
+                Some(("create", args)) => {
+
+                    let app = printnanny_nats::events::EventCommand::new(args)?;
+                    app.run().await?;
+                },
+                _ => panic!("Expected worker|create subcommand")
+            }
+        },
         Some(("cam", subm)) => {
             let app = cam::PrintNannyCam::new(&subm);
             app.run()?;

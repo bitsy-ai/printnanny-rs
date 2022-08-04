@@ -16,7 +16,7 @@ pub enum PrintNannyConfigError {
     #[error("Failed to unpack file {filename} from archive {archive:?}")]
     ArchiveMissingFile { filename: String, archive: PathBuf },
 
-    #[error("Failed to read {path:?}. Please download a license from https://printnanny.ai/dashboard/ and save to {path:?}")]
+    #[error("Failed to read {path:?}. Please download a license from https://printnanny.ai/dashboard/ and save to ")]
     LicenseMissing { path: String },
 
     #[error("Command {cmd} exited with code {code:?} stdout: {stdout} stderr: {stderr}")]
