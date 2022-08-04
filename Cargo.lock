@@ -2731,6 +2731,7 @@ dependencies = [
  "serde 1.0.137",
  "serde_bytes",
  "serde_json",
+ "thiserror",
  "tokio",
  "tokio-serde",
  "tokio-util 0.7.3",

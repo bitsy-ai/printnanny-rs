@@ -12,6 +12,7 @@ use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 use printnanny_api_client::models;
 
 use crate::error;
+use crate::nats::NatsJsonEvent;
 
 #[derive(Debug, Clone)]
 pub struct EventCommand {
@@ -112,22 +113,27 @@ impl EventCommand {
         &self,
         subject: &str,
         event_type: &str,
-        value: serde_json::Value,
+        payload: serde_json::Value,
     ) -> Result<()> {
         // open a connection to unix socket
         let stream = UnixStream::connect(&self.config.paths.events_socket).await?;
         // Delimit frames using a length header
         let length_delimited = FramedWrite::new(stream, LengthDelimitedCodec::new());
 
+        let event = NatsJsonEvent {
+            subject: subject.to_string(),
+            payload,
+        };
+
         // Serialize frames with JSON
         let mut serialized = tokio_serde::SymmetricallyFramed::new(
             length_delimited,
-            tokio_serde::formats::SymmetricalJson::<serde_json::Value>::default(),
+            tokio_serde::formats::SymmetricalJson::<NatsJsonEvent>::default(),
         );
-        serialized.send(value).await?;
+        serialized.send(event).await?;
         debug!(
             "Emitted event subject={} socket={} value={}",
-            subject,
+            &subject,
             self.socket.display(),
             &event_type
         );
@@ -142,12 +148,19 @@ impl EventCommand {
     }
 
     pub async fn run(&self) -> Result<()> {
-        // ensure pi id is set
-        // serialize payload
-        match self.args.subcommand().unwrap() {
-            ("boot", sub_args) => self.handle_boot(sub_args).await?,
-            _ => error!("Invalid command"),
-        };
+        // check unix socket exists
+        match &self.socket.exists() {
+            true => {
+                match self.args.subcommand().unwrap() {
+                    ("boot", sub_args) => self.handle_boot(sub_args).await?,
+                    _ => error!("Invalid command"),
+                };
+                Ok(())
+            }
+            false => Err(error::PublishError::UnixSocketNotFound {
+                path: self.socket.display().to_string(),
+            }),
+        }?;
         Ok(())
     }
 }

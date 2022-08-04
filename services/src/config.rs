@@ -8,7 +8,7 @@ use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
 use file_lock::{FileLock, FileOptions};
 use glob::glob;
-use log::{error, info};
+use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 
 use super::error::PrintNannyConfigError;
@@ -25,6 +25,21 @@ const FACTORY_RESET: [&str; 4] = ["api", "pi", "octoprint", "printnanny_cloud_pr
 pub enum ConfigFormat {
     Json,
     Toml,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub struct NatsConfig {
+    pub uri: String,
+    pub require_tls: bool,
+}
+
+impl Default for NatsConfig {
+    fn default() -> Self {
+        Self {
+            uri: "nats://localhost:4222".to_string(),
+            require_tls: false,
+        }
+    }
 }
 
 impl ConfigFormat {
@@ -158,8 +173,7 @@ pub struct PrintNannyConfig {
     pub paths: PrintNannyPaths,
     pub api: models::PrintNannyApiConfig,
     pub dash: DashConfig,
-    // pub mqtt: MQTTConfig,
-    // pub keys: PrintNannyKeys,
+    pub nats: NatsConfig,
 }
 
 impl Default for PrintNannyConfig {
@@ -169,16 +183,15 @@ impl Default for PrintNannyConfig {
             base_path: "https://printnanny.ai".into(),
             bearer_access_token: None,
         };
-
         let paths = PrintNannyPaths::default();
-        // let mqtt = MQTTConfig::default();
         let dash = DashConfig::default();
         let printnanny_cloud_proxy = PrintNannyCloudProxy::default();
-        // let keys = PrintNannyKeys::default();
+        let nats = NatsConfig::default();
         PrintNannyConfig {
             api,
             dash,
             paths,
+            nats,
             printnanny_cloud_proxy,
             octoprint: None,
             pi: None,
@@ -193,7 +206,7 @@ impl PrintNannyConfig {
     pub fn new() -> Result<Self, PrintNannyConfigError> {
         let figment = Self::figment()?;
         let result = figment.extract()?;
-        info!("Initialized config {:?}", result);
+        debug!("Initialized config {:?}", result);
         Ok(result)
     }
     pub fn find_value(key: &str) -> Result<figment::value::Value, PrintNannyConfigError> {
@@ -248,21 +261,14 @@ impl PrintNannyConfig {
         pattern: &str,
         figment: Figment,
     ) -> Figment {
-        info!("Merging config from {}", &pattern);
+        debug!("Merging config from {}", &pattern);
         let mut result = figment;
         for entry in glob(pattern).expect("Failed to read glob pattern") {
             match entry {
                 Ok(path) => {
                     let key = path.file_stem().unwrap().to_str().unwrap();
-                    info!("Merging key={} config from {}", &key, &path.display());
-
-                    // let value: T = T::from_path(&path).unwrap();
-                    // let provider: T = T::from_path(&path).unwrap();
-                    // let inner = Figment::from(provider);
-                    // let provider = T::file(&path);
-                    // let data = provider.data().unwrap();
+                    debug!("Merging key={} config from {}", &key, &path.display());
                     result = result.clone().merge(T::file(&path));
-                    info!("Extracted from path: {:?}", result)
                 }
                 Err(e) => error!("{:?}", e),
             }

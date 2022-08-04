@@ -1,26 +1,51 @@
 use futures::prelude::*;
 use std::path::PathBuf;
 
-use super::nats::{NatsConfig, NatsJsonEvent};
 use anyhow::Result;
+use bytes::Buf;
 use clap::{crate_authors, Arg, ArgMatches, Command};
 use env_logger::Builder;
 use log::{debug, error, info, warn, LevelFilter};
 use tokio::net::{UnixListener, UnixStream};
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
+use printnanny_api_client::models;
+use printnanny_services::config::{NatsConfig, PrintNannyConfig};
+use printnanny_services::error::PrintNannyConfigError;
+
+use crate::commands;
+use crate::nats::NatsJsonEvent;
+
 #[derive(Debug, Clone)]
 pub struct Worker {
-    nats: NatsConfig,
     socket: PathBuf,
+    nats_client: async_nats::Client,
+    subscribe_subject: String,
 }
 
 // Relays NatsJsonEvent published to Unix socket to NATS
 impl Worker {
-    pub async fn relay_to_nats(
-        mut stream: UnixStream,
-        nats_client: &async_nats::Client,
-    ) -> Result<()> {
+    pub async fn subscribe_nats_subject(&self) -> Result<()> {
+        info!(
+            "Subscribing to subect {} with nats client {:?}",
+            self.subscribe_subject, &self.nats_client
+        );
+        let mut subscriber = self
+            .nats_client
+            .subscribe(self.subscribe_subject.clone())
+            .await
+            .unwrap();
+        while let Some(message) = subscriber.next().await {
+            debug!("Received NATS Message: {:?}", message);
+            // try deserializing payload
+            let payload: models::PolymorphicPiEvent =
+                serde_json::from_reader(message.payload.reader())?;
+            debug!("Deserialized PolymorphicPiEvent: {:?}", payload);
+            commands::handle_incoming(payload).await?;
+        }
+        Ok(())
+    }
+    pub async fn relay_to_nats(&self, mut stream: UnixStream) -> Result<()> {
         debug!("Accepted socket connection {:?}", &stream);
         // read length-delimited JSON frames deserializable into NatsJsonEvent
         let length_delimited = FramedRead::new(&mut stream, LengthDelimitedCodec::new());
@@ -35,7 +60,9 @@ impl Worker {
                 debug!("Deserialized NatsJsonEvent {:?}", msg);
                 // publish over NATS connection
                 let payload = serde_json::ser::to_vec(&msg.payload)?;
-                nats_client.publish(msg.subject, payload.into()).await?;
+                self.nats_client
+                    .publish(msg.subject, payload.into())
+                    .await?;
             }
             None => error!("Failed to deserialize msg {:?}", maybe_msg),
         };
@@ -55,22 +82,9 @@ impl Worker {
         };
         let listener = UnixListener::bind(&self.socket)?;
         info!("Listening for events on {:?}", self.socket);
-
-        // initialize nats connection
-        let nats_client = match &self.nats.creds_file {
-            Some(creds_file) => {
-                async_nats::ConnectOptions::with_credentials_file(creds_file.to_path_buf())
-                    .await?
-                    .require_tls(self.nats.require_tls)
-                    .connect(&self.nats.uri)
-                    .await?
-            }
-            None => async_nats::connect(&self.nats.uri).await?,
-        };
-        info!("Initialized nats client {:?}", nats_client);
         loop {
             match listener.accept().await {
-                Ok((stream, _addr)) => Worker::relay_to_nats(stream, &nats_client).await?,
+                Ok((stream, _addr)) => self.relay_to_nats(stream).await?,
                 Err(e) => {
                     error!("Connection to {} broken {}", &self.socket.display(), e);
                 }
@@ -79,60 +93,22 @@ impl Worker {
     }
 
     pub fn clap_command() -> Command<'static> {
-        let app_name = "printnanny-pub-worker";
+        let app_name = "printnanny-events-worker";
         let app = Command::new(app_name)
             .author(crate_authors!())
-            .about("Relay Unix socket data frames to NATS connection")
+            .about("Relay Unix socket data frames to outbound NATS connection. Handle inbound NATS msgs.")
             .arg(
                 Arg::new("v")
                     .short('v')
                     .multiple_occurrences(true)
                     .help("Sets the level of verbosity"),
-            )
-            .arg(
-                Arg::new("socket")
-                    .long("socket")
-                    .default_value(".tmp/events.sock")
-                    .takes_value(true)
-                    .help("Path to Unix socket"),
-            )
-            .arg(
-                Arg::new("nats_uri")
-                    .long("nats-uri")
-                    .default_value("nats://localhost:4222")
-                    .takes_value(true)
-                    .help("NATS connection uri"),
-            )
-            .arg(
-                Arg::new("nats_creds")
-                    .long("nats-creds")
-                    .takes_value(true)
-                    .help("Path to nkey.creds file"),
-            )
-            .arg(
-                Arg::new("nats_tls")
-                    .long("nats-tls")
-                    .help("Connect with tls"),
             );
         app
     }
 
-    pub fn new(args: ArgMatches) -> Self {
-        let socket = args
-            .value_of("socket")
-            .expect("--socket is required")
-            .into();
-        let uri = args
-            .value_of("nats_uri")
-            .expect("--nats-uri is required")
-            .into();
-        let creds_file: Option<PathBuf> = args.value_of("nats_creds").map(|v| PathBuf::from(v));
-        let require_tls = args.is_present("nats_tls");
-        let nats = NatsConfig {
-            uri,
-            creds_file,
-            require_tls,
-        };
+    pub async fn new(args: ArgMatches) -> Result<Self> {
+        let config = PrintNannyConfig::new()?;
+
         let verbosity = args.occurrences_of("v");
         let mut builder = Builder::new();
         match verbosity {
@@ -147,10 +123,28 @@ impl Worker {
             }
             _ => builder.filter_level(LevelFilter::Trace).init(),
         };
-        return Self { nats, socket };
+        let subscribe_subject = match config.pi {
+            Some(pi) => Ok(format!("pi.{}.*.command", pi.id)),
+            None => Err(PrintNannyConfigError::LicenseMissing {
+                path: "pi".to_string(),
+            }),
+        }?;
+        // initialize nats connection
+        let nats_client =
+            async_nats::ConnectOptions::with_credentials_file(config.paths.nats_creds().clone())
+                .await?
+                .require_tls(config.nats.require_tls)
+                .connect(config.nats.uri)
+                .await?;
+        return Ok(Self {
+            socket: config.paths.events_socket.clone(),
+            nats_client: nats_client,
+            subscribe_subject,
+        });
     }
 
     pub async fn run(&self) -> Result<()> {
-        self.subscribe_event_socket().await
+        tokio::join!(self.subscribe_event_socket(), self.subscribe_nats_subject());
+        Ok(())
     }
 }
