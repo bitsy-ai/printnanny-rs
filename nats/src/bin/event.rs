@@ -4,7 +4,7 @@ use printnanny_nats::events::EventCommand;
 async fn main() -> Result<()> {
     let cmd = EventCommand::clap_command();
     let app_m = cmd.get_matches();
-    let app = EventCommand::new(app_m);
+    let app = EventCommand::new(app_m)?;
     app.run().await?;
     Ok(())
 }

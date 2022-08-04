@@ -71,6 +71,10 @@ impl PrintNannyPaths {
         return self.creds().join("nats.creds");
     }
 
+    pub fn license(&self) -> PathBuf {
+        return self.creds().join("license.json");
+    }
+
     pub fn try_init_dirs(&self) -> Result<(), PrintNannyConfigError> {
         let dirs = [
             &self.etc,
@@ -152,7 +156,7 @@ impl PrintNannyPaths {
     pub fn unpack_seed(
         &self,
         force: bool,
-    ) -> Result<[(String, PathBuf); 3], PrintNannyConfigError> {
+    ) -> Result<[(String, PathBuf); 2], PrintNannyConfigError> {
         let matched_zip = self.try_find_seed(&self.seed_file_pattern)?;
         let file = match std::fs::File::open(&matched_zip) {
             Ok(f) => Ok(f),
@@ -166,8 +170,7 @@ impl PrintNannyPaths {
         // filenames configured in creds_bundle here: https://github.com/bitsy-ai/printnanny-webapp/blob/d33b99ede33f02b0282c006d5549ae6f76866da5/print_nanny_webapp/devices/services.py#L233
 
         let results = [
-            ("pi.json".to_string(), self.confd().join("pi.json")),
-            ("api.json".to_string(), self.creds().join("api.json")),
+            ("license.json".to_string(), self.license()),
             ("nats.creds".to_string(), self.creds().join("nats.creds")),
         ];
 

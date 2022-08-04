@@ -221,12 +221,19 @@ impl PrintNannyConfig {
             .unwrap()
             .deserialize::<String>()
             .unwrap();
-
-        let confd_path = PrintNannyPaths {
+        let paths = PrintNannyPaths {
             etc: PathBuf::from(etc_path),
             ..PrintNannyPaths::default()
-        }
-        .confd();
+        };
+
+        let confd_path = paths.confd();
+        let license_path = paths.license();
+
+        // if license.json exists, load config from license.json
+        let result = match license_path.exists() {
+            true => result.merge(Json::file(&license_path)),
+            false => result,
+        };
 
         let toml_glob = format!("{}/*.toml", &confd_path.display());
         let json_glob = format!("{}/*.json", &confd_path.display());
@@ -246,8 +253,16 @@ impl PrintNannyConfig {
         for entry in glob(pattern).expect("Failed to read glob pattern") {
             match entry {
                 Ok(path) => {
-                    info!("Merging config from {:?}", &path);
-                    result = result.clone().merge(T::file(path))
+                    let key = path.file_stem().unwrap().to_str().unwrap();
+                    info!("Merging key={} config from {}", &key, &path.display());
+
+                    // let value: T = T::from_path(&path).unwrap();
+                    // let provider: T = T::from_path(&path).unwrap();
+                    // let inner = Figment::from(provider);
+                    // let provider = T::file(&path);
+                    // let data = provider.data().unwrap();
+                    result = result.clone().merge(T::file(&path));
+                    info!("Extracted from path: {:?}", result)
                 }
                 Err(e) => error!("{:?}", e),
             }
@@ -255,18 +270,29 @@ impl PrintNannyConfig {
         result
     }
 
-    pub fn is_authenticated(&self) -> bool {
-        let pi_is_registered = match &self.pi {
-            Some(_) => true,
-            None => false,
-        };
+    pub fn try_check_license(&self) -> Result<(), PrintNannyConfigError> {
+        match &self.pi {
+            Some(_) => Ok(()),
+            None => Err(PrintNannyConfigError::LicenseMissing {
+                path: "pi".to_string(),
+            }),
+        }?;
 
-        let api_auth_set = match &self.api.bearer_access_token {
-            Some(_) => true,
-            None => false,
-        };
+        match &self.api.bearer_access_token {
+            Some(_) => Ok(()),
+            None => Err(PrintNannyConfigError::LicenseMissing {
+                path: "api.bearer_access_token".to_string(),
+            }),
+        }?;
 
-        return pi_is_registered && api_auth_set && self.paths.nats_creds().exists();
+        match self.paths.nats_creds().exists() {
+            true => Ok(()),
+            false => Err(PrintNannyConfigError::LicenseMissing {
+                path: self.paths.nats_creds().display().to_string(),
+            }),
+        }?;
+
+        Ok(())
     }
 
     pub fn try_factory_reset(&self) -> Result<(), PrintNannyConfigError> {

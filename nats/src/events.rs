@@ -5,7 +5,7 @@ use anyhow::Result;
 use clap::{crate_authors, value_parser, Arg, ArgMatches, Command};
 use env_logger::Builder;
 use log::{debug, error, info, warn, LevelFilter};
-use printnanny_services::config::PrintNannyConfig;
+use printnanny_services::{config::PrintNannyConfig, error::PrintNannyConfigError};
 use tokio::net::{UnixListener, UnixStream};
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
@@ -52,7 +52,7 @@ impl EventCommand {
         app
     }
 
-    pub fn new(args: ArgMatches) -> Self {
+    pub fn new(args: ArgMatches) -> Result<Self, PrintNannyConfigError> {
         let socket = args
             .value_of("socket")
             .expect("--socket is required")
@@ -72,16 +72,12 @@ impl EventCommand {
             _ => builder.filter_level(LevelFilter::Trace).init(),
         };
         let config = PrintNannyConfig::new().unwrap();
-        if config.is_authenticated() {
-        } else {
-            panic!("Raspberry Pi is not registered to PrintNanny Cloud")
-        }
-
-        return Self {
+        config.try_check_license()?;
+        return Ok(Self {
             socket,
             args,
             config,
-        };
+        });
     }
 
     fn boot_subject(&self, pi_id: &i32) -> String {
