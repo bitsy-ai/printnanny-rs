@@ -92,20 +92,14 @@ impl Worker {
     }
 
     pub fn clap_command() -> Command<'static> {
-        let app_name = "printnanny-events-worker";
+        let app_name = "worker";
         let app = Command::new(app_name)
             .author(crate_authors!())
-            .about("Relay Unix socket data frames to outbound NATS connection. Handle inbound NATS msgs.")
-            .arg(
-                Arg::new("v")
-                    .short('v')
-                    .multiple_occurrences(true)
-                    .help("Sets the level of verbosity"),
-            );
+            .about("Run NATS-based pub/sub workers");
         app
     }
 
-    pub async fn new(args: ArgMatches) -> Result<Self> {
+    pub async fn new(args: &ArgMatches) -> Result<Self> {
         let config = PrintNannyConfig::new()?;
         // ensure pi, nats_app, nats_creds are provided
         config.try_check_license()?;
@@ -113,21 +107,6 @@ impl Worker {
         // try_check_license guards the following properties set, so it's safe to unwrap here
         let nats_app = config.nats_app.unwrap();
         let pi = config.pi.unwrap();
-
-        let verbosity = args.occurrences_of("v");
-        let mut builder = Builder::new();
-        match verbosity {
-            0 => {
-                builder.filter_level(LevelFilter::Warn).init();
-            }
-            1 => {
-                builder.filter_level(LevelFilter::Info).init();
-            }
-            2 => {
-                builder.filter_level(LevelFilter::Debug).init();
-            }
-            _ => builder.filter_level(LevelFilter::Trace).init(),
-        };
 
         let subscribe_subject = format!("pi.{}.*.command", pi.id);
 

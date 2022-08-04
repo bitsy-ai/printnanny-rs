@@ -16,7 +16,6 @@ use crate::nats::NatsJsonEvent;
 
 #[derive(Debug, Clone)]
 pub struct EventCommand {
-    socket: PathBuf,
     args: ArgMatches,
     config: PrintNannyConfig,
 }
@@ -24,27 +23,13 @@ pub struct EventCommand {
 // Relays NatsJsonEvent published to Unix socket to NATS
 impl EventCommand {
     pub fn clap_command() -> Command<'static> {
-        let app_name = "printnanny-event";
+        let app_name = "create";
         let app =
             Command::new(app_name)
                 .author(crate_authors!())
-                // .propagate_version(true)
-                .about("Emit PrintNanny event via Unix socket")
+                .about("Create new PrintNanny event/command")
                 .subcommand_required(true)
                 .arg_required_else_help(true)
-                .arg(
-                    Arg::new("v")
-                        .short('v')
-                        .multiple_occurrences(true)
-                        .help("Sets the level of verbosity"),
-                )
-                .arg(
-                    Arg::new("socket")
-                        .long("socket")
-                        .default_value(".tmp/events.sock")
-                        .takes_value(true)
-                        .help("Publish data to Unix socket"),
-                )
                 // emit a boot event
                 .subcommand(Command::new("boot").arg_required_else_help(true).arg(
                     Arg::new("event_type").value_parser(value_parser!(models::PiBootEventType)),
@@ -53,30 +38,11 @@ impl EventCommand {
         app
     }
 
-    pub fn new(args: ArgMatches) -> Result<Self, PrintNannyConfigError> {
-        let socket = args
-            .value_of("socket")
-            .expect("--socket is required")
-            .into();
-        let verbosity = args.occurrences_of("v");
-        let mut builder = Builder::new();
-        match verbosity {
-            0 => {
-                builder.filter_level(LevelFilter::Warn).init();
-            }
-            1 => {
-                builder.filter_level(LevelFilter::Info).init();
-            }
-            2 => {
-                builder.filter_level(LevelFilter::Debug).init();
-            }
-            _ => builder.filter_level(LevelFilter::Trace).init(),
-        };
+    pub fn new(args: &ArgMatches) -> Result<Self, PrintNannyConfigError> {
         let config = PrintNannyConfig::new().unwrap();
         config.try_check_license()?;
         return Ok(Self {
-            socket,
-            args,
+            args: args.clone(),
             config,
         });
     }
@@ -115,8 +81,9 @@ impl EventCommand {
         event_type: &str,
         payload: serde_json::Value,
     ) -> Result<()> {
+        let socket = &self.config.paths.events_socket;
         // open a connection to unix socket
-        let stream = UnixStream::connect(&self.config.paths.events_socket).await?;
+        let stream = UnixStream::connect(socket).await?;
         // Delimit frames using a length header
         let length_delimited = FramedWrite::new(stream, LengthDelimitedCodec::new());
 
@@ -134,7 +101,7 @@ impl EventCommand {
         debug!(
             "Emitted event subject={} socket={} value={}",
             &subject,
-            self.socket.display(),
+            socket.display(),
             &event_type
         );
         Ok(())
@@ -149,7 +116,9 @@ impl EventCommand {
 
     pub async fn run(&self) -> Result<()> {
         // check unix socket exists
-        match &self.socket.exists() {
+        let socket = &self.config.paths.events_socket;
+
+        match socket.exists() {
             true => {
                 match self.args.subcommand().unwrap() {
                     ("boot", sub_args) => self.handle_boot(sub_args).await?,
@@ -158,7 +127,7 @@ impl EventCommand {
                 Ok(())
             }
             false => Err(error::PublishError::UnixSocketNotFound {
-                path: self.socket.display().to_string(),
+                path: socket.display().to_string(),
             }),
         }?;
         Ok(())

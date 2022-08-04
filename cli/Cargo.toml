@@ -19,6 +19,7 @@ targets = [
 [dependencies]
 printnanny-gst = {path = "../gst", version = "^0.24.4"}
 printnanny-dash = {path = "../dash", version = "^0.24.4"}
+printnanny-nats = {path = "../nats", version = "^0.24.4"}
 printnanny-services = {path = "../services", version = "^0.24.4"}
 printnanny-api-client = "0.99.9"
 gst = { package = "gstreamer", version="0.18.8" }
