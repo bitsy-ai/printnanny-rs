@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_process::Command;
-
+use log::warn;
 use printnanny_api_client::models;
 
 pub async fn handle_pi_boot_command(
@@ -13,7 +13,6 @@ pub async fn handle_pi_boot_command(
         models::PiBootCommandType::Shutdown => {
             Command::new("shutdown").output().await?;
         }
-        _ => (),
     };
     Ok(())
 }
@@ -23,7 +22,7 @@ pub async fn handle_incoming(msg: models::PolymorphicPiEvent) -> Result<()> {
         models::PolymorphicPiEvent::PiBootCommand(command) => {
             handle_pi_boot_command(command).await?;
         }
-        _ => (),
+        _ => warn!("No handler configured for msg={:?}", msg),
     };
 
     Ok(())
