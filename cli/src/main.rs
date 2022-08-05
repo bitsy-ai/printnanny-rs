@@ -147,7 +147,7 @@ async fn main() -> Result<()> {
             .about("Interact with PrintNanny async events/commands API")
             // .subcommand_required(true)
             .subcommand(printnanny_nats::worker::Worker::clap_command())
-            .subcommand(printnanny_nats::events::EventCommand::clap_command())
+            .subcommand(printnanny_nats::events::EventPublisher::clap_command())
         )
         // os <issue|motd>
         .subcommand(Command::new("os")
@@ -211,7 +211,7 @@ async fn main() -> Result<()> {
                 }
                 Some(("create", args)) => {
 
-                    let app = printnanny_nats::events::EventCommand::new(args)?;
+                    let app = printnanny_nats::events::EventPublisher::new(args)?;
                     app.run().await?;
                 },
                 _ => panic!("Expected worker|create subcommand")

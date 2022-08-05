@@ -1,19 +1,20 @@
-use futures::prelude::*;
-use std::path::PathBuf;
-
 use anyhow::Result;
 use bytes::Buf;
-use clap::{crate_authors, Arg, ArgMatches, Command};
-use env_logger::Builder;
-use log::{debug, error, info, warn, LevelFilter};
+use clap::{crate_authors, ArgMatches, Command};
+use futures::prelude::*;
+use log::{debug, error, info, warn};
+use std::io::Read;
+use std::path::PathBuf;
 use tokio::net::{UnixListener, UnixStream};
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
 use printnanny_api_client::models;
+use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
 use printnanny_services::config::PrintNannyConfig;
 
 use crate::commands;
 use crate::nats::NatsJsonEvent;
+use crate::util::to_nats_command_subscribe_subject;
 
 #[derive(Debug, Clone)]
 pub struct Worker {
@@ -37,10 +38,13 @@ impl Worker {
         while let Some(message) = subscriber.next().await {
             debug!("Received NATS Message: {:?}", message);
             // try deserializing payload
-            let payload: models::PolymorphicPiEvent =
-                serde_json::from_reader(message.payload.reader())?;
+            let mut s = String::new();
+            debug!("init String");
+            message.payload.reader().read_to_string(&mut s)?;
+            debug!("read message.payload to String {}", &s);
+            let payload = serde_json::from_str::<PolymorphicPiEventRequest>(&s)?;
             debug!("Deserialized PolymorphicPiEvent: {:?}", payload);
-            commands::handle_incoming(payload).await?;
+            commands::handle_incoming(payload, &self.nats_client).await?;
         }
         Ok(())
     }
@@ -50,18 +54,17 @@ impl Worker {
         let length_delimited = FramedRead::new(&mut stream, LengthDelimitedCodec::new());
         let mut deserialized = tokio_serde::SymmetricallyFramed::new(
             length_delimited,
-            tokio_serde::formats::SymmetricalJson::<NatsJsonEvent>::default(),
+            tokio_serde::formats::SymmetricalJson::<(String, PolymorphicPiEventRequest)>::default(),
         );
-        let maybe_msg: Option<NatsJsonEvent> = deserialized.try_next().await?;
+        let maybe_msg: Option<(String, PolymorphicPiEventRequest)> =
+            deserialized.try_next().await?;
 
         match maybe_msg {
-            Some(msg) => {
-                debug!("Deserialized NatsJsonEvent {:?}", msg);
+            Some((subject, msg)) => {
+                debug!("Deserialized {:?}", msg);
                 // publish over NATS connection
-                let payload = serde_json::ser::to_vec(&msg.payload)?;
-                self.nats_client
-                    .publish(msg.subject, payload.into())
-                    .await?;
+                let payload = serde_json::ser::to_vec(&msg)?;
+                self.nats_client.publish(subject, payload.into()).await?;
             }
             None => error!("Failed to deserialize msg {:?}", maybe_msg),
         };
@@ -108,7 +111,7 @@ impl Worker {
         let nats_app = config.nats_app.unwrap();
         let pi = config.pi.unwrap();
 
-        let subscribe_subject = format!("pi.{}.*.command", pi.id);
+        let subscribe_subject = to_nats_command_subscribe_subject(&pi.id);
 
         // check if uri requires tls
         let require_tls = nats_app.nats_uri.contains("tls");
