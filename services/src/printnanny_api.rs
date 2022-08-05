@@ -120,7 +120,20 @@ impl ApiService {
                 };
 
                 self.config.octoprint = octoprint;
-                let pi = self.pi_retrieve(pi.id).await?;
+                // mark setup complete or fetch latest pi data
+                let pi = match pi.setup_finished {
+                    Some(true) => self.pi_retrieve(pi.id).await?,
+                    Some(false) => {
+                        let mut req = models::PatchedPiRequest::new();
+                        req.setup_finished = Some(true);
+                        self.pi_partial_update(pi.id, req).await?
+                    }
+                    None => {
+                        let mut req = models::PatchedPiRequest::new();
+                        req.setup_finished = Some(true);
+                        self.pi_partial_update(pi.id, req).await?
+                    }
+                };
                 self.config.pi = Some(pi);
                 self.config.try_save()?;
                 Ok(())
@@ -137,62 +150,14 @@ impl ApiService {
         Ok(res)
     }
 
-    // pub async fn device_public_key_update_or_create(
-    //     &self,
-    //     device: i32,
-    // ) -> Result<models::PublicKey, ServiceError> {
-    //     let keyfile = &self.config.keys.ec_public_key_file();
-    //     info!("Reading public key from {:?}", &keyfile);
-    //     let pem = read_to_string(&keyfile)?;
-    //     let req = models::PublicKeyRequest {
-    //         fingerprint: self.config.keys.read_fingerprint()?,
-    //         pem,
-    //         device,
-    //         cipher: self.config.mqtt.cipher.clone(),
-    //         length: 256,
-    //     };
-    //     let res = devices_api::public_key_update_or_create(&self.reqwest, device, req).await?;
-    //     Ok(res)
-    // }
-
-    // async fn janus_cloud_stream_get_or_create(
-    //     &self,
-    //     device: i32,
-    // ) -> Result<models::JanusCloudStream, ServiceError> {
-    //     let req = models::JanusCloudStreamRequest {
-    //         device,
-    //         pin: None,
-    //         info: None,
-    //         active: None,
-    //         secret: None,
-    //     };
-    //     let res =
-    //         janus_api::devices_janus_cloud_stream_get_or_create(&self.reqwest, device, req).await?;
-    //     Ok(res)
-    // }
-
-    // async fn janus_edge_stream_get_or_create(
-    //     &self,
-    //     device: i32,
-    //     user: i32,
-    // ) -> Result<models::JanusEdgeStream, ServiceError> {
-    //     let mut req: models::JanusEdgeStreamRequest = match &self.config.janus_edge_request {
-    //         Some(r) => Ok(r.clone()),
-    //         None => Err(ServiceError::SetupIncomplete {
-    //             firstboot_file: self.config.paths.firstboot.clone(),
-    //             field: "janus_edge_request".into(),
-    //             detail: None,
-    //         }),
-    //     }?;
-    //     // device and user ids are set to zero in the config rendered during firstboot
-    //     // set these to correct user/device id
-    //     // https://github.com/bitsy-ai/ansible-collection-printnanny/blob/main/roles/install/templates/config.toml.j2#L22
-    //     req.device = device;
-    //     req.auth.user = user;
-    //     let res =
-    //         janus_api::devices_janus_edge_stream_get_or_create(&self.reqwest, device, req).await?;
-    //     Ok(res)
-    // }
+    pub async fn pi_partial_update(
+        &self,
+        pi_id: i32,
+        req: models::PatchedPiRequest,
+    ) -> Result<models::Pi, ServiceError> {
+        let res = devices_api::pis_partial_update(&self.reqwest, pi_id, Some(req)).await?;
+        Ok(res)
+    }
 
     async fn system_info_update_or_create(
         &self,
