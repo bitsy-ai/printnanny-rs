@@ -43,6 +43,6 @@ mod tests {
 
     #[test_log::test]
     fn test_to_nats_command_subscribe_subject() {
-        assert_eq!(to_nats_command_subscribe_subject(&3), "pi.3.>.command");
+        assert_eq!(to_nats_command_subscribe_subject(&3), "pi.3.*.*.command");
     }
 }
