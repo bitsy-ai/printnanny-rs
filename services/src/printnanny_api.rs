@@ -120,20 +120,7 @@ impl ApiService {
                 };
 
                 self.config.octoprint = octoprint;
-                // mark setup complete or fetch latest pi data
-                let pi = match pi.setup_finished {
-                    Some(true) => self.pi_retrieve(pi.id).await?,
-                    Some(false) => {
-                        let mut req = models::PatchedPiRequest::new();
-                        req.setup_finished = Some(true);
-                        self.pi_partial_update(pi.id, req).await?
-                    }
-                    None => {
-                        let mut req = models::PatchedPiRequest::new();
-                        req.setup_finished = Some(true);
-                        self.pi_partial_update(pi.id, req).await?
-                    }
-                };
+                let pi = self.pi_retrieve(pi.id).await?;
                 self.config.pi = Some(pi);
                 self.config.try_save()?;
                 Ok(())
