@@ -7,7 +7,7 @@ pub fn to_nats_publish_subject(pi_id: &i32, prefix: &str, event_type: &str) -> S
     // convert event_type from PascalCase to snake_case, then split on _, then re-join on .
     let s = event_type
         .to_case(Case::Snake)
-        .split("_")
+        .split('_')
         .collect::<Vec<&str>>()
         .join(".");
     return format!("pi.{}.{}.{}", pi_id, prefix, &s);

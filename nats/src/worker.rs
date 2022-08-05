@@ -8,12 +8,10 @@ use std::path::PathBuf;
 use tokio::net::{UnixListener, UnixStream};
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
-use printnanny_api_client::models;
 use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
 use printnanny_services::config::PrintNannyConfig;
 
 use crate::commands;
-use crate::nats::NatsJsonEvent;
 use crate::util::to_nats_command_subscribe_subject;
 
 #[derive(Debug, Clone)]

@@ -44,7 +44,7 @@ pub async fn handle_pi_boot_command(
 
             let (subject, req) =
                 build_boot_status_payload(&cmd, models::PiBootEventType::RebootStarted, None)?;
-            nats_client.publish(subject.clone(), req.into()).await?;
+            nats_client.publish(subject.clone(), req).await?;
             debug!(
                 "nats.publish subject={} event_type={:?}",
                 &subject,
@@ -75,7 +75,7 @@ pub async fn handle_pi_boot_command(
                         Some(payload),
                     )?;
 
-                    nats_client.publish(subject.clone(), req.into()).await?;
+                    nats_client.publish(subject.clone(), req).await?;
                     debug!(
                         "nats.publish subject={} event_type={:?}",
                         &subject,
