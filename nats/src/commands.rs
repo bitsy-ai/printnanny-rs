@@ -73,8 +73,7 @@ pub async fn handle_pi_boot_command(
 
                     nats_client.publish(subject.clone(), req).await?;
                     debug!(
-                        "nats.publish subject={} event_type={:?}",
-                        &subject,
+                        "nats.publish event_type={:?}",
                         models::PiBootStatusType::RebootError
                     );
                 }
@@ -88,6 +87,127 @@ pub async fn handle_pi_boot_command(
     Ok(())
 }
 
+pub fn build_cam_status_payload(
+    cmd: &models::polymorphic_pi_event_request::PiCamCommandRequest,
+    event_type: models::PiCamStatusType,
+    payload: Option<HashMap<String, serde_json::Value>>,
+) -> Result<(String, Bytes)> {
+    // command will be received on pi.$id.<topic>.commands
+    // emit status event to pi.$id.<topic>.commands.$command_id
+    let subject = stringify!(subjects::SUBJECT_STATUS_CAM, pi_id = cmd.pi);
+
+    let request = PolymorphicPiEventRequest::PiCamStatusRequest(
+        models::polymorphic_pi_event_request::PiCamStatusRequest {
+            payload,
+            event_type,
+            pi: cmd.pi,
+        },
+    );
+    let b = build_status_payload(&request)?;
+
+    Ok((subject.to_string(), b))
+}
+
+pub async fn handle_pi_cam_command(
+    cmd: models::polymorphic_pi_event_request::PiCamCommandRequest,
+    nats_client: &async_nats::Client,
+) -> Result<()> {
+    match cmd.event_type {
+        models::PiCamCommandType::CamStart => {
+            // publish CamStarted event
+            let (subject, req) =
+                build_cam_status_payload(&cmd, models::PiCamStatusType::CamStarted, None)?;
+            nats_client.publish(subject.clone(), req).await?;
+            debug!(
+                "nats.publish event_type={:?}",
+                models::PiCamStatusType::CamStarted
+            );
+            let output = Command::new("systemctl restart printnanny-cam")
+                .output()
+                .await?;
+            match output.status.success() {
+                // publish CamStartedSuccess event
+                true => {
+                    let (subject, req) = build_cam_status_payload(
+                        &cmd,
+                        models::PiCamStatusType::CamStartSuccess,
+                        None,
+                    )?;
+                    nats_client.publish(subject.clone(), req).await?;
+                }
+                false => {
+                    // publish RebootError
+                    let mut payload: HashMap<String, serde_json::Value> = HashMap::new();
+                    payload.insert(
+                        "exit_code".to_string(),
+                        serde_json::to_value(output.status.code())?,
+                    );
+                    payload.insert(
+                        "stdout".to_string(),
+                        serde_json::Value::String(String::from_utf8(output.stdout)?),
+                    );
+                    payload.insert(
+                        "stderr".to_string(),
+                        serde_json::Value::String(String::from_utf8(output.stderr)?),
+                    );
+                    let (subject, req) = build_cam_status_payload(
+                        &cmd,
+                        models::PiCamStatusType::CamError,
+                        Some(payload),
+                    )?;
+
+                    nats_client.publish(subject.clone(), req).await?;
+                    debug!(
+                        "nats.publish event_type={:?}",
+                        models::PiCamStatusType::CamError,
+                    );
+                }
+            }
+        }
+        models::PiCamCommandType::CamStop => {
+            let output = Command::new("systemctl stop printnanny-cam")
+                .output()
+                .await?;
+            match output.status.success() {
+                // publish CamStartedSuccess event
+                true => {
+                    let (subject, req) =
+                        build_cam_status_payload(&cmd, models::PiCamStatusType::CamStopped, None)?;
+                    nats_client.publish(subject.clone(), req).await?;
+                }
+                false => {
+                    // publish RebootError
+                    let mut payload: HashMap<String, serde_json::Value> = HashMap::new();
+                    payload.insert(
+                        "exit_code".to_string(),
+                        serde_json::to_value(output.status.code())?,
+                    );
+                    payload.insert(
+                        "stdout".to_string(),
+                        serde_json::Value::String(String::from_utf8(output.stdout)?),
+                    );
+                    payload.insert(
+                        "stderr".to_string(),
+                        serde_json::Value::String(String::from_utf8(output.stderr)?),
+                    );
+                    let (subject, req) = build_cam_status_payload(
+                        &cmd,
+                        models::PiCamStatusType::CamError,
+                        Some(payload),
+                    )?;
+
+                    nats_client.publish(subject.clone(), req).await?;
+                    debug!(
+                        "nats.publish event_type={:?}",
+                        models::PiCamStatusType::CamError,
+                    );
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 pub async fn handle_incoming(
     msg: PolymorphicPiEventRequest,
     nats_client: &async_nats::Client,
@@ -95,6 +215,9 @@ pub async fn handle_incoming(
     match msg {
         PolymorphicPiEventRequest::PiBootCommandRequest(command) => {
             handle_pi_boot_command(command, nats_client).await?;
+        }
+        PolymorphicPiEventRequest::PiCamCommandRequest(command) => {
+            handle_pi_cam_command(command, nats_client).await?;
         }
         _ => warn!("No handler configured for msg={:?}", msg),
     };
