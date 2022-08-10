@@ -3,10 +3,9 @@ use async_process::Command;
 use bytes::Bytes;
 use log::{debug, warn};
 use printnanny_api_client::models::{self, PolymorphicPiEventRequest};
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::format};
 
-use crate::util::to_nats_publish_subject;
-
+use crate::subjects;
 pub fn build_status_payload(request: &PolymorphicPiEventRequest) -> Result<Bytes> {
     Ok(serde_json::ser::to_vec(request)?.into())
 }
@@ -18,7 +17,8 @@ pub fn build_boot_status_payload(
 ) -> Result<(String, Bytes)> {
     // command will be received on pi.$id.<topic>.commands
     // emit status event to pi.$id.<topic>.commands.$command_id
-    let subject = to_nats_publish_subject(&cmd.pi, "boot", &event_type.to_string());
+    let subject = stringify!(subjects::SUBJECT_STATUS_BOOT, pi_id = cmd.pi);
+
     let request = PolymorphicPiEventRequest::PiBootStatusRequest(
         models::polymorphic_pi_event_request::PiBootStatusRequest {
             payload,
@@ -28,7 +28,7 @@ pub fn build_boot_status_payload(
     );
     let b = build_status_payload(&request)?;
 
-    Ok((subject, b))
+    Ok((subject.to_string(), b))
 }
 
 pub async fn handle_pi_boot_command(

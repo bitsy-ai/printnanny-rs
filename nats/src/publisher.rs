@@ -139,7 +139,7 @@ impl EventPublisher {
                     .get_one::<models::PiBootCommandType>("event_type")
                     .expect("Invalid event_type");
                 (
-                    format!("pi.{pi_id}.command.boot", pi_id = pi_id),
+                    stringify!(subjects::SUBJECT_COMMAND_BOOT, pi_id = pi_id).to_string(),
                     PolymorphicPiEventRequest::PiBootCommandRequest(
                         models::polymorphic_pi_event_request::PiBootCommandRequest {
                             event_type: *event_type,
@@ -155,7 +155,7 @@ impl EventPublisher {
                     .get_one::<models::PiCamCommandType>("event_type")
                     .expect("Invalid event_type");
                 (
-                    format!("pi.{pi_id}.command.boot", pi_id = pi_id),
+                    stringify!(subjects::SUBJECT_COMMAND_CAM, pi_id = pi_id).to_string(),
                     PolymorphicPiEventRequest::PiCamCommandRequest(
                         models::polymorphic_pi_event_request::PiCamCommandRequest {
                             event_type: *event_type,
@@ -175,7 +175,7 @@ impl EventPublisher {
                     .get_one::<models::PiSoftwareUpdateCommandType>("event_type")
                     .expect("Invalid event_type");
                 (
-                    format!("pi.{pi_id}.command.boot", pi_id = pi_id),
+                    stringify!(subjects::SUBJECT_COMMAND_SWUPDATE, pi_id = pi_id).to_string(),
                     PolymorphicPiEventRequest::PiSoftwareUpdateCommandRequest(
                         models::polymorphic_pi_event_request::PiSoftwareUpdateCommandRequest {
                             version: version.to_string(),
@@ -192,7 +192,7 @@ impl EventPublisher {
                     .get_one::<models::PiBootStatusType>("event_type")
                     .expect("Invalid event_type");
                 (
-                    format!("pi.{pi_id}.command.boot", pi_id = pi_id),
+                    stringify!(subjects::SUBJECT_STATUS_BOOT, pi_id = pi_id).to_string(),
                     PolymorphicPiEventRequest::PiBootStatusRequest(
                         models::polymorphic_pi_event_request::PiBootStatusRequest {
                             event_type: *event_type,
@@ -208,7 +208,7 @@ impl EventPublisher {
                     .get_one::<models::PiCamStatusType>("event_type")
                     .expect("Invalid event_type");
                 (
-                    format!("pi.{pi_id}.command.boot", pi_id = pi_id),
+                    stringify!(subjects::SUBJECT_STATUS_CAM, pi_id = pi_id).to_string(),
                     PolymorphicPiEventRequest::PiCamStatusRequest(
                         models::polymorphic_pi_event_request::PiCamStatusRequest {
                             event_type: *event_type,
@@ -228,7 +228,7 @@ impl EventPublisher {
                     .get_one::<models::PiSoftwareUpdateStatusType>("event_type")
                     .expect("Invalid event_type");
                 (
-                    format!("pi.{pi_id}.command.boot", pi_id = pi_id),
+                    stringify!(subjects::SUBJECT_STATUS_SWUPDATE, pi_id = pi_id).to_string(),
                     PolymorphicPiEventRequest::PiSoftwareUpdateStatusRequest(
                         models::polymorphic_pi_event_request::PiSoftwareUpdateStatusRequest {
                             version: version.to_string(),

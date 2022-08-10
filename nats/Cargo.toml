@@ -16,7 +16,6 @@ name = "nats-worker"
 [dependencies]
 async-process = "1.4.0"
 bytes = "1.2"
-convert_case = "0.5.0"
 anyhow = "1"
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
 async-nats = "0.17.0"
