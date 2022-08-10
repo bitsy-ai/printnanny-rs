@@ -23,6 +23,13 @@ use printnanny_gst::cam;
 
 const GIT_VERSION: &str = git_version!();
 
+#[derive(Clone, clap::ValueEnum, Debug, PartialEq, Serialize, Deserialize)]
+pub enum EventCategory {
+    Command,
+    Status,
+}
+
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let mut builder = Builder::new();
@@ -46,7 +53,7 @@ async fn main() -> Result<()> {
             .about("PrintNanny device dashboard and system status")
             .version(GIT_VERSION))
 
-        // janusadmin
+        // janus-admin
         .subcommand(Command::new("janus-admin")
             .author(crate_authors!())
             .about("Interact with Janus admin/monitoring APIs")
@@ -70,7 +77,7 @@ async fn main() -> Result<()> {
                 .help("Commaseparated list of plugins used to scope token access.")
                 .default_value("janus.plugin.echotest,janus.plugin.streaming")
                     ))
-        // config
+        // config get|set|init|sync|show
         .subcommand(Command::new("config")
             .author(crate_authors!())
             .about(crate_description!())
@@ -139,16 +146,20 @@ async fn main() -> Result<()> {
                 .version(GIT_VERSION)
                 .about("Synchronize device with PrintNanny Cloud")
             ))
-        // nats <subscribe|publish>
-        .subcommand(Command::new("event")
-            .author(crate_authors!())
-            .about(crate_description!())
-            .version(GIT_VERSION)
-            .about("Interact with PrintNanny async events/commands API")
-            // .subcommand_required(true)
-            .subcommand(printnanny_nats::worker::Worker::clap_command())
-            .subcommand(printnanny_nats::events::EventPublisher::clap_command())
-        )
+        // nats-worker
+        .subcommand(printnanny_nats::worker::Worker::clap_command())
+
+        // .subcommand(Command::new("nats-publish"))
+
+        // nats-publish 
+        // .author(crate_authors!())
+            // .about(crate_description!())
+            // .version(GIT_VERSION)
+            // .about("Interact with PrintNanny async events/commands API")
+            // // .subcommand_required(true)
+            // .subcommand(printnanny_nats::worker::Worker::clap_command())
+            // .subcommand(printnanny_nats::events::EventPublisher::clap_command())
+        
         // os <issue|motd>
         .subcommand(Command::new("os")
             .author(crate_authors!())
@@ -203,20 +214,20 @@ async fn main() -> Result<()> {
             .launch()
             .await?;
         },
-        Some(("event", sub_m)) => {
-            match sub_m.subcommand() {
-                Some(("worker", args)) => {
-                    let app = printnanny_nats::worker::Worker::new(args).await?;
-                    app.run().await?;
-                }
-                Some(("create", args)) => {
+        // Some(("event", sub_m)) => {
+        //     match sub_m.subcommand() {
+        //         Some(("worker", args)) => {
+        //             let app = printnanny_nats::worker::Worker::new(args).await?;
+        //             app.run().await?;
+        //         }
+        //         Some(("create", args)) => {
 
-                    let app = printnanny_nats::events::EventPublisher::new(args)?;
-                    app.run().await?;
-                },
-                _ => panic!("Expected worker|create subcommand")
-            }
-        },
+        //             let app = printnanny_nats::events::EventPublisher::new(args)?;
+        //             app.run().await?;
+        //         },
+        //         _ => panic!("Expected worker|create subcommand")
+        //     }
+        // },
         Some(("cam", subm)) => {
             let app = cam::PrintNannyCam::new(&subm);
             app.run()?;

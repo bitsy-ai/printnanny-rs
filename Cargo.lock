@@ -2647,9 +2647,9 @@ checksum = "c6fa0831dd7cc608c38a5e323422a0077678fa5744aa2be4ad91c4ece8eec8d5"
 
 [[package]]
 name = "printnanny-api-client"
-version = "0.100.1"
+version = "0.100.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa45d976c2e34cfd0819c53eb32633adf4eb461a0d4bceb5ae7f78007d758ab0"
+checksum = "fbfdfd21b3be07601a4bfa92d583e3d5a1d08b0736ca9f11933452ebdc40bf17"
 dependencies = [
  "bytes",
  "clap",
@@ -2675,7 +2675,6 @@ dependencies = [
  "printnanny-api-client",
  "printnanny-dash",
  "printnanny-gst",
- "printnanny-nats",
  "printnanny-services",
  "rocket",
  "rocket_dyn_templates",
@@ -2739,6 +2738,7 @@ dependencies = [
  "serde 1.0.137",
  "serde_bytes",
  "serde_json",
+ "serde_variant",
  "test-log",
  "thiserror",
  "tokio",
@@ -3469,6 +3469,15 @@ dependencies = [
  "form_urlencoded",
  "itoa",
  "ryu",
+ "serde 1.0.137",
+]
+
+[[package]]
+name = "serde_variant"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f988d71f968b960b45cf71e3210662f0b23906256c87820077e4f101225c494"
+dependencies = [
  "serde 1.0.137",
 ]
 

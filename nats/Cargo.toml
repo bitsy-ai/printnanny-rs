@@ -7,6 +7,9 @@ authors = ["Leigh Johnson <leigh@bitsy.ai>"]
 edition = "2021"
 rust-version = "1.59"
 
+[[bin]]
+name = "nats-publisher"
+
 [dependencies]
 async-process = "1.4.0"
 bytes = "1.2"
@@ -17,9 +20,10 @@ async-nats = "0.17.0"
 env_logger = "0.9"
 futures = "0.3"
 printnanny-services = {path = "../services", version = "^0.25.0"}
-printnanny-api-client = "0.100.1"
+printnanny-api-client = "0.100.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_variant = "0.1.1"
 serde_bytes = "0.11"
 tokio = "1.20"
 tokio-serde = { version="0.8", features = ["json"] }
