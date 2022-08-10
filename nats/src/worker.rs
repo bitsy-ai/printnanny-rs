@@ -49,8 +49,8 @@ impl NatsWorker {
                 }
                 Err(e) => {
                     error!(
-                        "Failed to deserialize PolymorphicPiEventRequest from {}",
-                        &s
+                        "Failed to deserialize PolymorphicPiEventRequest from {} with error {}",
+                        &s, e
                     );
                 }
             };
@@ -111,7 +111,7 @@ impl NatsWorker {
         app
     }
 
-    pub async fn new(args: &ArgMatches) -> Result<Self> {
+    pub async fn new(_args: &ArgMatches) -> Result<Self> {
         let config = PrintNannyConfig::new()?;
         // ensure pi, nats_app, nats_creds are provided
         config.try_check_license()?;

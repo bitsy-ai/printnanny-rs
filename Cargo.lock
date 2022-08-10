@@ -2675,6 +2675,7 @@ dependencies = [
  "printnanny-api-client",
  "printnanny-dash",
  "printnanny-gst",
+ "printnanny-nats",
  "printnanny-services",
  "rocket",
  "rocket_dyn_templates",

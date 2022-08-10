@@ -140,19 +140,10 @@ async fn main() -> Result<()> {
                 .about("Synchronize device with PrintNanny Cloud")
             ))
         // nats-worker
-        // .subcommand(printnanny_nats::worker::Worker::clap_command())
+        .subcommand(printnanny_nats::worker::NatsWorker::clap_command())
 
-        // .subcommand(Command::new("nats-publish"))
-
-        // nats-publish 
-        // .author(crate_authors!())
-            // .about(crate_description!())
-            // .version(GIT_VERSION)
-            // .about("Interact with PrintNanny async events/commands API")
-            // // .subcommand_required(true)
-            // .subcommand(printnanny_nats::worker::Worker::clap_command())
-            // .subcommand(printnanny_nats::events::EventPublisher::clap_command())
-        
+        // nats-publisher
+        .subcommand(printnanny_nats::publisher::EventPublisher::clap_command())
         // os <issue|motd>
         .subcommand(Command::new("os")
             .author(crate_authors!())
