@@ -198,20 +198,15 @@ async fn main() -> Result<()> {
             .launch()
             .await?;
         },
-        // Some(("event", sub_m)) => {
-        //     match sub_m.subcommand() {
-        //         Some(("worker", args)) => {
-        //             let app = printnanny_nats::worker::Worker::new(args).await?;
-        //             app.run().await?;
-        //         }
-        //         Some(("create", args)) => {
+        Some(("nats-publisher", sub_m)) => {
+            let app = printnanny_nats::publisher::EventPublisher::new(sub_m)?;
+            app.run().await?;
+        },
 
-        //             let app = printnanny_nats::events::EventPublisher::new(args)?;
-        //             app.run().await?;
-        //         },
-        //         _ => panic!("Expected worker|create subcommand")
-        //     }
-        // },
+        Some(("nats-worker", sub_m)) => {
+            let app = printnanny_nats::worker::NatsWorker::new(sub_m).await?;
+            app.run().await?;
+        },
         Some(("cam", subm)) => {
             let app = cam::PrintNannyCam::new(&subm);
             app.run()?;
