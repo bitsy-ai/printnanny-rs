@@ -1,29 +1,26 @@
 use anyhow::Result;
 use async_process::Command;
 use bytes::Bytes;
-use clap::ArgMatches;
 use log::{debug, warn};
 use printnanny_api_client::models::{self, PolymorphicPiEventRequest};
-use printnanny_services::config::PrintNannyConfig;
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::format};
 
-use crate::util::to_nats_publish_subject;
-
+use crate::subjects;
 pub fn build_status_payload(request: &PolymorphicPiEventRequest) -> Result<Bytes> {
     Ok(serde_json::ser::to_vec(request)?.into())
 }
 
 pub fn build_boot_status_payload(
-    cmd: &models::polymorphic_pi_event_request::PiBootEventRequest,
-    event_type: models::PiBootEventType,
+    cmd: &models::polymorphic_pi_event_request::PiBootCommandRequest,
+    event_type: models::PiBootStatusType,
     payload: Option<HashMap<String, serde_json::Value>>,
 ) -> Result<(String, Bytes)> {
     // command will be received on pi.$id.<topic>.commands
     // emit status event to pi.$id.<topic>.commands.$command_id
-    let subject = to_nats_publish_subject(&cmd.pi, "boot", &event_type.to_string());
-    let request = PolymorphicPiEventRequest::PiBootEventRequest(
-        models::polymorphic_pi_event_request::PiBootEventRequest {
-            subject: subject.clone(),
+    let subject = stringify!(subjects::SUBJECT_STATUS_BOOT, pi_id = cmd.pi);
+
+    let request = PolymorphicPiEventRequest::PiBootStatusRequest(
+        models::polymorphic_pi_event_request::PiBootStatusRequest {
             payload,
             event_type,
             pi: cmd.pi,
@@ -31,24 +28,23 @@ pub fn build_boot_status_payload(
     );
     let b = build_status_payload(&request)?;
 
-    Ok((subject, b))
+    Ok((subject.to_string(), b))
 }
 
 pub async fn handle_pi_boot_command(
-    cmd: models::polymorphic_pi_event_request::PiBootEventRequest,
+    cmd: models::polymorphic_pi_event_request::PiBootCommandRequest,
     nats_client: &async_nats::Client,
 ) -> Result<()> {
     match cmd.event_type {
-        models::PiBootEventType::RebootCommand => {
+        models::PiBootCommandType::Reboot => {
             // publish RebootStarted event
 
             let (subject, req) =
-                build_boot_status_payload(&cmd, models::PiBootEventType::RebootStarted, None)?;
+                build_boot_status_payload(&cmd, models::PiBootStatusType::RebootStarted, None)?;
             nats_client.publish(subject.clone(), req).await?;
             debug!(
-                "nats.publish subject={} event_type={:?}",
-                &subject,
-                models::PiBootEventType::RebootStarted
+                "nats.publish event_type={:?}",
+                models::PiBootStatusType::RebootStarted
             );
             let output = Command::new("reboot").output().await?;
             match output.status.success() {
@@ -71,7 +67,7 @@ pub async fn handle_pi_boot_command(
                     );
                     let (subject, req) = build_boot_status_payload(
                         &cmd,
-                        models::PiBootEventType::RebootError,
+                        models::PiBootStatusType::RebootError,
                         Some(payload),
                     )?;
 
@@ -79,12 +75,12 @@ pub async fn handle_pi_boot_command(
                     debug!(
                         "nats.publish subject={} event_type={:?}",
                         &subject,
-                        models::PiBootEventType::RebootError
+                        models::PiBootStatusType::RebootError
                     );
                 }
             }
         }
-        models::PiBootEventType::ShutdownCommand => {
+        models::PiBootCommandType::Shutdown => {
             Command::new("shutdown").output().await?;
         }
         _ => warn!("No handler configured for msg={:?}", &cmd),
@@ -92,32 +88,14 @@ pub async fn handle_pi_boot_command(
     Ok(())
 }
 
-// pub async fn handle_pi_gstreamer_command(cmd: models::polymorphic_pi_event::PiGstreamerCommand, nats_client: &async_nats::Client) -> Result<()>{
-//     match cmd.event_type {
-//         models::PiGstreamerCommandType::Start => {
-
-//             let output = Command::new("systemctl").args(&["start", "printnanny-cam"]).output().await?;
-
-//             match output.status.success() {
-//                 true => {
-//                 }
-//             }
-//         },
-//         models::PiGstreamerCommandType::Stop => {
-//             Command::new("systemctl").args(&["stop", "printnanny-cam"]).await?
-//         }
-//     }
-// }
-
 pub async fn handle_incoming(
     msg: PolymorphicPiEventRequest,
     nats_client: &async_nats::Client,
 ) -> Result<()> {
     match msg {
-        PolymorphicPiEventRequest::PiBootEventRequest(command) => {
+        PolymorphicPiEventRequest::PiBootCommandRequest(command) => {
             handle_pi_boot_command(command, nats_client).await?;
         }
-        // models::PolymorphicPiEvent::PiGstreamerCommand(command) => handle_pi_gstreamer_command(command, nats_client).await?
         _ => warn!("No handler configured for msg={:?}", msg),
     };
 

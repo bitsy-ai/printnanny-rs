@@ -11,18 +11,19 @@ use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
 use printnanny_services::config::PrintNannyConfig;
 
+// use crate::commands;
 use crate::commands;
 use crate::util::to_nats_command_subscribe_subject;
 
 #[derive(Debug, Clone)]
-pub struct Worker {
+pub struct NatsWorker {
     socket: PathBuf,
     nats_client: async_nats::Client,
     subscribe_subject: String,
 }
 
 // Relays NatsJsonEvent published to Unix socket to NATS
-impl Worker {
+impl NatsWorker {
     pub async fn subscribe_nats_subject(&self) -> Result<()> {
         info!(
             "Subscribing to subect {} with nats client {:?}",
@@ -39,10 +40,20 @@ impl Worker {
             let mut s = String::new();
             debug!("init String");
             message.payload.reader().read_to_string(&mut s)?;
-            debug!("read message.payload to String {}", &s);
-            let payload = serde_json::from_str::<PolymorphicPiEventRequest>(&s)?;
-            debug!("Deserialized PolymorphicPiEvent: {:?}", payload);
-            commands::handle_incoming(payload, &self.nats_client).await?;
+            debug!("read message.payload to String");
+            let payload = serde_json::from_str(&s);
+            match payload {
+                Ok(event) => {
+                    debug!("Deserialized PolymorphicPiEvent: {:?}", event);
+                    commands::handle_incoming(event, &self.nats_client).await?;
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to deserialize PolymorphicPiEventRequest from {} with error {}",
+                        &s, e
+                    );
+                }
+            };
         }
         Ok(())
     }
@@ -93,14 +104,14 @@ impl Worker {
     }
 
     pub fn clap_command() -> Command<'static> {
-        let app_name = "worker";
+        let app_name = "nats-worker";
         let app = Command::new(app_name)
             .author(crate_authors!())
             .about("Run NATS-based pub/sub workers");
         app
     }
 
-    pub async fn new(args: &ArgMatches) -> Result<Self> {
+    pub async fn new(_args: &ArgMatches) -> Result<Self> {
         let config = PrintNannyConfig::new()?;
         // ensure pi, nats_app, nats_creds are provided
         config.try_check_license()?;

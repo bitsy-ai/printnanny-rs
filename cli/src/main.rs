@@ -46,7 +46,7 @@ async fn main() -> Result<()> {
             .about("PrintNanny device dashboard and system status")
             .version(GIT_VERSION))
 
-        // janusadmin
+        // janus-admin
         .subcommand(Command::new("janus-admin")
             .author(crate_authors!())
             .about("Interact with Janus admin/monitoring APIs")
@@ -70,7 +70,7 @@ async fn main() -> Result<()> {
                 .help("Commaseparated list of plugins used to scope token access.")
                 .default_value("janus.plugin.echotest,janus.plugin.streaming")
                     ))
-        // config
+        // config get|set|init|sync|show
         .subcommand(Command::new("config")
             .author(crate_authors!())
             .about(crate_description!())
@@ -139,16 +139,11 @@ async fn main() -> Result<()> {
                 .version(GIT_VERSION)
                 .about("Synchronize device with PrintNanny Cloud")
             ))
-        // nats <subscribe|publish>
-        .subcommand(Command::new("event")
-            .author(crate_authors!())
-            .about(crate_description!())
-            .version(GIT_VERSION)
-            .about("Interact with PrintNanny async events/commands API")
-            // .subcommand_required(true)
-            .subcommand(printnanny_nats::worker::Worker::clap_command())
-            .subcommand(printnanny_nats::events::EventPublisher::clap_command())
-        )
+        // nats-worker
+        .subcommand(printnanny_nats::worker::NatsWorker::clap_command())
+
+        // nats-publisher
+        .subcommand(printnanny_nats::publisher::EventPublisher::clap_command())
         // os <issue|motd>
         .subcommand(Command::new("os")
             .author(crate_authors!())
@@ -203,19 +198,14 @@ async fn main() -> Result<()> {
             .launch()
             .await?;
         },
-        Some(("event", sub_m)) => {
-            match sub_m.subcommand() {
-                Some(("worker", args)) => {
-                    let app = printnanny_nats::worker::Worker::new(args).await?;
-                    app.run().await?;
-                }
-                Some(("create", args)) => {
+        Some(("nats-publisher", sub_m)) => {
+            let app = printnanny_nats::publisher::EventPublisher::new(sub_m)?;
+            app.run().await?;
+        },
 
-                    let app = printnanny_nats::events::EventPublisher::new(args)?;
-                    app.run().await?;
-                },
-                _ => panic!("Expected worker|create subcommand")
-            }
+        Some(("nats-worker", sub_m)) => {
+            let app = printnanny_nats::worker::NatsWorker::new(sub_m).await?;
+            app.run().await?;
         },
         Some(("cam", subm)) => {
             let app = cam::PrintNannyCam::new(&subm);

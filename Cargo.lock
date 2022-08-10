@@ -567,12 +567,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
-name = "convert_case"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb4a24b1aaf0fd0ce8b45161144d6f42cd91677fd5940fd431183eb023b3a2b8"
-
-[[package]]
 name = "cookie"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -722,7 +716,7 @@ version = "0.99.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4fb810d30a7c1953f91334de7244731fc3f3c10d7fe163338a35b9f640960321"
 dependencies = [
- "convert_case 0.4.0",
+ "convert_case",
  "proc-macro2",
  "quote",
  "rustc_version",
@@ -2647,9 +2641,9 @@ checksum = "c6fa0831dd7cc608c38a5e323422a0077678fa5744aa2be4ad91c4ece8eec8d5"
 
 [[package]]
 name = "printnanny-api-client"
-version = "0.100.0"
+version = "0.100.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1e7a47dd93b57e1bf3b78435e19b35df596fdec9398054da5cfa5a78368c91c"
+checksum = "fbfdfd21b3be07601a4bfa92d583e3d5a1d08b0736ca9f11933452ebdc40bf17"
 dependencies = [
  "bytes",
  "clap",
@@ -2730,15 +2724,16 @@ dependencies = [
  "async-process",
  "bytes",
  "clap",
- "convert_case 0.5.0",
  "env_logger",
  "futures",
  "log",
  "printnanny-api-client",
  "printnanny-services",
  "serde 1.0.137",
+ "serde-reflection",
  "serde_bytes",
  "serde_json",
+ "serde_variant",
  "test-log",
  "thiserror",
  "tokio",
@@ -3410,6 +3405,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-reflection"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f05a5f801ac62a51a49d378fdb3884480041b99aced450b28990673e8ff99895"
+dependencies = [
+ "once_cell",
+ "serde 1.0.137",
+ "thiserror",
+]
+
+[[package]]
 name = "serde_bytes"
 version = "0.11.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3469,6 +3475,15 @@ dependencies = [
  "form_urlencoded",
  "itoa",
  "ryu",
+ "serde 1.0.137",
+]
+
+[[package]]
+name = "serde_variant"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f988d71f968b960b45cf71e3210662f0b23906256c87820077e4f101225c494"
+dependencies = [
  "serde 1.0.137",
 ]
 

@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod error;
-pub mod events;
+pub mod publisher;
+pub mod subjects;
 pub mod util;
 pub mod worker;

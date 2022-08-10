@@ -165,6 +165,7 @@ impl PrintNannyPaths {
                 error: error,
             }),
         }?;
+        info!("Unpacking seed zip {:?}", file);
         let mut archive = ZipArchive::new(file)?;
 
         // filenames configured in creds_bundle here: https://github.com/bitsy-ai/printnanny-webapp/blob/d33b99ede33f02b0282c006d5549ae6f76866da5/print_nanny_webapp/devices/services.py#L233
@@ -208,7 +209,7 @@ impl PrintNannyPaths {
                     error,
                 }),
             }?;
-            info!("Wrote {:?}", dest);
+            info!("Wrote seed file {:?}", dest);
         }
         Ok(results)
     }
