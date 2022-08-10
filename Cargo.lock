@@ -2736,6 +2736,7 @@ dependencies = [
  "printnanny-api-client",
  "printnanny-services",
  "serde 1.0.137",
+ "serde-reflection",
  "serde_bytes",
  "serde_json",
  "serde_variant",
@@ -3407,6 +3408,17 @@ dependencies = [
  "num-traits 0.1.43",
  "regex",
  "serde 0.8.23",
+]
+
+[[package]]
+name = "serde-reflection"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f05a5f801ac62a51a49d378fdb3884480041b99aced450b28990673e8ff99895"
+dependencies = [
+ "once_cell",
+ "serde 1.0.137",
+ "thiserror",
 ]
 
 [[package]]

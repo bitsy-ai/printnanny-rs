@@ -15,7 +15,7 @@ pub fn to_nats_publish_subject(pi_id: &i32, prefix: &str, event_type: &str) -> S
 
 // subscribe to commands with any subject prefix
 pub fn to_nats_command_subscribe_subject(pi_id: &i32) -> String {
-    return format!("pi.{}.*.*.command", pi_id);
+    return format!("pi.{}.command.>", pi_id);
 }
 
 #[cfg(test)]

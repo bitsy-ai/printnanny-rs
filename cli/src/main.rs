@@ -23,13 +23,6 @@ use printnanny_gst::cam;
 
 const GIT_VERSION: &str = git_version!();
 
-#[derive(Clone, clap::ValueEnum, Debug, PartialEq, Serialize, Deserialize)]
-pub enum EventCategory {
-    Command,
-    Status,
-}
-
-
 #[tokio::main]
 async fn main() -> Result<()> {
     let mut builder = Builder::new();
@@ -147,7 +140,7 @@ async fn main() -> Result<()> {
                 .about("Synchronize device with PrintNanny Cloud")
             ))
         // nats-worker
-        .subcommand(printnanny_nats::worker::Worker::clap_command())
+        // .subcommand(printnanny_nats::worker::Worker::clap_command())
 
         // .subcommand(Command::new("nats-publish"))
 
