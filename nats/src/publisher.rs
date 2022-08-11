@@ -30,56 +30,69 @@ impl EventPublisher {
     }
     pub fn clap_command() -> Command<'static> {
         let app_name = "nats-publisher";
-        let app = Command::new(app_name)
-            .author(crate_authors!())
-            .about("Issue command via NATs")
-            .arg_required_else_help(true)
-            .arg(Arg::new("topic").required(true).value_parser(
-                clap::builder::PossibleValuesParser::new([
-                    subjects::SUBJECT_COMMAND_BOOT,
-                    subjects::SUBJECT_STATUS_BOOT,
-                    subjects::SUBJECT_COMMAND_CAM,
-                    subjects::SUBJECT_STATUS_CAM,
-                    subjects::SUBJECT_COMMAND_SWUPDATE,
-                    subjects::SUBJECT_STATUS_SWUPDATE,
-                ]),
-            ))
-            .arg(
-                Arg::new(subjects::SUBJECT_COMMAND_BOOT)
-                    .required_if_eq("topic", subjects::SUBJECT_COMMAND_BOOT)
-                    .value_parser(value_parser!(models::PiBootCommandType))
-                    .group("event_type"),
-            )
-            .arg(
-                Arg::new(subjects::SUBJECT_STATUS_BOOT)
-                    .required_if_eq("topic", subjects::SUBJECT_STATUS_BOOT)
-                    .value_parser(value_parser!(models::PiBootStatusType))
-                    .group("event_type"),
-            )
-            .arg(
-                Arg::new(subjects::SUBJECT_COMMAND_CAM)
-                    .required_if_eq("topic", subjects::SUBJECT_COMMAND_CAM)
-                    .value_parser(value_parser!(models::PiCamCommandType))
-                    .group("event_type"),
-            )
-            .arg(
-                Arg::new(subjects::SUBJECT_STATUS_CAM)
-                    .required_if_eq("topic", subjects::SUBJECT_STATUS_CAM)
-                    .value_parser(value_parser!(models::PiCamStatusType))
-                    .group("event_type"),
-            )
-            .arg(
-                Arg::new(subjects::SUBJECT_COMMAND_SWUPDATE)
-                    .required_if_eq("topic", subjects::SUBJECT_COMMAND_SWUPDATE)
-                    .value_parser(value_parser!(models::PiSoftwareUpdateCommandType))
-                    .group("event_type"),
-            )
-            .arg(
-                Arg::new(subjects::SUBJECT_STATUS_SWUPDATE)
-                    .required_if_eq("topic", subjects::SUBJECT_STATUS_SWUPDATE)
-                    .value_parser(value_parser!(models::PiSoftwareUpdateStatusType))
-                    .group("event_type"),
-            );
+        let app =
+            Command::new(app_name)
+                .author(crate_authors!())
+                .about("Issue command via NATs")
+                .arg_required_else_help(true)
+                .arg(Arg::new("topic").required(true).value_parser(
+                    clap::builder::PossibleValuesParser::new([
+                        subjects::SUBJECT_COMMAND_BOOT,
+                        subjects::SUBJECT_STATUS_BOOT,
+                        subjects::SUBJECT_COMMAND_CAM,
+                        subjects::SUBJECT_STATUS_CAM,
+                        subjects::SUBJECT_COMMAND_SWUPDATE,
+                        subjects::SUBJECT_STATUS_SWUPDATE,
+                    ]),
+                ))
+                .subcommand(Command::new(subjects::SUBJECT_COMMAND_BOOT).arg(
+                    Arg::new("event_type").value_parser(value_parser!(models::PiBootCommandType)),
+                ))
+                .subcommand(Command::new(subjects::SUBJECT_STATUS_BOOT).arg(
+                    Arg::new("event_type").value_parser(value_parser!(models::PiBootStatusType)),
+                ))
+                .subcommand(Command::new(subjects::SUBJECT_COMMAND_CAM).arg(
+                    Arg::new("event_type").value_parser(value_parser!(models::PiCamCommandType)),
+                ))
+                .subcommand(Command::new(subjects::SUBJECT_STATUS_CAM).arg(
+                    Arg::new("event_type").value_parser(value_parser!(models::PiCamStatusType)),
+                ))
+                .subcommand(
+                    Command::new(subjects::SUBJECT_COMMAND_SWUPDATE)
+                        .arg(
+                            Arg::new("event_type")
+                                .value_parser(value_parser!(models::PiSoftwareUpdateCommandType)),
+                        )
+                        .arg(
+                            Arg::new("wic_tarball_url")
+                                .long("--wic-tarball-url")
+                                .required(true),
+                        )
+                        .arg(
+                            Arg::new("wic_bmap_url")
+                                .long("--wic-bmap-url")
+                                .required(true),
+                        )
+                        .arg(
+                            Arg::new("manifest_url")
+                                .long("--manifest-url")
+                                .required(true),
+                        )
+                        .arg(Arg::new("swu_url").long("--swu-url").required(true))
+                        .arg(Arg::new("version_id").long("--version-id").required(true))
+                        .arg(Arg::new("version").long("--version").required(true))
+                        .arg(
+                            Arg::new("version_codename")
+                                .long("--version-codename")
+                                .required(true),
+                        ),
+                )
+                .subcommand(
+                    Command::new(subjects::SUBJECT_STATUS_SWUPDATE).arg(
+                        Arg::new("event_type")
+                            .value_parser(value_parser!(models::PiSoftwareUpdateStatusType)),
+                    ),
+                );
         app
     }
 
@@ -169,19 +182,63 @@ impl EventPublisher {
                 let version = self
                     .args
                     .get_one::<String>("version")
-                    .expect("version is required");
+                    .expect("version is required")
+                    .to_string();
                 let event_type = self
                     .args
                     .get_one::<models::PiSoftwareUpdateCommandType>("event_type")
                     .expect("Invalid event_type");
+
+                let wic_tarball_url = self
+                    .args
+                    .get_one::<String>("wic_tarball_url")
+                    .expect("--wic-tarball-url is required")
+                    .into();
+                let wic_bmap_url = self
+                    .args
+                    .get_one::<String>("wic_bmap_url")
+                    .expect("--wic-bmap-url is required")
+                    .into();
+                let manifest_url = self
+                    .args
+                    .get_one::<String>("manifest_url")
+                    .expect("--manifest-url is required")
+                    .into();
+                let swu_url = self
+                    .args
+                    .get_one::<String>("swu_url")
+                    .expect("--swu-url is required")
+                    .into();
+                let version_id = self
+                    .args
+                    .get_one::<String>("version_id")
+                    .expect("--version-id is required")
+                    .into();
+                let version_codename = self
+                    .args
+                    .get_one::<String>("version_codename")
+                    .expect("--version-codename is required")
+                    .into();
+
+                let payload =
+                    models::pi_software_update_payload_request::PiSoftwareUpdatePayloadRequest {
+                        version: version.clone(),
+                        version_id,
+                        version_codename,
+                        wic_tarball_url,
+                        wic_bmap_url,
+                        manifest_url,
+                        swu_url,
+                    };
+
                 (
                     stringify!(subjects::SUBJECT_COMMAND_SWUPDATE, pi_id = pi_id).to_string(),
                     PolymorphicPiEventRequest::PiSoftwareUpdateCommandRequest(
                         models::polymorphic_pi_event_request::PiSoftwareUpdateCommandRequest {
-                            version: version.to_string(),
+                            version,
                             event_type: *event_type,
                             pi: pi_id,
-                            payload: None,
+                            payload: Box::new(payload),
                         },
                     ),
                 )
