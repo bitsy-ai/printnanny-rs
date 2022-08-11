@@ -58,7 +58,7 @@ impl EventPublisher {
                                 .default_value("json")
                                 .help("Payload format"),
                         )
-                        .arg(Arg::new("payload").long("payload").help("utf-8 encoded JSON payload")),
+                        .arg(Arg::new("payload").long("payload").help("UTF-8 encoded JSON payload")),
                 )
                 .subcommand(
                     Command::new(subjects::SUBJECT_OCTOPRINT_CLIENT)
@@ -72,7 +72,7 @@ impl EventPublisher {
                                 .default_value("json")
                                 .help("Payload format"),
                         )
-                        .arg(Arg::new("payload").long("payload").help("utf-8 encoded JSON payload")),
+                        .arg(Arg::new("payload").long("payload").help("UTF-8 encoded JSON payload")),
                 )
                 .subcommand(
                     Command::new(subjects::SUBJECT_OCTOPRINT_PRINTER_STATUS)
@@ -86,7 +86,7 @@ impl EventPublisher {
                                 .default_value("json")
                                 .help("Payload format"),
                         )
-                        .arg(Arg::new("payload").long("payload").help("utf-8 encoded JSON payload")),
+                        .arg(Arg::new("payload").long("payload").help("UTF-8 encoded JSON payload")),
                 )
                 .subcommand(
                     Command::new(subjects::SUBJECT_OCTOPRINT_PRINT_JOB)
@@ -100,7 +100,7 @@ impl EventPublisher {
                                 .default_value("json")
                                 .help("Payload format"),
                         )
-                        .arg(Arg::new("payload").long("payload").help("utf-8 encoded JSON payload")),
+                        .arg(Arg::new("payload").long("payload").help("UTF-8 encoded JSON payload")),
                 )
                 // end octoprint topics
                 // begin repetier topics
@@ -115,7 +115,7 @@ impl EventPublisher {
                                 .default_value("json")
                                 .help("Payload format"),
                         )
-                        .arg(Arg::new("payload").long("payload").help("utf-8 encoded JSON payload")),
+                        .arg(Arg::new("payload").long("payload").help("UTF-8 encoded JSON payload")),
                 )
                 // end repetier topics
                 // begin moonraker topics
@@ -130,7 +130,7 @@ impl EventPublisher {
                                 .default_value("json")
                                 .help("Payload format"),
                         )
-                        .arg(Arg::new("payload").long("payload").help("utf-8 encoded JSON payload")),
+                        .arg(Arg::new("payload").long("payload").help("UTF-8 encoded JSON payload")),
                 )
                 // end moonraker topics
                 // begin PrintNanny Pi topics
