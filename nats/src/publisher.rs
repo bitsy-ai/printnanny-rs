@@ -1,5 +1,5 @@
 use futures::prelude::*;
-
+use std::collections::HashMap;
 use anyhow::Result;
 use clap::{crate_authors, value_parser, Arg, ArgMatches, Command, ValueEnum};
 use log::debug;
@@ -420,6 +420,7 @@ impl EventPublisher {
 
             }
             // begin octoprint subject handlers
+            // pi.{pi_id}.octoprint.client
             (subjects::SUBJECT_OCTOPRINT_CLIENT, subargs) => {
                 let payload = subargs.get_one::<String>("payload").expect("--payload is required");
                 let payload = serde_json::from_str::<models::OctoPrintClientStatusPayloadRequest>(payload)?;
@@ -441,6 +442,103 @@ impl EventPublisher {
                     PolymorphicOctoPrintEventRequest::OctoPrintClientStatusRequest(
                         models::polymorphic_octo_print_event_request::OctoPrintClientStatusRequest{
                         payload: Box::new(payload),
+                        pi: pi_id,
+                        event_type: *event_type,
+                        octoprint_server
+                    })
+                );
+                self.publish_octoprint_event(&subject, &payload).await
+
+            }
+            // pi.{pi_id}.octoprint.client
+            (subjects::SUBJECT_OCTOPRINT_PRINT_JOB, subargs) => {
+                let payload = subargs.get_one::<String>("payload").expect("--payload is required");
+                let payload = serde_json::from_str::<models::OctoPrintPrintJobPayloadRequest>(payload)?;
+                let octoprint_server = self
+                    .config
+                    .octoprint
+                    .as_ref()
+                    .expect("Failed to readPrintNannyConfig.octoprint")
+                    .server
+                    .as_ref()
+                    .expect("Failed to read PrintNannyConfig.octoprint.server")
+                    .id;
+                let event_type = self
+                    .args
+                    .get_one::<models::OctoPrintPrintJobStatusType>("event_type")
+                    .expect("Invalid event_type");
+                let (subject, payload) = (
+                    stringify!(subjects::SUBJECT_OCTOPRINT_PRINT_JOB, pi_id = pi_id).to_string(), 
+                    PolymorphicOctoPrintEventRequest::OctoPrintPrintJobStatusRequest(
+                        models::polymorphic_octo_print_event_request::OctoPrintPrintJobStatusRequest{
+                        payload: Box::new(payload),
+                        pi: pi_id,
+                        event_type: *event_type,
+                        octoprint_server
+                    })
+                );
+                self.publish_octoprint_event(&subject, &payload).await
+
+            }
+
+            // pi.{pi_id}.octoprint.server
+            (subjects::SUBJECT_OCTOPRINT_SERVER, subargs) => {
+                let payload = subargs.get_one::<String>("payload");
+                let payload = match payload {
+                    Some(data) => Some(serde_json::from_str::<HashMap<String, serde_json::Value>>(data)?),
+                    None => None
+                };
+                let octoprint_server = self
+                    .config
+                    .octoprint
+                    .as_ref()
+                    .expect("Failed to readPrintNannyConfig.octoprint")
+                    .server
+                    .as_ref()
+                    .expect("Failed to read PrintNannyConfig.octoprint.server")
+                    .id;
+                let event_type = self
+                    .args
+                    .get_one::<models::OctoPrintServerStatusType>("event_type")
+                    .expect("Invalid event_type");
+                let (subject, payload) = (
+                    stringify!(subjects::SUBJECT_OCTOPRINT_SERVER, pi_id = pi_id).to_string(), 
+                    PolymorphicOctoPrintEventRequest::OctoPrintServerStatusRequest(
+                        models::polymorphic_octo_print_event_request::OctoPrintServerStatusRequest{
+                        payload: payload,
+                        pi: pi_id,
+                        event_type: *event_type,
+                        octoprint_server
+                    })
+                );
+                self.publish_octoprint_event(&subject, &payload).await
+
+            }
+            // pi.{pi_id}.octoprint.printer
+            (subjects::SUBJECT_OCTOPRINT_PRINTER_STATUS, subargs) => {
+                let payload = subargs.get_one::<String>("payload");
+                let payload = match payload {
+                    Some(data) => Some(serde_json::from_str::<HashMap<String, serde_json::Value>>(data)?),
+                    None => None
+                };
+                let octoprint_server = self
+                    .config
+                    .octoprint
+                    .as_ref()
+                    .expect("Failed to readPrintNannyConfig.octoprint")
+                    .server
+                    .as_ref()
+                    .expect("Failed to read PrintNannyConfig.octoprint.server")
+                    .id;
+                let event_type = self
+                    .args
+                    .get_one::<models::OctoPrintPrinterStatusType>("event_type")
+                    .expect("Invalid event_type");
+                let (subject, payload) = (
+                    stringify!(subjects::SUBJECT_OCTOPRINT_PRINTER_STATUS, pi_id = pi_id).to_string(), 
+                    PolymorphicOctoPrintEventRequest::OctoPrintPrinterStatusRequest(
+                        models::polymorphic_octo_print_event_request::OctoPrintPrinterStatusRequest{
+                        payload: payload,
                         pi: pi_id,
                         event_type: *event_type,
                         octoprint_server
