@@ -2,10 +2,13 @@ use anyhow::Result;
 use async_process::Command;
 use bytes::Bytes;
 use log::{debug, warn};
-use printnanny_api_client::models::{self, PolymorphicPiEventRequest};
 use std::{collections::HashMap, fmt::format};
 
+use printnanny_api_client::models::{self, PolymorphicPiEventRequest};
+use printnanny_services::swupdate::Swupdate;
+
 use crate::subjects;
+
 pub fn build_status_payload(request: &PolymorphicPiEventRequest) -> Result<Bytes> {
     Ok(serde_json::ser::to_vec(request)?.into())
 }
@@ -122,7 +125,8 @@ pub async fn handle_pi_cam_command(
                 "nats.publish event_type={:?}",
                 models::PiCamStatusType::CamStarted
             );
-            let output = Command::new("systemctl restart printnanny-cam")
+            let output = Command::new("systemctl")
+                .args(&["restart", "printnanny-cam"])
                 .output()
                 .await?;
             match output.status.success() {
@@ -165,7 +169,8 @@ pub async fn handle_pi_cam_command(
             }
         }
         models::PiCamCommandType::CamStop => {
-            let output = Command::new("systemctl stop printnanny-cam")
+            let output = Command::new("systemctl")
+                .args(&["stop", "printnanny-cam"])
                 .output()
                 .await?;
             match output.status.success() {
@@ -208,6 +213,98 @@ pub async fn handle_pi_cam_command(
     Ok(())
 }
 
+pub fn build_swupdate_status_payload(
+    cmd: &models::polymorphic_pi_event_request::PiSoftwareUpdateCommandRequest,
+    event_type: models::PiSoftwareUpdateStatusType,
+    payload: Option<HashMap<String, serde_json::Value>>,
+) -> Result<(String, Bytes)> {
+    // command will be received on pi.$id.<topic>.commands
+    // emit status event to pi.$id.<topic>.commands.$command_id
+    let subject = stringify!(subjects::SUBJECT_STATUS_CAM, pi_id = cmd.pi);
+
+    let request = PolymorphicPiEventRequest::PiSoftwareUpdateStatusRequest(
+        models::polymorphic_pi_event_request::PiSoftwareUpdateStatusRequest {
+            payload,
+            event_type,
+            pi: cmd.pi,
+            version: cmd.version.clone(),
+        },
+    );
+    let b = build_status_payload(&request)?;
+
+    Ok((subject.to_string(), b))
+}
+
+pub async fn handle_pi_swupdate_command(
+    cmd: models::polymorphic_pi_event_request::PiSoftwareUpdateCommandRequest,
+    nats_client: &async_nats::Client,
+) -> Result<()> {
+    match &cmd.event_type {
+        models::PiSoftwareUpdateCommandType::Swupdate => {
+            // publish SwupdateStarted event
+            let (subject, req) = build_swupdate_status_payload(
+                &cmd,
+                models::PiSoftwareUpdateStatusType::SwupdateStarted,
+                None,
+            )?;
+            nats_client.publish(subject.clone(), req).await?;
+            debug!(
+                "nats.publish event_type={:?}",
+                models::PiSoftwareUpdateStatusType::SwupdateStarted
+            );
+
+            let swupdate = Swupdate::from(*cmd.payload.clone());
+            let output = swupdate.run().await?;
+            match output.status.success() {
+                true => {
+                    // publish SwupdateStarted event
+                    let (subject, req) = build_swupdate_status_payload(
+                        &cmd,
+                        models::PiSoftwareUpdateStatusType::SwupdateSuccess,
+                        None,
+                    )?;
+                    nats_client.publish(subject.clone(), req).await?;
+                    debug!(
+                        "nats.publish event_type={:?}",
+                        models::PiSoftwareUpdateStatusType::SwupdateSuccess
+                    );
+                }
+                false => {
+                    // publish RebootError
+                    let mut payload: HashMap<String, serde_json::Value> = HashMap::new();
+                    payload.insert(
+                        "exit_code".to_string(),
+                        serde_json::to_value(output.status.code())?,
+                    );
+                    payload.insert(
+                        "stdout".to_string(),
+                        serde_json::Value::String(String::from_utf8(output.stdout)?),
+                    );
+                    payload.insert(
+                        "stderr".to_string(),
+                        serde_json::Value::String(String::from_utf8(output.stderr)?),
+                    );
+                    let (subject, req) = build_swupdate_status_payload(
+                        &cmd,
+                        models::PiSoftwareUpdateStatusType::SwupdateError,
+                        Some(payload),
+                    )?;
+
+                    nats_client.publish(subject.clone(), req).await?;
+                    debug!(
+                        "nats.publish event_type={:?}",
+                        models::PiSoftwareUpdateStatusType::SwupdateError
+                    );
+                }
+            }
+        }
+        models::PiSoftwareUpdateCommandType::SwupdateRollback => {
+            warn!("SwupdateRollback is not yet available")
+        }
+    }
+    Ok(())
+}
+
 pub async fn handle_incoming(
     msg: PolymorphicPiEventRequest,
     nats_client: &async_nats::Client,
@@ -218,6 +315,9 @@ pub async fn handle_incoming(
         }
         PolymorphicPiEventRequest::PiCamCommandRequest(command) => {
             handle_pi_cam_command(command, nats_client).await?;
+        }
+        PolymorphicPiEventRequest::PiSoftwareUpdateCommandRequest(command) => {
+            handle_pi_swupdate_command(command, nats_client).await?;
         }
         _ => warn!("No handler configured for msg={:?}", msg),
     };
