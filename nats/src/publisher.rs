@@ -5,6 +5,7 @@ use clap::{crate_authors, value_parser, Arg, ArgMatches, Command, ValueEnum};
 use log::debug;
 use printnanny_api_client::models;
 use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
+use printnanny_api_client::models::polymorphic_octo_print_event_request::PolymorphicOctoPrintEventRequest;
 use printnanny_services::{config::PrintNannyConfig, error::PrintNannyConfigError};
 use tokio::net::UnixStream;
 use tokio_util::codec::{FramedWrite, LengthDelimitedCodec};
@@ -21,7 +22,8 @@ pub struct EventPublisher {
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum PayloadFormat {
     Json,
-    Bytes,
+    // TODO: serialize raw
+    // Bytes,
 }
 
 impl EventPublisher {
@@ -46,6 +48,7 @@ impl EventPublisher {
                 // begin octoprint topics
                 .subcommand(
                     Command::new(subjects::SUBJECT_OCTOPRINT_SERVER)
+                        .arg(Arg::new("event_type").value_parser(value_parser!(models::OctoPrintServerStatusType)))
                         .arg(
                             Arg::new("format")
                                 .short('f')
@@ -60,6 +63,7 @@ impl EventPublisher {
                 )
                 .subcommand(
                     Command::new(subjects::SUBJECT_OCTOPRINT_CLIENT)
+                        .arg(Arg::new("event_type").value_parser(value_parser!(models::OctoPrintClientStatusType)))
                         .arg(
                             Arg::new("format")
                                 .short('f')
@@ -74,6 +78,7 @@ impl EventPublisher {
                 )
                 .subcommand(
                     Command::new(subjects::SUBJECT_OCTOPRINT_PRINTER_STATUS)
+                        .arg(Arg::new("event_type").value_parser(value_parser!(models::OctoPrintPrinterStatusType)))
                         .arg(
                             Arg::new("format")
                                 .short('f')
@@ -88,6 +93,7 @@ impl EventPublisher {
                 )
                 .subcommand(
                     Command::new(subjects::SUBJECT_OCTOPRINT_PRINT_JOB)
+                        .arg(Arg::new("event_type").value_parser(value_parser!(models::OctoPrintPrintJobStatusType)))
                         .arg(
                             Arg::new("format")
                                 .short('f')
@@ -186,7 +192,7 @@ impl EventPublisher {
     }
 
     // write content-length delimited frames to Unix socket (PrintNanny events.sock)
-    pub async fn publish(&self, subject: &str, payload: &PolymorphicPiEventRequest) -> Result<()> {
+    pub async fn publish_pi_event(&self, subject: &str, payload: &PolymorphicPiEventRequest) -> Result<()> {
         let socket = &self.config.paths.events_socket;
         // open a connection to unix socket
         let stream = UnixStream::connect(socket).await?;
@@ -197,6 +203,29 @@ impl EventPublisher {
         let mut serialized = tokio_serde::SymmetricallyFramed::new(
             length_delimited,
             tokio_serde::formats::SymmetricalJson::<(String, &PolymorphicPiEventRequest)>::default(
+            ),
+        );
+        serialized.send((subject.to_string(), payload)).await?;
+        debug!(
+            "Emitted event to subject={} to socket={}",
+            &subject,
+            socket.display(),
+        );
+        Ok(())
+    }
+
+    // write content-length delimited frames to Unix socket (PrintNanny events.sock)
+    pub async fn publish_octoprint_event(&self, subject: &str, payload: &PolymorphicOctoPrintEventRequest) -> Result<()> {
+        let socket = &self.config.paths.events_socket;
+        // open a connection to unix socket
+        let stream = UnixStream::connect(socket).await?;
+        // Delimit frames using a length header
+        let length_delimited = FramedWrite::new(stream, LengthDelimitedCodec::new());
+
+        // Serialize frames with JSON
+        let mut serialized = tokio_serde::SymmetricallyFramed::new(
+            length_delimited,
+            tokio_serde::formats::SymmetricalJson::<(String, &PolymorphicOctoPrintEventRequest)>::default(
             ),
         );
         serialized.send((subject.to_string(), payload)).await?;
@@ -234,13 +263,12 @@ impl EventPublisher {
             .get_one::<String>("topic")
             .expect("topic is required");
 
-        let (subject, payload) = match topic.as_str() {
-            subjects::SUBJECT_COMMAND_BOOT => {
-                let event_type = self
-                    .args
+        match self.args.subcommand().unwrap() {
+            (subjects::SUBJECT_COMMAND_BOOT, subargs) => {
+                let event_type = subargs
                     .get_one::<models::PiBootCommandType>("event_type")
                     .expect("Invalid event_type");
-                (
+                let (subject, payload) = (
                     stringify!(subjects::SUBJECT_COMMAND_BOOT, pi_id = pi_id).to_string(),
                     PolymorphicPiEventRequest::PiBootCommandRequest(
                         models::polymorphic_pi_event_request::PiBootCommandRequest {
@@ -249,14 +277,14 @@ impl EventPublisher {
                             payload: None,
                         },
                     ),
-                )
+                );
+                self.publish_pi_event(&subject, &payload).await
             }
-            subjects::SUBJECT_COMMAND_CAM => {
-                let event_type = self
-                    .args
+            (subjects::SUBJECT_COMMAND_CAM, subargs) => {
+                let event_type = subargs
                     .get_one::<models::PiCamCommandType>("event_type")
                     .expect("Invalid event_type");
-                (
+                let (subject, payload) = (
                     stringify!(subjects::SUBJECT_COMMAND_CAM, pi_id = pi_id).to_string(),
                     PolymorphicPiEventRequest::PiCamCommandRequest(
                         models::polymorphic_pi_event_request::PiCamCommandRequest {
@@ -265,11 +293,12 @@ impl EventPublisher {
                             payload: None,
                         },
                     ),
-                )
+                );
+                self.publish_pi_event(&subject, &payload).await
+
             }
-            subjects::SUBJECT_COMMAND_SWUPDATE => {
-                let version = self
-                    .args
+            (subjects::SUBJECT_COMMAND_SWUPDATE, subargs) => {
+                let version = subargs
                     .get_one::<String>("version")
                     .expect("version is required")
                     .to_string();
@@ -320,7 +349,7 @@ impl EventPublisher {
                         swu_url,
                     };
 
-                (
+                let (subject, payload) = (
                     stringify!(subjects::SUBJECT_COMMAND_SWUPDATE, pi_id = pi_id).to_string(),
                     PolymorphicPiEventRequest::PiSoftwareUpdateCommandRequest(
                         models::polymorphic_pi_event_request::PiSoftwareUpdateCommandRequest {
@@ -330,14 +359,14 @@ impl EventPublisher {
                             payload: Box::new(payload),
                         },
                     ),
-                )
+                );
+                self.publish_pi_event(&subject, &payload).await
             }
-            subjects::SUBJECT_STATUS_BOOT => {
-                let event_type = self
-                    .args
+            (subjects::SUBJECT_STATUS_BOOT, subargs) => {
+                let event_type = subargs
                     .get_one::<models::PiBootStatusType>("event_type")
                     .expect("Invalid event_type");
-                (
+                let (subject, payload) = (
                     stringify!(subjects::SUBJECT_STATUS_BOOT, pi_id = pi_id).to_string(),
                     PolymorphicPiEventRequest::PiBootStatusRequest(
                         models::polymorphic_pi_event_request::PiBootStatusRequest {
@@ -346,14 +375,16 @@ impl EventPublisher {
                             payload: None,
                         },
                     ),
-                )
+                );
+                self.publish_pi_event(&subject, &payload).await
+
+
             }
-            subjects::SUBJECT_STATUS_CAM => {
-                let event_type = self
-                    .args
+            (subjects::SUBJECT_STATUS_CAM, subargs) => {
+                let event_type = subargs
                     .get_one::<models::PiCamStatusType>("event_type")
                     .expect("Invalid event_type");
-                (
+                let (subject, payload) = (
                     stringify!(subjects::SUBJECT_STATUS_CAM, pi_id = pi_id).to_string(),
                     PolymorphicPiEventRequest::PiCamStatusRequest(
                         models::polymorphic_pi_event_request::PiCamStatusRequest {
@@ -362,18 +393,19 @@ impl EventPublisher {
                             payload: None,
                         },
                     ),
-                )
+                );
+                self.publish_pi_event(&subject, &payload).await
+
             }
-            subjects::SUBJECT_STATUS_SWUPDATE => {
-                let version = self
-                    .args
+            (subjects::SUBJECT_STATUS_SWUPDATE, subargs) => {
+                let version = subargs
                     .get_one::<String>("version")
                     .expect("version is required");
                 let event_type = self
                     .args
                     .get_one::<models::PiSoftwareUpdateStatusType>("event_type")
                     .expect("Invalid event_type");
-                (
+                let (subject, payload) = (
                     stringify!(subjects::SUBJECT_STATUS_SWUPDATE, pi_id = pi_id).to_string(),
                     PolymorphicPiEventRequest::PiSoftwareUpdateStatusRequest(
                         models::polymorphic_pi_event_request::PiSoftwareUpdateStatusRequest {
@@ -383,11 +415,50 @@ impl EventPublisher {
                             payload: None,
                         },
                     ),
-                )
-            }
-            _ => panic!("Invalid topic: {}", &topic),
-        };
+                );
+                self.publish_pi_event(&subject, &payload).await
 
-        self.publish(&subject, &payload).await
+            }
+            // begin octoprint subject handlers
+            (subjects::SUBJECT_OCTOPRINT_CLIENT, subargs) => {
+                let payload = subargs.get_one::<String>("payload").expect("--payload is required");
+                let payload = serde_json::from_str::<models::OctoPrintClientStatusPayloadRequest>(payload)?;
+                let octoprint_server = self
+                    .config
+                    .octoprint
+                    .as_ref()
+                    .expect("Failed to readPrintNannyConfig.octoprint")
+                    .server
+                    .as_ref()
+                    .expect("Failed to read PrintNannyConfig.octoprint.server")
+                    .id;
+                let event_type = self
+                    .args
+                    .get_one::<models::OctoPrintClientStatusType>("event_type")
+                    .expect("Invalid event_type");
+                let (subject, payload) = (
+                    stringify!(subjects::SUBJECT_OCTOPRINT_CLIENT, pi_id = pi_id).to_string(), 
+                    PolymorphicOctoPrintEventRequest::OctoPrintClientStatusRequest(
+                        models::polymorphic_octo_print_event_request::OctoPrintClientStatusRequest{
+                        payload: Box::new(payload),
+                        pi: pi_id,
+                        event_type: *event_type,
+                        octoprint_server
+                    })
+                );
+                self.publish_octoprint_event(&subject, &payload).await
+
+            }
+            // end octoprint subject handlers
+
+            // begin repetier subject handlers
+            (subjects::SUBJECT_REPETIER, _) => unimplemented!("Publisher not implemented for {}", subjects::SUBJECT_REPETIER),
+            // end repetier subject handlers
+            // begin moonraker subject handlers
+            (subjects::SUBJECT_MOONRAKER, _) => unimplemented!("Publisher not implemented for {}", subjects::SUBJECT_MOONRAKER),
+            // end moonraker subject handlers
+            _ => panic!("Invalid topic: {}", &topic),
+        }
+
     }
 }
