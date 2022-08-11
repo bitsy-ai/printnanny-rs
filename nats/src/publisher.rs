@@ -1,7 +1,7 @@
 use futures::prelude::*;
 
 use anyhow::Result;
-use clap::{crate_authors, value_parser, Arg, ArgMatches, Command};
+use clap::{crate_authors, value_parser, Arg, ArgMatches, Command, ValueEnum};
 use log::debug;
 use printnanny_api_client::models;
 use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
@@ -16,6 +16,12 @@ use crate::subjects;
 pub struct EventPublisher {
     args: ArgMatches,
     config: PrintNannyConfig,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum PayloadFormat {
+    Json,
+    Bytes,
 }
 
 impl EventPublisher {
@@ -35,16 +41,99 @@ impl EventPublisher {
                 .author(crate_authors!())
                 .about("Issue command via NATs")
                 .arg_required_else_help(true)
-                .arg(Arg::new("topic").required(true).value_parser(
-                    clap::builder::PossibleValuesParser::new([
-                        subjects::SUBJECT_COMMAND_BOOT,
-                        subjects::SUBJECT_STATUS_BOOT,
-                        subjects::SUBJECT_COMMAND_CAM,
-                        subjects::SUBJECT_STATUS_CAM,
-                        subjects::SUBJECT_COMMAND_SWUPDATE,
-                        subjects::SUBJECT_STATUS_SWUPDATE,
-                    ]),
-                ))
+                .subcommand_required(true)
+                .arg(Arg::new("subject").long("subject"))
+                // begin octoprint topics
+                .subcommand(
+                    Command::new(subjects::SUBJECT_OCTOPRINT_SERVER)
+                        .arg(
+                            Arg::new("format")
+                                .short('f')
+                                .long("format")
+                                .takes_value(true)
+                                .value_parser(value_parser!(PayloadFormat))
+                                .default_value("json")
+                                .help("Payload format"),
+                        )
+                        .arg(Arg::new("subject").long("subject"))
+                        .arg(Arg::new("payload").long("payload")),
+                )
+                .subcommand(
+                    Command::new(subjects::SUBJECT_OCTOPRINT_CLIENT)
+                        .arg(
+                            Arg::new("format")
+                                .short('f')
+                                .long("format")
+                                .takes_value(true)
+                                .value_parser(value_parser!(PayloadFormat))
+                                .default_value("json")
+                                .help("Payload format"),
+                        )
+                        .arg(Arg::new("subject").long("subject"))
+                        .arg(Arg::new("payload").long("payload")),
+                )
+                .subcommand(
+                    Command::new(subjects::SUBJECT_OCTOPRINT_PRINTER_STATUS)
+                        .arg(
+                            Arg::new("format")
+                                .short('f')
+                                .long("format")
+                                .takes_value(true)
+                                .value_parser(value_parser!(PayloadFormat))
+                                .default_value("json")
+                                .help("Payload format"),
+                        )
+                        .arg(Arg::new("subject").long("subject"))
+                        .arg(Arg::new("payload").long("payload")),
+                )
+                .subcommand(
+                    Command::new(subjects::SUBJECT_OCTOPRINT_PRINT_JOB)
+                        .arg(
+                            Arg::new("format")
+                                .short('f')
+                                .long("format")
+                                .takes_value(true)
+                                .value_parser(value_parser!(PayloadFormat))
+                                .default_value("json")
+                                .help("Payload format"),
+                        )
+                        .arg(Arg::new("subject").long("subject"))
+                        .arg(Arg::new("payload").long("payload")),
+                )
+                // end octoprint topics
+                // begin repetier topics
+                .subcommand(
+                    Command::new(subjects::SUBJECT_REPETIER)
+                        .arg(
+                            Arg::new("format")
+                                .short('f')
+                                .long("format")
+                                .takes_value(true)
+                                .value_parser(value_parser!(PayloadFormat))
+                                .default_value("json")
+                                .help("Payload format"),
+                        )
+                        .arg(Arg::new("subject").long("subject"))
+                        .arg(Arg::new("payload").long("payload")),
+                )
+                // end repetier topics
+                // begin moonraker topics
+                .subcommand(
+                    Command::new(subjects::SUBJECT_MOONRAKER)
+                        .arg(
+                            Arg::new("format")
+                                .short('f')
+                                .long("format")
+                                .takes_value(true)
+                                .value_parser(value_parser!(PayloadFormat))
+                                .default_value("json")
+                                .help("Payload format"),
+                        )
+                        .arg(Arg::new("subject").long("subject"))
+                        .arg(Arg::new("payload").long("payload")),
+                )
+                // end moonraker topics
+                // begin PrintNanny Pi topics
                 .subcommand(Command::new(subjects::SUBJECT_COMMAND_BOOT).arg(
                     Arg::new("event_type").value_parser(value_parser!(models::PiBootCommandType)),
                 ))
