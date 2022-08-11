@@ -29,7 +29,7 @@ This workspace contains the following tools used in PrintNanny OS:
 
 ```
 printnanny
-Leigh Johnson <leigh@bitsy.ai>
+Leigh Johnson <leigh@printnanny.ai>
 PrintNanny Command-line Interface
 
 USAGE:
@@ -53,7 +53,7 @@ SUBCOMMANDS:
 
 ```
 printnanny-cli-device
-Leigh Johnson <leigh@bitsy.ai>
+Leigh Johnson <leigh@printnanny.ai>
 Interact with device REST API
 
 USAGE:
@@ -72,7 +72,7 @@ OPTIONS:
 
 ```
 printnanny-cli-factsd
-Leigh Johnson <leigh@bitsy.ai>
+Leigh Johnson <leigh@printnanny.ai>
 Config serializer (JSON) intended for use with Ansible facts.d
 
 USAGE:
@@ -88,7 +88,7 @@ OPTIONS:
 
 ```
 printnanny-cli-janus-admin
-Leigh Johnson <leigh@bitsy.ai>
+Leigh Johnson <leigh@printnanny.ai>
 Interact with Janus admin/monitoring APIs https://janus.conf.meetecho.com/docs/auth.html#token
 
 USAGE:
@@ -111,7 +111,7 @@ OPTIONS:
 
 ```
 printnanny-cli-monitor
-Leigh Johnson <leigh@bitsy.ai>
+Leigh Johnson <leigh@printnanny.ai>
 Interact with PrintNanny monitoring service
 
 USAGE:
@@ -130,7 +130,7 @@ SUBCOMMANDS:
 ### MQTT pub/sub commands
 ```
 printnanny-cli-mqtt
-Leigh Johnson <leigh@bitsy.ai>
+Leigh Johnson <leigh@printnanny.ai>
 Interact with MQTT pub/sub service
 
 USAGE:
@@ -156,7 +156,7 @@ Two-factor authentication dash based on [Rocket.rs](https://rocket.rs/)
 Developer tools
 
 ```
-Leigh Johnson <leigh@bitsy.ai>
+Leigh Johnson <leigh@printnanny.ai>
 PrintNanny Developer Command-line Tools
 
 USAGE:

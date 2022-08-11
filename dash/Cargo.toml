@@ -3,7 +3,7 @@ name = "printnanny-dash"
 description = "PrintNanny Device Management Dashboard"
 license = "AGPL-3.0-or-later"
 version = "0.25.0"
-authors = ["Leigh Johnson <leigh@bitsy.ai>"]
+authors = ["Leigh Johnson <leigh@printnanny.ai>"]
 edition = "2021"
 rust-version = "1.59"
 
