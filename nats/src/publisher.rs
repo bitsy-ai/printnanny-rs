@@ -48,7 +48,7 @@ impl EventPublisher {
                 // begin octoprint topics
                 .subcommand(
                     Command::new(subjects::SUBJECT_OCTOPRINT_SERVER)
-                        .arg(Arg::new("event_type").value_parser(value_parser!(models::OctoPrintServerStatusType)))
+                        .arg(Arg::new("event_type").long("event-type").takes_value(true).value_parser(value_parser!(models::OctoPrintServerStatusType)))
                         .arg(
                             Arg::new("format")
                                 .short('f')
@@ -58,11 +58,11 @@ impl EventPublisher {
                                 .default_value("json")
                                 .help("Payload format"),
                         )
-                        .arg(Arg::new("payload").long("payload").help("UTF-8 encoded JSON payload")),
+                        .arg(Arg::new("payload").long("payload").takes_value(true).help("UTF-8 encoded JSON payload")),
                 )
                 .subcommand(
                     Command::new(subjects::SUBJECT_OCTOPRINT_CLIENT)
-                        .arg(Arg::new("event_type").value_parser(value_parser!(models::OctoPrintClientStatusType)))
+                        .arg(Arg::new("event_type").long("event-type").takes_value(true).value_parser(value_parser!(models::OctoPrintClientStatusType)))
                         .arg(
                             Arg::new("format")
                                 .short('f')
@@ -72,11 +72,11 @@ impl EventPublisher {
                                 .default_value("json")
                                 .help("Payload format"),
                         )
-                        .arg(Arg::new("payload").long("payload").help("UTF-8 encoded JSON payload")),
+                        .arg(Arg::new("payload").long("payload").takes_value(true).help("UTF-8 encoded JSON payload")),
                 )
                 .subcommand(
                     Command::new(subjects::SUBJECT_OCTOPRINT_PRINTER_STATUS)
-                        .arg(Arg::new("event_type").value_parser(value_parser!(models::OctoPrintPrinterStatusType)))
+                        .arg(Arg::new("event_type").long("event-type").takes_value(true).value_parser(value_parser!(models::OctoPrintPrinterStatusType)))
                         .arg(
                             Arg::new("format")
                                 .short('f')
@@ -86,11 +86,11 @@ impl EventPublisher {
                                 .default_value("json")
                                 .help("Payload format"),
                         )
-                        .arg(Arg::new("payload").long("payload").help("UTF-8 encoded JSON payload")),
+                        .arg(Arg::new("payload").long("payload").takes_value(true).help("UTF-8 encoded JSON payload")),
                 )
                 .subcommand(
                     Command::new(subjects::SUBJECT_OCTOPRINT_PRINT_JOB)
-                        .arg(Arg::new("event_type").value_parser(value_parser!(models::OctoPrintPrintJobStatusType)))
+                        .arg(Arg::new("event_type").long("event-type").takes_value(true).value_parser(value_parser!(models::OctoPrintPrintJobStatusType)))
                         .arg(
                             Arg::new("format")
                                 .short('f')
@@ -100,7 +100,7 @@ impl EventPublisher {
                                 .default_value("json")
                                 .help("Payload format"),
                         )
-                        .arg(Arg::new("payload").long("payload").help("UTF-8 encoded JSON payload")),
+                        .arg(Arg::new("payload").long("payload").takes_value(true).help("UTF-8 encoded JSON payload")),
                 )
                 // end octoprint topics
                 // begin repetier topics
@@ -115,7 +115,7 @@ impl EventPublisher {
                                 .default_value("json")
                                 .help("Payload format"),
                         )
-                        .arg(Arg::new("payload").long("payload").help("UTF-8 encoded JSON payload")),
+                        .arg(Arg::new("payload").long("payload").takes_value(true).help("UTF-8 encoded JSON payload")),
                 )
                 // end repetier topics
                 // begin moonraker topics
@@ -130,21 +130,21 @@ impl EventPublisher {
                                 .default_value("json")
                                 .help("Payload format"),
                         )
-                        .arg(Arg::new("payload").long("payload").help("UTF-8 encoded JSON payload")),
+                        .arg(Arg::new("payload").long("payload").takes_value(true).help("UTF-8 encoded JSON payload")),
                 )
                 // end moonraker topics
                 // begin PrintNanny Pi topics
                 .subcommand(Command::new(subjects::SUBJECT_COMMAND_BOOT).arg(
-                    Arg::new("event_type").value_parser(value_parser!(models::PiBootCommandType)),
+                    Arg::new("event_type").long("event-type").takes_value(true).value_parser(value_parser!(models::PiBootCommandType)),
                 ))
                 .subcommand(Command::new(subjects::SUBJECT_STATUS_BOOT).arg(
-                    Arg::new("event_type").value_parser(value_parser!(models::PiBootStatusType)),
+                    Arg::new("event_type").long("event-type").takes_value(true).value_parser(value_parser!(models::PiBootStatusType)),
                 ))
                 .subcommand(Command::new(subjects::SUBJECT_COMMAND_CAM).arg(
-                    Arg::new("event_type").value_parser(value_parser!(models::PiCamCommandType)),
+                    Arg::new("event_type").long("event-type").takes_value(true).value_parser(value_parser!(models::PiCamCommandType)),
                 ))
                 .subcommand(Command::new(subjects::SUBJECT_STATUS_CAM).arg(
-                    Arg::new("event_type").value_parser(value_parser!(models::PiCamStatusType)),
+                    Arg::new("event_type").long("event-type").takes_value(true).value_parser(value_parser!(models::PiCamStatusType)),
                 ))
                 .subcommand(
                     Command::new(subjects::SUBJECT_COMMAND_SWUPDATE)
