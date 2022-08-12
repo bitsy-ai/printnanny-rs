@@ -252,11 +252,6 @@ impl EventPublisher {
             .expect("Failed to read PrintNannyConfig.pi.id")
             .id;
 
-        let topic = self
-            .args
-            .get_one::<String>("topic")
-            .expect("topic is required");
-
         match self.args.subcommand().unwrap() {
             (subjects::SUBJECT_COMMAND_BOOT, subargs) => {
                 let event_type = subargs
@@ -549,7 +544,7 @@ impl EventPublisher {
             // begin moonraker subject handlers
             (subjects::SUBJECT_MOONRAKER, _) => unimplemented!("Publisher not implemented for {}", subjects::SUBJECT_MOONRAKER),
             // end moonraker subject handlers
-            _ => panic!("Invalid topic: {}", &topic),
+            _ => panic!("Invalid subcommand {:?}", self.args.subcommand()),
         }
 
     }
