@@ -1,7 +1,7 @@
 extern crate glob;
 use self::glob::glob;
 use super::os_release::OsRelease;
-use log::info;
+use log::{info, warn};
 use serde;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -175,8 +175,8 @@ impl PrintNannyPaths {
             ("nats.creds".to_string(), self.creds().join("nats.creds")),
         ];
 
-        for (filename, dest) in results.iter() {
-            // if target file already fails and --force flag not passed, bail
+        let results = for (filename, dest) in results.iter() {
+            // if target file already fails and --force flag not passed, log a warning and return an error after loop is finished
             if dest.exists() && force == false {
                 return Err(PrintNannyConfigError::FileExists {
                     path: dest.to_path_buf(),
@@ -210,7 +210,7 @@ impl PrintNannyPaths {
                 }),
             }?;
             info!("Wrote seed file {:?}", dest);
-        }
+        };
         Ok(results)
     }
 }

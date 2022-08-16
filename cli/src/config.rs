@@ -1,6 +1,6 @@
 use log::info;
 use printnanny_services::config::{ConfigFormat, PrintNannyConfig};
-use printnanny_services::error::ServiceError;
+use printnanny_services::error::{PrintNannyConfigERror, ServiceError};
 use printnanny_services::printnanny_api::ApiService;
 use std::io::{self, Write};
 
@@ -63,8 +63,22 @@ impl ConfigCommand {
                 let force = args.is_present("force");
                 info!("PrintNannyConfig.paths {:?}", config.paths);
                 config.paths.try_init_dirs()?;
-                config.paths.unpack_seed(force)?;
-                config.paths.try_copy_seed(force)?;
+                match config.paths.unpack_seed(force) {
+                    Ok(r) => Ok(r),
+                    Err(PrintNannyConfig::FileExists(e)) => {
+                        warn!(e);
+                        Ok(())
+                    }
+                    Err(e) => Err(e),
+                }?;
+                match config.paths.unpack_seed(force) {
+                    Ok(r) => Ok(r),
+                    Err(PrintNannyConfig::FileExists(e)) => {
+                        warn!(e);
+                        Ok(())
+                    }
+                    Err(e) => Err(e),
+                }
             }
             _ => panic!("Expected generate-keys|get|init|generate-keys subcommand"),
         };
