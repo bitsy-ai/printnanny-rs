@@ -1,7 +1,7 @@
 extern crate glob;
 use self::glob::glob;
 use super::os_release::OsRelease;
-use log::info;
+use log::{info, warn};
 use serde;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -176,7 +176,7 @@ impl PrintNannyPaths {
         ];
 
         for (filename, dest) in results.iter() {
-            // if target file already fails and --force flag not passed, bail
+            // if target file already fails and --force flag not passed
             if dest.exists() && force == false {
                 return Err(PrintNannyConfigError::FileExists {
                     path: dest.to_path_buf(),
