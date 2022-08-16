@@ -64,7 +64,7 @@ impl ConfigCommand {
                 info!("PrintNannyConfig.paths {:?}", config.paths);
                 config.paths.try_init_dirs()?;
                 match config.paths.unpack_seed(force) {
-                    Ok(r) => Ok(r),
+                    Ok(r) => Ok(()),
                     Err(e) => match e {
                         PrintNannyConfigError::FileExists { .. } => {
                             warn!("{}", e);
@@ -72,10 +72,9 @@ impl ConfigCommand {
                         }
                         _ => Err(e),
                     },
-                    Err(e) => Err(e),
                 }?;
                 match config.paths.unpack_seed(force) {
-                    Ok(r) => Ok(r),
+                    Ok(r) => Ok(()),
                     Err(e) => match e {
                         PrintNannyConfigError::FileExists { .. } => {
                             warn!("{}", e);
