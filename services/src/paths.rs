@@ -175,8 +175,8 @@ impl PrintNannyPaths {
             ("nats.creds".to_string(), self.creds().join("nats.creds")),
         ];
 
-        let results = for (filename, dest) in results.iter() {
-            // if target file already fails and --force flag not passed, log a warning and return an error after loop is finished
+        for (filename, dest) in results.iter() {
+            // if target file already fails and --force flag not passed
             if dest.exists() && force == false {
                 return Err(PrintNannyConfigError::FileExists {
                     path: dest.to_path_buf(),
@@ -210,7 +210,7 @@ impl PrintNannyPaths {
                 }),
             }?;
             info!("Wrote seed file {:?}", dest);
-        };
+        }
         Ok(results)
     }
 }
