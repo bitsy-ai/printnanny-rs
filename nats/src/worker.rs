@@ -123,14 +123,14 @@ impl NatsWorker {
         let subscribe_subject = to_nats_command_subscribe_subject(&pi.id);
 
         // check if uri requires tls
-        let require_tls = nats_app.nats_uri.contains("tls");
+        let require_tls = nats_app.nats_server_uri.contains("tls");
 
         // initialize nats connection
         let nats_client =
             async_nats::ConnectOptions::with_credentials_file(config.paths.nats_creds().clone())
                 .await?
                 .require_tls(require_tls)
-                .connect(nats_app.nats_uri)
+                .connect(nats_app.nats_server_uri)
                 .await?;
         return Ok(Self {
             socket: config.paths.events_socket.clone(),
