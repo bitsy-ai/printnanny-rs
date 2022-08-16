@@ -19,7 +19,7 @@ use printnanny_api_client::models;
 // FACTORY_RESET holds the struct field names of PrintNannyConfig
 // each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
 // as the name implies, this const is used for performing a reset of any config data modified from defaults
-const FACTORY_RESET: [&str; 4] = ["api", "pi", "octoprint", "printnanny_cloud_proxy"];
+const FACTORY_RESET: [&str; 3] = ["api", "pi", "octoprint"];
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
 pub enum ConfigFormat {
@@ -112,7 +112,6 @@ impl Default for PrintNannyCloudProxy {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
-    pub printnanny_cloud_proxy: PrintNannyCloudProxy,
     #[serde(skip_serializing_if = "Option::is_none")]
     // generic device data present on all Print Nanny OS editions
     pub pi: Option<models::Pi>,
@@ -135,12 +134,10 @@ impl Default for PrintNannyConfig {
         };
         let paths = PrintNannyPaths::default();
         let dash = DashConfig::default();
-        let printnanny_cloud_proxy = PrintNannyCloudProxy::default();
         PrintNannyConfig {
             api,
             dash,
             paths,
-            printnanny_cloud_proxy,
             octoprint: None,
             pi: None,
             nats_app: None,
@@ -328,9 +325,9 @@ impl PrintNannyConfig {
             "octoprint" => Ok(toml::Value::try_from(
                 figment::util::map! {key =>  &self.octoprint },
             )?),
-            "printnanny_cloud_proxy" => Ok(toml::Value::try_from(
-                figment::util::map! {key =>  &self.printnanny_cloud_proxy },
-            )?),
+            // "printnanny_cloud_proxy" => Ok(toml::Value::try_from(
+            //     figment::util::map! {key =>  &self.printnanny_cloud_proxy },
+            // )?),
             // "paths" => Ok(toml::Value::try_from(
             //     figment::util::map! {key =>  &self.paths },
             // )?),
