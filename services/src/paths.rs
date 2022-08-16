@@ -34,7 +34,7 @@ impl Default for PrintNannyPaths {
         let run: PathBuf = "/var/run/printnanny".into();
         let log: PathBuf = "/var/log/printnanny".into();
         let events_socket = run.join("events.socket").into();
-        let seed_file_pattern = "/boot/PrintNanny*.zip".into();
+        let seed_file_pattern = "/boot/printnanny*.zip".into();
         let os_release = "/etc/os-release".into();
         let confd_lock = run.join("confd.lock");
         Self {
