@@ -1,6 +1,6 @@
 use log::info;
 use printnanny_services::config::{ConfigFormat, PrintNannyConfig};
-use printnanny_services::error::{PrintNannyConfigERror, ServiceError};
+use printnanny_services::error::{PrintNannyConfigERror, PrintNannyConfigError, ServiceError};
 use printnanny_services::printnanny_api::ApiService;
 use std::io::{self, Write};
 
@@ -65,7 +65,7 @@ impl ConfigCommand {
                 config.paths.try_init_dirs()?;
                 match config.paths.unpack_seed(force) {
                     Ok(r) => Ok(r),
-                    Err(PrintNannyConfig::FileExists(e)) => {
+                    Err(PrintNannyConfigError::FileExists(e)) => {
                         warn!(e);
                         Ok(())
                     }
@@ -73,7 +73,7 @@ impl ConfigCommand {
                 }?;
                 match config.paths.unpack_seed(force) {
                     Ok(r) => Ok(r),
-                    Err(PrintNannyConfig::FileExists(e)) => {
+                    Err(PrintNannyConfigError::FileExists(e)) => {
                         warn!(e);
                         Ok(())
                     }
