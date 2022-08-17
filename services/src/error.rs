@@ -13,6 +13,9 @@ pub enum PrintNannyConfigError {
     #[error("Refusing to overwrite existing file at {path:?}.")]
     FileExists { path: PathBuf },
 
+    #[error("PRINTNANNY_CONFIG was set {path:?} but file was not found")]
+    ConfigFileNotFound { path: PathBuf },
+
     #[error("Failed to unpack file {filename} from archive {archive:?}")]
     ArchiveMissingFile { filename: String, archive: PathBuf },
 
@@ -69,6 +72,12 @@ pub enum PrintNannyConfigError {
     ZipError(#[from] zip::result::ZipError),
     #[error(transparent)]
     IoError(#[from] std::io::Error),
+
+    #[error("Setup incomplete, failed to read {field:?} {detail:?}")]
+    SetupIncomplete {
+        detail: Option<String>,
+        field: String,
+    },
 }
 
 #[derive(Error, Debug)]

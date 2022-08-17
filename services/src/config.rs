@@ -1,3 +1,4 @@
+use std::env;
 use std::fs;
 use std::io::prelude::*;
 use std::path::PathBuf;
@@ -8,7 +9,7 @@ use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
 use file_lock::{FileLock, FileOptions};
 use glob::glob;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
 use super::error::PrintNannyConfigError;
@@ -174,6 +175,24 @@ impl PrintNannyConfig {
     //
     // 4) Defaults (from implement Default)
 
+    pub fn check_file_from_env_var(var: &str) -> Result<(), PrintNannyConfigError> {
+        // try reading env var
+        match env::var(var) {
+            Ok(value) => {
+                // check that value exists
+                let path = PathBuf::from(value);
+                match path.exists() {
+                    true => Ok(()),
+                    false => Err(PrintNannyConfigError::ConfigFileNotFound { path }),
+                }
+            }
+            Err(_) => {
+                warn!("PRINTNANNY_CONFIG not set. Initializing from PrintNannyConfig::default()");
+                Ok(())
+            }
+        }
+    }
+
     pub fn figment() -> Result<Figment, PrintNannyConfigError> {
         // merge file in PRINTNANNY_CONFIG env var (if set)
         let result = Figment::from(Self { ..Self::default() })
@@ -210,6 +229,9 @@ impl PrintNannyConfig {
 
         let result = Self::read_path_glob::<Json>(&json_glob, result);
         let result = Self::read_path_glob::<Toml>(&toml_glob, result);
+
+        // if PRINTNANNY_CONFIG env var is set, check file exists and is readable
+        Self::check_file_from_env_var("PRINTNANNY_CONFIG")?;
 
         // finally, re-merge PRINTNANNY_CONFIG and PRINTNANNY_ENV so these values take highest precedence
         let result = result
@@ -278,7 +300,7 @@ impl PrintNannyConfig {
     pub fn try_factory_reset(&self) -> Result<(), PrintNannyConfigError> {
         // for each key/value pair in FACTORY_RESET, remove file
         for key in FACTORY_RESET.iter() {
-            let filename = format!("{}.toml", key);
+            let filename = format!("{}.json", key);
             let filename = self.paths.confd().join(filename);
             fs::remove_file(&filename)?;
             info!("Removed {} data {:?}", key, filename);
@@ -300,7 +322,7 @@ impl PrintNannyConfig {
     ///
     /// If serialization or fs write fails, prints an error message indicating the failure
     pub fn try_save_by_key(&self, key: &str) -> Result<PathBuf, PrintNannyConfigError> {
-        let filename = format!("{}.toml", key);
+        let filename = format!("{}.json", key);
         let filename = self.paths.confd().join(filename);
         self.try_save_fragment(key, &filename)?;
         info!("Saved config fragment: {:?}", &filename);
@@ -313,29 +335,32 @@ impl PrintNannyConfig {
         filename: &PathBuf,
     ) -> Result<(), PrintNannyConfigError> {
         let content = match key {
-            "api" => Ok(toml::Value::try_from(
-                figment::util::map! { key => &self.api},
+            "api" => Ok(serde_json::to_string(
+                &figment::util::map! {key => &self.api},
             )?),
-            "pi" => Ok(toml::Value::try_from(
-                figment::util::map! {key => &self.pi },
-            )?),
-            "octoprint" => Ok(toml::Value::try_from(
-                figment::util::map! {key =>  &self.octoprint },
-            )?),
-            // "printnanny_cloud_proxy" => Ok(toml::Value::try_from(
-            //     figment::util::map! {key =>  &self.printnanny_cloud_proxy },
-            // )?),
-            // "paths" => Ok(toml::Value::try_from(
-            //     figment::util::map! {key =>  &self.paths },
-            // )?),
-            // "keys" => Ok(toml::Value::try_from(
-            //     figment::util::map! {key =>  &self.keys },
-            // )?),
+            "pi" => match &self.pi.as_ref() {
+                Some(_) => Ok(serde_json::to_string(
+                    &figment::util::map! {key => &self.pi},
+                )?),
+                None => Err(PrintNannyConfigError::SetupIncomplete {
+                    field: "pi".to_string(),
+                    detail: Some("Failed to write .json config fragment".to_string()),
+                }),
+            },
+            "octoprint" => match &self.octoprint.as_ref() {
+                Some(_) => Ok(serde_json::to_string(
+                    &figment::util::map! {key => &self.octoprint},
+                )?),
+                None => Err(PrintNannyConfigError::SetupIncomplete {
+                    field: "octoprint".to_string(),
+                    detail: Some("Failed to write .json config fragment".to_string()),
+                }),
+            },
             _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
         }?
         .to_string();
 
-        info!("Saving {}.toml to {:?}", &key, &filename);
+        info!("Saving {}.json to {:?}", &key, &filename);
 
         // lock fragment for writing
         let lock_for_writing = FileOptions::new().write(true).create(true).truncate(true);
@@ -354,7 +379,10 @@ impl PrintNannyConfig {
     pub fn try_save(&self) -> Result<(), PrintNannyConfigError> {
         // for each key/value pair in FACTORY_RESET vec, write a separate .toml
         for key in FACTORY_RESET.iter() {
-            self.try_save_by_key(key)?;
+            match self.try_save_by_key(key) {
+                Ok(_) => (),
+                Err(e) => error!("{}", e),
+            }
         }
         Ok(())
     }
@@ -424,6 +452,18 @@ impl Provider for PrintNannyConfig {
 mod tests {
     use super::*;
     use crate::paths::PRINTNANNY_CONFIG_FILENAME;
+
+    #[test_log::test]
+    fn test_config_file_not_found() {
+        figment::Jail::expect_with(|jail| {
+            jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
+            let result = PrintNannyConfig::figment();
+            assert!(result.is_err());
+            // assert_eq!(result, expected);
+            Ok(())
+        });
+    }
+
     #[test_log::test]
     fn test_nested_env_var() {
         figment::Jail::expect_with(|jail| {
