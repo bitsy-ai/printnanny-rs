@@ -72,6 +72,12 @@ pub enum PrintNannyConfigError {
     ZipError(#[from] zip::result::ZipError),
     #[error(transparent)]
     IoError(#[from] std::io::Error),
+
+    #[error("Setup incomplete, failed to read {field:?} {detail:?}")]
+    SetupIncomplete {
+        detail: Option<String>,
+        field: String,
+    },
 }
 
 #[derive(Error, Debug)]

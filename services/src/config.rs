@@ -335,18 +335,27 @@ impl PrintNannyConfig {
         filename: &PathBuf,
     ) -> Result<(), PrintNannyConfigError> {
         let content = match key {
-            "api" => Ok(serde_json::to_string(&self.api)?),
-            "pi" => Ok(serde_json::to_string(&self.pi)?),
-            "octoprint" => Ok(serde_json::to_string(&self.octoprint)?),
-            // "printnanny_cloud_proxy" => Ok(toml::Value::try_from(
-            //     figment::util::map! {key =>  &self.printnanny_cloud_proxy },
-            // )?),
-            // "paths" => Ok(toml::Value::try_from(
-            //     figment::util::map! {key =>  &self.paths },
-            // )?),
-            // "keys" => Ok(toml::Value::try_from(
-            //     figment::util::map! {key =>  &self.keys },
-            // )?),
+            "api" => Ok(serde_json::to_string(
+                &figment::util::map! {key => &self.api},
+            )?),
+            "pi" => match &self.pi.as_ref() {
+                Some(_) => Ok(serde_json::to_string(
+                    &figment::util::map! {key => &self.pi},
+                )?),
+                None => Err(PrintNannyConfigError::SetupIncomplete {
+                    field: "pi".to_string(),
+                    detail: Some("Failed to write .json config fragment".to_string()),
+                }),
+            },
+            "octoprint" => match &self.octoprint.as_ref() {
+                Some(_) => Ok(serde_json::to_string(
+                    &figment::util::map! {key => &self.octoprint},
+                )?),
+                None => Err(PrintNannyConfigError::SetupIncomplete {
+                    field: "octoprint".to_string(),
+                    detail: Some("Failed to write .json config fragment".to_string()),
+                }),
+            },
             _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
         }?
         .to_string();
@@ -370,7 +379,10 @@ impl PrintNannyConfig {
     pub fn try_save(&self) -> Result<(), PrintNannyConfigError> {
         // for each key/value pair in FACTORY_RESET vec, write a separate .toml
         for key in FACTORY_RESET.iter() {
-            self.try_save_by_key(key)?;
+            match self.try_save_by_key(key) {
+                Ok(_) => (),
+                Err(e) => error!("{}", e),
+            }
         }
         Ok(())
     }

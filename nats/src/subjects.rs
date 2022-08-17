@@ -17,3 +17,9 @@ pub const SUBJECT_OCTOPRINT_CLIENT: &str = "pi.{pi_id}.octoprint.client";
 
 pub const SUBJECT_REPETIER: &str = "pi.{pi_id}.repetier";
 pub const SUBJECT_MOONRAKER: &str = "pi.{pi_id}.moonraker";
+
+macro_rules! format_nats_subject {
+    (template: &str, pi_id: &str) => {
+        format!(template)
+    };
+}
