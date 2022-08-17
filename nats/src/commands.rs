@@ -7,8 +7,6 @@ use std::{collections::HashMap, fmt::format};
 use printnanny_api_client::models::{self, PolymorphicPiEventRequest};
 use printnanny_services::swupdate::Swupdate;
 
-use crate::subjects;
-
 pub fn build_status_payload(request: &PolymorphicPiEventRequest) -> Result<Bytes> {
     Ok(serde_json::ser::to_vec(request)?.into())
 }
