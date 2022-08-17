@@ -115,8 +115,6 @@ pub struct PrintNannyConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     // generic device data present on all Print Nanny OS editions
     pub pi: Option<models::Pi>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub nats_app: Option<models::NatsApp>,
     // edition-specific data and settings
     #[serde(skip_serializing_if = "Option::is_none")]
     pub octoprint: Option<OctoPrintConfig>,
@@ -140,7 +138,6 @@ impl Default for PrintNannyConfig {
             paths,
             octoprint: None,
             pi: None,
-            nats_app: None,
         }
     }
 }
@@ -269,10 +266,10 @@ impl PrintNannyConfig {
             }),
         }?;
 
-        match self.nats_app {
+        match self.pi.as_ref().unwrap().nats_app {
             Some(_) => Ok(()),
             None => Err(PrintNannyConfigError::LicenseMissing {
-                path: "nats_app".to_string(),
+                path: "pi.nats_app".to_string(),
             }),
         }?;
         Ok(())

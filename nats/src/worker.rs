@@ -117,8 +117,8 @@ impl NatsWorker {
         config.try_check_license()?;
 
         // try_check_license guards the following properties set, so it's safe to unwrap here
-        let nats_app = config.nats_app.unwrap();
         let pi = config.pi.unwrap();
+        let nats_app = pi.nats_app.unwrap();
 
         let subscribe_subject = to_nats_command_subscribe_subject(&pi.id);
 
