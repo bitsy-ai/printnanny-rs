@@ -143,7 +143,7 @@ impl NatsWorker {
                 async_nats::ConnectOptions::with_credentials_file(credentials_file)
                     .await?
                     .require_tls(require_tls)
-                    .connect(nats_app.nats_server_uri)
+                    .connect(&nats_app.nats_server_uri)
                     .await?
             }
             false => {
@@ -153,14 +153,14 @@ impl NatsWorker {
                 );
                 async_nats::ConnectOptions::new()
                     .require_tls(require_tls)
-                    .connect(nats_app.nats_server_uri)
+                    .connect(&nats_app.nats_server_uri)
                     .await?
             }
         };
 
         info!(
             "Success! NATS client connected to {}",
-            nats_app.nats_server_uri
+            &nats_app.nats_server_uri
         );
 
         return Ok(Self {
