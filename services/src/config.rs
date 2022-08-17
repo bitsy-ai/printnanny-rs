@@ -100,7 +100,7 @@ pub struct PrintNannyCloudProxy {
 
 impl Default for PrintNannyCloudProxy {
     fn default() -> Self {
-        let hostname = sys_info::hostname().unwrap_or("localhost".to_string());
+        let hostname = sys_info::hostname().unwrap_or_else(|_| "localhost".to_string());
         let base_path = "/printnanny-cloud".into();
         let url = format!("http://{}{}", hostname, base_path);
         Self {
@@ -357,8 +357,7 @@ impl PrintNannyConfig {
                 }),
             },
             _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
-        }?
-        .to_string();
+        }?;
 
         info!("Saving {}.json to {:?}", &key, &filename);
 

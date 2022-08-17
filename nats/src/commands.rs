@@ -2,12 +2,10 @@ use anyhow::Result;
 use async_process::Command;
 use bytes::Bytes;
 use log::{debug, warn};
-use std::{collections::HashMap, fmt::format};
+use std::collections::HashMap;
 
 use printnanny_api_client::models::{self, PolymorphicPiEventRequest};
 use printnanny_services::swupdate::Swupdate;
-
-use crate::subjects;
 
 pub fn build_status_payload(request: &PolymorphicPiEventRequest) -> Result<Bytes> {
     Ok(serde_json::ser::to_vec(request)?.into())
@@ -20,7 +18,7 @@ pub fn build_boot_status_payload(
 ) -> Result<(String, Bytes)> {
     // command will be received on pi.$id.<topic>.commands
     // emit status event to pi.$id.<topic>.commands.$command_id
-    let subject = stringify!(subjects::SUBJECT_STATUS_BOOT, pi_id = cmd.pi);
+    let subject = format!("pi.{pi_id}.status.boot", pi_id = cmd.pi);
 
     let request = PolymorphicPiEventRequest::PiBootStatusRequest(
         models::polymorphic_pi_event_request::PiBootStatusRequest {
@@ -31,7 +29,7 @@ pub fn build_boot_status_payload(
     );
     let b = build_status_payload(&request)?;
 
-    Ok((subject.to_string(), b))
+    Ok((subject, b))
 }
 
 pub async fn handle_pi_boot_command(
@@ -97,7 +95,7 @@ pub fn build_cam_status_payload(
 ) -> Result<(String, Bytes)> {
     // command will be received on pi.$id.<topic>.commands
     // emit status event to pi.$id.<topic>.commands.$command_id
-    let subject = stringify!(subjects::SUBJECT_STATUS_CAM, pi_id = cmd.pi);
+    let subject = format!("pi.{pi_id}.status.cam", pi_id = cmd.pi);
 
     let request = PolymorphicPiEventRequest::PiCamStatusRequest(
         models::polymorphic_pi_event_request::PiCamStatusRequest {
@@ -108,7 +106,7 @@ pub fn build_cam_status_payload(
     );
     let b = build_status_payload(&request)?;
 
-    Ok((subject.to_string(), b))
+    Ok((subject, b))
 }
 
 pub async fn handle_pi_cam_command(
@@ -220,7 +218,7 @@ pub fn build_swupdate_status_payload(
 ) -> Result<(String, Bytes)> {
     // command will be received on pi.$id.<topic>.commands
     // emit status event to pi.$id.<topic>.commands.$command_id
-    let subject = stringify!(subjects::SUBJECT_STATUS_CAM, pi_id = cmd.pi);
+    let subject = format!("pi.{pi_id}.status.swupdate", pi_id = cmd.pi);
 
     let request = PolymorphicPiEventRequest::PiSoftwareUpdateStatusRequest(
         models::polymorphic_pi_event_request::PiSoftwareUpdateStatusRequest {
@@ -232,7 +230,7 @@ pub fn build_swupdate_status_payload(
     );
     let b = build_status_payload(&request)?;
 
-    Ok((subject.to_string(), b))
+    Ok((subject, b))
 }
 
 pub async fn handle_pi_swupdate_command(

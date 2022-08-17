@@ -20,6 +20,7 @@ pub struct NatsWorker {
     socket: PathBuf,
     nats_client: async_nats::Client,
     subscribe_subject: String,
+    nats_server_uri: String,
 }
 
 // Relays NatsJsonEvent published to Unix socket to NATS
@@ -73,7 +74,13 @@ impl NatsWorker {
                 debug!("Deserialized {:?}", msg);
                 // publish over NATS connection
                 let payload = serde_json::ser::to_vec(&msg)?;
-                self.nats_client.publish(subject, payload.into()).await?;
+                self.nats_client
+                    .publish(subject.clone(), payload.into())
+                    .await?;
+                debug!(
+                    "Published on subject={} server={}",
+                    &subject, &self.nats_server_uri
+                )
             }
             None => error!("Failed to deserialize msg {:?}", maybe_msg),
         };
@@ -139,7 +146,7 @@ impl NatsWorker {
 
         let nats_client = match config.paths.nats_creds().exists() {
             true => {
-                let credentials_file = config.paths.nats_creds().clone();
+                let credentials_file = config.paths.nats_creds();
                 async_nats::ConnectOptions::with_credentials_file(credentials_file)
                     .await?
                     .require_tls(require_tls)
@@ -163,11 +170,12 @@ impl NatsWorker {
             &nats_app.nats_server_uri
         );
 
-        return Ok(Self {
+        Ok(Self {
             socket: config.paths.events_socket.clone(),
-            nats_client: nats_client,
+            nats_client,
             subscribe_subject,
-        });
+            nats_server_uri: nats_app.nats_server_uri.clone(),
+        })
     }
 
     pub async fn run(&self) -> Result<()> {

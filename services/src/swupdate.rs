@@ -7,8 +7,6 @@ use std::path::PathBuf;
 use tempfile::Builder;
 
 use printnanny_api_client::models::pi_software_update_payload_request::PiSoftwareUpdatePayloadRequest;
-use printnanny_api_client::models::PiSoftwareUpdateStatusType;
-type Callback = fn(status: PiSoftwareUpdateStatusType, output: Output);
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Swupdate {
@@ -18,7 +16,7 @@ pub struct Swupdate {
 
 impl Swupdate {
     pub fn new(swu_url: String, version: String) -> Self {
-        return Self { swu_url, version };
+        Self { swu_url, version }
     }
 
     // download to temporary directory, which will be cleaned up when program exits
@@ -45,10 +43,10 @@ impl Swupdate {
     }
 
     pub async fn run(&self) -> Result<Output> {
-        let (path, f) = self.download_file().await?;
+        let (path, _f) = self.download_file().await?;
 
         let output = Command::new("swupdate")
-            .args(&["-v", "-i", &path.to_str().unwrap()])
+            .args(&["-v", "-i", path.to_str().unwrap()])
             .output()
             .await?;
         Ok(output)

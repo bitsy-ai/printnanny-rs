@@ -51,7 +51,7 @@ pub fn parse_python_version(stdout: &str) -> Option<String> {
 // $ pip --version
 // pip 22.0.2 from /usr/lib/python3/dist-packages/pip (python 3.10)
 pub fn parse_pip_version(stdout: &str) -> Option<String> {
-    let split = stdout.splitn(3, " ").nth(1);
+    let split = stdout.split(' ').nth(1);
     split.map(|v| v.to_string())
 }
 
@@ -162,7 +162,7 @@ impl OctoPrintConfig {
 
     pub fn octoprint_version(
         &self,
-        packages: &Vec<PipPackage>,
+        packages: &[PipPackage],
     ) -> Result<String, PrintNannyConfigError> {
         let v: Vec<&PipPackage> = packages.iter().filter(|p| p.name == "OctoPrint").collect();
         let result = match v.first() {
@@ -184,7 +184,7 @@ impl OctoPrintConfig {
         packages: &Vec<PipPackage>,
     ) -> Result<Option<String>, PrintNannyConfigError> {
         let v: Vec<&PipPackage> = packages
-            .into_iter()
+            .iter()
             .filter(|p| p.name == "OctoPrint-Nanny")
             .collect();
         let result = match v.first() {

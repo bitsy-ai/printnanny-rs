@@ -123,7 +123,6 @@ impl PrintNannyCam {
             .expect("PrintNannyConfig.pi.webrtc_edge is not set");
         let webrtc_edge_config = *config
             .pi
-            .clone()
             .expect("PrintNannyConfig.pi is not set")
             .webrtc_edge
             .expect("PrintNannyConfig.pi.webrtc_edge is not set");
@@ -138,15 +137,17 @@ impl PrintNannyCam {
             let webrtc_cloud_queue = gst::ElementFactory::make("queue2", Some("januscloud_queue"))?;
             let webrtc_cloud_sink = gst::ElementFactory::make("udpsink", Some("januscloud_sink"))?;
             webrtc_cloud_sink.set_property_from_str("host", &webrtc_cloud_host);
-            webrtc_cloud_sink.set_property_from_str("port", &webrtc_cloud_port.to_string());
+            webrtc_cloud_sink.set_property_from_str("port", &webrtc_cloud_port);
             pipeline.add_many(&[&webrtc_cloud_queue, &webrtc_cloud_sink])?;
             let webrtc_cloud_tee_pad = tee
                 .request_pad_simple("src_%u")
-                .expect(&format!("Failed to get src pad from tee element {:?}", tee));
-            let webrtc_cloud_q_pad = webrtc_cloud_queue.static_pad("sink").expect(&format!(
-                "Failed to get sink pad from queue element {:?}",
-                &webrtc_cloud_queue
-            ));
+                .unwrap_or_else(|| panic!("Failed to get src pad from tee element {:?}", tee));
+            let webrtc_cloud_q_pad = webrtc_cloud_queue.static_pad("sink").unwrap_or_else(|| {
+                panic!(
+                    "Failed to get sink pad from queue element {:?}",
+                    &webrtc_cloud_queue
+                )
+            });
             webrtc_cloud_tee_pad.link(&webrtc_cloud_q_pad)?;
         }
 
@@ -168,15 +169,17 @@ impl PrintNannyCam {
             .request_pad_simple("src_%u")
             .unwrap_or_else(|| panic!("Failed to get src pad from tee element {:?}", tee));
 
-        let webrtc_edge_q_pad = webrtc_edge_queue.static_pad("sink").expect(&format!(
-            "Failed to get sink pad from queue element {:?}",
-            &webrtc_edge_queue
-        ));
+        let webrtc_edge_q_pad = webrtc_edge_queue.static_pad("sink").unwrap_or_else(|| {
+            panic!(
+                "Failed to get sink pad from queue element {:?}",
+                &webrtc_edge_queue
+            )
+        });
         webrtc_edge_tee_pad.link(&webrtc_edge_q_pad)?;
 
         let vision_edge_tee_pad = tee
             .request_pad_simple("src_%u")
-            .expect(&format!("Failed to get src pad from tee element {:?}", tee));
+            .unwrap_or_else(|| panic!("Failed to get src pad from tee element {:?}", tee));
         let vision_edge_q_pad = vision_edge_sink.static_pad("sink").unwrap_or_else(|| {
             panic!(
                 "Failed to get sink pad from queue element {:?}",
