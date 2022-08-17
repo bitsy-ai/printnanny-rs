@@ -331,9 +331,6 @@ impl PrintNannyConfig {
             // "paths" => Ok(toml::Value::try_from(
             //     figment::util::map! {key =>  &self.paths },
             // )?),
-            // "mqtt" => Ok(toml::Value::try_from(
-            //     figment::util::map! {key =>  &self.mqtt },
-            // )?),
             // "keys" => Ok(toml::Value::try_from(
             //     figment::util::map! {key =>  &self.keys },
             // )?),
