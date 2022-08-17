@@ -31,7 +31,6 @@ jsonwebtoken = "7"
 log = "0.4"
 printnanny-api-client = "0.101.2"
 procfs = "0.12"
-rumqttc = "0.10"
 rustls = "0.19"
 tokio-rustls = "0.22"
 serde = { version = "1", features = ["derive"] }
