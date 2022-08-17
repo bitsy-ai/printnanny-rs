@@ -89,7 +89,13 @@ impl NatsWorker {
                     &self.socket
                 );
             }
-            Err(_) => {}
+            Err(e) => {
+                warn!(
+                    "std::fs::remove_file({}) failed with error {:?}",
+                    &self.socket.display(),
+                    e
+                )
+            }
         };
         let listener = UnixListener::bind(&self.socket)?;
         info!("Listening for events on {:?}", self.socket);
@@ -125,13 +131,38 @@ impl NatsWorker {
         // check if uri requires tls
         let require_tls = nats_app.nats_server_uri.contains("tls");
 
-        // initialize nats connection
-        let nats_client =
-            async_nats::ConnectOptions::with_credentials_file(config.paths.nats_creds().clone())
-                .await?
-                .require_tls(require_tls)
-                .connect(nats_app.nats_server_uri)
-                .await?;
+        // if nats.creds available, initialize authenticated nats connection
+        info!(
+            "Initializing NATS connection to {}",
+            nats_app.nats_server_uri
+        );
+
+        let nats_client = match config.paths.nats_creds().exists() {
+            true => {
+                let credentials_file = config.paths.nats_creds().clone();
+                async_nats::ConnectOptions::with_credentials_file(credentials_file)
+                    .await?
+                    .require_tls(require_tls)
+                    .connect(&nats_app.nats_server_uri)
+                    .await?
+            }
+            false => {
+                warn!(
+                    "Failed to read {}. Initializing NATS client without credentials",
+                    config.paths.nats_creds().display()
+                );
+                async_nats::ConnectOptions::new()
+                    .require_tls(require_tls)
+                    .connect(&nats_app.nats_server_uri)
+                    .await?
+            }
+        };
+
+        info!(
+            "Success! NATS client connected to {}",
+            &nats_app.nats_server_uri
+        );
+
         return Ok(Self {
             socket: config.paths.events_socket.clone(),
             nats_client: nats_client,
