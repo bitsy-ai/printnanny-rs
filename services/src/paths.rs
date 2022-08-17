@@ -1,7 +1,7 @@
 extern crate glob;
 use self::glob::glob;
 use super::os_release::OsRelease;
-use log::{info, warn};
+use log::info;
 use serde;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -33,7 +33,7 @@ impl Default for PrintNannyPaths {
         let issue_txt: PathBuf = "/etc/issue".into();
         let run: PathBuf = "/var/run/printnanny".into();
         let log: PathBuf = "/var/log/printnanny".into();
-        let events_socket = run.join("events.socket").into();
+        let events_socket = run.join("events.socket");
         let seed_file_pattern = "/boot/printnanny*.zip".into();
         let os_release = "/etc/os-release".into();
         let confd_lock = run.join("confd.lock");
@@ -52,27 +52,27 @@ impl Default for PrintNannyPaths {
 
 impl PrintNannyPaths {
     pub fn data(&self) -> PathBuf {
-        return self.etc.join("data");
+        self.etc.join("data")
     }
 
     pub fn recovery(&self) -> PathBuf {
-        return self.etc.join("recovery");
+        self.etc.join("recovery")
     }
 
     pub fn creds(&self) -> PathBuf {
-        return self.etc.join("creds");
+        self.etc.join("creds")
     }
 
     pub fn confd(&self) -> PathBuf {
-        return self.etc.join("conf.d");
+        self.etc.join("conf.d")
     }
 
     pub fn nats_creds(&self) -> PathBuf {
-        return self.creds().join("nats.creds");
+        self.creds().join("nats.creds")
     }
 
     pub fn license(&self) -> PathBuf {
-        return self.creds().join("license.json");
+        self.creds().join("license.json")
     }
 
     pub fn try_init_dirs(&self) -> Result<(), PrintNannyConfigError> {
@@ -88,9 +88,15 @@ impl PrintNannyPaths {
 
         for dir in dirs.iter() {
             match dir.exists() {
-                true => Ok(info!("Skipping mkdir, directory {:?} already exists", dir)),
+                true => {
+                    info!("Skipping mkdir, directory {:?} already exists", dir);
+                    Ok(())
+                }
                 false => match fs::create_dir(&dir) {
-                    Ok(()) => Ok(info!("Created directory {:?}", &dir)),
+                    Ok(()) => {
+                        info!("Created directory {:?}", &dir);
+                        Ok(())
+                    }
                     Err(error) => Err(PrintNannyConfigError::WriteIOError {
                         path: dir.to_path_buf(),
                         error,
@@ -110,7 +116,7 @@ impl PrintNannyPaths {
     fn try_find_seed(&self, pattern: &str) -> Result<PathBuf, PrintNannyConfigError> {
         // find seed file zip using glob pattern
         // the zip file is named PrintNanny-${hostname}.zip to make it easy for users to differentiate configs for multiple Pis
-        let matched_zip = glob(&pattern);
+        let matched_zip = glob(pattern);
         let mut matched_zip = match matched_zip {
             Ok(v) => Ok(v),
             Err(_) => Err(PrintNannyConfigError::PatternNotFound {
@@ -139,7 +145,10 @@ impl PrintNannyPaths {
         let dest = self.recovery().join(filename);
         if !(dest).exists() || force {
             match fs::copy(&matched_zip, &dest) {
-                Ok(_) => Ok(info!("Copied {:?} to {:?}", &matched_zip, &dest)),
+                Ok(_) => {
+                    info!("Copied {:?} to {:?}", &matched_zip, &dest);
+                    Ok(())
+                }
                 Err(error) => Err(PrintNannyConfigError::CopyIOError {
                     src: matched_zip,
                     dest,
@@ -162,7 +171,7 @@ impl PrintNannyPaths {
             Ok(f) => Ok(f),
             Err(error) => Err(PrintNannyConfigError::ReadIOError {
                 path: matched_zip.clone(),
-                error: error,
+                error,
             }),
         }?;
         info!("Unpacking seed zip {:?}", file);
@@ -177,7 +186,7 @@ impl PrintNannyPaths {
 
         for (filename, dest) in results.iter() {
             // if target file already fails and --force flag not passed
-            if dest.exists() && force == false {
+            if dest.exists() && !force {
                 return Err(PrintNannyConfigError::FileExists {
                     path: dest.to_path_buf(),
                 });

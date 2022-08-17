@@ -335,7 +335,7 @@ impl EventPublisher {
                     .get_one::<models::PiBootCommandType>("event_type")
                     .expect("Invalid event_type");
                 let (subject, payload) = (
-                    format!("pi.{pi_id}.command.boot", pi_id = pi_id).to_string(),
+                    format!("pi.{pi_id}.command.boot", pi_id = pi_id),
                     PolymorphicPiEventRequest::PiBootCommandRequest(
                         models::polymorphic_pi_event_request::PiBootCommandRequest {
                             event_type: *event_type,
@@ -351,7 +351,7 @@ impl EventPublisher {
                     .get_one::<models::PiCamCommandType>("event_type")
                     .expect("Invalid event_type");
                 let (subject, payload) = (
-                    format!("pi.{pi_id}.command.cam", pi_id = pi_id).to_string(),
+                    format!("pi.{pi_id}.command.cam", pi_id = pi_id),
                     PolymorphicPiEventRequest::PiCamCommandRequest(
                         models::polymorphic_pi_event_request::PiCamCommandRequest {
                             event_type: *event_type,
@@ -415,7 +415,7 @@ impl EventPublisher {
                     };
 
                 let (subject, payload) = (
-                    format!("pi.{pi_id}.command.swupdate", pi_id = pi_id).to_string(),
+                    format!("pi.{pi_id}.command.swupdate", pi_id = pi_id),
                     PolymorphicPiEventRequest::PiSoftwareUpdateCommandRequest(
                         models::polymorphic_pi_event_request::PiSoftwareUpdateCommandRequest {
                             version,
@@ -432,7 +432,7 @@ impl EventPublisher {
                     .get_one::<models::PiBootStatusType>("event_type")
                     .expect("Invalid event_type");
                 let (subject, payload) = (
-                    format!("pi.{pi_id}.status.boot", pi_id = pi_id).to_string(),
+                    format!("pi.{pi_id}.status.boot", pi_id = pi_id),
                     PolymorphicPiEventRequest::PiBootStatusRequest(
                         models::polymorphic_pi_event_request::PiBootStatusRequest {
                             event_type: *event_type,
@@ -448,7 +448,7 @@ impl EventPublisher {
                     .get_one::<models::PiCamStatusType>("event_type")
                     .expect("Invalid event_type");
                 let (subject, payload) = (
-                    format!("pi.{pi_id}.status.cam", pi_id = pi_id).to_string(),
+                    format!("pi.{pi_id}.status.cam", pi_id = pi_id),
                     PolymorphicPiEventRequest::PiCamStatusRequest(
                         models::polymorphic_pi_event_request::PiCamStatusRequest {
                             event_type: *event_type,
@@ -468,7 +468,7 @@ impl EventPublisher {
                     .get_one::<models::PiSoftwareUpdateStatusType>("event_type")
                     .expect("Invalid event_type");
                 let (subject, payload) = (
-                    format!("pi.{pi_id}.status.swupdate", pi_id = pi_id).to_string(),
+                    format!("pi.{pi_id}.status.swupdate", pi_id = pi_id),
                     PolymorphicPiEventRequest::PiSoftwareUpdateStatusRequest(
                         models::polymorphic_pi_event_request::PiSoftwareUpdateStatusRequest {
                             version: version.to_string(),
@@ -502,7 +502,7 @@ impl EventPublisher {
                     .get_one::<models::OctoPrintClientStatusType>("event_type")
                     .expect("Invalid event_type");
                 let (subject, payload) = (
-                    format!("pi.{pi_id}.octoprint.client", pi_id = pi_id).to_string(), 
+                    format!("pi.{pi_id}.octoprint.client", pi_id = pi_id), 
                     PolymorphicOctoPrintEventRequest::OctoPrintClientStatusRequest(
                         models::polymorphic_octo_print_event_request::OctoPrintClientStatusRequest{
                         payload: Box::new(payload),
@@ -534,7 +534,7 @@ impl EventPublisher {
                     .get_one::<models::OctoPrintPrintJobStatusType>("event_type")
                     .expect("Invalid event_type");
                 let (subject, payload) = (
-                    format!("pi.{pi_id}.octoprint.print_job", pi_id = pi_id).to_string(), 
+                    format!("pi.{pi_id}.octoprint.print_job", pi_id = pi_id), 
                     PolymorphicOctoPrintEventRequest::OctoPrintPrintJobStatusRequest(
                         models::polymorphic_octo_print_event_request::OctoPrintPrintJobStatusRequest{
                         payload: Box::new(payload),
@@ -569,10 +569,10 @@ impl EventPublisher {
                     .get_one::<models::OctoPrintServerStatusType>("event_type")
                     .expect("Invalid event_type");
                 let (subject, payload) = (
-                    format!("pi.{pi_id}.octoprint.server", pi_id = pi_id).to_string(), 
+                    format!("pi.{pi_id}.octoprint.server", pi_id = pi_id), 
                     PolymorphicOctoPrintEventRequest::OctoPrintServerStatusRequest(
                         models::polymorphic_octo_print_event_request::OctoPrintServerStatusRequest{
-                        payload: payload,
+                        payload,
                         pi: pi_id,
                         event_type: *event_type,
                         octoprint_server
@@ -603,10 +603,10 @@ impl EventPublisher {
                     .get_one::<models::OctoPrintPrinterStatusType>("event_type")
                     .expect("Invalid event_type");
                 let (subject, payload) = (
-                    format!("pi.{pi_id}.octoprint.printer", pi_id = pi_id).to_string(), 
+                    format!("pi.{pi_id}.octoprint.printer", pi_id = pi_id), 
                     PolymorphicOctoPrintEventRequest::OctoPrintPrinterStatusRequest(
                         models::polymorphic_octo_print_event_request::OctoPrintPrinterStatusRequest{
-                        payload: payload,
+                        payload,
                         pi: pi_id,
                         event_type: *event_type,
                         octoprint_server

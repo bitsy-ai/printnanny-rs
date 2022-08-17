@@ -146,7 +146,7 @@ impl NatsWorker {
 
         let nats_client = match config.paths.nats_creds().exists() {
             true => {
-                let credentials_file = config.paths.nats_creds().clone();
+                let credentials_file = config.paths.nats_creds();
                 async_nats::ConnectOptions::with_credentials_file(credentials_file)
                     .await?
                     .require_tls(require_tls)
@@ -170,12 +170,12 @@ impl NatsWorker {
             &nats_app.nats_server_uri
         );
 
-        return Ok(Self {
+        Ok(Self {
             socket: config.paths.events_socket.clone(),
-            nats_client: nats_client,
+            nats_client,
             subscribe_subject,
             nats_server_uri: nats_app.nats_server_uri.clone(),
-        });
+        })
     }
 
     pub async fn run(&self) -> Result<()> {

@@ -79,14 +79,14 @@ impl OsRelease {
     pub fn new() -> io::Result<OsRelease> {
         let file = open("/etc/os-release")?;
         let reader = BufReader::new(file);
-        Ok(OsRelease::from_iter(reader.lines().flat_map(|line| line)))
+        Ok(OsRelease::from_iter(reader.lines().flatten()))
     }
 
     /// Attempt to parse any `/etc/os-release`-like file.
     pub fn new_from<P: AsRef<Path>>(path: P) -> io::Result<OsRelease> {
         let file = open(path)?;
         let reader = BufReader::new(file);
-        Ok(OsRelease::from_iter(reader.lines().flat_map(|line| line)))
+        Ok(OsRelease::from_iter(reader.lines().flatten()))
     }
 }
 
@@ -96,7 +96,7 @@ impl FromIterator<String> for OsRelease {
 
         for line in lines {
             let line = line.trim();
-            map_keys!(&line, {
+            map_keys!(line, {
                 "BUG_REPORT_URL=" => os_release.bug_report_url,
                 "BUILD_ID=" => os_release.build_id,
                 "HOME_URL=" => os_release.home_url,
@@ -119,7 +119,7 @@ impl FromIterator<String> for OsRelease {
                 if line.len() > pos + 1 {
                     os_release.extra.insert(
                         line[..pos].trim().to_owned(),
-                        line[pos + 1..].replace("\"", "").to_owned(),
+                        line[pos + 1..].replace('"', "").to_owned(),
                     );
                 }
             }

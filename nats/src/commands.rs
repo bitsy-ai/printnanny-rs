@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_process::Command;
 use bytes::Bytes;
 use log::{debug, warn};
-use std::{collections::HashMap, fmt::format};
+use std::collections::HashMap;
 
 use printnanny_api_client::models::{self, PolymorphicPiEventRequest};
 use printnanny_services::swupdate::Swupdate;
@@ -29,7 +29,7 @@ pub fn build_boot_status_payload(
     );
     let b = build_status_payload(&request)?;
 
-    Ok((subject.to_string(), b))
+    Ok((subject, b))
 }
 
 pub async fn handle_pi_boot_command(
@@ -106,7 +106,7 @@ pub fn build_cam_status_payload(
     );
     let b = build_status_payload(&request)?;
 
-    Ok((subject.to_string(), b))
+    Ok((subject, b))
 }
 
 pub async fn handle_pi_cam_command(
@@ -230,7 +230,7 @@ pub fn build_swupdate_status_payload(
     );
     let b = build_status_payload(&request)?;
 
-    Ok((subject.to_string(), b))
+    Ok((subject, b))
 }
 
 pub async fn handle_pi_swupdate_command(

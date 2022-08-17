@@ -2,7 +2,7 @@
 
 use anyhow::{ Result };
 use env_logger::Builder;
-use log::{ LevelFilter };
+use log::{ LevelFilter , info};
 use clap::{ 
     Arg, Command
 };
@@ -189,7 +189,7 @@ async fn main() -> Result<()> {
 
     match app_m.subcommand() {
         Some(("dash", _)) => {
-            rocket::build()
+            let rocket = rocket::build()
             .mount("/", home::routes())
             .mount("/debug", debug::routes())
             .mount("/issue", issue::routes())
@@ -197,6 +197,7 @@ async fn main() -> Result<()> {
             .attach(Template::fairing())
             .launch()
             .await?;
+            info!("Initialized rocket server {:?}", rocket);
         },
         Some(("nats-publisher", sub_m)) => {
             let app = printnanny_nats::publisher::EventPublisher::new(sub_m)?;
@@ -208,7 +209,7 @@ async fn main() -> Result<()> {
             app.run().await?;
         },
         Some(("cam", subm)) => {
-            let app = cam::PrintNannyCam::new(&subm);
+            let app = cam::PrintNannyCam::new(subm);
             app.run()?;
         },
         Some(("config", subm)) => {
