@@ -300,7 +300,7 @@ impl PrintNannyConfig {
     pub fn try_factory_reset(&self) -> Result<(), PrintNannyConfigError> {
         // for each key/value pair in FACTORY_RESET, remove file
         for key in FACTORY_RESET.iter() {
-            let filename = format!("{}.toml", key);
+            let filename = format!("{}.json", key);
             let filename = self.paths.confd().join(filename);
             fs::remove_file(&filename)?;
             info!("Removed {} data {:?}", key, filename);
@@ -322,7 +322,7 @@ impl PrintNannyConfig {
     ///
     /// If serialization or fs write fails, prints an error message indicating the failure
     pub fn try_save_by_key(&self, key: &str) -> Result<PathBuf, PrintNannyConfigError> {
-        let filename = format!("{}.toml", key);
+        let filename = format!("{}.json", key);
         let filename = self.paths.confd().join(filename);
         self.try_save_fragment(key, &filename)?;
         info!("Saved config fragment: {:?}", &filename);
@@ -335,15 +335,9 @@ impl PrintNannyConfig {
         filename: &PathBuf,
     ) -> Result<(), PrintNannyConfigError> {
         let content = match key {
-            "api" => Ok(toml::Value::try_from(
-                figment::util::map! { key => &self.api},
-            )?),
-            "pi" => Ok(toml::Value::try_from(
-                figment::util::map! {key => &self.pi },
-            )?),
-            "octoprint" => Ok(toml::Value::try_from(
-                figment::util::map! {key =>  &self.octoprint },
-            )?),
+            "api" => Ok(serde_json::to_string(&self.api)?),
+            "pi" => Ok(serde_json::to_string(&self.pi)?),
+            "octoprint" => Ok(serde_json::to_string(&self.octoprint)?),
             // "printnanny_cloud_proxy" => Ok(toml::Value::try_from(
             //     figment::util::map! {key =>  &self.printnanny_cloud_proxy },
             // )?),
@@ -357,7 +351,7 @@ impl PrintNannyConfig {
         }?
         .to_string();
 
-        info!("Saving {}.toml to {:?}", &key, &filename);
+        info!("Saving {}.json to {:?}", &key, &filename);
 
         // lock fragment for writing
         let lock_for_writing = FileOptions::new().write(true).create(true).truncate(true);
