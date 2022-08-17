@@ -132,6 +132,11 @@ impl NatsWorker {
         let require_tls = nats_app.nats_server_uri.contains("tls");
 
         // if nats.creds available, initialize authenticated nats connection
+        info!(
+            "Initializing NATS connection to {}",
+            nats_app.nats_server_uri
+        );
+
         let nats_client = match config.paths.nats_creds().exists() {
             true => {
                 let credentials_file = config.paths.nats_creds().clone();
@@ -152,6 +157,11 @@ impl NatsWorker {
                     .await?
             }
         };
+
+        info!(
+            "Success! NATS client connected to {}",
+            nats_app.nats_server_uri
+        );
 
         return Ok(Self {
             socket: config.paths.events_socket.clone(),
