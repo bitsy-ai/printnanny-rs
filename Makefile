@@ -1,7 +1,7 @@
 
 VERSION ?= latest
 TMPDIR ?= .tmp
-DEV_MACHINE ?= pn-dev
+DEV_MACHINE ?= pn-debug
 DEV_USER ?= root
 
 PRINTNANNY_WEBAPP_WORKSPACE ?= $(HOME)/projects/octoprint-nanny-webapp
@@ -37,11 +37,11 @@ minor:
 major:
 	cargo release major --workspace --execute --tag
 
-$(TMPDIR)/PrintNanny-$(DEV_MACHINE).zip: $(TMPDIR)
-	make -C $(PRINTNANNY_WEBAPP_WORKSPACE) $(TMPDIR)/PrintNanny-$(DEV_MACHINE).zip DEV_CONFIG=$(TMPDIR)/PrintNanny-$(DEV_MACHINE).zip
-	cp $(PRINTNANNY_WEBAPP_WORKSPACE)/$(TMPDIR)/PrintNanny-$(DEV_MACHINE).zip $(TMPDIR)/PrintNanny-$(DEV_MACHINE).zip
+$(TMPDIR)/printnanny-$(DEV_MACHINE).zip: $(TMPDIR)
+	make -C $(PRINTNANNY_WEBAPP_WORKSPACE) $(TMPDIR)/printnanny-$(DEV_MACHINE).zip DEV_CONFIG=$(TMPDIR)/printnanny-$(DEV_MACHINE).zip
+	cp $(PRINTNANNY_WEBAPP_WORKSPACE)/$(TMPDIR)/printnanny-$(DEV_MACHINE).zip $(TMPDIR)/printnanny-$(DEV_MACHINE).zip
 
-devconfig: $(TMPDIR)/PrintNanny-$(DEV_MACHINE).zip
+devconfig: $(TMPDIR)/printnanny-$(DEV_MACHINE).zip
 	PRINTNANNY_CONFIG=$(PWD)/env/Local.toml cargo run --bin printnanny-cli -- -v config init
 
 

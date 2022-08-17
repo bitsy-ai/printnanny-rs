@@ -1,3 +1,4 @@
+use std::env;
 use std::fs;
 use std::io::prelude::*;
 use std::path::PathBuf;
@@ -8,7 +9,7 @@ use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
 use file_lock::{FileLock, FileOptions};
 use glob::glob;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
 use super::error::PrintNannyConfigError;
@@ -174,6 +175,24 @@ impl PrintNannyConfig {
     //
     // 4) Defaults (from implement Default)
 
+    pub fn check_file_from_env_var(var: &str) -> Result<(), PrintNannyConfigError> {
+        // try reading env var
+        match env::var(var) {
+            Ok(value) => {
+                // check that value exists
+                let path = PathBuf::from(value);
+                match path.exists() {
+                    true => Ok(()),
+                    false => Err(PrintNannyConfigError::ConfigFileNotFound { path }),
+                }
+            }
+            Err(_) => {
+                warn!("PRINTNANNY_CONFIG not set. Initializing from PrintNannyConfig::default()");
+                Ok(())
+            }
+        }
+    }
+
     pub fn figment() -> Result<Figment, PrintNannyConfigError> {
         // merge file in PRINTNANNY_CONFIG env var (if set)
         let result = Figment::from(Self { ..Self::default() })
@@ -210,6 +229,9 @@ impl PrintNannyConfig {
 
         let result = Self::read_path_glob::<Json>(&json_glob, result);
         let result = Self::read_path_glob::<Toml>(&toml_glob, result);
+
+        // if PRINTNANNY_CONFIG env var is set, check file exists and is readable
+        Self::check_file_from_env_var("PRINTNANNY_CONFIG")?;
 
         // finally, re-merge PRINTNANNY_CONFIG and PRINTNANNY_ENV so these values take highest precedence
         let result = result
@@ -424,6 +446,18 @@ impl Provider for PrintNannyConfig {
 mod tests {
     use super::*;
     use crate::paths::PRINTNANNY_CONFIG_FILENAME;
+
+    #[test_log::test]
+    fn test_config_file_not_found() {
+        figment::Jail::expect_with(|jail| {
+            jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
+            let result = PrintNannyConfig::figment();
+            assert!(result.is_err());
+            // assert_eq!(result, expected);
+            Ok(())
+        });
+    }
+
     #[test_log::test]
     fn test_nested_env_var() {
         figment::Jail::expect_with(|jail| {
