@@ -1,3 +1,4 @@
+use serde_json::Value;
 use std::collections::HashMap;
 
 use crate::error::CommandError;
@@ -8,8 +9,8 @@ pub fn to_nats_command_subscribe_subject(pi_id: &i32) -> String {
 }
 
 // parses output of `systemctl show` into a hashmap
-pub fn systemctl_show_payload(stdout: &[u8]) -> Result<HashMap<String, String>, CommandError> {
-    let mut result: HashMap<String, String> = HashMap::new();
+pub fn systemctl_show_payload(stdout: &[u8]) -> Result<HashMap<String, Value>, CommandError> {
+    let mut result: HashMap<String, Value> = HashMap::new();
     let mapping = std::str::from_utf8(&stdout)?.trim().split("\n");
 
     for line in mapping {
@@ -20,7 +21,7 @@ pub fn systemctl_show_payload(stdout: &[u8]) -> Result<HashMap<String, String>, 
             });
         }
         let (key, value) = split.unwrap();
-        result.insert(key.to_string(), value.to_string());
+        result.insert(key.to_string(), Value::from(value));
     }
 
     Ok(result)
@@ -136,10 +137,10 @@ CtrlAltDelBurstAction=reboot-force
         "#;
         let result = systemctl_show_payload(stdout.as_bytes()).unwrap();
         println!("{:?}", result);
-        assert_eq!(result.get("LogLevel"), Some(&"info".to_string()));
+        assert_eq!(result.get("LogLevel"), Some(&Value::from("info")));
         assert_eq!(
             result.get("Environment"), 
-            Some(&"LANG=en_US.UTF-8 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string())
+            Some(&Value::from("LANG=en_US.UTF-8 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"))
         );
     }
 

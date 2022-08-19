@@ -335,7 +335,8 @@ impl EventPublisher {
             .id;
         let id = Some(Uuid::new_v4().to_string());
         let created_dt: DateTime<Utc> = SystemTime::now().into();
-        let created_dt = Some(created_dt.to_string());
+        let created_dt = Some(created_dt.to_rfc3339());
+
         match self.args.subcommand().unwrap() {
             (subjects::SUBJECT_COMMAND_BOOT, subargs) => {
                 let event_type = subargs
