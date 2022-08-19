@@ -107,6 +107,16 @@ pub async fn handle_pi_boot_command(
         models::PiBootCommandType::Shutdown => {
             Command::new("shutdown").output().await?;
         }
+
+        models::PiBootCommandType::SystemctlShow => {
+            let result = Command::new("systemctl").arg("show").output().await?;
+            // publish to reply topic if present
+            // if reply.is_some() {
+            //     nats_client
+            //         .publish(reply.as_ref().unwrap().to_string(), req.clone())
+            //         .await?;
+            // }
+        }
         _ => warn!("No handler configured for msg={:?}", &cmd),
     };
     Ok(())
