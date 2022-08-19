@@ -73,16 +73,6 @@ impl ConfigCommand {
                         _ => Err(e),
                     },
                 }?;
-                match config.paths.unpack_seed(force) {
-                    Ok(_r) => Ok(()),
-                    Err(e) => match e {
-                        PrintNannyConfigError::FileExists { .. } => {
-                            warn!("{}", e);
-                            Ok(())
-                        }
-                        _ => Err(e),
-                    },
-                }?;
             }
             _ => panic!("Expected generate-keys|get|init|generate-keys subcommand"),
         };
