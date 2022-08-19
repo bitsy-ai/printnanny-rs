@@ -1,5 +1,4 @@
 use anyhow::Result;
-use env_logger;
 use printnanny_nats::publisher::EventPublisher;
 
 #[tokio::main]
