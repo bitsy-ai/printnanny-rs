@@ -1,8 +1,11 @@
 use anyhow::Result;
 use async_process::Command;
 use bytes::Bytes;
+use chrono::prelude::{DateTime, Utc};
 use log::{debug, warn};
 use std::collections::HashMap;
+use std::time::SystemTime;
+use uuid::Uuid;
 
 use printnanny_api_client::models::{self, PolymorphicPiEventRequest};
 use printnanny_services::swupdate::Swupdate;
@@ -19,12 +22,16 @@ pub fn build_boot_status_payload(
     // command will be received on pi.$id.<topic>.commands
     // emit status event to pi.$id.<topic>.commands.$command_id
     let subject = format!("pi.{pi_id}.status.boot", pi_id = cmd.pi);
-
+    let id = Some(Uuid::new_v4().to_string());
+    let created_dt: DateTime<Utc> = SystemTime::now().into();
+    let created_dt = Some(created_dt.to_string());
     let request = PolymorphicPiEventRequest::PiBootStatusRequest(
         models::polymorphic_pi_event_request::PiBootStatusRequest {
             payload,
             event_type,
             pi: cmd.pi,
+            id,
+            created_dt,
         },
     );
     let b = build_status_payload(&request)?;
@@ -96,12 +103,16 @@ pub fn build_cam_status_payload(
     // command will be received on pi.$id.<topic>.commands
     // emit status event to pi.$id.<topic>.commands.$command_id
     let subject = format!("pi.{pi_id}.status.cam", pi_id = cmd.pi);
+    let id = Some(Uuid::new_v4().to_string());
+    let created_dt: DateTime<Utc> = SystemTime::now().into();
 
     let request = PolymorphicPiEventRequest::PiCamStatusRequest(
         models::polymorphic_pi_event_request::PiCamStatusRequest {
             payload,
             event_type,
             pi: cmd.pi,
+            id,
+            created_dt: Some(created_dt.to_string()),
         },
     );
     let b = build_status_payload(&request)?;
@@ -219,6 +230,8 @@ pub fn build_swupdate_status_payload(
     // command will be received on pi.$id.<topic>.commands
     // emit status event to pi.$id.<topic>.commands.$command_id
     let subject = format!("pi.{pi_id}.status.swupdate", pi_id = cmd.pi);
+    let id = Some(Uuid::new_v4().to_string());
+    let created_dt: DateTime<Utc> = SystemTime::now().into();
 
     let request = PolymorphicPiEventRequest::PiSoftwareUpdateStatusRequest(
         models::polymorphic_pi_event_request::PiSoftwareUpdateStatusRequest {
@@ -226,6 +239,8 @@ pub fn build_swupdate_status_payload(
             event_type,
             pi: cmd.pi,
             version: cmd.version.clone(),
+            id,
+            created_dt: Some(created_dt.to_string()),
         },
     );
     let b = build_status_payload(&request)?;
