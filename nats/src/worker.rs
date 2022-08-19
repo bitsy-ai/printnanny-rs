@@ -46,7 +46,7 @@ impl NatsWorker {
             match payload {
                 Ok(event) => {
                     debug!("Deserialized PolymorphicPiEvent: {:?}", event);
-                    commands::handle_incoming(event, &self.nats_client).await?;
+                    commands::handle_incoming(event, message.reply, &self.nats_client).await?;
                 }
                 Err(e) => {
                     error!(

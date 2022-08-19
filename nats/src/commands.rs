@@ -41,6 +41,7 @@ pub fn build_boot_status_payload(
 
 pub async fn handle_pi_boot_command(
     cmd: models::polymorphic_pi_event_request::PiBootCommandRequest,
+    reply: Option<String>,
     nats_client: &async_nats::Client,
 ) -> Result<()> {
     match cmd.event_type {
@@ -49,7 +50,17 @@ pub async fn handle_pi_boot_command(
 
             let (subject, req) =
                 build_boot_status_payload(&cmd, models::PiBootStatusType::RebootStarted, None)?;
+
+            // publish to reply topic if present
+            if reply.is_some() {
+                nats_client
+                    .publish(reply.as_ref().unwrap().to_string(), req.clone())
+                    .await?;
+            }
+
+            // also publish to status topic
             nats_client.publish(subject.clone(), req).await?;
+
             debug!(
                 "nats.publish event_type={:?}",
                 models::PiBootStatusType::RebootStarted
@@ -78,6 +89,12 @@ pub async fn handle_pi_boot_command(
                         models::PiBootStatusType::RebootError,
                         Some(payload),
                     )?;
+                    // publish to reply topic if present
+                    if reply.is_some() {
+                        nats_client
+                            .publish(reply.as_ref().unwrap().to_string(), req.clone())
+                            .await?;
+                    }
 
                     nats_client.publish(subject.clone(), req).await?;
                     debug!(
@@ -122,6 +139,7 @@ pub fn build_cam_status_payload(
 
 pub async fn handle_pi_cam_command(
     cmd: models::polymorphic_pi_event_request::PiCamCommandRequest,
+    reply: Option<String>,
     nats_client: &async_nats::Client,
 ) -> Result<()> {
     match cmd.event_type {
@@ -129,6 +147,13 @@ pub async fn handle_pi_cam_command(
             // publish CamStarted event
             let (subject, req) =
                 build_cam_status_payload(&cmd, models::PiCamStatusType::CamStarted, None)?;
+            // publish to reply topic if present
+            if reply.is_some() {
+                nats_client
+                    .publish(reply.as_ref().unwrap().to_string(), req.clone())
+                    .await?;
+            }
+
             nats_client.publish(subject.clone(), req).await?;
             debug!(
                 "nats.publish event_type={:?}",
@@ -146,6 +171,13 @@ pub async fn handle_pi_cam_command(
                         models::PiCamStatusType::CamStartSuccess,
                         None,
                     )?;
+                    // publish to reply topic if present
+                    if reply.is_some() {
+                        nats_client
+                            .publish(reply.as_ref().unwrap().to_string(), req.clone())
+                            .await?;
+                    }
+
                     nats_client.publish(subject.clone(), req).await?;
                 }
                 false => {
@@ -168,6 +200,12 @@ pub async fn handle_pi_cam_command(
                         models::PiCamStatusType::CamError,
                         Some(payload),
                     )?;
+                    // publish to reply topic if present
+                    if reply.is_some() {
+                        nats_client
+                            .publish(reply.as_ref().unwrap().to_string(), req.clone())
+                            .await?;
+                    }
 
                     nats_client.publish(subject.clone(), req).await?;
                     debug!(
@@ -187,6 +225,13 @@ pub async fn handle_pi_cam_command(
                 true => {
                     let (subject, req) =
                         build_cam_status_payload(&cmd, models::PiCamStatusType::CamStopped, None)?;
+                    // publish to reply topic if present
+                    if reply.is_some() {
+                        nats_client
+                            .publish(reply.as_ref().unwrap().to_string(), req.clone())
+                            .await?;
+                    }
+
                     nats_client.publish(subject.clone(), req).await?;
                 }
                 false => {
@@ -209,6 +254,12 @@ pub async fn handle_pi_cam_command(
                         models::PiCamStatusType::CamError,
                         Some(payload),
                     )?;
+                    // publish to reply topic if present
+                    if reply.is_some() {
+                        nats_client
+                            .publish(reply.as_ref().unwrap().to_string(), req.clone())
+                            .await?;
+                    }
 
                     nats_client.publish(subject.clone(), req).await?;
                     debug!(
@@ -260,6 +311,13 @@ pub async fn handle_pi_swupdate_command(
                 models::PiSoftwareUpdateStatusType::SwupdateStarted,
                 None,
             )?;
+            // publish to reply topic if present
+            if reply.is_some() {
+                nats_client
+                    .publish(reply.as_ref().unwrap().to_string(), req.clone())
+                    .await?;
+            }
+
             nats_client.publish(subject.clone(), req).await?;
             debug!(
                 "nats.publish event_type={:?}",
@@ -276,6 +334,13 @@ pub async fn handle_pi_swupdate_command(
                         models::PiSoftwareUpdateStatusType::SwupdateSuccess,
                         None,
                     )?;
+                    // publish to reply topic if present
+                    if reply.is_some() {
+                        nats_client
+                            .publish(reply.as_ref().unwrap().to_string(), req.clone())
+                            .await?;
+                    }
+
                     nats_client.publish(subject.clone(), req).await?;
                     debug!(
                         "nats.publish event_type={:?}",
@@ -302,6 +367,12 @@ pub async fn handle_pi_swupdate_command(
                         models::PiSoftwareUpdateStatusType::SwupdateError,
                         Some(payload),
                     )?;
+                    // publish to reply topic if present
+                    if reply.is_some() {
+                        nats_client
+                            .publish(reply.as_ref().unwrap().to_string(), req.clone())
+                            .await?;
+                    }
 
                     nats_client.publish(subject.clone(), req).await?;
                     debug!(
@@ -320,17 +391,18 @@ pub async fn handle_pi_swupdate_command(
 
 pub async fn handle_incoming(
     msg: PolymorphicPiEventRequest,
+    reply: Option<String>,
     nats_client: &async_nats::Client,
 ) -> Result<()> {
     match msg {
         PolymorphicPiEventRequest::PiBootCommandRequest(command) => {
-            handle_pi_boot_command(command, nats_client).await?;
+            handle_pi_boot_command(command, reply, nats_client).await?;
         }
         PolymorphicPiEventRequest::PiCamCommandRequest(command) => {
-            handle_pi_cam_command(command, nats_client).await?;
+            handle_pi_cam_command(command, reply, nats_client).await?;
         }
         PolymorphicPiEventRequest::PiSoftwareUpdateCommandRequest(command) => {
-            handle_pi_swupdate_command(command, nats_client).await?;
+            handle_pi_swupdate_command(command, reply, nats_client).await?;
         }
         _ => warn!("No handler configured for msg={:?}", msg),
     };
