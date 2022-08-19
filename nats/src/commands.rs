@@ -301,6 +301,7 @@ pub fn build_swupdate_status_payload(
 
 pub async fn handle_pi_swupdate_command(
     cmd: models::polymorphic_pi_event_request::PiSoftwareUpdateCommandRequest,
+    reply: Option<String>,
     nats_client: &async_nats::Client,
 ) -> Result<()> {
     match &cmd.event_type {
