@@ -181,7 +181,7 @@ impl OctoPrintConfig {
 
     pub fn printnanny_plugin_version(
         &self,
-        packages: &Vec<PipPackage>,
+        packages: &[PipPackage],
     ) -> Result<Option<String>, PrintNannyConfigError> {
         let v: Vec<&PipPackage> = packages
             .iter()
