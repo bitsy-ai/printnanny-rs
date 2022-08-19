@@ -1,14 +1,19 @@
+use std::collections::HashMap;
+use std::time::SystemTime;
+
 use anyhow::Result;
+use chrono::prelude::{DateTime, Utc};
 use clap::{crate_authors, value_parser, Arg, ArgMatches, Command, ValueEnum};
 use futures::prelude::*;
 use log::debug;
+
 use printnanny_api_client::models;
 use printnanny_api_client::models::polymorphic_octo_print_event_request::PolymorphicOctoPrintEventRequest;
 use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
 use printnanny_services::{config::PrintNannyConfig, error::PrintNannyConfigError};
-use std::collections::HashMap;
 use tokio::net::UnixStream;
 use tokio_util::codec::{FramedWrite, LengthDelimitedCodec};
+use uuid::Uuid;
 
 use crate::error;
 use crate::subjects;
@@ -328,7 +333,9 @@ impl EventPublisher {
             .as_ref()
             .expect("Failed to read PrintNannyConfig.pi.id")
             .id;
-
+        let id = Some(Uuid::new_v4().to_string());
+        let created_dt: DateTime<Utc> = SystemTime::now().into();
+        let created_dt = Some(created_dt.to_string());
         match self.args.subcommand().unwrap() {
             (subjects::SUBJECT_COMMAND_BOOT, subargs) => {
                 let event_type = subargs
@@ -341,6 +348,8 @@ impl EventPublisher {
                             event_type: *event_type,
                             pi: pi_id,
                             payload: None,
+                            id,
+                            created_dt,
                         },
                     ),
                 );
@@ -357,6 +366,8 @@ impl EventPublisher {
                             event_type: *event_type,
                             pi: pi_id,
                             payload: None,
+                            id,
+                            created_dt,
                         },
                     ),
                 );
@@ -422,6 +433,8 @@ impl EventPublisher {
                             event_type: *event_type,
                             pi: pi_id,
                             payload: Box::new(payload),
+                            id,
+                            created_dt,
                         },
                     ),
                 );
@@ -438,6 +451,8 @@ impl EventPublisher {
                             event_type: *event_type,
                             pi: pi_id,
                             payload: None,
+                            id,
+                            created_dt,
                         },
                     ),
                 );
@@ -454,6 +469,8 @@ impl EventPublisher {
                             event_type: *event_type,
                             pi: pi_id,
                             payload: None,
+                            id,
+                            created_dt,
                         },
                     ),
                 );
@@ -475,6 +492,8 @@ impl EventPublisher {
                             event_type: *event_type,
                             pi: pi_id,
                             payload: None,
+                            id,
+                            created_dt,
                         },
                     ),
                 );
@@ -508,7 +527,7 @@ impl EventPublisher {
                         payload: Box::new(payload),
                         pi: pi_id,
                         event_type: *event_type,
-                        octoprint_server
+                        octoprint_server,
                     })
                 );
                 self.publish_octoprint_event(&subject, &payload).await

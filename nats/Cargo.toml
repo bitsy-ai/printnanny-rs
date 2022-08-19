@@ -14,25 +14,28 @@ name = "nats-publisher"
 name = "nats-worker"
 
 [dependencies]
+anyhow = "1"
+async-nats = "0.18.0"
 async-process = "1.4.0"
 bytes = "1.2"
-anyhow = "1"
+chrono = "0.4"
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
-async-nats = "0.18.0"
 env_logger = "0.9"
 futures = "0.3"
+log = "0.4"
+printnanny-api-client = "0.103.0"
 printnanny-services = {path = "../services", version = "^0.25.0"}
-printnanny-api-client = "0.102.2"
 serde = { version = "1", features = ["derive"] }
+serde_bytes = "0.11"
 serde_json = "1"
 serde_variant = "0.1.1"
-serde_bytes = "0.11"
 serde-reflection = "0.3.6"
+thiserror = "1"
 tokio = "1.20"
 tokio-serde = { version="0.8", features = ["json"] }
-thiserror = "1"
 tokio-util = { version="0.7", features = ["codec"] }
-log = "0.4"
+uuid = { version="1.1.2", features = ["v4"] }
+
 
 [dev-dependencies]
 test-log = "0.2" 

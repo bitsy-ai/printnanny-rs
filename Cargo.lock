@@ -1944,7 +1944,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "975de676448231fcde04b9149d2543077e166b78fc29eae5aa219e7928410da2"
 dependencies = [
- "uuid",
+ "uuid 0.8.2",
 ]
 
 [[package]]
@@ -2626,9 +2626,9 @@ checksum = "c6fa0831dd7cc608c38a5e323422a0077678fa5744aa2be4ad91c4ece8eec8d5"
 
 [[package]]
 name = "printnanny-api-client"
-version = "0.102.2"
+version = "0.103.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90629eddf4b6b35626427b89bc8af557eaa58e3843db3a8ebc791aafc29d77ae"
+checksum = "86c1be51198cad2b49744c55a62cead7035f9b58bbd91ec585df18686fd8d3a9"
 dependencies = [
  "bytes",
  "clap",
@@ -2708,6 +2708,7 @@ dependencies = [
  "async-nats",
  "async-process",
  "bytes",
+ "chrono",
  "clap",
  "env_logger",
  "futures",
@@ -2724,6 +2725,7 @@ dependencies = [
  "tokio",
  "tokio-serde",
  "tokio-util 0.7.3",
+ "uuid 1.1.2",
 ]
 
 [[package]]
@@ -4302,6 +4304,15 @@ name = "uuid"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
+dependencies = [
+ "getrandom",
+]
+
+[[package]]
+name = "uuid"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd6469f4314d5f1ffec476e05f17cc9a78bc7a27a6a857842170bdf8d6f98d2f"
 dependencies = [
  "getrandom",
 ]
