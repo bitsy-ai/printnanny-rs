@@ -3,12 +3,12 @@ use async_process::Command;
 use bytes::Bytes;
 use chrono::prelude::{DateTime, Utc};
 use log::{debug, warn};
+use printnanny_api_client::models::{self, PolymorphicPiEventRequest};
+use printnanny_services::config::PrintNannyConfig;
+use printnanny_services::swupdate::Swupdate;
 use std::collections::HashMap;
 use std::time::SystemTime;
 use uuid::Uuid;
-
-use printnanny_api_client::models::{self, PolymorphicPiEventRequest};
-use printnanny_services::swupdate::Swupdate;
 
 use crate::util::systemctl_show_payload;
 
@@ -150,6 +150,69 @@ pub async fn handle_pi_boot_command(
                 "nats.publish event_type={:?}",
                 models::PiBootStatusType::RebootStarted
             );
+        }
+        models::PiBootCommandType::SyncSettings => {
+            // publish SyncSettings event
+            let (subject, req) = build_boot_status_payload(
+                &cmd,
+                models::PiBootStatusType::SyncSettingsStarted,
+                None,
+            )?;
+
+            // publish to reply topic if present
+            if reply.is_some() {
+                nats_client
+                    .publish(reply.as_ref().unwrap().to_string(), req.clone())
+                    .await?;
+            }
+            // also publish to status topic
+            nats_client.publish(subject.clone(), req).await?;
+
+            let config = PrintNannyConfig::new()?;
+            let result = config.sync().await;
+
+            match result {
+                Ok(_) => {
+                    // Publish SyncSettingSuccess event
+                    let (subject, req) = build_boot_status_payload(
+                        &cmd,
+                        models::PiBootStatusType::SyncSettingsSuccess,
+                        None,
+                    )?;
+                    // publish to reply topic if present
+                    if reply.is_some() {
+                        nats_client
+                            .publish(reply.as_ref().unwrap().to_string(), req.clone())
+                            .await?;
+                    }
+                    // also publish to status topic
+                    nats_client.publish(subject.clone(), req).await?;
+                }
+                Err(e) => {
+                    // Publish SyncSettingsError event
+
+                    let mut payload: HashMap<String, serde_json::Value> = HashMap::new();
+                    payload.insert(
+                        "error".to_string(),
+                        serde_json::Value::from(format!("{:?}", e)),
+                    );
+                    let payload = Some(payload);
+                    let (subject, req) = build_boot_status_payload(
+                        &cmd,
+                        models::PiBootStatusType::SyncSettingsError,
+                        payload,
+                    )?;
+
+                    // publish to reply topic if present
+                    if reply.is_some() {
+                        nats_client
+                            .publish(reply.as_ref().unwrap().to_string(), req.clone())
+                            .await?;
+                    }
+                    // also publish to status topic
+                    nats_client.publish(subject.clone(), req).await?;
+                }
+            }
         }
         _ => warn!("No handler configured for msg={:?}", &cmd),
     };

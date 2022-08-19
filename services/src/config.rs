@@ -12,9 +12,12 @@ use glob::glob;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
+use crate::error::ServiceError;
+
 use super::error::PrintNannyConfigError;
 use super::octoprint::OctoPrintConfig;
 use super::paths::{PrintNannyPaths, PRINTNANNY_CONFIG_DEFAULT};
+use super::printnanny_api::ApiService;
 use printnanny_api_client::models;
 
 // FACTORY_RESET holds the struct field names of PrintNannyConfig
@@ -156,6 +159,11 @@ impl PrintNannyConfig {
     pub fn find_value(key: &str) -> Result<figment::value::Value, PrintNannyConfigError> {
         let figment = Self::figment()?;
         Ok(figment.find_value(key)?)
+    }
+
+    pub async fn sync(self) -> Result<(), ServiceError> {
+        let mut service = ApiService::new(self)?;
+        service.sync().await
     }
 
     // intended for use with Rocket's figmment
