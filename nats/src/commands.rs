@@ -55,7 +55,7 @@ pub async fn handle_pi_boot_command(
                 build_boot_status_payload(&cmd, models::PiBootStatusType::RebootStarted, None)?;
 
             // publish to status topic
-            nats_client.publish(subject.clone(), req).await?;
+            nats_client.publish(subject.clone(), req.clone()).await?;
 
             debug!(
                 "nats.publish event_type={:?}",
@@ -68,7 +68,7 @@ pub async fn handle_pi_boot_command(
                     // publish to reply topic if present
                     if reply.is_some() {
                         nats_client
-                            .publish(reply.as_ref().unwrap().to_string(), req.clone())
+                            .publish(reply.as_ref().unwrap().to_string(), req)
                             .await?;
                     }
                 }
