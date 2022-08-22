@@ -130,10 +130,7 @@ impl PrintNannyCam {
         // sink to Janus Streaming plugin API (Cloud) if cloud_video_enabled
         if device_settings.cloud_video_enabled.unwrap() {
             let webrtc_cloud_host = webrtc_cloud_config.rtp_domain;
-            let webrtc_cloud_port = webrtc_cloud_config
-                .rtp_port
-                .expect("PrintNannyConfig.janus.cloud.rtp_port is not set")
-                .to_string();
+            let webrtc_cloud_port = webrtc_cloud_config.rtp_port.to_string();
             let webrtc_cloud_queue = gst::ElementFactory::make("queue2", Some("januscloud_queue"))?;
             let webrtc_cloud_sink = gst::ElementFactory::make("udpsink", Some("januscloud_sink"))?;
             webrtc_cloud_sink.set_property_from_str("host", &webrtc_cloud_host);
@@ -152,7 +149,7 @@ impl PrintNannyCam {
         }
 
         // sink to Janus Streaming plugin API (Edge)
-        let webrtc_edge_port = webrtc_edge_config.rtp_port.unwrap_or(5105).to_string();
+        let webrtc_edge_port = webrtc_edge_config.rtp_port.to_string();
         let webrtc_edge_queue = gst::ElementFactory::make("queue2", Some("janusedge_queue"))?;
         let webrtc_edge_sink = gst::ElementFactory::make("udpsink", Some("janusedge_udpsink"))?;
         webrtc_edge_sink.set_property_from_str("host", "127.0.0.1");
