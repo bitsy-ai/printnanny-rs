@@ -208,7 +208,6 @@ pub async fn handle_pi_boot_command(
                 }
             }
         }
-        _ => warn!("No handler configured for msg={:?}", &cmd),
     };
     Ok(())
 }

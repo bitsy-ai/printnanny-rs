@@ -93,7 +93,7 @@ pub async fn janus_admin_api_call(endpoint: JanusAdminEndpoint) -> Result<String
     );
     body.insert("admin_secret", &janus_config.admin_secret);
 
-    let token = janus_config.api_token.unwrap_or_else(|| "".to_string());
+    let token = janus_config.api_token;
 
     match endpoint {
         JanusAdminEndpoint::AddToken => {
