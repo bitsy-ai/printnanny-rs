@@ -3,7 +3,6 @@ pub mod cpuinfo;
 pub mod error;
 pub mod file;
 pub mod janus;
-pub mod keys;
 pub mod octoprint;
 pub mod os_release;
 pub mod paths;
