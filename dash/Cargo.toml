@@ -16,7 +16,7 @@ targets = [
 
 [dependencies]
 printnanny-services = {path = "../services", version = "^0.25.0"}
-printnanny-api-client = "0.103.2"
+printnanny-api-client = "0.104.0"
 serde = "1"
 thiserror = "1"
 indexmap = "1.8.0"
