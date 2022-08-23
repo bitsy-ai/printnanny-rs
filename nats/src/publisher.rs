@@ -510,12 +510,12 @@ impl EventPublisher {
                     serde_json::from_str::<models::OctoPrintClientStatusPayloadRequest>(payload)?;
                 let octoprint_server = self
                     .config
-                    .octoprint
+                    .pi
                     .as_ref()
-                    .expect("Failed to readPrintNannyConfig.octoprint")
-                    .server
+                    .expect("Failed to readPrintNannyConfig.pi")
+                    .octoprint_server
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.octoprint.server")
+                    .expect("Failed to read PrintNannyConfig.pi.octoprint_server")
                     .id;
                 let event_type = self
                     .args
@@ -542,12 +542,12 @@ impl EventPublisher {
                     serde_json::from_str::<models::OctoPrintPrintJobPayloadRequest>(payload)?;
                 let octoprint_server = self
                     .config
-                    .octoprint
+                    .pi
                     .as_ref()
-                    .expect("Failed to readPrintNannyConfig.octoprint")
-                    .server
+                    .expect("Failed to readPrintNannyConfig.pi")
+                    .octoprint_server
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.octoprint.server")
+                    .expect("Failed to read PrintNannyConfig.pi.octoprint_server")
                     .id;
                 let event_type = self
                     .args
@@ -577,12 +577,12 @@ impl EventPublisher {
                 };
                 let octoprint_server = self
                     .config
-                    .octoprint
+                    .pi
                     .as_ref()
-                    .expect("Failed to readPrintNannyConfig.octoprint")
-                    .server
+                    .expect("Failed to readPrintNannyConfig.pi")
+                    .octoprint_server
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.octoprint.server")
+                    .expect("Failed to read PrintNannyConfig.pi.octoprint_server")
                     .id;
                 let event_type = self
                     .args
@@ -611,12 +611,12 @@ impl EventPublisher {
                 };
                 let octoprint_server = self
                     .config
-                    .octoprint
+                    .pi
                     .as_ref()
-                    .expect("Failed to readPrintNannyConfig.octoprint")
-                    .server
+                    .expect("Failed to readPrintNannyConfig.pi")
+                    .octoprint_server
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.octoprint.server")
+                    .expect("Failed to read PrintNannyConfig.pi.octoprint_server")
                     .id;
                 let event_type = self
                     .args

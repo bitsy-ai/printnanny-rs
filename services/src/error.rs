@@ -108,12 +108,7 @@ pub enum ServiceError {
     SystemInfoUpdateOrCreateError(#[from] ApiError<devices_api::SystemInfoUpdateOrCreateError>),
 
     #[error(transparent)]
-    OctoprintServerUpdateOrCreateError(
-        #[from] ApiError<octoprint_api::OctoprintServerUpdateOrCreateError>,
-    ),
-
-    #[error(transparent)]
-    PublicKeyUpdateOrCreate(#[from] ApiError<devices_api::PublicKeyUpdateOrCreateError>),
+    OctoprintPartialUpdateError(#[from] ApiError<octoprint_api::OctoprintPartialUpdateError>),
 
     #[error(transparent)]
     FromUtf8Error(#[from] std::string::FromUtf8Error),
