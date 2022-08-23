@@ -12,6 +12,8 @@ pub struct PrintNannyCam {
     pub video_width: i32,
     pub video_fps: i32,
     pub video_src: SrcOption,
+    pub cloud_enabled: bool,
+    pub cloud_disabled: bool,
 }
 
 impl PrintNannyCam {
@@ -54,6 +56,18 @@ impl PrintNannyCam {
                     .default_value("24")
                     .takes_value(true)
                     .help("Input video frames per second"),
+            )
+            .arg(
+                Arg::new("cloud_enabled")
+                    .long("cloud-enabled")
+                    .conflicts_with("cloud_disabled")
+                    .help("Enable Cloud-based WebRTC stream"),
+            )
+            .arg(
+                Arg::new("cloud_disabled")
+                    .long("cloud-disabled")
+                    .conflicts_with("cloud_enabled")
+                    .help("Disable Cloud-based WebRTC stream"),
             );
         app
     }
@@ -70,11 +84,16 @@ impl PrintNannyCam {
         let video_src: SrcOption = args
             .value_of_t("video_src")
             .expect("--video-src is required");
+
+        let cloud_enabled = args.is_present("cloud_enabled");
+        let cloud_disabled = args.is_present("cloud_disabled");
         Self {
             video_height,
             video_width,
             video_fps,
             video_src,
+            cloud_enabled,
+            cloud_disabled,
         }
     }
     pub fn build_pipeline(&self) -> Result<gst::Pipeline> {
@@ -128,7 +147,9 @@ impl PrintNannyCam {
             .expect("PrintNannyConfig.pi.webrtc_edge is not set");
 
         // sink to Janus Streaming plugin API (Cloud) if cloud_video_enabled
-        if device_settings.cloud_video_enabled.unwrap() {
+        if (device_settings.cloud_video_enabled.unwrap() || self.cloud_enabled)
+            && (self.cloud_disabled == false)
+        {
             let webrtc_cloud_host = webrtc_cloud_config.rtp_domain;
             let webrtc_cloud_port = webrtc_cloud_config.rtp_port.to_string();
             let webrtc_cloud_queue = gst::ElementFactory::make("queue2", Some("januscloud_queue"))?;
