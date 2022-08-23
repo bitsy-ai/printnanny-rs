@@ -253,8 +253,8 @@ pub async fn handle_pi_cam_command(
                 "nats.publish event_type={:?}",
                 models::PiCamStatusType::CamStarted
             );
-            let output = Command::new("systemctl")
-                .args(&["restart", "printnanny-cam"])
+            let output = Command::new("sudo")
+                .args(&["systemctl", "restart", "printnanny-cam.service"])
                 .output()
                 .await?;
             match output.status.success() {
@@ -310,8 +310,8 @@ pub async fn handle_pi_cam_command(
             }
         }
         models::PiCamCommandType::CamStop => {
-            let output = Command::new("systemctl")
-                .args(&["stop", "printnanny-cam"])
+            let output = Command::new("sudo")
+                .args(&["systemctl", "stop", "printnanny-cam.service"])
                 .output()
                 .await?;
             match output.status.success() {
