@@ -108,7 +108,10 @@ impl NatsWorker {
         info!("Listening for events on {:?}", self.socket);
         loop {
             match listener.accept().await {
-                Ok((stream, _addr)) => self.relay_to_nats(stream).await?,
+                Ok((stream, _addr)) => match self.relay_to_nats(stream).await {
+                    Ok(_) => (),
+                    Err(e) => error!("Error relaying to NATS {:?}", e),
+                },
                 Err(e) => {
                     error!("Connection to {} broken {}", &self.socket.display(), e);
                 }
