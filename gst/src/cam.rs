@@ -100,6 +100,14 @@ impl PrintNannyCam {
         // initialize pipeline, input source, and rtpbin
         let pipeline = gst::Pipeline::new(None);
         let src = gst::ElementFactory::make(&self.video_src.to_string(), Some("video_src"))?;
+
+        // set some extra properties if using videotestsrc
+        if &self.video_src.to_string() == "videotestsrc" {
+            // https://gstreamer.freedesktop.org/documentation/videotestsrc/index.html?gi-language=c#videotestsrc:is-live
+            src.set_property_from_str("is-live", "true");
+            src.set_property_from_str("pattern", "ball");
+        }
+
         // set input caps
         let incapsfilter = gst::ElementFactory::make("capsfilter", Some("incapsfilter"))?;
         let incaps = gst::Caps::builder("video/x-raw")
@@ -259,6 +267,8 @@ impl PrintNannyCam {
             pipeline.add_many(&[&webrtc_cloud_queue, &webrtc_cloud_sink])?;
             gst::Element::link_many(&[&webrtc_cloud_queue, &webrtc_cloud_sink])?;
             webrtc_cloud_tee_pad.link(&webrtc_cloud_q_pad)?;
+        } else {
+            warn!("PrintNanny Cloud video is disabled");
         }
 
         // queue -> sink pipeline segments
