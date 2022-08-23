@@ -156,7 +156,6 @@ impl PrintNannyCam {
             let webrtc_cloud_sink = gst::ElementFactory::make("udpsink", Some("januscloud_sink"))?;
             webrtc_cloud_sink.set_property_from_str("host", &webrtc_cloud_host);
             webrtc_cloud_sink.set_property_from_str("port", &webrtc_cloud_port);
-            pipeline.add_many(&[&webrtc_cloud_queue, &webrtc_cloud_sink])?;
             let webrtc_cloud_tee_pad = tee
                 .request_pad_simple("src_%u")
                 .unwrap_or_else(|| panic!("Failed to get src pad from tee element {:?}", tee));
@@ -167,6 +166,7 @@ impl PrintNannyCam {
                 )
             });
             webrtc_cloud_tee_pad.link(&webrtc_cloud_q_pad)?;
+            pipeline.add_many(&[&webrtc_cloud_queue, &webrtc_cloud_sink])?;
         }
 
         // sink to Janus Streaming plugin API (Edge)
