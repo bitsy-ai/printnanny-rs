@@ -59,8 +59,6 @@ pub enum PrintNannyConfigError {
     InvalidValue { value: String },
     #[error("Refusing to overwrite existing keypair at {path:?}.")]
     KeypairExists { path: PathBuf },
-    #[error(transparent)]
-    OpenSSLError(#[from] openssl::error::ErrorStack),
 
     #[error(transparent)]
     JsonSerError(#[from] serde_json::Error),

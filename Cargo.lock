@@ -2751,7 +2751,6 @@ dependencies = [
  "jsonwebtoken",
  "log",
  "mockall",
- "openssl",
  "predicates 2.1.1",
  "printnanny-api-client",
  "procfs",
