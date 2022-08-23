@@ -16,7 +16,7 @@ use super::config::PrintNannyConfig;
 use super::cpuinfo::RpiCpuInfo;
 use super::error::{PrintNannyConfigError, ServiceError};
 use super::file::open;
-use super::octoprint::OctoPrintConfig;
+use super::octoprint::OctoPrintHelper;
 
 #[derive(Debug, Clone)]
 pub struct ApiService {
@@ -69,7 +69,7 @@ impl ApiService {
     pub async fn auth_email_create(
         &self,
         email: String,
-    ) -> Result<models::DetailResponse, ServiceError> {
+    ) -> Result<models::EmailAuth, ServiceError> {
         let req = models::EmailAuthRequest { email };
         Ok(accounts_api::accounts2fa_auth_email_create(&self.reqwest, req).await?)
     }
@@ -77,7 +77,7 @@ impl ApiService {
         &self,
         email: &str,
         token: &str,
-    ) -> Result<models::TokenResponse, ServiceError> {
+    ) -> Result<models::CallbackTokenAuth, ServiceError> {
         let req = models::CallbackTokenAuthRequest {
             email: Some(email.to_string()),
             token: token.to_string(),
@@ -98,28 +98,14 @@ impl ApiService {
                 info!("Success! Updated SystemInfo {:?}", system_info);
 
                 // detect edition from os-release
-                // performs any necessary one-time setup tasks, like registering OctoPrint Server
-                let os_release = self.config.paths.load_os_release()?;
-                let octoprint = match OctoPrintConfig::required(&os_release.variant_id) {
-                    true => {
-                        let mut octoprint = OctoPrintConfig::default();
-                        let octoprint_server = self
-                            .octoprint_server_update_or_create(&octoprint, pi.id)
-                            .await?;
-                        octoprint.server = Some(octoprint_server);
-                        info!("Success! Updated OctoPrintConfig {:?}", &octoprint);
-                        Some(octoprint)
+                // let os_release = self.config.paths.load_os_release()?;
+                match &pi.octoprint_server {
+                    Some(octoprint_server) => {
+                        self.octoprint_server_update(*&octoprint_server).await?;
                     }
-                    false => {
-                        debug!(
-                            "OctoPrintConfig is not required for {}",
-                            &os_release.variant_id
-                        );
-                        None
-                    }
-                };
+                    None => (),
+                }
 
-                self.config.octoprint = octoprint;
                 let pi = self.pi_retrieve(pi.id).await?;
                 self.config.pi = Some(pi);
                 self.config.try_save()?;
@@ -187,29 +173,31 @@ impl ApiService {
         Ok(res)
     }
 
-    pub async fn octoprint_server_update_or_create(
+    pub async fn octoprint_server_update(
         &self,
-        octoprint_config: &OctoPrintConfig,
-        pi: i32,
+        octoprint_server: &models::OctoPrintServer,
     ) -> Result<models::OctoPrintServer, ServiceError> {
-        let pip_packages = octoprint_config.pip_packages()?;
-        let octoprint_version = octoprint_config.octoprint_version(&pip_packages)?.into();
-        let pip_version = octoprint_config.pip_version()?;
-        let printnanny_plugin_version =
-            octoprint_config.printnanny_plugin_version(&pip_packages)?;
-        let python_version = octoprint_config.python_version()?;
-        let req = models::OctoPrintServerRequest {
+        let helper = OctoPrintHelper::new(octoprint_server.clone());
+        let pip_version = helper.pip_version()?;
+        let python_version = helper.python_version()?;
+        let pip_packages = helper.pip_packages()?;
+        let octoprint_version = helper.octoprint_version(&pip_packages)?.into();
+        let printnanny_plugin_version = helper.printnanny_plugin_version(&pip_packages)?;
+        let req = models::PatchedOctoPrintServerRequest {
             octoprint_version,
             pip_version,
             printnanny_plugin_version,
             python_version,
-            pi,
+            pi: Some(helper.octoprint_server.pi),
+            ..models::PatchedOctoPrintServerRequest::new()
         };
         debug!(
             "Sending request {:?} to octoprint_server_update_or_create",
             req
         );
-        let res = octoprint_api::octoprint_server_update_or_create(&self.reqwest, req).await?;
+        let res =
+            octoprint_api::octoprint_partial_update(&self.reqwest, octoprint_server.id, Some(req))
+                .await?;
         Ok(res)
     }
 

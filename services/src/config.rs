@@ -15,7 +15,6 @@ use serde::{Deserialize, Serialize};
 use crate::error::ServiceError;
 
 use super::error::PrintNannyConfigError;
-use super::octoprint::OctoPrintConfig;
 use super::paths::{PrintNannyPaths, PRINTNANNY_CONFIG_DEFAULT};
 use super::printnanny_api::ApiService;
 use printnanny_api_client::models;
@@ -23,7 +22,7 @@ use printnanny_api_client::models;
 // FACTORY_RESET holds the struct field names of PrintNannyConfig
 // each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
 // as the name implies, this const is used for performing a reset of any config data modified from defaults
-const FACTORY_RESET: [&str; 3] = ["api", "pi", "octoprint"];
+const FACTORY_RESET: [&str; 2] = ["api", "pi"];
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
 pub enum ConfigFormat {
@@ -117,11 +116,8 @@ impl Default for PrintNannyCloudProxy {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
-    // generic device data present on all Print Nanny OS editions
+    // Pi device data present on all Print Nanny OS editions
     pub pi: Option<models::Pi>,
-    // edition-specific data and settings
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub octoprint: Option<OctoPrintConfig>,
     pub paths: PrintNannyPaths,
     pub api: models::PrintNannyApiConfig,
     pub dash: DashConfig,
@@ -140,7 +136,6 @@ impl Default for PrintNannyConfig {
             api,
             dash,
             paths,
-            octoprint: None,
             pi: None,
         }
     }
@@ -355,15 +350,6 @@ impl PrintNannyConfig {
                     detail: Some("Failed to write .json config fragment".to_string()),
                 }),
             },
-            "octoprint" => match &self.octoprint.as_ref() {
-                Some(_) => Ok(serde_json::to_string(
-                    &figment::util::map! {key => &self.octoprint},
-                )?),
-                None => Err(PrintNannyConfigError::SetupIncomplete {
-                    field: "octoprint".to_string(),
-                    detail: Some("Failed to write .json config fragment".to_string()),
-                }),
-            },
             _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
         }?;
 
@@ -480,12 +466,7 @@ mod tests {
                 profile = "default"
 
                 [paths]
-                install = "/opt/printnanny/default"
-                data = "/opt/printnanny/default/data"
-                
-                [octoprint]
-                base_path = "/home/octoprint/.octoprint"
-                python = "/usr/bin/python3"
+                etc = "/this/etc/path/gets/overridden"
                 
                 [api]
                 base_path = "https://print-nanny.com"
@@ -493,10 +474,10 @@ mod tests {
             )?;
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
             let expected = PathBuf::from("testing");
-            jail.set_env("PRINTNANNY_OCTOPRINT__BASE_PATH", &expected.display());
+            jail.set_env("PRINTNANNY_PATHS__ETC", &expected.display());
             let figment = PrintNannyConfig::figment().unwrap();
             let config: PrintNannyConfig = figment.extract()?;
-            assert_eq!(config.octoprint.unwrap().base_path, expected);
+            assert_eq!(config.paths.etc, expected);
             Ok(())
         });
     }
@@ -510,12 +491,7 @@ mod tests {
                 profile = "default"
 
                 [paths]
-                install = "/opt/printnanny/default"
-                data = "/opt/printnanny/default/data"
-                
-                [octoprint]
-                base_path = "/home/octoprint/.octoprint"
-                python = "/usr/bin/python3"
+                etc = "/opt/printnanny/etc"                
                 
                 [api]
                 base_path = "https://print-nanny.com"
@@ -525,8 +501,8 @@ mod tests {
             let figment = PrintNannyConfig::figment().unwrap();
             let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
-                config.octoprint.unwrap().python,
-                PathBuf::from("/usr/bin/python3")
+                config.paths.data(),
+                PathBuf::from("/opt/printnanny/etc/data")
             );
             Ok(())
         });
