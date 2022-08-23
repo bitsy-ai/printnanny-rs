@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{crate_authors, Arg, ArgMatches, Command};
 use gst::prelude::*;
-use log::{error, info};
+use log::{error, info, warn};
 
 use super::options::SrcOption;
 use printnanny_api_client::models;
@@ -111,9 +111,31 @@ impl PrintNannyCam {
         let tee = gst::ElementFactory::make("tee", Some("t0"))?;
 
         // encode h264 video
-        let converter = gst::ElementFactory::make("v4l2convert", None)?;
-        let encoder = gst::ElementFactory::make("v4l2h264enc", None)?;
-        encoder.set_property_from_str("extra-controls", "controls,repeat_sequence_header=1");
+
+        // fallback to videoconvert element if v4l2convert is unavailable
+        let converter = gst::ElementFactory::make("v4l2convert", None);
+        let converter = match converter {
+            Ok(r) => Ok(r),
+            Err(e) => {
+                warn!("Falling back to videoconvert element. error={:?}", e);
+                gst::ElementFactory::make("videoconvert", None)
+            }
+        }?;
+
+        // fallback to x264enc if v4h264enc is unavailable
+        let encoder = gst::ElementFactory::make("v4l2h264enc", None);
+        let encoder = match encoder {
+            Ok(e) => {
+                // set v4l2h264 properties
+                e.set_property_from_str("extra-controls", "controls,repeat_sequence_header=1");
+                Ok(e)
+            }
+            Err(e) => {
+                warn!("Falling back to x264enc element. error={:?}", e);
+                gst::ElementFactory::make("x264enc", None)
+            }
+        }?;
+
         let encapsfilter = gst::ElementFactory::make("capsfilter", Some("encapsfilter"))?;
         let encaps = gst::Caps::builder("video/x-h264")
             .field("width", &self.video_width)
@@ -145,29 +167,6 @@ impl PrintNannyCam {
             .expect("PrintNannyConfig.pi is not set")
             .webrtc_edge
             .expect("PrintNannyConfig.pi.webrtc_edge is not set");
-
-        // sink to Janus Streaming plugin API (Cloud) if cloud_video_enabled
-        if (device_settings.cloud_video_enabled.unwrap() || self.cloud_enabled)
-            && (self.cloud_disabled == false)
-        {
-            let webrtc_cloud_host = webrtc_cloud_config.rtp_domain;
-            let webrtc_cloud_port = webrtc_cloud_config.rtp_port.to_string();
-            let webrtc_cloud_queue = gst::ElementFactory::make("queue2", Some("januscloud_queue"))?;
-            let webrtc_cloud_sink = gst::ElementFactory::make("udpsink", Some("januscloud_sink"))?;
-            webrtc_cloud_sink.set_property_from_str("host", &webrtc_cloud_host);
-            webrtc_cloud_sink.set_property_from_str("port", &webrtc_cloud_port);
-            let webrtc_cloud_tee_pad = tee
-                .request_pad_simple("src_%u")
-                .unwrap_or_else(|| panic!("Failed to get src pad from tee element {:?}", tee));
-            let webrtc_cloud_q_pad = webrtc_cloud_queue.static_pad("sink").unwrap_or_else(|| {
-                panic!(
-                    "Failed to get sink pad from queue element {:?}",
-                    &webrtc_cloud_queue
-                )
-            });
-            webrtc_cloud_tee_pad.link(&webrtc_cloud_q_pad)?;
-            pipeline.add_many(&[&webrtc_cloud_queue, &webrtc_cloud_sink])?;
-        }
 
         // sink to Janus Streaming plugin API (Edge)
         let webrtc_edge_port = webrtc_edge_config.rtp_port.to_string();
@@ -219,7 +218,6 @@ impl PrintNannyCam {
             &vision_edge_queue,
             &vision_edge_sink,
         ])?;
-
         // src -> payload pipeline segment
         gst::Element::link_many(&[
             &src,
@@ -230,6 +228,39 @@ impl PrintNannyCam {
             &payloader,
             &tee,
         ])?;
+
+        // edge pipeline segment
+        gst::Element::link_many(&[&webrtc_edge_queue, &webrtc_edge_sink])?;
+
+        // vision pipeline segement
+        gst::Element::link_many(&[&vision_edge_queue, &vision_edge_sink])?;
+
+        // cloud pipeline segment
+
+        // sink to Janus Streaming plugin API (Cloud) if cloud_video_enabled
+        if (device_settings.cloud_video_enabled.unwrap() || self.cloud_enabled)
+            && (self.cloud_disabled == false)
+        {
+            let webrtc_cloud_host = webrtc_cloud_config.rtp_domain;
+            let webrtc_cloud_port = webrtc_cloud_config.rtp_port.to_string();
+            let webrtc_cloud_queue = gst::ElementFactory::make("queue2", Some("januscloud_queue"))?;
+            let webrtc_cloud_sink = gst::ElementFactory::make("udpsink", Some("januscloud_sink"))?;
+            webrtc_cloud_sink.set_property_from_str("host", &webrtc_cloud_host);
+            webrtc_cloud_sink.set_property_from_str("port", &webrtc_cloud_port);
+            let webrtc_cloud_tee_pad = tee
+                .request_pad_simple("src_%u")
+                .unwrap_or_else(|| panic!("Failed to get src pad from tee element {:?}", tee));
+            let webrtc_cloud_q_pad = webrtc_cloud_queue.static_pad("sink").unwrap_or_else(|| {
+                panic!(
+                    "Failed to get sink pad from queue element {:?}",
+                    &webrtc_cloud_queue
+                )
+            });
+            pipeline.add_many(&[&webrtc_cloud_queue, &webrtc_cloud_sink])?;
+            gst::Element::link_many(&[&webrtc_cloud_queue, &webrtc_cloud_sink])?;
+            webrtc_cloud_tee_pad.link(&webrtc_cloud_q_pad)?;
+        }
+
         // queue -> sink pipeline segments
         Ok(pipeline)
     }
