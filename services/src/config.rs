@@ -474,7 +474,7 @@ mod tests {
             )?;
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
             let expected = PathBuf::from("testing");
-            jail.set_env("PRINTNANNY_PATHS_ETC", &expected.display());
+            jail.set_env("PRINTNANNY_PATHS__ETC", &expected.display());
             let figment = PrintNannyConfig::figment().unwrap();
             let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(config.paths.etc, expected);
