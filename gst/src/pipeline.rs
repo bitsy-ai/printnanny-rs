@@ -6,6 +6,40 @@ use log::{error, info};
 pub trait GstPipeline {
     fn clap_command() -> clap::Command<'static>;
     fn build_pipeline(&self) -> Result<gst::Pipeline>;
+
+    fn message_handler(&self, pipeline: gst::Pipeline, bus: gst::Bus) {
+        for msg in bus.iter_timed(gst::ClockTime::NONE) {
+            use gst::MessageView;
+            match msg.view() {
+                MessageView::Eos(..) => break,
+                MessageView::Error(err) => {
+                    error!(
+                        "Error from {:?}: {} ({:?})",
+                        err.src().map(|s| s.path_string()),
+                        err.error(),
+                        err.debug()
+                    );
+                    break;
+                }
+                MessageView::StateChanged(state_changed) => {
+                    // Generate a dot graph of the pipeline to GST_DEBUG_DUMP_DOT_DIR if defined
+
+                    if state_changed.src().map(|s| s == pipeline).unwrap_or(false) {
+                        pipeline.debug_to_dot_file(
+                            gst::DebugGraphDetails::all(),
+                            format!("{:?}-{:?}", &state_changed.old(), &state_changed.current()),
+                        );
+                    }
+                }
+                _ => (),
+            }
+        }
+    }
+
+    fn on_sigint(&self) -> () {
+        info!("SIGINT received")
+    }
+
     fn run(&self) -> Result<()> {
         gst::init()?;
         let pipeline = self.build_pipeline()?;
@@ -27,6 +61,10 @@ pub trait GstPipeline {
                     break;
                 }
                 MessageView::StateChanged(state_changed) => {
+                    info!(
+                        "Setting pipeline {:?} state to {:?}",
+                        pipeline, &state_changed
+                    );
                     // Generate a dot graph of the pipeline to GST_DEBUG_DUMP_DOT_DIR if defined
 
                     if state_changed.src().map(|s| s == pipeline).unwrap_or(false) {

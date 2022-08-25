@@ -1,13 +1,22 @@
 use anyhow::Result;
 use env_logger::Builder;
 use log::LevelFilter;
-use printnanny_gst::cam;
+use printnanny_gst::pipeline::GstPipeline;
+use printnanny_gst::rtp_udp::RtpUdpPipeline;
 
 fn main() -> Result<()> {
     // include git sha in version, which requires passing a boxed string to clap's .version() builder
     // parse args
-    let cmd = cam::PrintNannyCam::clap_command();
+    let cmd = RtpUdpPipeline::clap_command();
     let app_m = cmd.get_matches();
+    let app = RtpUdpPipeline::from(&app_m);
+
+    let handler = app.clone();
+    ctrlc::set_handler(move || {
+        warn!("Received Ctrl+C! Cleaning up app {:?}", &handler);
+        handler.on_sigint();
+    })?;
+
     // Vary the output based on how many times the user used the "verbose" flag
     // (i.e. 'printnanny v v v' or 'printnanny vvv' vs 'printnanny v'
     let verbosity = app_m.occurrences_of("v");
@@ -30,7 +39,6 @@ fn main() -> Result<()> {
             builder.filter_level(LevelFilter::Trace).init()
         }
     };
-    let app = cam::PrintNannyCam::new(&app_m);
     app.run()?;
     Ok(())
 }

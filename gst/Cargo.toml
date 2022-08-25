@@ -12,9 +12,17 @@ repository = "https://github.com/bitsy-ai/printnanny-cli.git"
 [[bin]]
 name = "video-socket"
 
+[[bin]]
+name = "h264-rtp-payload"
+
+[[bin]]
+name = "rtp-udp"
+
+
 [dependencies]
 anyhow = { version = "1", features = ["backtrace"] }
 derive_more = "0.99"
+ctrlc = "3.2.3"
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
 env_logger = "0.9"
 gst = { package = "gstreamer", version="0.18.8" }

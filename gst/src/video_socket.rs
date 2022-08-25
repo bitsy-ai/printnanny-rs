@@ -1,17 +1,22 @@
-use std::path::PathBuf;
+use std::fs;
+use std::process;
 
 use anyhow::Result;
-use clap::{crate_authors, Arg, ArgMatches, Command};
+use clap::{crate_authors, value_parser, Arg, ArgMatches, Command};
 use gst::prelude::*;
+use log::{error, warn};
+
+use printnanny_services::config::PrintNannyConfig;
 
 use super::options::SrcOption;
 use super::pipeline::GstPipeline;
-use printnanny_services::paths::PrintNannyPaths;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct VideoSocketPipeline {
     pub shm_size: u32,
     pub shm_wait_for_connection: bool,
     pub shm_socket: String,
+    pub shm_sync: bool,
 
     pub video_height: i32,
     pub video_width: i32,
@@ -23,7 +28,7 @@ impl VideoSocketPipeline {}
 
 impl GstPipeline for VideoSocketPipeline {
     fn clap_command() -> Command<'static> {
-        let app_name = "video.sock";
+        let app_name = "video.socket";
         let app = Command::new(app_name)
             .author(crate_authors!())
             .about("Write camera src to shared memory: https://gstreamer.freedesktop.org/documentation/shm/shmsink.html?gi-language=c")
@@ -34,9 +39,13 @@ impl GstPipeline for VideoSocketPipeline {
                     .help("Sets the level of verbosity"),
             )
             .arg(
+                Arg::new("shm_sync")
+                .long("shm-sync")
+                .help("Set sync property on shmsink https://gstreamer.freedesktop.org/documentation/base/gstbasesink.html?gi-language=c")
+            )
+            .arg(
                 Arg::new("shm_socket")
                     .long("shm-socket")
-                    .default_value("/var/run/printnanny/video.sock")
                     .takes_value(true)
                     .help("shmsink socket path: https://gstreamer.freedesktop.org/documentation/shm/shmsink.html?gi-language=c")
             )
@@ -57,7 +66,7 @@ impl GstPipeline for VideoSocketPipeline {
                     .long("video-src")
                     .default_value("libcamerasrc")
                     .takes_value(true)
-                    .possible_values(SrcOption::possible_values())
+                    .value_parser(value_parser!(SrcOption))
                     .help("Input video source element"),
             )
             .arg(
@@ -82,6 +91,13 @@ impl GstPipeline for VideoSocketPipeline {
                     .help("Input video frames per second"),
             );
         app
+    }
+
+    fn on_sigint(&self) -> () {
+        warn!("SIGINT received, removing {}", self.shm_socket);
+        fs::remove_file(&self.shm_socket)
+            .unwrap_or_else(|_| error!("Failed to delete file {}", &self.shm_socket));
+        process::exit(0)
     }
 
     fn build_pipeline(&self) -> Result<gst::Pipeline> {
@@ -110,6 +126,10 @@ impl GstPipeline for VideoSocketPipeline {
         shmsink.set_property("wait-for-connection", &self.shm_wait_for_connection);
         shmsink.set_property("shm-size", &self.shm_size);
 
+        if self.shm_sync {
+            shmsink.set_property("sync", &self.shm_sync);
+        }
+
         let elements = [&src, &incapsfilter, &queue, &shmsink];
         pipeline.add_many(&elements)?;
         gst::Element::link_many(&elements)?;
@@ -120,11 +140,13 @@ impl GstPipeline for VideoSocketPipeline {
 
 impl Default for VideoSocketPipeline {
     fn default() -> Self {
-        let paths = PrintNannyPaths::default();
+        let config = PrintNannyConfig::new().expect("Failed to initialize PrintNannyConfig");
+
         return Self {
             shm_size: 134217728, // 128MB
-            shm_socket: paths.video_socket().display().to_string(),
+            shm_socket: config.paths.video_socket().display().to_string(),
             shm_wait_for_connection: true,
+            shm_sync: false,
             video_height: 480,
             video_width: 640,
             video_fps: 24,
@@ -135,35 +157,47 @@ impl Default for VideoSocketPipeline {
 
 impl From<&ArgMatches> for VideoSocketPipeline {
     fn from(args: &ArgMatches) -> Self {
+        let defaults = VideoSocketPipeline::default();
+
         let video_height: i32 = args
             .value_of_t("video_height")
-            .expect("--video-height is required");
+            .unwrap_or_else(|_| defaults.video_height);
+
         let video_width: i32 = args
             .value_of_t("video_width")
-            .expect("--video-width is required");
+            .unwrap_or_else(|_| defaults.video_width);
+
         let video_fps: i32 = args
             .value_of_t("video_fps")
-            .expect("--video-fps is required");
-        let video_src: SrcOption = args
-            .value_of_t("video_src")
-            .expect("--video-src is required");
+            .unwrap_or_else(|_| defaults.video_fps);
 
-        let shm_size: u32 = args.value_of_t("shm_size").expect("--shm-size is required");
+        let video_src: &SrcOption = args
+            .get_one::<SrcOption>("video_src")
+            .unwrap_or_else(|| &defaults.video_src);
+
+        let shm_size: u32 = args
+            .value_of_t("shm_size")
+            .unwrap_or_else(|_| defaults.shm_size);
+
         let shm_wait_for_connection: bool = args
             .value_of_t("shm_wait_for_connection")
-            .expect("--shm-wait-for-connection is required");
+            .unwrap_or_else(|_| defaults.shm_wait_for_connection);
+
         let shm_socket: String = args
             .value_of_t("shm_socket")
-            .expect("--shm-socket is required");
+            .unwrap_or_else(|_| defaults.shm_socket);
+
+        let shm_sync: bool = args.is_present("shm_sync");
 
         Self {
             shm_size,
             shm_socket,
+            shm_sync,
             shm_wait_for_connection,
             video_height,
             video_width,
             video_fps,
-            video_src,
+            video_src: *video_src,
         }
     }
 }

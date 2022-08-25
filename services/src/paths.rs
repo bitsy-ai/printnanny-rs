@@ -45,6 +45,9 @@ impl Default for PrintNannyPaths {
 }
 
 impl PrintNannyPaths {
+    pub fn h264_rtp_payload_socket(&self) -> PathBuf {
+        self.run.join("h264_rtp_payload.socket")
+    }
     pub fn video_socket(&self) -> PathBuf {
         self.run.join("video.socket")
     }
