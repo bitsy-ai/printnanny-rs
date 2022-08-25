@@ -9,6 +9,9 @@ edition = "2021"
 rust-version = "1.59"
 repository = "https://github.com/bitsy-ai/printnanny-cli.git"
 
+[[bin]]
+name = "video-socket"
+
 [dependencies]
 anyhow = { version = "1", features = ["backtrace"] }
 derive_more = "0.99"

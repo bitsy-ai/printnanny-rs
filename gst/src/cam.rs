@@ -96,30 +96,8 @@ impl PrintNannyCam {
             cloud_disabled,
         }
     }
-    pub fn build_pipeline(&self) -> Result<gst::Pipeline> {
-        // initialize pipeline, input source, and rtpbin
-        let pipeline = gst::Pipeline::new(None);
-        let src = gst::ElementFactory::make(&self.video_src.to_string(), Some("video_src"))?;
 
-        // set some extra properties if using videotestsrc
-        if &self.video_src.to_string() == "videotestsrc" {
-            // https://gstreamer.freedesktop.org/documentation/videotestsrc/index.html?gi-language=c#videotestsrc:is-live
-            src.set_property_from_str("is-live", "true");
-            src.set_property_from_str("pattern", "ball");
-        }
-
-        // set input caps
-        let incapsfilter = gst::ElementFactory::make("capsfilter", Some("incapsfilter"))?;
-        let incaps = gst::Caps::builder("video/x-raw")
-            .field("width", &self.video_width)
-            .field("height", &self.video_height)
-            .field("fps", &self.video_fps)
-            .build();
-        incapsfilter.set_property("caps", incaps);
-        let tee = gst::ElementFactory::make("tee", Some("t0"))?;
-
-        // encode h264 video
-
+    fn h264_payloader(&self) -> Result<Vec<gst::Element>> {
         // fallback to videoconvert element if v4l2convert is unavailable
         let converter = gst::ElementFactory::make("v4l2convert", None);
         let converter = match converter {
@@ -130,6 +108,7 @@ impl PrintNannyCam {
             }
         }?;
 
+        // encode h264 video
         // fallback to x264enc if v4h264enc is unavailable
         let encoder = gst::ElementFactory::make("v4l2h264enc", None);
         let encoder = match encoder {
@@ -154,6 +133,43 @@ impl PrintNannyCam {
 
         // parse to rtp payload
         let payloader = gst::ElementFactory::make("rtph264pay", None)?;
+        Ok(vec![converter, encoder, encapsfilter, payloader])
+    }
+
+    fn webrtc_pipelines(&self, mut pipeline: gst::Pipeline) -> Result<()> {
+        let h264_proxy = gst::ElementFactory::make("proxy", Some("h264_proxy"))?;
+
+        let h264_elements = self.h264_payloader()?;
+
+        Ok(())
+    }
+
+    pub fn build_pipeline(&self) -> Result<gst::Pipeline> {
+        // initialize pipeline, input source, and rtpbin
+        let pipeline = gst::Pipeline::new(None);
+        let src = gst::ElementFactory::make(&self.video_src.to_string(), Some("video_src"))?;
+
+        // set some extra properties if using videotestsrc
+        if &self.video_src.to_string() == "videotestsrc" {
+            // https://gstreamer.freedesktop.org/documentation/videotestsrc/index.html?gi-language=c#videotestsrc:is-live
+            src.set_property_from_str("is-live", "true");
+            src.set_property_from_str("pattern", "ball");
+        }
+
+        // set input caps
+        let incapsfilter = gst::ElementFactory::make("capsfilter", Some("incapsfilter"))?;
+        let incaps = gst::Caps::builder("video/x-raw")
+            .field("width", &self.video_width)
+            .field("height", &self.video_height)
+            .field("fps", &self.video_fps)
+            .build();
+        incapsfilter.set_property("caps", incaps);
+
+        // write raw video to shared memory sink (used by nnstreamer pipeline)
+        // let shm = gst::ElementFactory::make("")
+
+        let tee = gst::ElementFactory::make("tee", Some("t0"))?;
+
         // TODO: read janus gateway edge/cloud from settings
 
         let config = PrintNannyConfig::new()?;
@@ -216,11 +232,11 @@ impl PrintNannyCam {
         pipeline.add_many(&[
             &src,
             &incapsfilter,
-            &converter,
-            &encoder,
-            &encapsfilter,
-            &payloader,
-            &tee,
+            // &converter,
+            // &encoder,
+            // &encapsfilter,
+            // &payloader,
+            // &tee,
             &webrtc_edge_queue,
             &webrtc_edge_sink,
             &vision_edge_queue,
@@ -230,10 +246,10 @@ impl PrintNannyCam {
         gst::Element::link_many(&[
             &src,
             &incapsfilter,
-            &converter,
-            &encoder,
-            &encapsfilter,
-            &payloader,
+            // &converter,
+            // &encoder,
+            // &encapsfilter,
+            // &payloader,
             &tee,
         ])?;
 

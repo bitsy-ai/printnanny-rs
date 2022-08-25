@@ -265,7 +265,7 @@ impl EventPublisher {
         subject: &str,
         payload: &PolymorphicPiEventRequest,
     ) -> Result<()> {
-        let socket = &self.config.paths.events_socket;
+        let socket = &self.config.paths.events_socket();
         // open a connection to unix socket
         let stream = UnixStream::connect(socket).await?;
         // Delimit frames using a length header
@@ -292,7 +292,7 @@ impl EventPublisher {
         subject: &str,
         payload: &PolymorphicOctoPrintEventRequest,
     ) -> Result<()> {
-        let socket = &self.config.paths.events_socket;
+        let socket = &self.config.paths.events_socket();
         // open a connection to unix socket
         let stream = UnixStream::connect(socket).await?;
         // Delimit frames using a length header
@@ -315,7 +315,7 @@ impl EventPublisher {
 
     // check unix socket is available for writing
     fn socket_ok(&self) -> Result<(), error::PublishError> {
-        let socket = &self.config.paths.events_socket;
+        let socket = &self.config.paths.events_socket();
         match socket.exists() {
             true => Ok(()),
             false => Err(error::PublishError::UnixSocketNotFound {
