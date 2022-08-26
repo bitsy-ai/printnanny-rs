@@ -277,12 +277,12 @@ impl serde::Serialize for PrintNannyPaths {
             nats_creds: self.nats_creds(),
             license: self.license(),
 
-            etc: self.etc,
-            seed_file_pattern: self.seed_file_pattern,
-            issue_txt: self.issue_txt,
-            log: self.log,
-            run: self.run,
-            os_release: self.os_release,
+            etc: self.etc.clone(),
+            seed_file_pattern: self.seed_file_pattern.clone(),
+            issue_txt: self.issue_txt.clone(),
+            log: self.log.clone(),
+            run: self.run.clone(),
+            os_release: self.os_release.clone(),
         };
 
         Ok(ext.serialize(serializer)?)
