@@ -1,5 +1,6 @@
 use anyhow::Result;
 use env_logger::Builder;
+use log::warn;
 use log::LevelFilter;
 use printnanny_gst::pipeline::GstPipeline;
 use printnanny_gst::rtp_udp::RtpUdpPipeline;

@@ -6,8 +6,11 @@ use serde;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use zip::ZipArchive;
+
+use chrono::{DateTime, Utc}; // 0.4.15
+use std::time::SystemTime;
 
 use super::error::PrintNannyConfigError;
 
@@ -45,6 +48,12 @@ impl Default for PrintNannyPaths {
 }
 
 impl PrintNannyPaths {
+    pub fn new_video_filename(&self) -> PathBuf {
+        let now = SystemTime::now();
+        let now: DateTime<Utc> = now.into();
+        let now = now.to_rfc3339();
+        self.video().join(format!("{}.h264", now))
+    }
     pub fn h264_rtp_payload_socket(&self) -> PathBuf {
         self.run.join("h264_rtp_payload.socket")
     }
@@ -56,6 +65,10 @@ impl PrintNannyPaths {
     }
     pub fn confd_lock(&self) -> PathBuf {
         self.run.join("confd.lock")
+    }
+
+    pub fn video(&self) -> PathBuf {
+        self.data().join("video")
     }
 
     pub fn data(&self) -> PathBuf {
@@ -89,6 +102,7 @@ impl PrintNannyPaths {
             &self.data(),
             &self.creds(),
             &self.confd(),
+            &self.video(),
             &self.run,
             &self.log,
         ];

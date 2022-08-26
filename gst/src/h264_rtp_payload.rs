@@ -34,7 +34,8 @@ impl GstPipeline for H264EncoderPipeline {
             .arg(
                 Arg::new("v")
                     .short('v')
-                    .help("sets the level of verbosity")
+                    .multiple_occurrences(true)
+                    .help("Sets the level of verbosity"),
             )
             .arg(
                 Arg::new("video_src")
@@ -67,14 +68,12 @@ impl GstPipeline for H264EncoderPipeline {
             .arg(
                 Arg::new("shm_src_socket")
                     .long("shm-src-socket")
-                    .default_value("/var/run/printnanny/video.socket")
                     .takes_value(true)
                     .help("shmsink socket path: https://gstreamer.freedesktop.org/documentation/shm/shmsink.html?gi-language=c")
             )
             .arg(
                 Arg::new("shm_sink_socket")
                     .long("shm-sink-socket")
-                    .default_value("/var/run/printnanny/h264-rtp-payload.socket")
                     .takes_value(true)
                     .help("shmsink socket path: https://gstreamer.freedesktop.org/documentation/shm/shmsink.html?gi-language=c")
             )
@@ -93,6 +92,8 @@ impl GstPipeline for H264EncoderPipeline {
             .arg(
                 Arg::new("shm_sync")
                 .long("shm-sync")
+                .takes_value(true)
+                .default_value("false")
                 .help("Set sync property on shmsink https://gstreamer.freedesktop.org/documentation/base/gstbasesink.html?gi-language=c")
             );
 
@@ -108,7 +109,7 @@ impl GstPipeline for H264EncoderPipeline {
 
     fn build_pipeline(&self) -> Result<gst::Pipeline> {
         // initialize pipeline
-        let pipeline = gst::Pipeline::new(None);
+        let pipeline = gst::Pipeline::new(Some("h264-rtp-payload"));
 
         // make input src element
         let src = gst::ElementFactory::make(&self.video_src.to_string(), Some("video_src"))?;
@@ -116,7 +117,21 @@ impl GstPipeline for H264EncoderPipeline {
         // set socket-path for shmsrc
         if self.video_src == SrcOption::Shmsrc {
             src.set_property_from_str("socket-path", &self.shm_src_socket);
+            src.set_property("is-live", true);
         }
+
+        match self.video_src {
+            SrcOption::Shmsrc => {
+                src.set_property_from_str("socket-path", &self.shm_src_socket);
+                src.set_property("is-live", true);
+            },
+            SrcOption::Videotestsrc => {
+                src.set_property("is-live", true);
+
+            },
+            SrcOption::Libcamerasrc => ()
+        };
+
         // set input caps
         let incapsfilter = gst::ElementFactory::make("capsfilter", Some("incapsfilter"))?;
         let incaps = gst::Caps::builder("video/x-raw")
@@ -124,6 +139,7 @@ impl GstPipeline for H264EncoderPipeline {
             .field("height", &self.video_height)
             .field("framerate", gst::Fraction::new(0, 1))
             .field("format", "RGB")
+
             .build();
         incapsfilter.set_property("caps", incaps);
 
@@ -163,25 +179,11 @@ impl GstPipeline for H264EncoderPipeline {
         encapsfilter.set_property("caps", encaps);
 
         // parse to rtp payload
-        let payloader = gst::ElementFactory::make("rtph264pay", None)?;
-
-        pipeline.add_many(&[
-            &src,
-            &incapsfilter,
-            &converter,
-            &encoder,
-            &encapsfilter,
-            &payloader,
-        ])?;
-
-        gst::Element::link_many(&[
-            &src,
-            &incapsfilter,
-            &converter,
-            &encoder,
-            &encapsfilter,
-            &payloader,
-        ])?;
+        // let payloader = gst::ElementFactory::make("rtph264pay", None)?;
+        // payloader.set_property_from_str("config-interval", "1");
+        // payloader.set_property_from_str("aggregate-mode", "zero-latency");
+        // payloader.set_property_from_str("pt", "96");
+        
 
 
         // make shmsink element
@@ -189,11 +191,24 @@ impl GstPipeline for H264EncoderPipeline {
         shmsink.set_property_from_str("socket-path", &self.shm_sink_socket);
         shmsink.set_property("wait-for-connection", &self.shm_wait_for_connection);
         shmsink.set_property("shm-size", &self.shm_size);
+        shmsink.set_property("sync", &self.shm_sync);
 
-        if self.shm_sync {
-            shmsink.set_property("sync", &self.shm_sync);
-        }        
+        let elements = [
+            &src,
+            &incapsfilter,
+            &converter,
+            &encoder,
+            &encapsfilter,
+            // &payloader,
+            &shmsink
+        ];
 
+
+        pipeline.add_many(&elements)?;
+
+        gst::Element::link_many(&elements)?;
+
+    
         Ok(pipeline)
     }
 }

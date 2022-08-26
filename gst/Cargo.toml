@@ -10,7 +10,7 @@ rust-version = "1.59"
 repository = "https://github.com/bitsy-ai/printnanny-cli.git"
 
 [[bin]]
-name = "video-socket"
+name = "h264-video"
 
 [[bin]]
 name = "h264-rtp-payload"

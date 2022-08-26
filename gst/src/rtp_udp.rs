@@ -1,5 +1,4 @@
 use anyhow::Result;
-use std::fs;
 use clap::{crate_authors, Arg, ArgMatches, Command, value_parser};
 use gst::prelude::*;
 
@@ -32,6 +31,8 @@ impl GstPipeline for RtpUdpPipeline {
             .arg(
                 Arg::new("v")
                     .short('v')
+                    .multiple_occurrences(true)
+
                     .help("sets the level of verbosity")
             )
             .arg(
@@ -43,14 +44,14 @@ impl GstPipeline for RtpUdpPipeline {
                     .help("Input video source element"),
             )
             .arg(
-                Arg::new("rtp-host")
+                Arg::new("rtp_host")
                     .long("rtp-host")
                    .default_value("localhost")
                    .takes_value(true)
                    .help("RTP server hostname"),
             )
             .arg(
-                Arg::new("rtp-port")
+                Arg::new("rtp_port")
                     .long("rtp-port")
                    .default_value("5000")
                    .takes_value(true)
@@ -88,16 +89,25 @@ impl GstPipeline for RtpUdpPipeline {
     
 
     fn build_pipeline(&self) -> Result<gst::Pipeline> {
+        info!("Initializing pipeline from settings {:?}", &self);
         // initialize pipeline
         let pipeline = gst::Pipeline::new(None);
 
         // make input src element
         let src = gst::ElementFactory::make(&self.video_src.to_string(), Some("video_src"))?;
 
-        // set socket-path for shmsrc
-        if self.video_src == SrcOption::Shmsrc {
-            src.set_property_from_str("socket-path", &self.shm_src_socket);
-        }
+
+        match self.video_src {
+            SrcOption::Shmsrc => {
+                src.set_property_from_str("socket-path", &self.shm_src_socket);
+                src.set_property("is-live", true);
+            },
+            SrcOption::Videotestsrc => {
+                src.set_property("is-live", true);
+
+            },
+            SrcOption::Libcamerasrc => ()
+        };
 
         // set input caps
         let encapsfilter = gst::ElementFactory::make("capsfilter", Some("encapsfilter"))?;
@@ -143,5 +153,49 @@ impl Default for RtpUdpPipeline {
             video_width: 640,
             video_src: SrcOption::Libcamerasrc,
         };
+    }
+}
+
+impl From<&ArgMatches> for RtpUdpPipeline {
+    fn from(args: &ArgMatches) -> Self {
+        let defaults = RtpUdpPipeline::default();
+
+        let video_height: i32 = args
+            .value_of_t("video_height")
+            .unwrap_or_else(|_| defaults.video_height);
+
+        let video_width: i32 = args
+            .value_of_t("video_width")
+            .unwrap_or_else(|_| defaults.video_width);
+
+
+        let video_src: &SrcOption = args
+            .get_one::<SrcOption>("video_src")
+            .unwrap_or_else(|| &defaults.video_src);
+
+
+        let shm_src_socket: String = args
+            .value_of_t("shm_src_socket")
+            .unwrap_or_else(|_| defaults.shm_src_socket);
+
+
+        let rtp_host = args.value_of_t("rtp_host").unwrap_or_else(|_| defaults.rtp_host);
+
+        let rtp_port = args.value_of_t("rtp_port").unwrap_or_else(|_| defaults.rtp_port);
+
+
+
+        let h264_level: String = args.value_of_t("h264_level").expect("--h264-level is required");
+
+
+        Self {
+            h264_level,
+            rtp_host,
+            rtp_port,
+            shm_src_socket,
+            video_height,
+            video_width,
+            video_src: *video_src,
+        }
     }
 }

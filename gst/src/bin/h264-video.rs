@@ -1,15 +1,38 @@
 use anyhow::Result;
 use env_logger::Builder;
+use gst::prelude::*;
+
 use log::warn;
 use log::LevelFilter;
+use printnanny_gst::h264_video::VideoSocketPipeline;
 use printnanny_gst::pipeline::GstPipeline;
-use printnanny_gst::video_socket::VideoSocketPipeline;
-fn main() -> Result<()> {
+
+use tokio::signal;
+
+#[tokio::main]
+async fn main() -> Result<()> {
     // include git sha in version, which requires passing a boxed string to clap's .version() builder
     // parse args
     let cmd = VideoSocketPipeline::clap_command();
     let app_m = cmd.get_matches();
     let app = VideoSocketPipeline::from(&app_m);
+
+    let pipeline = app.build_pipeline()?;
+    // Need to move a new reference into the closure.
+    // !!ATTENTION!!:
+    // It might seem appealing to use pipeline.clone() here, because that greatly
+    // simplifies the code within the callback. What this actually does, however, is creating
+    // a memory leak. The clone of a pipeline is a new strong reference on the pipeline.
+    // Storing this strong reference of the pipeline within the callback (we are moving it in!),
+    // which is in turn stored in another strong reference on the pipeline is creating a
+    // reference cycle.
+    // DO NOT USE pipeline.clone() TO USE THE PIPELINE WITHIN A CALLBACK
+    let pipeline_weak = pipeline.downgrade();
+
+    tokio::spawn(async move {
+        // Process each socket concurrently.
+        process(socket).await
+    });
 
     let handler = app.clone();
     ctrlc::set_handler(move || {

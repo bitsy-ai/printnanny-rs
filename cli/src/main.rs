@@ -6,6 +6,7 @@ use log::{ LevelFilter , info};
 use clap::{ 
     Arg, Command
 };
+use printnanny_services::config::PrintNannyConfig;
 use rocket_dyn_templates::Template;
 
 use git_version::git_version;
@@ -19,7 +20,6 @@ use printnanny_services::config::ConfigFormat;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_cli::config::{ConfigCommand};
 use printnanny_cli::os::{OsCommand};
-use printnanny_gst::cam;
 
 const GIT_VERSION: &str = git_version!();
 
@@ -38,7 +38,13 @@ async fn main() -> Result<()> {
         .help("Sets the level of verbosity. Info: -v Debug: -vv Trace: -vvv"))
 
         // cam
-        .subcommand(cam::PrintNannyCam::clap_command())
+        .subcommand(
+            Command::new("cam")
+            .subcommand_required(true)
+            .version(GIT_VERSION)
+            .author(crate_authors!())
+            .subcommand(Command::new("new-filename"))
+        )
 
         // dash
         .subcommand(Command::new("dash")
@@ -209,8 +215,13 @@ async fn main() -> Result<()> {
             app.run().await?;
         },
         Some(("cam", subm)) => {
-            let app = cam::PrintNannyCam::new(subm);
-            app.run()?;
+            match subm.subcommand() {
+                Some(("new-filename", _)) => {
+                    let config = PrintNannyConfig::new()?;
+                    println!("{}", config.paths.new_video_filename().display())
+                },
+                _ => ()
+            }
         },
         Some(("config", subm)) => {
             ConfigCommand::handle(subm).await?;

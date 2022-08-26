@@ -1,48 +1,20 @@
 use anyhow::Result;
 use gst::prelude::*;
-use log::{error, info};
+use log::{debug, error, info};
+use std::process;
 
 // Basic gstreamer pipeline, wrapped in Clap command
 pub trait GstPipeline {
     fn clap_command() -> clap::Command<'static>;
     fn build_pipeline(&self) -> Result<gst::Pipeline>;
 
-    fn message_handler(&self, pipeline: gst::Pipeline, bus: gst::Bus) {
-        for msg in bus.iter_timed(gst::ClockTime::NONE) {
-            use gst::MessageView;
-            match msg.view() {
-                MessageView::Eos(..) => break,
-                MessageView::Error(err) => {
-                    error!(
-                        "Error from {:?}: {} ({:?})",
-                        err.src().map(|s| s.path_string()),
-                        err.error(),
-                        err.debug()
-                    );
-                    break;
-                }
-                MessageView::StateChanged(state_changed) => {
-                    // Generate a dot graph of the pipeline to GST_DEBUG_DUMP_DOT_DIR if defined
-
-                    if state_changed.src().map(|s| s == pipeline).unwrap_or(false) {
-                        pipeline.debug_to_dot_file(
-                            gst::DebugGraphDetails::all(),
-                            format!("{:?}-{:?}", &state_changed.old(), &state_changed.current()),
-                        );
-                    }
-                }
-                _ => (),
-            }
-        }
-    }
-
     fn on_sigint(&self) -> () {
-        info!("SIGINT received")
+        info!("SIGINT received");
+        process::exit(0);
     }
 
-    fn run(&self) -> Result<()> {
+    fn run(&self, pipeline: gst::Pipeline) -> Result<()> {
         gst::init()?;
-        let pipeline = self.build_pipeline()?;
         let bus = pipeline
             .bus()
             .expect("Pipeline without bus. Shouldn't happen!");
@@ -69,12 +41,17 @@ pub trait GstPipeline {
 
                     if state_changed.src().map(|s| s == pipeline).unwrap_or(false) {
                         pipeline.debug_to_dot_file(
-                            gst::DebugGraphDetails::all(),
-                            format!("{:?}-{:?}", &state_changed.old(), &state_changed.current()),
+                            gst::DebugGraphDetails::VERBOSE,
+                            format!(
+                                "{}-{:?}-{:?}",
+                                pipeline.name(),
+                                &state_changed.old(),
+                                &state_changed.current()
+                            ),
                         );
                     }
                 }
-                _ => (),
+                _ => debug!("No handler configured for msg {:?}", msg),
             }
         }
         info!("Setting pipeline {:?} state to Null", pipeline);
