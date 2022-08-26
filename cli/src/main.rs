@@ -37,15 +37,6 @@ async fn main() -> Result<()> {
         .multiple_occurrences(true)
         .help("Sets the level of verbosity. Info: -v Debug: -vv Trace: -vvv"))
 
-        // cam
-        .subcommand(
-            Command::new("cam")
-            .subcommand_required(true)
-            .version(GIT_VERSION)
-            .author(crate_authors!())
-            .subcommand(Command::new("new-filename"))
-        )
-
         // dash
         .subcommand(Command::new("dash")
             .author(crate_authors!())
@@ -213,15 +204,6 @@ async fn main() -> Result<()> {
         Some(("nats-worker", sub_m)) => {
             let app = printnanny_nats::worker::NatsWorker::new(sub_m).await?;
             app.run().await?;
-        },
-        Some(("cam", subm)) => {
-            match subm.subcommand() {
-                Some(("new-filename", _)) => {
-                    let config = PrintNannyConfig::new()?;
-                    println!("{}", config.paths.new_video_filename().display())
-                },
-                _ => ()
-            }
         },
         Some(("config", subm)) => {
             ConfigCommand::handle(subm).await?;

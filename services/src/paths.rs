@@ -259,13 +259,14 @@ impl serde::Serialize for PrintNannyPaths {
             pub run: PathBuf,
             pub os_release: PathBuf,
             // extended fields
-            pub video_socket: PathBuf,
-            pub events_socket: PathBuf,
             pub confd_lock: PathBuf,
             pub data: PathBuf,
-            pub recovery: PathBuf,
-            pub nats_creds: PathBuf,
+            pub events_socket: PathBuf,
             pub license: PathBuf,
+            pub nats_creds: PathBuf,
+            pub new_video_filename: PathBuf,
+            pub recovery: PathBuf,
+            pub video_socket: PathBuf,
         }
 
         let ext = Extended {
@@ -283,6 +284,7 @@ impl serde::Serialize for PrintNannyPaths {
             log: self.log.clone(),
             run: self.run.clone(),
             os_release: self.os_release.clone(),
+            new_video_filename: self.new_video_filename(),
         };
 
         Ok(ext.serialize(serializer)?)
