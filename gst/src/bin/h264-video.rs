@@ -27,12 +27,7 @@ async fn main() -> Result<()> {
     // which is in turn stored in another strong reference on the pipeline is creating a
     // reference cycle.
     // DO NOT USE pipeline.clone() TO USE THE PIPELINE WITHIN A CALLBACK
-    let pipeline_weak = pipeline.downgrade();
-
-    tokio::spawn(async move {
-        // Process each socket concurrently.
-        process(socket).await
-    });
+    // let pipeline_weak = pipeline.downgrade();
 
     let handler = app.clone();
     ctrlc::set_handler(move || {
@@ -62,6 +57,6 @@ async fn main() -> Result<()> {
             builder.filter_level(LevelFilter::Trace).init()
         }
     };
-    app.run()?;
+    // app.run()?;
     Ok(())
 }

@@ -40,6 +40,6 @@ fn main() -> Result<()> {
             builder.filter_level(LevelFilter::Trace).init()
         }
     };
-    app.run()?;
+    // app.run()?;
     Ok(())
 }
