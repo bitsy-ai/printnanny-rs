@@ -174,7 +174,7 @@ impl NatsWorker {
         );
 
         Ok(Self {
-            socket: config.paths.events_socket.clone(),
+            socket: config.paths.events_socket(),
             nats_client,
             subscribe_subject,
             nats_server_uri: nats_app.nats_server_uri.clone(),

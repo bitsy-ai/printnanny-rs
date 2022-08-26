@@ -9,6 +9,9 @@ use std::io::Read;
 use std::path::PathBuf;
 use zip::ZipArchive;
 
+use chrono::{DateTime, Utc}; // 0.4.15
+use std::time::SystemTime;
+
 use super::error::PrintNannyConfigError;
 
 pub const PRINTNANNY_CONFIG_FILENAME: &str = "default.toml";
@@ -17,8 +20,6 @@ pub const PRINTNANNY_CONFIG_DEFAULT: &str = "/etc/printnanny/default.toml";
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyPaths {
     pub etc: PathBuf,
-    pub confd_lock: PathBuf,
-    pub events_socket: PathBuf,
     pub seed_file_pattern: String,
     pub issue_txt: PathBuf,
     pub log: PathBuf,
@@ -33,24 +34,43 @@ impl Default for PrintNannyPaths {
         let issue_txt: PathBuf = "/etc/issue".into();
         let run: PathBuf = "/var/run/printnanny".into();
         let log: PathBuf = "/var/log/printnanny".into();
-        let events_socket = run.join("events.socket");
         let seed_file_pattern = "/boot/printnanny*.zip".into();
         let os_release = "/etc/os-release".into();
-        let confd_lock = run.join("confd.lock");
         Self {
             etc,
             run,
             issue_txt,
             log,
-            events_socket,
             seed_file_pattern,
             os_release,
-            confd_lock,
         }
     }
 }
 
 impl PrintNannyPaths {
+    pub fn new_video_filename(&self) -> PathBuf {
+        let now = SystemTime::now();
+        let now: DateTime<Utc> = now.into();
+        let now = now.to_rfc3339();
+        self.video().join(format!("{}.h264", now))
+    }
+    pub fn h264_rtp_payload_socket(&self) -> PathBuf {
+        self.run.join("h264_rtp_payload.socket")
+    }
+    pub fn video_socket(&self) -> PathBuf {
+        self.run.join("video.socket")
+    }
+    pub fn events_socket(&self) -> PathBuf {
+        self.run.join("events.socket")
+    }
+    pub fn confd_lock(&self) -> PathBuf {
+        self.run.join("confd.lock")
+    }
+
+    pub fn video(&self) -> PathBuf {
+        self.data().join("video")
+    }
+
     pub fn data(&self) -> PathBuf {
         self.etc.join("data")
     }
@@ -82,6 +102,7 @@ impl PrintNannyPaths {
             &self.data(),
             &self.creds(),
             &self.confd(),
+            &self.video(),
             &self.run,
             &self.log,
         ];
