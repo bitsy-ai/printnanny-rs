@@ -17,7 +17,7 @@ use super::error::PrintNannyConfigError;
 pub const PRINTNANNY_CONFIG_FILENAME: &str = "default.toml";
 pub const PRINTNANNY_CONFIG_DEFAULT: &str = "/etc/printnanny/default.toml";
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct PrintNannyPaths {
     pub etc: PathBuf,
     pub seed_file_pattern: String,
@@ -36,6 +36,7 @@ impl Default for PrintNannyPaths {
         let log: PathBuf = "/var/log/printnanny".into();
         let seed_file_pattern = "/boot/printnanny*.zip".into();
         let os_release = "/etc/os-release".into();
+        let video_socket = run.join("video.socket");
         Self {
             etc,
             run,
@@ -54,9 +55,7 @@ impl PrintNannyPaths {
         let now = now.to_rfc3339();
         self.video().join(format!("{}.h264", now))
     }
-    pub fn h264_rtp_payload_socket(&self) -> PathBuf {
-        self.run.join("h264_rtp_payload.socket")
-    }
+
     pub fn video_socket(&self) -> PathBuf {
         self.run.join("video.socket")
     }
@@ -242,5 +241,52 @@ impl PrintNannyPaths {
             info!("Wrote seed file {:?}", dest);
         }
         Ok(results)
+    }
+}
+
+// serialize function path representation
+impl serde::Serialize for PrintNannyPaths {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        #[derive(Serialize)]
+        struct Extended {
+            pub etc: PathBuf,
+            pub seed_file_pattern: String,
+            pub issue_txt: PathBuf,
+            pub log: PathBuf,
+            pub run: PathBuf,
+            pub os_release: PathBuf,
+            // extended fields
+            pub confd_lock: PathBuf,
+            pub data: PathBuf,
+            pub events_socket: PathBuf,
+            pub license: PathBuf,
+            pub nats_creds: PathBuf,
+            pub new_video_filename: PathBuf,
+            pub recovery: PathBuf,
+            pub video_socket: PathBuf,
+        }
+
+        let ext = Extended {
+            video_socket: self.video_socket(),
+            events_socket: self.events_socket(),
+            confd_lock: self.confd_lock(),
+            data: self.data(),
+            recovery: self.recovery(),
+            nats_creds: self.nats_creds(),
+            license: self.license(),
+
+            etc: self.etc.clone(),
+            seed_file_pattern: self.seed_file_pattern.clone(),
+            issue_txt: self.issue_txt.clone(),
+            log: self.log.clone(),
+            run: self.run.clone(),
+            os_release: self.os_release.clone(),
+            new_video_filename: self.new_video_filename(),
+        };
+
+        Ok(ext.serialize(serializer)?)
     }
 }

@@ -12,13 +12,6 @@ repository = "https://github.com/bitsy-ai/printnanny-cli.git"
 [[bin]]
 name = "h264-video"
 
-[[bin]]
-name = "h264-rtp-payload"
-
-[[bin]]
-name = "rtp-udp"
-
-
 [dependencies]
 anyhow = { version = "1", features = ["backtrace"] }
 derive_more = "0.99"
