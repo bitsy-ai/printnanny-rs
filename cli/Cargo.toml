@@ -21,7 +21,7 @@ printnanny-gst = {path = "../gst", version = "^0.25.0"}
 printnanny-dash = {path = "../dash", version = "^0.25.0"}
 printnanny-services = {path = "../services", version = "^0.25.0"}
 printnanny-nats = {path = "../nats", version = "^0.25.0"}
-printnanny-api-client = "0.104.0"
+printnanny-api-client = "0.105.1"
 gst = { package = "gstreamer", version="0.18.8" }
 figment = { version = "0.10", features = ["env", "json", "toml"] }
 anyhow = { version = "1", features = ["backtrace"] }
