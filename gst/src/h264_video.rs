@@ -1,11 +1,7 @@
-use std::fs;
-use std::path::PathBuf;
-use std::process;
-
 use anyhow::Result;
 use clap::{crate_authors, value_parser, Arg, ArgMatches, Command};
 use gst::prelude::*;
-use log::{error, info, warn};
+use log::{ info, warn};
 
 use printnanny_services::config::PrintNannyConfig;
 

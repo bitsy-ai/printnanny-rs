@@ -134,7 +134,7 @@ pub async fn handle_pi_boot_command(
             let (subject, req) = build_boot_status_payload(
                 &cmd,
                 models::PiBootStatusType::SystemctlShow,
-                Some(payload.into()),
+                Some(payload),
             )?;
 
             // publish to reply topic if present

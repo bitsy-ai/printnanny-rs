@@ -36,10 +36,10 @@ impl EventPublisher {
     pub fn new(args: &ArgMatches) -> Result<Self, PrintNannyConfigError> {
         let config = PrintNannyConfig::new().unwrap();
         config.try_check_license()?;
-        return Ok(Self {
+        Ok(Self {
             args: args.clone(),
             config,
-        });
+        })
     }
     pub fn clap_command() -> Command<'static> {
         let app_name = "nats-publisher";
@@ -314,11 +314,11 @@ impl EventPublisher {
     }
 
     // check unix socket is available for writing
-    fn socket_ok(&self) -> Result<(), error::PublishError> {
+    fn socket_ok(&self) -> Result<(), error::NatsError> {
         let socket = &self.config.paths.events_socket();
         match socket.exists() {
             true => Ok(()),
-            false => Err(error::PublishError::UnixSocketNotFound {
+            false => Err(error::NatsError::UnixSocketNotFound {
                 path: socket.display().to_string(),
             }),
         }

@@ -11,10 +11,10 @@ pub fn to_nats_command_subscribe_subject(pi_id: &i32) -> String {
 // parses output of `systemctl show` into a hashmap
 pub fn systemctl_show_payload(stdout: &[u8]) -> Result<HashMap<String, Value>, CommandError> {
     let mut result: HashMap<String, Value> = HashMap::new();
-    let mapping = std::str::from_utf8(&stdout)?.trim().split("\n");
+    let mapping = std::str::from_utf8(stdout)?.trim().split('\n');
 
     for line in mapping {
-        let split = line.split_once("=");
+        let split = line.split_once('=');
         if split.is_none() {
             return Err(CommandError::SystemctlParse {
                 output: line.to_string(),
