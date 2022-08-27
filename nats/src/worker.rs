@@ -73,34 +73,6 @@ impl NatsWorker {
         }
         Ok(())
     }
-    // pub async fn relay_to_nats(&self, mut stream: UnixStream) -> Result<()> {
-    //     debug!("Accepted socket connection {:?}", &stream);
-    //     // read length-delimited JSON frames deserializable into NatsJsonEvent
-    //     let length_delimited = FramedRead::new(&mut stream, LengthDelimitedCodec::new());
-    //     let mut deserialized = tokio_serde::SymmetricallyFramed::new(
-    //         length_delimited,
-    //         tokio_serde::formats::SymmetricalJson::<(String, PolymorphicPiEventRequest)>::default(),
-    //     );
-    //     let maybe_msg: Option<(String, PolymorphicPiEventRequest)> =
-    //         deserialized.try_next().await?;
-
-    //     match maybe_msg {
-    //         Some((subject, msg)) => {
-    //             debug!("Deserialized {:?}", msg);
-    //             // publish over NATS connection
-    //             let payload = serde_json::ser::to_vec(&msg)?;
-    //             self.nats_client
-    //                 .publish(subject.clone(), payload.into())
-    //                 .await?;
-    //             debug!(
-    //                 "Published on subject={} server={}",
-    //                 &subject, &self.nats_server_uri
-    //             )
-    //         }
-    //         None => error!("Failed to deserialize msg {:?}", maybe_msg),
-    //     };
-    //     Ok(())
-    // }
 
     pub async fn deserialize_socket_msg(
         &self,
