@@ -4,8 +4,9 @@ use clap::{crate_authors, ArgMatches, Command};
 use futures::prelude::*;
 use log::{debug, error, info, warn};
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio::net::{UnixListener, UnixStream};
+use tokio::time::{sleep, Duration};
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
 use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
@@ -13,25 +14,39 @@ use printnanny_services::config::PrintNannyConfig;
 
 // use crate::commands;
 use crate::commands;
+use crate::error::NatsError;
 use crate::util::to_nats_command_subscribe_subject;
 
 #[derive(Debug, Clone)]
 pub struct NatsWorker {
     socket: PathBuf,
-    nats_client: async_nats::Client,
     subscribe_subject: String,
     nats_server_uri: String,
+    require_tls: bool,
+    nats_creds: PathBuf,
 }
 
 // Relays NatsJsonEvent published to Unix socket to NATS
 impl NatsWorker {
     pub async fn subscribe_nats_subject(&self) -> Result<()> {
-        info!(
+        let mut nats_client: Option<async_nats::Client> = None;
+        while nats_client.is_none() {
+            match self.try_init_nats_client().await {
+                Ok(nc) => {
+                    nats_client = Some(nc);
+                }
+                Err(_) => {
+                    warn!("Waiting for NATS client to initialize subscriber thread");
+                    sleep(Duration::from_millis(2000)).await;
+                }
+            }
+        }
+        warn!(
             "Subscribing to subect {} with nats client {:?}",
-            self.subscribe_subject, &self.nats_client
+            self.subscribe_subject, nats_client
         );
-        let mut subscriber = self
-            .nats_client
+        let nats_client = nats_client.unwrap();
+        let mut subscriber = nats_client
             .subscribe(self.subscribe_subject.clone())
             .await
             .unwrap();
@@ -46,7 +61,7 @@ impl NatsWorker {
             match payload {
                 Ok(event) => {
                     debug!("Deserialized PolymorphicPiEvent: {:?}", event);
-                    commands::handle_incoming(event, message.reply, &self.nats_client).await?;
+                    commands::handle_incoming(event, message.reply, &nats_client).await?;
                 }
                 Err(e) => {
                     error!(
@@ -58,7 +73,39 @@ impl NatsWorker {
         }
         Ok(())
     }
-    pub async fn relay_to_nats(&self, mut stream: UnixStream) -> Result<()> {
+    // pub async fn relay_to_nats(&self, mut stream: UnixStream) -> Result<()> {
+    //     debug!("Accepted socket connection {:?}", &stream);
+    //     // read length-delimited JSON frames deserializable into NatsJsonEvent
+    //     let length_delimited = FramedRead::new(&mut stream, LengthDelimitedCodec::new());
+    //     let mut deserialized = tokio_serde::SymmetricallyFramed::new(
+    //         length_delimited,
+    //         tokio_serde::formats::SymmetricalJson::<(String, PolymorphicPiEventRequest)>::default(),
+    //     );
+    //     let maybe_msg: Option<(String, PolymorphicPiEventRequest)> =
+    //         deserialized.try_next().await?;
+
+    //     match maybe_msg {
+    //         Some((subject, msg)) => {
+    //             debug!("Deserialized {:?}", msg);
+    //             // publish over NATS connection
+    //             let payload = serde_json::ser::to_vec(&msg)?;
+    //             self.nats_client
+    //                 .publish(subject.clone(), payload.into())
+    //                 .await?;
+    //             debug!(
+    //                 "Published on subject={} server={}",
+    //                 &subject, &self.nats_server_uri
+    //             )
+    //         }
+    //         None => error!("Failed to deserialize msg {:?}", maybe_msg),
+    //     };
+    //     Ok(())
+    // }
+
+    pub async fn deserialize_socket_msg(
+        &self,
+        mut stream: UnixStream,
+    ) -> Result<Option<(String, Vec<u8>)>> {
         debug!("Accepted socket connection {:?}", &stream);
         // read length-delimited JSON frames deserializable into NatsJsonEvent
         let length_delimited = FramedRead::new(&mut stream, LengthDelimitedCodec::new());
@@ -74,17 +121,61 @@ impl NatsWorker {
                 debug!("Deserialized {:?}", msg);
                 // publish over NATS connection
                 let payload = serde_json::ser::to_vec(&msg)?;
-                self.nats_client
-                    .publish(subject.clone(), payload.into())
-                    .await?;
                 debug!(
                     "Published on subject={} server={}",
                     &subject, &self.nats_server_uri
-                )
+                );
+                Ok(Some((subject, payload)))
             }
-            None => error!("Failed to deserialize msg {:?}", maybe_msg),
-        };
+            None => {
+                error!("Failed to deserialize msg {:?}", maybe_msg);
+                Ok(None)
+            }
+        }
+    }
+
+    // FIFO buffer flush
+    pub async fn try_flush_buffer(
+        &self,
+        event_buffer: &[(String, Vec<u8>)],
+        nats_client: &async_nats::Client,
+    ) -> Result<(), NatsError> {
+        for event in event_buffer.iter() {
+            let (subject, payload) = event;
+            match nats_client
+                .publish(subject.to_string(), payload.clone().into())
+                .await
+            {
+                Ok(_) => Ok(()),
+                Err(e) => Err(NatsError::PublishError {
+                    error: e.to_string(),
+                }),
+            }?;
+        }
+
         Ok(())
+    }
+
+    pub async fn try_init_nats_client(&self) -> Result<async_nats::Client, std::io::Error> {
+        match self.nats_creds.exists() {
+            true => {
+                async_nats::ConnectOptions::with_credentials_file(self.nats_creds.clone())
+                    .await?
+                    .require_tls(self.require_tls)
+                    .connect(&self.nats_server_uri)
+                    .await
+            }
+            false => {
+                warn!(
+                    "Failed to read {}. Initializing NATS client without credentials",
+                    self.nats_creds.display()
+                );
+                async_nats::ConnectOptions::new()
+                    .require_tls(self.require_tls)
+                    .connect(&self.nats_server_uri)
+                    .await
+            }
+        }
     }
 
     pub async fn subscribe_event_socket(&self) -> Result<()> {
@@ -106,10 +197,54 @@ impl NatsWorker {
         };
         let listener = UnixListener::bind(&self.socket)?;
         info!("Listening for events on {:?}", self.socket);
+        let mut nats_client: Option<async_nats::Client> = None;
+
+        let max_buffer_size: usize = 12;
+
+        let mut event_buffer: Vec<(String, Vec<u8>)> = vec![];
         loop {
+            // is nats client connected?
+            nats_client = match nats_client {
+                Some(nc) => Some(nc),
+                None => match self.try_init_nats_client().await {
+                    Ok(nc) => Some(nc),
+                    Err(_) => {
+                        warn!("NATS client not yet initialized");
+                        None
+                    }
+                },
+            };
+
+            event_buffer = match &nats_client {
+                Some(nc) => {
+                    self.try_flush_buffer(&event_buffer, nc).await?;
+                    vec![]
+                }
+                None => event_buffer,
+            };
+
+            // add new message to queue
             match listener.accept().await {
-                Ok((stream, _addr)) => match self.relay_to_nats(stream).await {
-                    Ok(_) => (),
+                Ok((stream, _addr)) => match self.deserialize_socket_msg(stream).await {
+                    Ok(msg) => {
+                        if msg.is_some() {
+                            // if buffer is full, drop head event
+                            if event_buffer.len() >= max_buffer_size {
+                                match event_buffer.split_first() {
+                                    Some((head, rest)) => {
+                                        let (subject, payload) = head;
+                                        let payload: PolymorphicPiEventRequest =
+                                            serde_json::from_slice(payload)?;
+                                        warn!("Event buffer is full (max size: {}). Dropping oldest event on subject={} payload={:?}", max_buffer_size, subject, payload);
+                                        event_buffer = rest.to_vec();
+                                    }
+                                    None => (),
+                                }
+                            }
+
+                            event_buffer.push(msg.unwrap());
+                        }
+                    }
                     Err(e) => error!("Error relaying to NATS {:?}", e),
                 },
                 Err(e) => {
@@ -143,41 +278,17 @@ impl NatsWorker {
 
         // if nats.creds available, initialize authenticated nats connection
         info!(
-            "Initializing NATS connection to {}",
+            "Attempting to initialize NATS connection to {}",
             nats_app.nats_server_uri
         );
-
-        let nats_client = match config.paths.nats_creds().exists() {
-            true => {
-                let credentials_file = config.paths.nats_creds();
-                async_nats::ConnectOptions::with_credentials_file(credentials_file)
-                    .await?
-                    .require_tls(require_tls)
-                    .connect(&nats_app.nats_server_uri)
-                    .await?
-            }
-            false => {
-                warn!(
-                    "Failed to read {}. Initializing NATS client without credentials",
-                    config.paths.nats_creds().display()
-                );
-                async_nats::ConnectOptions::new()
-                    .require_tls(require_tls)
-                    .connect(&nats_app.nats_server_uri)
-                    .await?
-            }
-        };
-
-        info!(
-            "Success! NATS client connected to {}",
-            &nats_app.nats_server_uri
-        );
+        let nats_creds = config.paths.nats_creds();
 
         Ok(Self {
             socket: config.paths.events_socket(),
-            nats_client,
             subscribe_subject,
             nats_server_uri: nats_app.nats_server_uri.clone(),
+            nats_creds,
+            require_tls,
         })
     }
 

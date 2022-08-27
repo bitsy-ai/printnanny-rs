@@ -1,9 +1,14 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum PublishError {
+pub enum NatsError {
     #[error("Connection to {path} failed")]
     UnixSocketNotFound { path: String },
+    #[error("NatsConnection error {msg}")]
+    NatsConnection { msg: String },
+
+    #[error("Nats PublishError {error}")]
+    PublishError { error: String },
 }
 
 #[derive(Error, Debug)]

@@ -6,7 +6,6 @@ use log::{ LevelFilter , info};
 use clap::{ 
     Arg, Command
 };
-use printnanny_services::config::PrintNannyConfig;
 use rocket_dyn_templates::Template;
 
 use git_version::git_version;
