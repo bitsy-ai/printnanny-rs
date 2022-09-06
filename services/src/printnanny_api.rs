@@ -4,7 +4,9 @@ use std::convert::TryInto;
 use std::fs::{read_to_string, File};
 use std::future::Future;
 use std::io::BufReader;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+use sysinfo::{DiskExt, System, SystemExt};
 
 use printnanny_api_client::apis::accounts_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
@@ -138,6 +140,9 @@ impl ApiService {
     ) -> Result<models::SystemInfo, ServiceError> {
         let machine_id: String = read_to_string("/etc/machine-id")?;
 
+        let mut sys = System::new_all();
+        sys.refresh_all();
+
         // hacky parsing of rpi-specific /proc/cpuinfo
         let rpi_cpuinfo = RpiCpuInfo::new()?;
         let model = rpi_cpuinfo.model.unwrap_or_else(|| "unknown".to_string());
@@ -155,6 +160,34 @@ impl ApiService {
         let os_release = self.config.paths.load_os_release()?;
         let os_release_json: HashMap<String, serde_json::Value> =
             serde_json::from_str(&serde_json::to_string(&os_release)?)?;
+
+        let mut bootfs_used: i64 = 0;
+        let mut bootfs_size: i64 = 0;
+        let bootfs_mountpoint = PathBuf::from("/dev/mmcblk0p1");
+
+        let mut datafs_used: i64 = 0;
+        let mut datafs_size: i64 = 0;
+        let datafs_mountpoint = PathBuf::from("/dev/mmcblk0p4");
+
+        let mut rootfs_used: i64 = 0;
+        let mut rootfs_size: i64 = 0;
+        let rootfs_mountpoint = PathBuf::from("/");
+
+        for disk in sys.disks() {
+            if disk.mount_point() == rootfs_mountpoint {
+                rootfs_size = disk.total_space() as i64;
+                rootfs_used = rootfs_size - disk.available_space() as i64;
+            } else if disk.mount_point() == datafs_mountpoint {
+                bootfs_size = disk.total_space() as i64;
+                bootfs_used = bootfs_size - disk.available_space() as i64;
+            } else if disk.mount_point() == datafs_mountpoint {
+                datafs_size = disk.total_space() as i64;
+                datafs_used = datafs_size - disk.available_space() as i64;
+            }
+        }
+
+        let uptime = sys.uptime() as i64;
+
         let request = models::SystemInfoRequest {
             machine_id,
             serial,
@@ -167,6 +200,13 @@ impl ApiService {
             os_variant_id: os_release.variant_id,
             os_version_id: os_release.version_id,
             os_release_json: Some(os_release_json),
+            bootfs_size,
+            bootfs_used,
+            datafs_size,
+            datafs_used,
+            rootfs_size,
+            rootfs_used,
+            uptime,
         };
         info!("device_system_info_update_or_create request {:?}", request);
         let res = devices_api::system_info_update_or_create(&self.reqwest, pi, request).await?;
