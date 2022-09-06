@@ -4,7 +4,7 @@ use std::convert::TryInto;
 use std::fs::{read_to_string, File};
 use std::future::Future;
 use std::io::BufReader;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use sysinfo::{DiskExt, System, SystemExt};
 
