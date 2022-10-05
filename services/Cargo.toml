@@ -16,7 +16,7 @@ targets = [
 async-process = "1.3"
 anyhow = { version = "1", features = ["backtrace"] }
 bytes = "1"
-chrono = "0.4"
+chrono = "0.4.22"
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
 config = "0.11"
 console = "0.14"

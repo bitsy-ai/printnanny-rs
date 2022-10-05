@@ -24,7 +24,28 @@ gst-base = { package = "gstreamer-base", git = "https://gitlab.freedesktop.org/g
 gst-video = { package = "gstreamer-video", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs" }
 once_cell = "1.0"
 thiserror = "1.0.37"               # derive(Error)
-polars = { version = "0.24.2", features = ["algo", "dtype-struct","dtype-time", "ipc", "ipc_streaming", "fmt", "lazy","list", "dot_product", "cum_agg", "cumulative_eval", "list_to_struct", "cumulative_eval", "temporal", "dynamic_groupby", "ndarray"] }
+polars = { version = "0.24.3", features = [
+    "algo",
+    "cum_agg", 
+    "cumulative_eval", 
+    "cumulative_eval", 
+    "dot_product", 
+    "dtype-struct",
+    "dtype-datetime",
+    "dtype-time",
+    "dynamic_groupby", 
+    "fmt",
+    "ipc_streaming",
+    "ipc",
+    "json",
+    "lazy",
+    "list_to_struct", 
+    "list", 
+    "ndarray", 
+    "serde-lazy",
+    "serde",
+    "temporal",
+]}
 serde = { version = "1", features = ["derive"] }
 
 [lib]
