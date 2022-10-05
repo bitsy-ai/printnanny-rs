@@ -316,17 +316,7 @@ impl DataframeAgg {
             }
         };
 
-        let arrow_msg =
-            dataframe_to_arrow_streaming_ipc_message(&mut windowed_df, None).map_err(|err| {
-                gst::element_error!(
-                    element,
-                    gst::StreamError::Decode,
-                    ["Failed to serialize arrow ipc streaming msg: {:?}", err]
-                );
-                gst::FlowError::Error
-            })?;
-
-        self.srcpad.push(gst::Buffer::from_slice(arrow_msg))
+        self.srcpad.push(gst::Buffer::from_slice(output_buffer))
     }
 }
 
