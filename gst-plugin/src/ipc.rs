@@ -45,9 +45,9 @@ pub fn dataframe_to_arrow_streaming_ipc_message(
     Ok(arrow_msg)
 }
 
-pub fn dataframe_to_json(df: &mut DataFrame) -> Result<Vec<u8>, SerializationError> {
+pub fn dataframe_to_json_bytearray(df: &mut DataFrame) -> Result<Vec<u8>, SerializationError> {
     let mut bufwriter = std::io::BufWriter::new(Vec::new());
-    let mut jsonwriter = JsonWriter::new(&mut bufwriter).with_json_format(JsonFormat::JsonLines);
+    let mut jsonwriter = JsonWriter::new(&mut bufwriter).with_json_format(JsonFormat::Json);
     jsonwriter.finish(df)?;
     let output = bufwriter
         .into_inner()
@@ -67,19 +67,23 @@ mod tests {
         )
         .unwrap();
 
-        let expected = [
-            123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 10, 123, 34, 120, 48,
-            34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 10, 123, 34, 120, 48, 34, 58, 48, 44, 34,
-            120, 49, 34, 58, 49, 125, 10, 123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34, 58,
-            49, 125, 10, 123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 10, 123,
-            34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 10, 123, 34, 120, 48, 34,
-            58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 10, 123, 34, 120, 48, 34, 58, 48, 44, 34,
-            120, 49, 34, 58, 49, 125, 10, 123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34, 58,
-            49, 125, 10, 123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 10,
+        let expected_json = r#"[{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1}]"#;
+
+        let expected_bytes = [
+            91, 123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 44, 123, 34, 120,
+            48, 34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 44, 123, 34, 120, 48, 34, 58, 48, 44,
+            34, 120, 49, 34, 58, 49, 125, 44, 123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34,
+            58, 49, 125, 44, 123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 44,
+            123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 44, 123, 34, 120, 48,
+            34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 44, 123, 34, 120, 48, 34, 58, 48, 44, 34,
+            120, 49, 34, 58, 49, 125, 44, 123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34, 58,
+            49, 125, 44, 123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 93,
         ];
 
-        let b = dataframe_to_json(&mut dataframe).unwrap();
-        assert_eq!(b, expected);
+        let b = dataframe_to_json_bytearray(&mut dataframe).unwrap();
+
+        assert_eq!(b, expected_bytes);
+        assert_eq!(String::from_utf8(b).unwrap(), expected_json);
     }
 
     #[test]

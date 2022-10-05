@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 use polars::prelude::*;
 
 use super::DataframeOutputType;
-use crate::ipc::{dataframe_to_arrow_streaming_ipc_message, dataframe_to_json};
+use crate::ipc::{dataframe_to_arrow_streaming_ipc_message, dataframe_to_json_bytearray};
 
 static CAT: Lazy<gst::DebugCategory> = Lazy::new(|| {
     gst::DebugCategory::new(
@@ -304,14 +304,16 @@ impl DataframeAgg {
                     gst::FlowError::Error
                 })?
             }
-            DataframeOutputType::Json => dataframe_to_json(&mut windowed_df).map_err(|err| {
-                gst::element_error!(
-                    element,
-                    gst::StreamError::Decode,
-                    ["Failed to serialize json from dataframe: {:?}", err]
-                );
-                gst::FlowError::Error
-            })?,
+            DataframeOutputType::Json => {
+                dataframe_to_json_bytearray(&mut windowed_df).map_err(|err| {
+                    gst::element_error!(
+                        element,
+                        gst::StreamError::Decode,
+                        ["Failed to serialize json from dataframe: {:?}", err]
+                    );
+                    gst::FlowError::Error
+                })?
+            }
         };
 
         let arrow_msg =
