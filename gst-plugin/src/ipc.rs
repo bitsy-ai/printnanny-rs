@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
-use polars::export::arrow::io::ipc::write;
+use polars::export::arrow::io::ipc;
+use polars::io::json::{JsonFormat, JsonWriter};
 use polars::prelude::*;
 
 use crate::error::SerializationError;
@@ -27,8 +28,10 @@ pub fn dataframe_to_arrow_streaming_ipc_message(
     // create a buffed memory writer
     let mut bufwriter = std::io::BufWriter::new(Vec::new());
     // initialize ipc stream writer
-    let mut ipcwriter =
-        write::StreamWriter::new(&mut bufwriter, write::WriteOptions { compression: None });
+    let mut ipcwriter = ipc::write::StreamWriter::new(
+        &mut bufwriter,
+        ipc::write::WriteOptions { compression: None },
+    );
     ipcwriter.start(&arrow_schema, None)?;
     df.rechunk();
     for batch in df.iter_chunks() {
@@ -42,9 +45,46 @@ pub fn dataframe_to_arrow_streaming_ipc_message(
     Ok(arrow_msg)
 }
 
+pub fn dataframe_to_json_bytearray(df: &mut DataFrame) -> Result<Vec<u8>, SerializationError> {
+    let mut bufwriter = std::io::BufWriter::new(Vec::new());
+    let mut jsonwriter = JsonWriter::new(&mut bufwriter).with_json_format(JsonFormat::Json);
+    jsonwriter.finish(df)?;
+    let output = bufwriter
+        .into_inner()
+        .map_err(|_| SerializationError::BufferError)?;
+    Ok(output)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_dataframe_to_json() {
+        let mut dataframe = df!(
+            "x0" => vec![0; 10],
+            "x1" => vec![1; 10]
+        )
+        .unwrap();
+
+        let expected_json = r#"[{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1}]"#;
+
+        let expected_bytes = [
+            91, 123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 44, 123, 34, 120,
+            48, 34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 44, 123, 34, 120, 48, 34, 58, 48, 44,
+            34, 120, 49, 34, 58, 49, 125, 44, 123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34,
+            58, 49, 125, 44, 123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 44,
+            123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 44, 123, 34, 120, 48,
+            34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 44, 123, 34, 120, 48, 34, 58, 48, 44, 34,
+            120, 49, 34, 58, 49, 125, 44, 123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34, 58,
+            49, 125, 44, 123, 34, 120, 48, 34, 58, 48, 44, 34, 120, 49, 34, 58, 49, 125, 93,
+        ];
+
+        let b = dataframe_to_json_bytearray(&mut dataframe).unwrap();
+
+        assert_eq!(b, expected_bytes);
+        assert_eq!(String::from_utf8(b).unwrap(), expected_json);
+    }
 
     #[test]
     fn test_dataframe_to_arrow_streaming_ipc_message() {
