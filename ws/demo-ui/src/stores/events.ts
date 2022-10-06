@@ -34,7 +34,7 @@ export const useEventStore = defineStore({
                 }
                 const natsClient = await connect(connectOptions);
                 console.log(`Initialized NATs connection to ${servers}`);
-                this.$patch({ natsClient });
+                this.$patch({ natsClient, status: ConnectionStatus.Connected });
                 return natsClient;
             } else {
                 return this.natsClient;
