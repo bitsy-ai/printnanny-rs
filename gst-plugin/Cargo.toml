@@ -60,4 +60,3 @@ tempdir = "0.3.7"                   # A library for managing a temporary directo
 
 [build-dependencies]
 gst-plugin-version-helper = {  git = "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs" }
-flatc-rust = "0.2.0"    # FlatBuffers flatc command as API
