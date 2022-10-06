@@ -20,8 +20,6 @@ use libc::{c_char, c_float, c_int, c_void, size_t};
 use crate::ipc;
 
 const NNS_TENSOR_RANK_LIMIT: usize = 4;
-const NNS_TENSOR_SIZE_LIMIT: usize = 16;
-const NNS_TENSOR_SIZE_LIMIT_STR: &str = "16";
 
 // This module contains the private implementation details of our element
 static CAT: Lazy<gst::DebugCategory> = Lazy::new(|| {
@@ -33,7 +31,7 @@ static CAT: Lazy<gst::DebugCategory> = Lazy::new(|| {
 });
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
 pub enum TensorType {
     NNS_INT32,
@@ -115,7 +113,7 @@ extern "C" fn printnanny_bb_dataframe_decoder(
         }
 
         // data / sanity checks
-        let df_config = unsafe { config.as_ref().clone() };
+        let df_config = unsafe { config.as_ref() };
         if df_config.is_none() {
             gst::error!(
                 CAT,

@@ -531,7 +531,7 @@ dependencies = [
  "nuid",
  "once_cell",
  "regex",
- "rustls-native-certs",
+ "rustls-native-certs 0.6.2",
  "rustls-pemfile 0.3.0",
  "serde 1.0.137",
  "serde_json",
@@ -2659,6 +2659,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "json"
+version = "0.12.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "078e285eafdfb6c4b434e0d31e8cfcb5115b651496faca5749b88fafd4f23bfd"
+
+[[package]]
 name = "json-deserializer"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3145,6 +3151,41 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "tempfile",
+]
+
+[[package]]
+name = "nats"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d61e51453596562c82656b4fb004071b5b0c214183be3d02fbb7b16ba2370df"
+dependencies = [
+ "base64 0.13.0",
+ "base64-url",
+ "blocking",
+ "crossbeam-channel",
+ "fastrand",
+ "itoa 1.0.2",
+ "json",
+ "lazy_static",
+ "libc",
+ "log",
+ "memchr",
+ "nkeys",
+ "nuid",
+ "once_cell",
+ "parking_lot 0.12.1",
+ "regex",
+ "rustls 0.19.1",
+ "rustls-native-certs 0.5.0",
+ "rustls-pemfile 0.2.1",
+ "serde 1.0.137",
+ "serde_json",
+ "serde_nanos",
+ "serde_repr",
+ "time 0.3.9",
+ "url",
+ "webpki 0.21.4",
+ "winapi 0.3.9",
 ]
 
 [[package]]
@@ -4061,6 +4102,7 @@ dependencies = [
  "gstreamer-sys 0.19.0",
  "gstreamer-video",
  "libc",
+ "nats",
  "ndarray",
  "once_cell",
  "polars",
@@ -4688,6 +4730,18 @@ dependencies = [
 
 [[package]]
 name = "rustls-native-certs"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a07b7c1885bd8ed3831c289b7870b13ef46fe0e856d288c30d9cc17d75a2092"
+dependencies = [
+ "openssl-probe",
+ "rustls 0.19.1",
+ "schannel",
+ "security-framework",
+]
+
+[[package]]
+name = "rustls-native-certs"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0167bac7a9f490495f3c33013e7722b53cb087ecbe082fb0c6387c96f634ea50"
@@ -4696,6 +4750,15 @@ dependencies = [
  "rustls-pemfile 1.0.0",
  "schannel",
  "security-framework",
+]
+
+[[package]]
+name = "rustls-pemfile"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5eebeaeb360c87bfb72e84abdb3447159c0eaececf1bef2aecd65a8be949d1c9"
+dependencies = [
+ "base64 0.13.0",
 ]
 
 [[package]]

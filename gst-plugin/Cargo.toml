@@ -11,6 +11,7 @@ repository = "https://github.com/bitsy-ai/printnanny-gst-plugin-rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+nats = "0.23.0"
 ndarray = "0.15.6"               # An n-dimensional array for general elements and for numerics. Lightweight array views and slic…
 arrow = "23.0.0"                     # Rust implementation of Apache Arrow
 bytes = { version = "1.2.1", features = ["std"] }                            # Types and traits for working with bytes
@@ -45,6 +46,7 @@ polars = { version = "0.24.3", features = [
     "serde",
     "temporal",
 ]}
+
 printnanny-ws = {path = "../ws", version = "0.1.0"}
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

@@ -1,0 +1,20 @@
+version: "3"
+
+volumes:
+  local_postgres_data: {}
+services:
+  nats:
+    hostname: nats
+    container_name: printnanny_gst_nats_dev
+    image: nats:2.9.2
+    volumes:
+      - ./.nats/:/etc/nats
+    command:
+      - -c
+      - /etc/nats/nats-server.conf
+      - --name
+      - localnats
+      - --debug
+    ports:
+      - "4222:4222"
+      - "8888:8888"
