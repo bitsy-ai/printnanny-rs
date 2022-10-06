@@ -4099,6 +4099,7 @@ dependencies = [
  "ndarray",
  "once_cell",
  "polars",
+ "printnanny-ws",
  "serde 1.0.137",
  "tempdir",
  "thiserror",
