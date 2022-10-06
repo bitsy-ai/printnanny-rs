@@ -8,7 +8,10 @@ use once_cell::sync::Lazy;
 use polars::prelude::*;
 
 use super::DataframeOutputType;
-use crate::ipc::{dataframe_to_arrow_streaming_ipc_message, dataframe_to_json_bytearray};
+use crate::ipc::{
+    dataframe_to_arrow_streaming_ipc_message, dataframe_to_framed_json_bytearray,
+    dataframe_to_json_bytearray,
+};
 
 static CAT: Lazy<gst::DebugCategory> = Lazy::new(|| {
     gst::DebugCategory::new(
@@ -19,9 +22,6 @@ static CAT: Lazy<gst::DebugCategory> = Lazy::new(|| {
 });
 
 const DEFAULT_OUTPUT_TYPE: DataframeOutputType = DataframeOutputType::ArrowStreamingIpc;
-
-const SIGNAL_NOZZLE_OK: &str = "nozzle-ok";
-const SIGNAL_NOZZLE_UNKNOWN: &str = "nozzle-unknown";
 
 const DEFAULT_MAX_SIZE_DURATION: &str = "30s";
 const DEFAULT_MAX_SIZE_BUFFERS: u64 = 900; // approx 1 minute of buffer frames @ 15fps
@@ -177,7 +177,7 @@ impl DataframeAgg {
         gst::log!(CAT, obj: pad, "Handling buffer {:?}", buffer);
 
         let mut state = self.state.lock().unwrap();
-        let mut settings = self.settings.lock().unwrap();
+        let settings = self.settings.lock().unwrap();
 
         let cursor = buffer.into_cursor_readable();
 
@@ -314,6 +314,15 @@ impl DataframeAgg {
                     gst::FlowError::Error
                 })?
             }
+            DataframeOutputType::JsonFramed => dataframe_to_framed_json_bytearray(&mut windowed_df)
+                .map_err(|err| {
+                    gst::element_error!(
+                        element,
+                        gst::StreamError::Decode,
+                        ["Failed to serialize framed json from dataframe: {:?}", err]
+                    );
+                    gst::FlowError::Error
+                })?,
         };
 
         self.srcpad.push(gst::Buffer::from_slice(output_buffer))

@@ -12,6 +12,16 @@ pub enum SerializationError {
         #[from]
         source: polars::error::PolarsError,
     },
+    #[error(transparent)]
+    SerdeJsonError {
+        #[from]
+        source: serde_json::Error,
+    },
+    #[error(transparent)]
+    FromUtf8Error {
+        #[from]
+        source: std::string::FromUtf8Error,
+    },
     #[error("Failed to unwrap BufWriter inner contents")]
     BufferError,
 }

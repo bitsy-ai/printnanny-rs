@@ -2,7 +2,6 @@ use gst::prelude::*;
 use gst::MessageView;
 
 use gst_app::gst::PadTemplate;
-use gstprintnanny::util::get_max_ts_offset_or_default;
 use polars::io::ipc::{IpcReader, IpcStreamReader};
 use polars::io::SerReader;
 use polars::prelude::*;
@@ -204,4 +203,61 @@ fn test_dataframe_agg() {
         assert!(max_duration_ns >= ts_dif);
         num_buffers += 1;
     }
+}
+
+// requires websocket-tcp-server bin to be running, ignore in CI but keep as development helper
+#[ignore]
+#[test]
+fn test_dataframe_agg_tcp() {
+    init();
+
+    let base_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let model_path: PathBuf = base_path.join("data/model.tflite");
+
+    let expected_buffers = 512;
+    let num_detections = 40;
+    let max_duration = "10s";
+
+    let pipeline_str = format!(
+        "videotestsrc num-buffers={expected_buffers} \
+        ! capsfilter caps=video/x-raw,width={tensor_width},height={tensor_height},format=RGB \
+        ! videoscale \
+        ! videoconvert \
+        ! tensor_converter \
+        ! capsfilter caps=other/tensors,num_tensors=1,format=static \
+        ! queue leaky=2 \
+        ! tensor_filter framework=tensorflow2-lite model={model_file} output=4:{num_detections}:1:1,{num_detections}:1:1:1,{num_detections}:1:1:1,1:1:1:1 outputname=detection_boxes,detection_classes,detection_scores,num_detections outputtype=float32,float32,float32,float32 \
+        ! queue \
+        ! tensor_decoder mode=custom-code option1=printnanny_bb_dataframe_decoder \
+        ! queue \
+        ! dataframe_agg filter-threshold=0.0001 window-interval=100ms window-period=100ms max-size-duration={max_duration} output-type=json-framed \
+        ! tcpclientsink host=127.0.0.1 port=12345",
+        expected_buffers = expected_buffers,
+        num_detections = num_detections,
+        tensor_width = 320,
+        tensor_height = 320,
+        model_file = model_path.display(),
+        max_duration = max_duration
+    );
+    let pipeline = gst::parse_launch(&pipeline_str).unwrap();
+    pipeline.set_state(gst::State::Playing).unwrap();
+    let bus = pipeline.bus().unwrap();
+    let mut events = vec![];
+    loop {
+        let msg = bus.iter_timed(gst::ClockTime::NONE).next().unwrap();
+
+        match msg.view() {
+            MessageView::Error(_) | MessageView::Eos(..) => {
+                events.push(msg.clone());
+                break;
+            }
+            // check stream related messages
+            MessageView::StreamCollection(_) | MessageView::StreamsSelected(_) => {
+                events.push(msg.clone())
+            }
+            _ => {}
+        }
+    }
+    pipeline.set_state(gst::State::Null).unwrap();
+    assert_eq!(events.len(), 1);
 }

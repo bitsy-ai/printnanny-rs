@@ -3,6 +3,9 @@ use std::collections::BTreeMap;
 use polars::export::arrow::io::ipc;
 use polars::io::json::{JsonFormat, JsonWriter};
 use polars::prelude::*;
+use serde_json as json;
+
+use printnanny_ws::codec;
 
 use crate::error::SerializationError;
 
@@ -55,9 +58,54 @@ pub fn dataframe_to_json_bytearray(df: &mut DataFrame) -> Result<Vec<u8>, Serial
     Ok(output)
 }
 
+pub fn dataframe_to_framed_json_bytearray(
+    df: &mut DataFrame,
+) -> Result<Vec<u8>, SerializationError> {
+    let jsonb = dataframe_to_json_bytearray(df)?;
+    let jsonstr = String::from_utf8(jsonb)?;
+    let req = codec::QcMessageRequest::JsonMessage(jsonstr);
+    Ok(serde_json::to_vec(&req)?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_framed_dataframe_to_json() {
+        let mut dataframe = df!(
+            "x0" => vec![0; 10],
+            "x1" => vec![1; 10]
+        )
+        .unwrap();
+
+        let expected_json = r#"[{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1},{"x0":0,"x1":1}]"#;
+
+        let expected_bytes = [
+            123, 34, 99, 109, 100, 34, 58, 34, 74, 115, 111, 110, 77, 101, 115, 115, 97, 103, 101,
+            34, 44, 34, 100, 97, 116, 97, 34, 58, 34, 91, 123, 92, 34, 120, 48, 92, 34, 58, 48, 44,
+            92, 34, 120, 49, 92, 34, 58, 49, 125, 44, 123, 92, 34, 120, 48, 92, 34, 58, 48, 44, 92,
+            34, 120, 49, 92, 34, 58, 49, 125, 44, 123, 92, 34, 120, 48, 92, 34, 58, 48, 44, 92, 34,
+            120, 49, 92, 34, 58, 49, 125, 44, 123, 92, 34, 120, 48, 92, 34, 58, 48, 44, 92, 34,
+            120, 49, 92, 34, 58, 49, 125, 44, 123, 92, 34, 120, 48, 92, 34, 58, 48, 44, 92, 34,
+            120, 49, 92, 34, 58, 49, 125, 44, 123, 92, 34, 120, 48, 92, 34, 58, 48, 44, 92, 34,
+            120, 49, 92, 34, 58, 49, 125, 44, 123, 92, 34, 120, 48, 92, 34, 58, 48, 44, 92, 34,
+            120, 49, 92, 34, 58, 49, 125, 44, 123, 92, 34, 120, 48, 92, 34, 58, 48, 44, 92, 34,
+            120, 49, 92, 34, 58, 49, 125, 44, 123, 92, 34, 120, 48, 92, 34, 58, 48, 44, 92, 34,
+            120, 49, 92, 34, 58, 49, 125, 44, 123, 92, 34, 120, 48, 92, 34, 58, 48, 44, 92, 34,
+            120, 49, 92, 34, 58, 49, 125, 93, 34, 125,
+        ];
+
+        let b = dataframe_to_framed_json_bytearray(&mut dataframe).unwrap();
+
+        assert_eq!(b, expected_bytes);
+
+        let expected_struct = codec::QcMessageRequest::JsonMessage(expected_json.to_string());
+        assert_eq!(
+            serde_json::from_slice::<codec::QcMessageRequest>(&b).unwrap(),
+            expected_struct
+        );
+    }
 
     #[test]
     fn test_dataframe_to_json() {
