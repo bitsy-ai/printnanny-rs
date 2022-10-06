@@ -98,7 +98,7 @@ impl StreamHandler<Result<QcMessageRequest, io::Error>> for QcMessageSession {
                 println!("Peer message: {message:?}");
                 self.addr.do_send(server::JsonMessage {
                     id: self.id,
-                    json: String::from_utf8(message).expect("Failed to deserialize message"),
+                    json: message,
                 })
             }
             // we update heartbeat time on ping from peer
@@ -118,8 +118,7 @@ impl Handler<Message> for QcMessageSession {
 
     fn handle(&mut self, msg: Message, _: &mut Context<Self>) {
         // send message to peer
-        self.framed
-            .write(QcMessageResponse::JsonMessage(msg.0.as_bytes().to_vec()));
+        self.framed.write(QcMessageResponse::JsonMessage(msg.0));
     }
 }
 

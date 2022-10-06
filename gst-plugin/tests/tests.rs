@@ -205,16 +205,16 @@ fn test_dataframe_agg() {
     }
 }
 
+// requires websocket-tcp-server bin to be running, ignore in CI but keep as development helper
+#[ignore]
 #[test]
 fn test_dataframe_agg_tcp() {
     init();
 
     let base_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let model_path: PathBuf = base_path.join("data/model.tflite");
-    let fixture = base_path.join("data/fixture_0.mp4");
 
     let expected_buffers = 512;
-    let expected_columns = 19;
     let num_detections = 40;
     let max_duration = "10s";
 
@@ -243,7 +243,6 @@ fn test_dataframe_agg_tcp() {
     pipeline.set_state(gst::State::Playing).unwrap();
     let bus = pipeline.bus().unwrap();
     let mut events = vec![];
-    // let max_duration_ns = Duration::parse(max_duration).nanoseconds();
     loop {
         let msg = bus.iter_timed(gst::ClockTime::NONE).next().unwrap();
 
@@ -260,33 +259,5 @@ fn test_dataframe_agg_tcp() {
         }
     }
     pipeline.set_state(gst::State::Null).unwrap();
-    println!("Processed events {:?}", events);
-    // let mut num_buffers = 0;
-    // while let Some(buffer) = h.pull_until_eos().unwrap() {
-    //     println!("Pulled buffer: {:?}", buffer)
-    //     // let cursor = buffer.as_cursor_readable();
-    //     // let df = IpcStreamReader::new(cursor)
-    //     //     .finish()
-    //     //     .expect("Failed to extract dataframe");
-
-    //     // let (_rows, columns) = df.shape();
-    //     // println!("Pulled dataframe from buffer {:?}", df);
-    //     // assert_eq!(columns, expected_columns);
-
-    //     // // window should not exceed max duration
-    //     // // let max_ts = get_max_ts_offset_or_default(&df.clone().lazy(), &max_duration);
-    //     // let df = df
-    //     //     .clone()
-    //     //     .lazy()
-    //     //     .select([(col("ts").max() - col("ts").min()).alias("ts_diff")])
-    //     //     .collect()
-    //     //     .unwrap();
-
-    //     // let ts_dif = match df.get(0).unwrap().get(0).unwrap() {
-    //     //     AnyValue::Int64(v) => v.to_owned(),
-    //     //     _ => 0,
-    //     // };
-    //     // assert!(max_duration_ns >= ts_dif);
-    //     // num_buffers += 1;
-    // }
+    assert_eq!(events.len(), 1);
 }
