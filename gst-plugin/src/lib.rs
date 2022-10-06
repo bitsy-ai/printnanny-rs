@@ -1,6 +1,7 @@
 use gst::glib;
 mod dataframe_agg;
 mod dataframe_filesink;
+mod nats_sink;
 
 pub mod error;
 pub mod ipc;
@@ -10,6 +11,7 @@ pub mod tensor;
 fn plugin_init(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
     dataframe_filesink::register(plugin)?;
     dataframe_agg::register(plugin)?;
+    nats_sink::register(plugin)?;
     nnstreamer::register_nnstreamer_callbacks();
     Ok(())
 }

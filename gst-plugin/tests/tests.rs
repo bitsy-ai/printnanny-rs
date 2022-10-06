@@ -21,6 +21,73 @@ fn init() {
     });
 }
 
+// requires nats server to be running, ignore in CI but keep as development helper
+#[ignore]
+#[test]
+fn test_nats_sink() {
+    init();
+    let base_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let model_path: PathBuf = base_path.join("data/model.tflite");
+    let tmp_dir = base_path.join(".tmp");
+
+    let dataframe_location = format!("{}/videotestsrc_%05d.ipc", tmp_dir.display());
+    let num_detections = 40;
+    let expected_buffers = 16;
+
+    let pipeline_str = format!(
+        "videotestsrc num-buffers={expected_buffers} \
+        ! capsfilter caps=video/x-raw,width={tensor_width},height={tensor_height},format=RGB \
+        ! videoscale \
+        ! videoconvert \
+        ! tensor_converter \
+        ! capsfilter caps=other/tensors,num_tensors=1,format=static \
+        ! tensor_filter framework=tensorflow2-lite model={model_file} output=4:{num_detections}:1:1,{num_detections}:1:1:1,{num_detections}:1:1:1,1:1:1:1 outputname=detection_boxes,detection_classes,detection_scores,num_detections outputtype=float32,float32,float32,float32 \
+        ! tensor_decoder mode=custom-code option1=printnanny_bb_dataframe_decoder \
+        ! nats_sink",
+        expected_buffers = expected_buffers,
+        num_detections = num_detections,
+        tensor_width = 320,
+        tensor_height = 320,
+        model_file = model_path.display()
+    );
+
+    let pipeline = gst::parse_launch(&pipeline_str).expect("Failed to construct pipeline");
+    pipeline.set_state(gst::State::Playing).unwrap();
+    let bus = pipeline.bus().unwrap();
+    let mut events = vec![];
+
+    loop {
+        let msg = bus.iter_timed(gst::ClockTime::NONE).next().unwrap();
+
+        match msg.view() {
+            MessageView::Error(_) | MessageView::Eos(..) => {
+                events.push(msg.clone());
+                break;
+            }
+            // check stream related messages
+            MessageView::StreamCollection(_) | MessageView::StreamsSelected(_) => {
+                events.push(msg.clone())
+            }
+            _ => {}
+        }
+    }
+    pipeline.set_state(gst::State::Null).unwrap();
+
+    // let pattern = format!("{}/videotestsrc*.ipc", tmp_dir.display());
+    // let paths = glob::glob(&pattern).expect("Failed to parse glob pattern");
+
+    // let dataframes: Vec<LazyFrame> = paths
+    //     .map(|p| {
+    //         let p = p.unwrap();
+    //         let f = File::open(&p).expect("file not found");
+    //         IpcStreamReader::new(f).finish().unwrap().lazy()
+    //     })
+    //     .collect();
+
+    // let df = concat(&dataframes, true, true).unwrap().collect().unwrap();
+    // assert_eq!(df.shape(), (expected_buffers * num_detections, 7));
+}
+
 #[test]
 fn test_nnstreamer_callback() {
     init();
