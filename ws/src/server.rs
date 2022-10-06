@@ -2,7 +2,7 @@
 //! And manages available rooms. Peers send messages to other peers in same
 //! room through `QcMessageServer`.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use actix::prelude::*;
 use log::{info, warn};
@@ -54,7 +54,7 @@ impl Default for QcMessageServer {
 impl QcMessageServer {
     /// Send message to all connected recv clients
     fn send_message(&self, message: &str) {
-        for (id, recipient) in self.sessions.iter() {
+        for (_id, recipient) in self.sessions.iter() {
             recipient.do_send(session::Message(message.to_owned()));
         }
     }
