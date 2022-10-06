@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json as json;
 
 /// Client request
-#[derive(Serialize, Deserialize, Debug, Message)]
+#[derive(Serialize, Deserialize, Debug, Message, PartialEq)]
 #[rtype(result = "()")]
 #[serde(tag = "cmd", content = "data")]
 pub enum QcMessageRequest {
@@ -20,7 +20,7 @@ pub enum QcMessageRequest {
 }
 
 /// Server response
-#[derive(Serialize, Deserialize, Debug, Message)]
+#[derive(Serialize, Deserialize, Debug, Message, PartialEq)]
 #[rtype(result = "()")]
 #[serde(tag = "cmd", content = "data")]
 pub enum QcMessageResponse {
@@ -42,19 +42,26 @@ impl Decoder for QcMessageCodec {
     }
 }
 
+impl Encoder<QcMessageRequest> for QcMessageCodec {
+    type Error = io::Error;
+
+    fn encode(&mut self, msg: QcMessageRequest, dst: &mut BytesMut) -> Result<(), Self::Error> {
+        debug!("Encoding msg {:?}", msg);
+        let msg = json::to_string(&msg).unwrap();
+        let msg_ref: &[u8] = msg.as_ref();
+        dst.put(msg_ref);
+        Ok(())
+    }
+}
+
 impl Encoder<QcMessageResponse> for QcMessageCodec {
     type Error = io::Error;
 
     fn encode(&mut self, msg: QcMessageResponse, dst: &mut BytesMut) -> Result<(), Self::Error> {
-        debug!("Received msg {:?}", msg);
-
+        debug!("Encoding msg {:?}", msg);
         let msg = json::to_string(&msg).unwrap();
         let msg_ref: &[u8] = msg.as_ref();
-
-        dst.reserve(msg_ref.len() + 2);
-        dst.put_u16(msg_ref.len() as u16);
         dst.put(msg_ref);
-
         Ok(())
     }
 }
@@ -76,11 +83,7 @@ impl Encoder<QcMessageRequest> for ClientQcMessageCodec {
     fn encode(&mut self, msg: QcMessageRequest, dst: &mut BytesMut) -> Result<(), Self::Error> {
         let msg = json::to_string(&msg).unwrap();
         let msg_ref: &[u8] = msg.as_ref();
-
-        dst.reserve(msg_ref.len() + 2);
-        dst.put_u16(msg_ref.len() as u16);
         dst.put(msg_ref);
-
         Ok(())
     }
 }
