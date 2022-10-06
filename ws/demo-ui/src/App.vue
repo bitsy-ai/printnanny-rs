@@ -20,6 +20,17 @@
               <XMarkIcon v-else class="block h-6 w-6" aria-hidden="true" />
             </DisclosureButton>
           </div>
+          <!-- status indicator -->
+          <div class="hidden sm:ml-6 sm:flex sm:items-center">
+            <!-- 
+            <button type="button" class="rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+              <span class="sr-only">View notifications</span>
+              <BellIcon class="h-6 w-6" aria-hidden="true" />
+            </button>
+            -->
+            <ConnectionStatus />
+
+          </div>
         </div>
       </div>
 
@@ -60,6 +71,7 @@ import { computed } from "vue"
 import { Disclosure, DisclosureButton, DisclosurePanel, Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue'
 import { Bars3Icon, BellIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useRouter, RouterLink, RouterView } from "vue-router"
+import ConnectionStatus from "@/components/ConnectionStatus.vue";
 import routes from "@/router/routes"
 
 const router = useRouter();

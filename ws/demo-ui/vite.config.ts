@@ -18,6 +18,7 @@ export default defineConfig(({ _command, mode }) => {
         },
       },
     },
+    envDir: ".env",
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url))
