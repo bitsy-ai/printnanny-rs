@@ -25,7 +25,7 @@ pub enum TensorError {
 // Parse a single tensor shape, with dimensions separated by ":" symbol, for example "40:1:1:4" -> [40,1,1,4]
 pub fn parse_tensor_shape(tensor_shape: &str) -> Result<Vec<u32>, ParseIntError> {
     tensor_shape
-        .split(":")
+        .split(':')
         .map(|s| Ok(s.parse::<u32>()?))
         .collect()
 }
@@ -44,7 +44,7 @@ pub fn parse_tensor_type(tensor_type: &str) -> datatypes::DataType {
 
 // Parse a comma-separated String of tensor types
 pub fn parse_tensor_types(tensor_types: &str) -> Result<Vec<datatypes::DataType>, TensorError> {
-    let parsed: Vec<&str> = tensor_types.split(",").collect();
+    let parsed: Vec<&str> = tensor_types.split(',').collect();
     if parsed.len() > 0 {
         Ok(parsed.iter().map(|t| parse_tensor_type(t)).collect())
     } else {

@@ -75,7 +75,7 @@ impl ObjectImpl for NatsSink {
 
     fn set_property(
         &self,
-        obj: &Self::Type,
+        _obj: &Self::Type,
         _id: usize,
         value: &glib::Value,
         pspec: &glib::ParamSpec,

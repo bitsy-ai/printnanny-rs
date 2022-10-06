@@ -29,8 +29,6 @@ fn test_nats_sink() {
     let base_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let model_path: PathBuf = base_path.join("data/model.tflite");
     let tmp_dir = base_path.join(".tmp");
-
-    let dataframe_location = format!("{}/videotestsrc_%05d.ipc", tmp_dir.display());
     let num_detections = 40;
     let expected_buffers = 16;
 
@@ -72,20 +70,6 @@ fn test_nats_sink() {
         }
     }
     pipeline.set_state(gst::State::Null).unwrap();
-
-    // let pattern = format!("{}/videotestsrc*.ipc", tmp_dir.display());
-    // let paths = glob::glob(&pattern).expect("Failed to parse glob pattern");
-
-    // let dataframes: Vec<LazyFrame> = paths
-    //     .map(|p| {
-    //         let p = p.unwrap();
-    //         let f = File::open(&p).expect("file not found");
-    //         IpcStreamReader::new(f).finish().unwrap().lazy()
-    //     })
-    //     .collect();
-
-    // let df = concat(&dataframes, true, true).unwrap().collect().unwrap();
-    // assert_eq!(df.shape(), (expected_buffers * num_detections, 7));
 }
 
 #[test]
@@ -206,9 +190,7 @@ fn test_dataframe_agg() {
     init();
 
     let base_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let tmp_dir = base_path.join(".tmp");
     let model_path: PathBuf = base_path.join("data/model.tflite");
-    let fixture = base_path.join("data/fixture_0.mp4");
 
     let expected_buffers = 512;
     let expected_columns = 19;

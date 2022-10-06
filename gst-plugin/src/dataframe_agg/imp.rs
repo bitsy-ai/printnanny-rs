@@ -112,7 +112,12 @@ impl DataframeAgg {
     //
     // See the documentation of gst::Event and gst::EventRef to see what can be done with
     // events, and especially the gst::EventView type for inspecting events.
-    fn sink_event(&self, pad: &gst::Pad, element: &super::DataframeAgg, event: gst::Event) -> bool {
+    fn sink_event(
+        &self,
+        pad: &gst::Pad,
+        _element: &super::DataframeAgg,
+        event: gst::Event,
+    ) -> bool {
         gst::log!(CAT, obj: pad, "Handling event {:?}", event);
         self.srcpad.push_event(event)
     }
@@ -125,7 +130,7 @@ impl DataframeAgg {
     //
     // See the documentation of gst::Event and gst::EventRef to see what can be done with
     // events, and especially the gst::EventView type for inspecting events.
-    fn src_event(&self, pad: &gst::Pad, element: &super::DataframeAgg, event: gst::Event) -> bool {
+    fn src_event(&self, pad: &gst::Pad, _element: &super::DataframeAgg, event: gst::Event) -> bool {
         gst::log!(CAT, obj: pad, "Handling event {:?}", event);
         self.sinkpad.push_event(event)
     }
@@ -142,7 +147,7 @@ impl DataframeAgg {
     fn src_query(
         &self,
         pad: &gst::Pad,
-        element: &super::DataframeAgg,
+        _element: &super::DataframeAgg,
         query: &mut gst::QueryRef,
     ) -> bool {
         gst::log!(CAT, obj: pad, "Handling query {:?}", query);
@@ -161,7 +166,7 @@ impl DataframeAgg {
     fn sink_query(
         &self,
         pad: &gst::Pad,
-        element: &super::DataframeAgg,
+        _element: &super::DataframeAgg,
         query: &mut gst::QueryRef,
     ) -> bool {
         gst::log!(CAT, obj: pad, "Handling query {:?}", query);
