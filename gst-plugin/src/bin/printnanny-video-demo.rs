@@ -160,7 +160,7 @@ impl VideoDemoApp {
             ! tensor_filter framework=tensorflow2-lite model={model_file} \
             ! tee name=tensor_t 
             ! queue name=tensor_decoder_q \
-            ! tensor_rate framerate=15/1 throttle=true \
+            ! tensor_rate framerate={framerate}/1 throttle=true \
             ! tensor_decoder mode=bounding_boxes \
                 option1=mobilenet-ssd-postprocess \
                 option2={label_file} \
@@ -170,8 +170,10 @@ impl VideoDemoApp {
             ! queue name=compositor_q \
             ! compositor name=comp sink_0::zorder=2 sink_1::zorder=1 \
             ! timeoverlay \
-            ! videoconvert \
-            ! fpsdisplaysink sync=false \
+            ! encodebin profile=\"video/x-h264,tune=zerolatency,profile=main\" \
+            ! rtph264pay config-interval=1 aggregate-mode=zero-latency pt=96 \
+            ! queue2 \
+            ! udpsink port={udp_port} \
             decoded_video_t. ! queue name=videoscale_q \
             ! videoscale \
             ! capsfilter caps=video/x-raw,width={video_width},height={video_height} ! comp.sink_1 \
@@ -185,7 +187,9 @@ impl VideoDemoApp {
             label_file = &self.model.label_file,
             nms_threshold = &self.model.nms_threshold,
             video_width = &self.video_width,
-            video_height = &self.video_height
+            video_height = &self.video_height,
+            framerate = 15,
+            udp_port = 5104
         );
 
         let pipeline = gst::parse_launch(&pipeline_str)?;

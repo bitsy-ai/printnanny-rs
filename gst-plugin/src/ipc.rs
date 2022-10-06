@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 use polars::export::arrow::io::ipc;
 use polars::io::json::{JsonFormat, JsonWriter};
 use polars::prelude::*;
-use serde_json as json;
 
 use printnanny_ws::codec;
 
