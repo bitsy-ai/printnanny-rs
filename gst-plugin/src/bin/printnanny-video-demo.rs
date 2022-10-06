@@ -143,6 +143,9 @@ impl VideoDemoApp {
     pub fn create_pipeline(&self) -> Result<gst::Pipeline, Error> {
         gst::init()?;
 
+        // tensor_t. ! tensor_decoder mode=custom-code option1=printnanny_bb_dataframe_decoder \
+        // ! dataframe_agg \
+        // ! nats_sink",
         let pipeline_str = format!(
             "filesrc location={video_file} \
             ! qtdemux name=demux \
@@ -176,10 +179,7 @@ impl VideoDemoApp {
             ! udpsink port={udp_port} \
             decoded_video_t. ! queue name=videoscale_q \
             ! videoscale \
-            ! capsfilter caps=video/x-raw,width={video_width},height={video_height} ! comp.sink_1 \
-            tensor_t. ! tensor_decoder mode=custom-code option1=printnanny_bb_dataframe_decoder \
-            ! dataframe_agg \
-            ! nats_sink",
+            ! capsfilter caps=video/x-raw,width={video_width},height={video_height} ! comp.sink_1",
             video_file = &self.video_file,
             tensor_height = &self.model.tensor_height,
             tensor_width = &self.model.tensor_width,

@@ -139,3 +139,20 @@ demo-video-1: {
                 }
         )
 }
+
+live-camera-1: {
+        type = "rtp"
+        id = 005
+        description = "Live Camera Feed"
+        media = (
+                {
+					type = "video"
+					mid = "v1"
+					label = "Live Camera Feed #1"
+					port = 5104
+					pt = 96
+					codec = "H264/90000"
+					videofmtp = "profile-level-id=42e01f;packetization-mode=1"
+                }
+        )
+}
