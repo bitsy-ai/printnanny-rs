@@ -4,6 +4,7 @@ use std::io;
 use actix::prelude::*;
 use actix_codec::{Decoder, Encoder};
 use actix_web::web::{BufMut, BytesMut};
+use log::debug;
 use serde::{Deserialize, Serialize};
 use serde_json as json;
 
@@ -35,7 +36,9 @@ impl Decoder for QcMessageCodec {
     type Error = io::Error;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        Ok(Some(json::from_slice::<QcMessageRequest>(&src)?))
+        let msg = json::from_slice::<QcMessageRequest>(&src)?;
+        debug!("Decoded client msg {:?}", msg);
+        Ok(Some(msg))
     }
 }
 
@@ -43,6 +46,8 @@ impl Encoder<QcMessageResponse> for QcMessageCodec {
     type Error = io::Error;
 
     fn encode(&mut self, msg: QcMessageResponse, dst: &mut BytesMut) -> Result<(), Self::Error> {
+        debug!("Received msg {:?}", msg);
+
         let msg = json::to_string(&msg).unwrap();
         let msg_ref: &[u8] = msg.as_ref();
 

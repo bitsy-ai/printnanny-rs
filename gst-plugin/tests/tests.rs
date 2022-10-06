@@ -2,7 +2,6 @@ use gst::prelude::*;
 use gst::MessageView;
 
 use gst_app::gst::PadTemplate;
-use gstprintnanny::util::get_max_ts_offset_or_default;
 use polars::io::ipc::{IpcReader, IpcStreamReader};
 use polars::io::SerReader;
 use polars::prelude::*;
@@ -204,4 +203,91 @@ fn test_dataframe_agg() {
         assert!(max_duration_ns >= ts_dif);
         num_buffers += 1;
     }
+}
+
+#[test]
+fn test_dataframe_agg_tcp() {
+    init();
+
+    let base_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let tmp_dir = base_path.join(".tmp");
+    let model_path: PathBuf = base_path.join("data/model.tflite");
+    let fixture = base_path.join("data/fixture_0.mp4");
+
+    let expected_buffers = 512;
+    let expected_columns = 19;
+    let num_detections = 40;
+    let max_duration = "10s";
+
+    let pipeline_str = format!(
+        "videotestsrc num-buffers={expected_buffers} \
+        ! capsfilter caps=video/x-raw,width={tensor_width},height={tensor_height},format=RGB \
+        ! videoscale \
+        ! videoconvert \
+        ! tensor_converter \
+        ! capsfilter caps=other/tensors,num_tensors=1,format=static \
+        ! queue leaky=2 \
+        ! tensor_filter framework=tensorflow2-lite model={model_file} output=4:{num_detections}:1:1,{num_detections}:1:1:1,{num_detections}:1:1:1,1:1:1:1 outputname=detection_boxes,detection_classes,detection_scores,num_detections outputtype=float32,float32,float32,float32 \
+        ! queue \
+        ! tensor_decoder mode=custom-code option1=printnanny_bb_dataframe_decoder \
+        ! queue \
+        ! dataframe_agg filter-threshold=0.0001 window-interval=100ms window-period=100ms max-size-duration={max_duration} output-type=json \
+        ! tcpclientsink host=127.0.0.1 port=12345",
+        expected_buffers = expected_buffers,
+        num_detections = num_detections,
+        tensor_width = 320,
+        tensor_height = 320,
+        model_file = model_path.display(),
+        max_duration = max_duration
+    );
+    let pipeline = gst::parse_launch(&pipeline_str).unwrap();
+    pipeline.set_state(gst::State::Playing).unwrap();
+    let bus = pipeline.bus().unwrap();
+    let mut events = vec![];
+    // let max_duration_ns = Duration::parse(max_duration).nanoseconds();
+    loop {
+        let msg = bus.iter_timed(gst::ClockTime::NONE).next().unwrap();
+
+        match msg.view() {
+            MessageView::Error(_) | MessageView::Eos(..) => {
+                events.push(msg.clone());
+                break;
+            }
+            // check stream related messages
+            MessageView::StreamCollection(_) | MessageView::StreamsSelected(_) => {
+                events.push(msg.clone())
+            }
+            _ => {}
+        }
+    }
+    pipeline.set_state(gst::State::Null).unwrap();
+    println!("Processed events {:?}", events);
+    // let mut num_buffers = 0;
+    // while let Some(buffer) = h.pull_until_eos().unwrap() {
+    //     println!("Pulled buffer: {:?}", buffer)
+    //     // let cursor = buffer.as_cursor_readable();
+    //     // let df = IpcStreamReader::new(cursor)
+    //     //     .finish()
+    //     //     .expect("Failed to extract dataframe");
+
+    //     // let (_rows, columns) = df.shape();
+    //     // println!("Pulled dataframe from buffer {:?}", df);
+    //     // assert_eq!(columns, expected_columns);
+
+    //     // // window should not exceed max duration
+    //     // // let max_ts = get_max_ts_offset_or_default(&df.clone().lazy(), &max_duration);
+    //     // let df = df
+    //     //     .clone()
+    //     //     .lazy()
+    //     //     .select([(col("ts").max() - col("ts").min()).alias("ts_diff")])
+    //     //     .collect()
+    //     //     .unwrap();
+
+    //     // let ts_dif = match df.get(0).unwrap().get(0).unwrap() {
+    //     //     AnyValue::Int64(v) => v.to_owned(),
+    //     //     _ => 0,
+    //     // };
+    //     // assert!(max_duration_ns >= ts_dif);
+    //     // num_buffers += 1;
+    // }
 }

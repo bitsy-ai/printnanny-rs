@@ -4,6 +4,7 @@ use actix::prelude::*;
 use actix_files::NamedFile;
 use actix_web::{middleware::Logger, web, App, Error, HttpRequest, HttpServer, Responder};
 use actix_web_actors::ws;
+use log::{error, info};
 
 mod codec;
 mod server;
@@ -29,8 +30,6 @@ async fn qc_dataframe_route(
         WsSession {
             id: 0,
             hb: Instant::now(),
-            room: "qc".to_owned(),
-            name: None,
             addr: srv.get_ref().clone(),
         },
         &req,
@@ -44,10 +43,6 @@ struct WsSession {
     /// Client must send ping at least once per 10 seconds (CLIENT_TIMEOUT),
     /// otherwise we drop connection.
     hb: Instant,
-    /// joined room
-    room: String,
-    /// peer name
-    name: Option<String>,
     /// QcMessageServer
     addr: Addr<server::QcMessageServer>,
 }
@@ -58,10 +53,11 @@ impl Actor for WsSession {
     /// Method is called on actor start.
     /// We register ws session with ChatServer
     fn started(&mut self, ctx: &mut Self::Context) {
+        info!("Started WsSession {:?}", self.addr);
         // we'll start heartbeat process on session start.
         self.hb(ctx);
 
-        // register self in chat server. `AsyncContext::wait` register
+        // register self in server. `AsyncContext::wait` register
         // future within context, but context waits until this future resolves
         // before processing any other events.
         // HttpContext::state() is instance of WsSessionState, state is shared
@@ -144,7 +140,7 @@ impl WsSession {
             // check client heartbeats
             if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
                 // heartbeat timed out
-                println!("Websocket Client heartbeat failed, disconnecting!");
+                error!("Websocket Client heartbeat failed, disconnecting!");
 
                 // notify chat server
                 act.addr.do_send(server::Disconnect { id: act.id });

@@ -8,6 +8,7 @@ use std::{
 };
 
 use actix::{prelude::*, spawn};
+use log::{error, info, warn};
 use tokio::{
     io::{split, WriteHalf},
     net::{TcpListener, TcpStream},
@@ -35,6 +36,7 @@ pub struct QcMessageSession {
     hb: Instant,
     /// Framed wrapper
     framed: actix::io::FramedWrite<QcMessageResponse, WriteHalf<TcpStream>, QcMessageCodec>,
+    heartbeat_enabled: bool,
 }
 
 impl Actor for QcMessageSession {
@@ -44,7 +46,15 @@ impl Actor for QcMessageSession {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         // we'll start heartbeat process on session start.
-        self.hb(ctx);
+        info!(
+            "Started QcMessageSession {:?} with context: {:?}",
+            self.addr, ctx
+        );
+        if self.heartbeat_enabled {
+            self.hb(ctx);
+        } else {
+            warn!("Started QcMessageSession with heartbeat_disabled")
+        }
 
         // register self in chat server. `AsyncContext::wait` register
         // future within context, but context waits until this future resolves
@@ -58,8 +68,11 @@ impl Actor for QcMessageSession {
             .then(|res, act, ctx| {
                 match res {
                     Ok(res) => act.id = res,
-                    // something is wrong with chat server
-                    _ => ctx.stop(),
+                    // something is wrong with server
+                    Err(e) => {
+                        error!("QCMessageSession error, stopping connection {:?}", e);
+                        ctx.stop()
+                    }
                 }
                 actix::fut::ready(())
             })
@@ -90,7 +103,10 @@ impl StreamHandler<Result<QcMessageRequest, io::Error>> for QcMessageSession {
             }
             // we update heartbeat time on ping from peer
             Ok(QcMessageRequest::Ping) => self.hb = Instant::now(),
-            _ => ctx.stop(),
+            _ => {
+                error!("Received unknown message, closing session {:?}", msg);
+                ctx.stop()
+            }
         }
     }
 }
@@ -117,7 +133,15 @@ impl QcMessageSession {
             addr,
             hb: Instant::now(),
             framed,
+            heartbeat_enabled: true,
         }
+    }
+
+    // quick hack: gstreamer tcpclientsink element does not recv msgs (only sends), so the element can't respond to heartbeat messages
+    // a better long-term solution is to implement a new element derived from tcpclientsink, which can send/recv ping/pong in addition to sending pipeline buffer
+    pub fn with_heartbeat_disabled(mut self) -> Self {
+        self.heartbeat_enabled = false;
+        self
     }
 
     /// helper method that sends ping to client every second.
@@ -128,7 +152,7 @@ impl QcMessageSession {
             // check client heartbeats
             if Instant::now().duration_since(act.hb) > Duration::new(10, 0) {
                 // heartbeat timed out
-                println!("Client heartbeat failed, disconnecting!");
+                error!("Client heartbeat failed, disconnecting!");
 
                 // notify chat server
                 act.addr.do_send(server::Disconnect { id: act.id });
@@ -158,6 +182,7 @@ pub fn tcp_server(_s: &str, server: Addr<QcMessageServer>) {
                 let (r, w) = split(stream);
                 QcMessageSession::add_stream(FramedRead::new(r, QcMessageCodec), ctx);
                 QcMessageSession::new(server, actix::io::FramedWrite::new(w, QcMessageCodec, ctx))
+                    .with_heartbeat_disabled()
             });
         }
     });

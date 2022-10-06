@@ -89,11 +89,8 @@ impl Handler<Disconnect> for QcMessageServer {
     type Result = ();
 
     fn handle(&mut self, msg: Disconnect, _: &mut Context<Self>) {
-        println!("Someone disconnected");
-
-        let mut rooms: Vec<String> = Vec::new();
         match self.sessions.remove(&msg.id) {
-            Some(_) => info!("Clossing session with id {}", &msg.id),
+            Some(_) => info!("Closing session with id {}", &msg.id),
             None => warn!("Session with id is already closed {}", &msg.id),
         }
     }
