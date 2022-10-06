@@ -210,7 +210,6 @@ fn test_dataframe_agg_tcp() {
     init();
 
     let base_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let tmp_dir = base_path.join(".tmp");
     let model_path: PathBuf = base_path.join("data/model.tflite");
     let fixture = base_path.join("data/fixture_0.mp4");
 
@@ -231,7 +230,7 @@ fn test_dataframe_agg_tcp() {
         ! queue \
         ! tensor_decoder mode=custom-code option1=printnanny_bb_dataframe_decoder \
         ! queue \
-        ! dataframe_agg filter-threshold=0.0001 window-interval=100ms window-period=100ms max-size-duration={max_duration} output-type=json \
+        ! dataframe_agg filter-threshold=0.0001 window-interval=100ms window-period=100ms max-size-duration={max_duration} output-type=json-framed \
         ! tcpclientsink host=127.0.0.1 port=12345",
         expected_buffers = expected_buffers,
         num_detections = num_detections,

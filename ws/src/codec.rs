@@ -14,7 +14,7 @@ use serde_json as json;
 #[serde(tag = "cmd", content = "data")]
 pub enum QcMessageRequest {
     // Send JSON-serialized bytearray
-    JsonMessage(Vec<u8>),
+    JsonMessage(String),
     /// Ping
     Ping,
 }

@@ -118,7 +118,8 @@ impl Handler<Message> for QcMessageSession {
 
     fn handle(&mut self, msg: Message, _: &mut Context<Self>) {
         // send message to peer
-        self.framed.write(QcMessageResponse::JsonMessage(msg.0));
+        self.framed
+            .write(QcMessageResponse::JsonMessage(msg.0.as_bytes().to_vec()));
     }
 }
 
