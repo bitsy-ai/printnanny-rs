@@ -232,6 +232,7 @@ export const useEventStore = defineStore({
                     .forEach((stream) => stream.stop());
                 videoEl.srcObject = null;
             }
+            this.$patch({ status: ConnectionStatus.ConnectionReady })
             // await eventsStore.publish_command(req);
         },
 
@@ -333,9 +334,6 @@ export const useEventStore = defineStore({
             videoEl.play();
             this.$patch({ status: ConnectionStatus.ConnectionStreamReady });
         },
-        stopStream(stream: JanusStream) {
-
-        }
     },
 });
 
