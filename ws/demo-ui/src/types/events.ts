@@ -10,8 +10,9 @@ export interface QcDataframeRow {
 
 export enum ConnectionStatus {
     ConnectionNotStarted,
-    ConnectionPending,
+    ConnectionLoading,
     ConnectionReady,
-    ConnectionStreaming,
+    ConnectionStreamLoading,
+    ConnectionStreamReady,
     ConnectionError
 }

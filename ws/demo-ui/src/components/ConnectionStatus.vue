@@ -2,7 +2,7 @@
 <div class="flex">
     <!-- spinner -->
     <Transition name="fade" mode="out-in" :duration="{enter: 800, leave: 500}">
-      <TextSpinner  v-if="store.status == ConnectionStatus.ConnectionNotStarted || store.status == ConnectionStatus.ConnectionPending"/>
+      <TextSpinner  v-if="store.status == ConnectionStatus.ConnectionNotStarted || store.status == ConnectionStatus.ConnectionLoading"/>
       <div class="flex items-center space-x-3 font-medium text-gray-600" v-else-if="store.status == ConnectionStatus.ConnectionReady">
 
         <div class="bg-emerald-500 flex-shrink-0 w-2.5 h-2.5 rounded-full" aria-hidden="true"></div>

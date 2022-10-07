@@ -8,7 +8,7 @@
                 <ListboxLabel class="block text-sm font-medium text-gray-700">Select a video stream:</ListboxLabel>
                 <div class="relative mt-1">
                 <ListboxButton class="relative w-48 cursor-default rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
-                    <TextSpinner text="Loading stream list" v-if="store.selectedStream === undefined"></TextSpinner>
+                    <TextSpinner text="Loading stream list" v-if="!store.selectedStream"></TextSpinner>
                     <span class="block truncate" v-else>{{ store.selectedStream.description }}</span>
 
                     <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
@@ -43,8 +43,8 @@
             <button
                 @click="store.stopAllStreams()"
                 type="button" 
-                :disabled="store.status !== ConnectionStatus.ConnectionStreaming"
-                :class="[store.status == ConnectionStatus.ConnectionStreaming ? 'hover:bg-blue-700 hover:shadow-lg focus:bg-blue-700 focus:shadow-lg focus:outline-none focus:ring-0 active:bg-blue-800 active:shadow-lg ': 'focus:ring-0 transition duration-150 ease-in-out pointer-events-none opacity-60', 'block truncate']"
+                :disabled="store.status !== ConnectionStatus.ConnectionStreamLoading"
+                :class="[store.status == ConnectionStatus.ConnectionStreamLoading ? 'hover:bg-blue-700 hover:shadow-lg focus:bg-blue-700 focus:shadow-lg focus:outline-none focus:ring-0 active:bg-blue-800 active:shadow-lg ': 'focus:ring-0 transition duration-150 ease-in-out pointer-events-none opacity-60', 'block truncate']"
                 class="inline-block h-10 px-6 py-2.5 mt-6 ml-4 bg-blue-600 text-white font-medium text-xs leading-tight uppercase rounded shadow-md hover:bg-blue-700 transition duration-150 ease-in-out">
                 Stop
             </button>
@@ -58,7 +58,9 @@
     <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
         <!-- Replace with your content -->
         <div class="px-4 py-8 sm:px-0">
-        <div class="h-96 rounded-lg border-4 border-dashed border-gray-200">
+        <div class="rounded-lg border-4 border-dashed border-gray-200 grid grid-cols-3 gap-4">
+            <VideoElement class="col-span-2"/>
+            <MeterElement />
         </div>
         </div>
         <!-- /End replace -->
@@ -78,8 +80,10 @@ import {
   } from '@headlessui/vue'
 import { useEventStore } from "@/stores/events";
 import {  ChevronUpDownIcon, CheckIcon } from '@heroicons/vue/24/outline'
-import TextSpinner from "@/components/TextSpinner.vue"
 import { ConnectionStatus } from "@/types";
+import TextSpinner from "@/components/TextSpinner.vue"
+import VideoElement from "@/components/VideoElement.vue";
+import MeterElement from "@/components/MeterElement.vue";
 
 const store = useEventStore();
 

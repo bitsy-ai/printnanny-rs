@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-full">
+  <div class="h-full">
     <StickyAlerts />
     <Disclosure as="nav" class="bg-white shadow-sm" v-slot="{ open }">
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

@@ -87,7 +87,14 @@ export const useEventStore = defineStore({
             }));
             console.log("Fetched detailed stream info", streamList);
 
-            this.$patch({ janusStreamingPluginHandle, janusSession, janusWsConnection, streamList: streamList });
+
+            this.$patch({
+                streamList,
+                janusWsConnection,
+                janusSession,
+                janusStreamingPluginHandle,
+            });
+
             janusStreamingPluginHandle.once(Janode.EVENT.HANDLE_DETACHED, () => {
                 console.log(`${janusStreamingPluginHandle} manager handle detached`);
             });
@@ -142,7 +149,7 @@ export const useEventStore = defineStore({
             return true
         },
         async connect(): Promise<void> {
-            this.$patch({ status: ConnectionStatus.ConnectionPending })
+            this.$patch({ status: ConnectionStatus.ConnectionLoading })
             const natsOk = await this.connectNats();
             const janusOk = await this.connectJanus();
             if (natsOk && janusOk) {
@@ -287,21 +294,19 @@ export const useEventStore = defineStore({
                 console.warn("startStream() was called, but no stream is selected");
                 return
             }
-            const media = toRaw(this.selectedStream.media);
-            media[0].codec = "H264/90000";
+            this.$patch({ status: ConnectionStatus.ConnectionLoading })
+            const janusStreamingPluginHandle = toRaw(this.janusStreamingPluginHandle);
             const watchdata = {
-                id: this.selectedStream.id,
-                // media: {
-                //     ...media
-                // }
+                id: this.selectedStream.id
             };
             console.log("Sending watchdata", watchdata);
-            const { jsep, _restart = false } = await this.janusStreamingPluginHandle.watch(watchdata);
+            const { jsep, _restart = false } = await janusStreamingPluginHandle.watch(watchdata);
             console.log(`Received offer`, jsep);
 
             const answer = await this.jsepAnswer(jsep);
-            const { status, id } = await this.janusStreamingPluginHandle.start({ jsep });
+            const { status, id } = await janusStreamingPluginHandle.start({ jsep: answer });
             console.log(`start ${id} response sent with status ${status}`);
+            this.$patch({ status: ConnectionStatus.ConnectionStreamLoading });
         },
         async setVideoElement(mediaStream: any) {
             if (!mediaStream) {
@@ -316,7 +321,7 @@ export const useEventStore = defineStore({
             videoEl.srcObject = mediaStream;
             console.log("Setting videoEl mediastream", videoEl, mediaStream);
             videoEl?.play();
-            this.$patch({ loading: false });
+            this.$patch({ status: ConnectionStatus.ConnectionStreamReady });
         },
         stopStream(stream: JanusStream) {
 
