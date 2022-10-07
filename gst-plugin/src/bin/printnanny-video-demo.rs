@@ -151,7 +151,7 @@ impl VideoDemoApp {
         // ! dataframe_agg \
         // ! nats_sink",
         let pipeline_str = format!(
-            "multifilesrc location={video_file} loop=true \
+            "filesrc location={video_file} \
             ! qtdemux name=demux \
             demux.video_0 ! decodebin \
             ! tee name=decoded_video_t \
@@ -183,7 +183,12 @@ impl VideoDemoApp {
             ! udpsink port={udp_port} \
             decoded_video_t. ! queue name=videoscale_q \
             ! videoscale \
-            ! capsfilter caps=video/x-raw,width={video_width},height={video_height} ! comp.sink_1",
+            ! capsfilter caps=video/x-raw,width={video_width},height={video_height} ! comp.sink_1 \
+            tensor_t. ! queue name=custom_tensor_decoder_t ! tensor_decoder mode=custom-code option1=printnanny_bb_dataframe_decoder \
+            ! dataframe_agg filter-threshold=0.5 output-type=json \
+            ! queue2 \
+            ! nats_sink \
+            ",
             video_file = &self.video_file,
             tensor_height = &self.model.tensor_height,
             tensor_width = &self.model.tensor_width,

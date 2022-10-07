@@ -57,6 +57,7 @@ export const useEventStore = defineStore({
                 if (natsConnection) {
                     console.log(`Initialized NATs connection to ${servers}`);
                     this.$patch({ natsConnection });
+                    await this.subscribeQcDataframes();
                     return true
                 }
                 return false
@@ -167,10 +168,11 @@ export const useEventStore = defineStore({
         //     console.log(`Published to ${subject}`, req);
         // },
         async subscribeQcDataframes() {
-            const natsClient = await this.connect();
-            if (natsClient == undefined) {
+            if (this.natsConnection == undefined) {
                 return;
             }
+
+            const natsClient = toRaw(this.natsConnection);
             // create a JSON codec/decoder
             const jsonCodec = JSONCodec<Array<QcDataframeRow>>();
 
@@ -179,6 +181,7 @@ export const useEventStore = defineStore({
             (async (sub: Subscription) => {
                 console.log(`Subscribed to ${sub.getSubject()} events...`);
                 for await (const msg of sub) {
+                    console.log("Received msg", msg)
                     const df: Array<QcDataframeRow> = jsonCodec.decode(
                         msg.data
                     );
