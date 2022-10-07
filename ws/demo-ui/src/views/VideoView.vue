@@ -60,7 +60,7 @@
         <div class="px-4 py-8 sm:px-0">
         <div class="rounded-lg border-4 border-dashed border-gray-200 grid grid-cols-3 gap-4">
             <VideoElement class="col-span-2"/>
-            <MeterElement />
+            <PlotlyElement />
         </div>
         </div>
         <!-- /End replace -->
@@ -83,7 +83,7 @@ import {  ChevronUpDownIcon, CheckIcon } from '@heroicons/vue/24/outline'
 import { ConnectionStatus } from "@/types";
 import TextSpinner from "@/components/TextSpinner.vue"
 import VideoElement from "@/components/VideoElement.vue";
-import MeterElement from "@/components/MeterElement.vue";
+import PlotlyElement from "@/components/PlotlyElement.vue";
 
 const store = useEventStore();
 

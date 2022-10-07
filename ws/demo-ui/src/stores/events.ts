@@ -39,6 +39,10 @@ export const useEventStore = defineStore({
         streamList: [] as Array<JanusStream>,
         selectedStream: undefined as undefined | JanusStream,
     }),
+    getters: {
+        meter_x: (state) => state.df.map(el => el.ts),
+        meter_y_nozzle: (state) => state.df.map(el => el.nozzle_mean)
+    },
     actions: {
 
         async connectNats(): Promise<boolean> {
@@ -181,7 +185,6 @@ export const useEventStore = defineStore({
             (async (sub: Subscription) => {
                 console.log(`Subscribed to ${sub.getSubject()} events...`);
                 for await (const msg of sub) {
-                    console.log("Received msg", msg)
                     const df: Array<QcDataframeRow> = jsonCodec.decode(
                         msg.data
                     );

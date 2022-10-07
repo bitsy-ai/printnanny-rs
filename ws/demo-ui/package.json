@@ -21,6 +21,9 @@
     "janode": "github:bitsy-ai/janode#2022-10-06-rm-unix-connection",
     "nats.ws": "^1.9.0",
     "pinia": "^2.0.21",
+    "plotly.js": "^2.14.0",
+    "plotly.js-dist-min": "^2.15.0",
+    "uuid": "^9.0.0",
     "vue": "^3.2.38",
     "vue-router": "^4.1.5"
   },
@@ -29,6 +32,7 @@
     "@tailwindcss/typography": "^0.5.7",
     "@types/jsdom": "^20.0.0",
     "@types/node": "^16.11.56",
+    "@types/plotly.js": "^2.12.5",
     "@vitejs/plugin-vue": "^3.0.3",
     "@vue/eslint-config-prettier": "^7.0.0",
     "@vue/eslint-config-typescript": "^11.0.0",
