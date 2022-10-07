@@ -4,8 +4,9 @@ import type { NatsConnection, Subscription } from "nats.ws";
 import Janode from "janode";
 import StreamingPlugin from "janode/plugins/streaming";
 
-import type { QcDataframeRow } from "@types";
+import type { QcDataframeRow, UiAlert } from "@types";
 import { ConnectionStatus } from "@/types";
+import { handleError } from "@/utils";
 
 function getNatsURI() {
     const hostname = window.location.hostname;
@@ -21,7 +22,6 @@ function getJanusUri() {
     return uri
 }
 
-
 const RTCPeerConnection = window.RTCPeerConnection.bind(window);
 
 export const useEventStore = defineStore({
@@ -33,18 +33,19 @@ export const useEventStore = defineStore({
         janusSession: undefined as undefined | any,
         janusPeerConnection: undefined as undefined | RTCPeerConnection,
         janusStreamingPluginHandle: undefined as undefined | any,
-        status: ConnectionStatus.Pending as ConnectionStatus
+        status: ConnectionStatus.Pending as ConnectionStatus,
+        alerts: [] as Array<UiAlert>,
+
     }),
     actions: {
         async getStreamList(): Promise<undefined> {
             if (this.janusStreamingPluginHandle === undefined) {
-                console.warn("getStreamList callled before Janus streaming handle connected, attempting to connect");
-                await this.connect();
-                return this.getStreamList()
+                console.warn("getStreamList callled before Janus streaming handle connected");
                 return;
             } else {
                 const streamList = await this.janusStreamingPluginHandle.list()
                 console.log("Got streaming list", streamList);
+                return streamList
             }
         },
 
@@ -77,7 +78,7 @@ export const useEventStore = defineStore({
                     url: janusUri,
                 },
             };
-            const janusWsConnection = await Janode.connect(connectOpts);
+            const janusWsConnection = await Janode.connect(connectOpts).catch((e: Error) => handleError("Janus websocket connection failed", e));
             this.$patch({ janusWsConnection: janusWsConnection });
             const janusSession = await janusWsConnection.create();
             this.$patch({ janusSession });
@@ -128,7 +129,14 @@ export const useEventStore = defineStore({
         },
         handle(event: Array<QcDataframeRow>) {
         },
-        push(event: Array<QcDataframeRow>) {
+        pushAlert(alert: UiAlert) {
+            // show at most 1 alert message with the same header
+            const alreadyShown = this.alerts.filter(
+                (a) => a.header == alert.header
+            );
+            if (alreadyShown.length === 0) {
+                this.alerts.push(alert);
+            }
         },
     },
 });

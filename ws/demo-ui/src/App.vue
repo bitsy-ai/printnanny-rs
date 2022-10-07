@@ -1,5 +1,6 @@
 <template>
   <div class="min-h-full">
+    <StickyAlerts />
     <Disclosure as="nav" class="bg-white shadow-sm" v-slot="{ open }">
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div class="flex h-16 justify-between">
@@ -72,6 +73,7 @@ import { Disclosure, DisclosureButton, DisclosurePanel, Menu, MenuButton, MenuIt
 import { Bars3Icon, BellIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useRouter, RouterLink, RouterView } from "vue-router"
 import ConnectionStatus from "@/components/ConnectionStatus.vue";
+import StickyAlerts from "./components/StickyAlerts.vue";
 import routes from "@/router/routes"
 
 const router = useRouter();
