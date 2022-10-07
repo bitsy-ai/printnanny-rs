@@ -26,7 +26,7 @@ general: {
     # where you do the things your way) and you
     # don't want other application to mess with
     # this Janus instance.
-    token_auth = true				
+    # token_auth = true				
     # Enable a token based authentication
     # mechanism to force users to always provide
     # a valid token in all requests. Useful if
@@ -37,7 +37,7 @@ general: {
     # without this, the Admin API MUST
     # be enabled, as tokens are added and removed
     # through messages sent there.
-    admin_secret = "debug"
+    # admin_secret = "debug"
     # String that all Janus requests must contain
     # to be accepted/authorized by the admin/monitor.
     # only needed if you enabled the admin API

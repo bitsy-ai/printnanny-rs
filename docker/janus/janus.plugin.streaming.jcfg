@@ -1,5 +1,5 @@
 general: {
-	admin_key = "debugstreaming"		# If set, mountpoints can be created via API
+	#admin_key = "debugstreaming"		# If set, mountpoints can be created via API
 									# only if this key is provided in the request
 	#rtp_port_range = "20000-40000"	# Range of ports to use for RTP/RTCP when '0' is
 									# passed as port for a mountpoint (default=10000-60000)
@@ -149,7 +149,7 @@ live-camera-1: {
 					type = "video"
 					mid = "v1"
 					label = "Live Camera Feed #1"
-					port = 5104
+					port = 5105
 					pt = 96
 					codec = "H264/90000"
 					videofmtp = "profile-level-id=42e01f;packetization-mode=1"

@@ -19,7 +19,7 @@ services:
       - "8888:8888"
   janus:
     hostname: janus
-    image: bitsyai/janus:1.0.4
+    image: bitsyai/janus:1.1.0
     container_name: printnanny_gst_janus_dev
     ports:
       - "8188:8188"

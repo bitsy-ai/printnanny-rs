@@ -29,12 +29,13 @@ export const useEventStore = defineStore({
     state: () => ({
         df: [] as Array<QcDataframeRow>,
         natsConnection: undefined as NatsConnection | undefined,
-        janusWsConnection: undefined as undefined | any,
+        janusWsConnection: undefined as undefined | Janode.Connection,
         janusSession: undefined as undefined | any,
         janusPeerConnection: undefined as undefined | RTCPeerConnection,
         janusStreamingPluginHandle: undefined as undefined | any,
         status: ConnectionStatus.Pending as ConnectionStatus,
         alerts: [] as Array<UiAlert>,
+        streamList: [] as Array<any>,
 
     }),
     actions: {
@@ -61,10 +62,13 @@ export const useEventStore = defineStore({
                 if (import.meta.env.VITE_PRINTNANNY_DEBUG == true) {
                     connectOptions.debug = true;
                 }
-                const natsConnection = await connect(connectOptions);
-                console.log(`Initialized NATs connection to ${servers}`);
-                this.$patch({ natsConnection });
-                return true
+                const natsConnection = await connect(connectOptions).catch((e: Error) => handleError("Failed to connect to NATS server", e));
+                if (natsConnection) {
+                    console.log(`Initialized NATs connection to ${servers}`);
+                    this.$patch({ natsConnection });
+                    return true
+                }
+                return false
             } else {
                 return true
             }
@@ -78,23 +82,22 @@ export const useEventStore = defineStore({
                     url: janusUri,
                 },
             };
-            const janusWsConnection = await Janode.connect(connectOpts).catch((e: Error) => handleError("Janus websocket connection failed", e));
-            this.$patch({ janusWsConnection: janusWsConnection });
-            const janusSession = await janusWsConnection.create();
-            this.$patch({ janusSession });
-            const janusStreamingPluginHandle = await janusSession.attach(StreamingPlugin);
-            this.$patch({ janusStreamingPluginHandle });
+            const janusWsConnection: Janode.Connection = await Janode.connect(connectOpts).catch((e: Error) => handleError("Janus websocket connection failed", e));
+            console.log("Got janusWsConnection", janusWsConnection);
+            const janusSession = await janusWsConnection.create().catch((e: Error) => handleError("Failed to create Janus websocket session ", e));
+            const janusStreamingPluginHandle = await janusSession.attach(StreamingPlugin)
+                .catch((e: Error) => handleError("Failed to create Janus streaming handle", e));
+            const streamList = await janusStreamingPluginHandle.list();
+            console.log("Found streamlist", streamList);
+            this.$patch({ janusStreamingPluginHandle, janusSession, janusWsConnection, streamList });
             return true
         },
-        async connect(): Promise<[boolean, boolean] | undefined> {
-            const result = await Promise.all([
-                this.connectNats(),
-                this.connectJanus()
-            ]);
-            if (result.every(el => el === true)) {
-                this.$patch({ status: ConnectionStatus.Connected })
+        async connect(): Promise<void> {
+            const natsOk = await this.connectNats();
+            const janusOk = await this.connectJanus();
+            if (natsOk && janusOk) {
+                this.$patch({ status: ConnectionStatus.Connected });
             }
-            return result
         },
 
         // async publish_command(req: api.PolymorphicPiCommandRequest) {

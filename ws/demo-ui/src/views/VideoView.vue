@@ -3,7 +3,7 @@
     <header>
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex grid grid-cols-3 justify-center">
         
-        <div v-for="video in videos" class="flex h-24 justify-center">
+        <div v-for="stream in store.streamList" class="flex h-24 justify-center">
             <a 
                 class="hover:bg-indigo-100 flex border-4 border-indigo-500/25 hover:border-indigo-500/50" 
                 :class="[selectedVideo && video.name == selectedVideo.name ? 'border-indigo-500 text-gray-900' : '' ]"
@@ -31,6 +31,4 @@ import { ref } from "vue";
 import { useEventStore } from "@/stores/events";
 
 const store = useEventStore();
-await store.connect();
-const videos = await store.getStreamList();
 </script>
