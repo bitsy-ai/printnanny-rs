@@ -28,18 +28,9 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { useVideoStore } from "@/stores/video"
+import { useEventStore } from "@/stores/events";
 
-const selectedVideo = ref();
-
-function startVideo(video){
-    console.log("Video selected", video)
-    selectedVideo.value = video.name;
-}
-const videos = [
-    { name: "fixture_0.mp4", src:"https://via.placeholder.com/300x200?text=Video1" },
-    { name: "fixture_0.mp4", src:"https://via.placeholder.com/300x200?text=Video2" },
-    { name: "fixture_0.mp4", src:"https://via.placeholder.com/300x200?text=Video3" }
-
-]
+const store = useEventStore();
+await store.connect();
+const videos = await store.getStreamList();
 </script>

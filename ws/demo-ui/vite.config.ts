@@ -23,6 +23,10 @@ export default defineConfig(({ _command, mode }) => {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url))
       }
+    },
+    define: {
+      'process.env': {},
+      'UnixTransport': {}
     }
   }
 })

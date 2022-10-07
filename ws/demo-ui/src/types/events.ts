@@ -9,7 +9,7 @@ export interface QcDataframeRow {
 }
 
 export enum ConnectionStatus {
-    Connecting,
+    Pending,
     Connected,
     ConnectionError
 }
