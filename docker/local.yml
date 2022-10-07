@@ -4,6 +4,7 @@ volumes:
 services:
   nats:
     hostname: nats
+    network_mode: host
     container_name: printnanny_gst_nats_dev
     image: nats:2.9.2
     volumes:
@@ -19,6 +20,8 @@ services:
       - "8888:8888"
   janus:
     hostname: janus
+    network_mode: host
+
     image: bitsyai/janus:1.1.0
     container_name: printnanny_gst_janus_dev
     ports:
@@ -26,6 +29,6 @@ services:
       - "7188:7188"
       - "7088:7088"
       - "8088:8088"
-      - "5000-5100:5000-5100/udp"
+      - "39000-40000:39000-40000/udp"
     volumes:
       - ./janus:/etc/janus

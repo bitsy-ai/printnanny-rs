@@ -202,12 +202,18 @@ export const useEventStore = defineStore({
         },
         async trickle(event: any) {
             const { candidate } = event;
+            if (this.janusStreamingPluginHandle === undefined) {
+                console.warn("trickle() called with undefined janusStreamingPluginHandle");
+                return
+            }
+            const janusStreamingPluginHandle = toRaw(this.janusStreamingPluginHandle);
+
             if (candidate === undefined) {
-                this.janusStreamingPluginHandle.trickleComplete().catch((e: any) => {
+                janusStreamingPluginHandle.trickleComplete().catch((e: any) => {
                     console.error("trickleComplete error", e);
                 });
             } else {
-                this.janusStreamingPluginHandle.trickle(candidate).catch((e: any) => {
+                janusStreamingPluginHandle.trickle(candidate).catch((e: any) => {
                     console.error("trickle error", e);
                 });
             }
@@ -231,8 +237,10 @@ export const useEventStore = defineStore({
 
         async closePC() {
             if (this.janusPeerConnection !== undefined) {
+                const janusPeerConnection = toRaw(this.janusPeerConnection);
+
                 console.log("stopping PeerConnection");
-                this.janusPeerConnection.close();
+                janusPeerConnection.close();
                 this.$patch({ janusPeerConnection: undefined });
             }
         },
@@ -294,10 +302,13 @@ export const useEventStore = defineStore({
                 console.warn("startStream() was called, but no stream is selected");
                 return
             }
-            this.$patch({ status: ConnectionStatus.ConnectionLoading })
+            this.$patch({ status: ConnectionStatus.ConnectionLoading });
+            this.$patch({ status: ConnectionStatus.ConnectionStreamLoading });
             const janusStreamingPluginHandle = toRaw(this.janusStreamingPluginHandle);
+            const media = toRaw(this.selectedStream.media);
             const watchdata = {
-                id: this.selectedStream.id
+                id: this.selectedStream.id,
+                media
             };
             console.log("Sending watchdata", watchdata);
             const { jsep, _restart = false } = await janusStreamingPluginHandle.watch(watchdata);
@@ -306,7 +317,6 @@ export const useEventStore = defineStore({
             const answer = await this.jsepAnswer(jsep);
             const { status, id } = await janusStreamingPluginHandle.start({ jsep: answer });
             console.log(`start ${id} response sent with status ${status}`);
-            this.$patch({ status: ConnectionStatus.ConnectionStreamLoading });
         },
         async setVideoElement(mediaStream: any) {
             if (!mediaStream) {
@@ -320,7 +330,7 @@ export const useEventStore = defineStore({
             }
             videoEl.srcObject = mediaStream;
             console.log("Setting videoEl mediastream", videoEl, mediaStream);
-            videoEl?.play();
+            videoEl.play();
             this.$patch({ status: ConnectionStatus.ConnectionStreamReady });
         },
         stopStream(stream: JanusStream) {

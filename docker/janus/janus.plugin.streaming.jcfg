@@ -1,14 +1,14 @@
 general: {
-	#admin_key = "debugstreaming"		# If set, mountpoints can be created via API
-									# only if this key is provided in the request
-	#rtp_port_range = "20000-40000"	# Range of ports to use for RTP/RTCP when '0' is
-									# passed as port for a mountpoint (default=10000-60000)
-	#events = false					# Whether events should be sent to event
-									# handlers (default=true)
+  #admin_key = "debugstreaming"		# If set, mountpoints can be created via API
+                  # only if this key is provided in the request
+  rtp_port_range = "20000-21000"	# Range of ports to use for RTP/RTCP when '0' is
+                  # passed as port for a mountpoint (default=10000-60000)
+  #events = false					# Whether events should be sent to event
+                  # handlers (default=true)
 
-	# By default, integers are used as a unique ID for both mountpoints. In case
-	# you want to use strings instead (e.g., a UUID), set string_ids to true.
-	# string_ids = true
+  # By default, integers are used as a unique ID for both mountpoints. In case
+  # you want to use strings instead (e.g., a UUID), set string_ids to true.
+  # string_ids = true
 }
 
 # stream-name: {
@@ -124,35 +124,35 @@ general: {
 # https://github.com/meetecho/janus-gateway/blob/master/conf/janus.plugin.streaming.jcfg.sample.in
 
 demo-video-1: {
-        type = "rtp"
-        id = 001
-        description = "Demo Video #1"
-        media = (
-                {
-					type = "video"
-					mid = "v1"
-					label = "Video stream #1"
-					port = 5104
-					pt = 96
-					rtpmap = "H264/90000"
-					videofmtp = "profile-level-id=42e01f;packetization-mode=1"
-                }
-        )
+    type = "rtp"
+    id = 001
+    description = "Demo Video #1"
+    media = (
+        {
+          type = "video"
+          mid = "v1"
+          label = "Video stream #1"
+          port = 20001
+          pt = 96
+          rtpmap = "H264/90000"
+          videofmtp = "profile-level-id=42e01f;packetization-mode=1"
+        }
+    )
 }
 
 live-camera-1: {
-        type = "rtp"
-        id = 005
-        description = "Live Camera Feed"
-        media = (
-                {
-					type = "video"
-					mid = "v1"
-					label = "Live Camera Feed #1"
-					port = 5105
-					pt = 96
-					rtpmap = "H264/90000"
-					videofmtp = "profile-level-id=42e01f;packetization-mode=1"
-                }
-        )
+    type = "rtp"
+    id = 005
+    description = "Live Camera Feed"
+    media = (
+        {
+          type = "video"
+          mid = "v1"
+          label = "Live Camera Feed #1"
+          port = 20002
+          pt = 96
+          rtpmap = "H264/90000"
+          videofmtp = "profile-level-id=42e01f;packetization-mode=1"
+        }
+    )
 }

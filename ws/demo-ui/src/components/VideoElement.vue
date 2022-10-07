@@ -12,7 +12,7 @@ const store = useEventStore();
         id="janus-video"
         muted
         class="aspect-video h-80 mx-auto my-4 border-4 border-dashed border-gray-200"
-        aria-placeholder="PrintNanny Cam is paused"
+        aria-placeholder=" Video stream is loading"
         poster="@/assets/video-paused.svg"
     ></video>
     <p v-if="store.status == ConnectionStatus.ConnectionReady" class="text-sm text-gray-500 text-center">

@@ -198,7 +198,7 @@ media: {
     #ipv6 = true
     #ipv6_linklocal = true
     #min_nack_queue = 500
-    #rtp_port_range = "20000-40000"
+    rtp_port_range = "20000-21000"
     #dtls_mtu = 1200
     #no_media_timer = 1
     #slowlink_threshold = 4
@@ -253,7 +253,7 @@ media: {
 nat: {
     stun_server = "stun.l.google.com"
     stun_port = 19302
-    nice_debug = false
+    nice_debug = true
     #full_trickle = true
     #ice_nomination = "regular"
     ice_keepalive_conncheck = true

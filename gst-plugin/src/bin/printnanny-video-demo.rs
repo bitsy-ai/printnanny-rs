@@ -113,6 +113,7 @@ struct VideoDemoApp {
     video_height: i32,
     video_width: i32,
     model: TfliteModel,
+    udp_port: i32,
 }
 
 impl From<&ArgMatches> for VideoDemoApp {
@@ -130,11 +131,14 @@ impl From<&ArgMatches> for VideoDemoApp {
             .value_of_t("video_width")
             .context("--video-width must be an integer")
             .unwrap();
+        let udp_port: i32 = args.value_of_t("udp_port").context("--udp-port").unwrap();
+
         Self {
             model,
             video_file,
             video_height,
             video_width,
+            udp_port,
         }
     }
 }
@@ -147,7 +151,7 @@ impl VideoDemoApp {
         // ! dataframe_agg \
         // ! nats_sink",
         let pipeline_str = format!(
-            "filesrc location={video_file} \
+            "multifilesrc location={video_file} loop=true \
             ! qtdemux name=demux \
             demux.video_0 ! decodebin \
             ! tee name=decoded_video_t \
@@ -189,7 +193,7 @@ impl VideoDemoApp {
             video_width = &self.video_width,
             video_height = &self.video_height,
             framerate = 15,
-            udp_port = 5104
+            udp_port = &self.udp_port
         );
 
         let pipeline = gst::parse_launch(&pipeline_str)?;
@@ -260,6 +264,13 @@ fn main() {
                 .short('v')
                 .multiple_occurrences(true)
                 .help("Sets the level of verbosity. Info: -v Debug: -vv Trace: -vvv"),
+        )
+        .arg(
+            Arg::new("udp_port")
+                .long("--udp-port")
+                .takes_value(true)
+                .default_value("20001")
+                .help("Janus RTP stream port (UDP)"),
         )
         // --nms-threshold
         .arg(
