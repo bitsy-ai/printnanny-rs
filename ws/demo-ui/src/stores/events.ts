@@ -212,7 +212,7 @@ export const useEventStore = defineStore({
             const spaghettiFailureDetected = atLeast(df.map(el => el.spaghetti__count > 0), 0.15);
             if (!nozzleDetected) {
                 const alert: DetectionAlert = {
-                    id: "nozzle", header: "Calibration: Nozzle", icon: ExclamationTriangleIcon, color: "indigo", description: "Additional calibration needed to reliably monitor printer nozzle."
+                    id: "nozzle", header: "Calibration: Nozzle", icon: ExclamationTriangleIcon, color: "indigo", description: "Calibration needed to improve nozzle monitoring."
                 }
                 const showAlert = this.detectionAlerts.filter(a => a.id === alert.id).length === 0;
                 if (showAlert) {
@@ -221,7 +221,7 @@ export const useEventStore = defineStore({
             }
             if (!printDetected) {
                 const alert: DetectionAlert = {
-                    id: "print", header: "Calibration: Printer", icon: ExclamationTriangleIcon, color: "indigo", description: "Additional calibration needed to reliably monitor this 3D-printed object."
+                    id: "print", header: "Calibration: Printer", icon: ExclamationTriangleIcon, color: "indigo", description: "Calibration needed to improve print object detection."
                 }
                 const printerAlertShown = this.detectionAlerts.filter(a => a.id === alert.id);
                 if (!printerAlertShown) {
@@ -231,7 +231,7 @@ export const useEventStore = defineStore({
 
             if (!raftDetected) {
                 const alert: DetectionAlert = {
-                    id: "raft", header: "Calibration: Raft", icon: ExclamationTriangleIcon, color: "indigo", description: "Additional calibration needed to reliably monitor raft."
+                    id: "raft", header: "Calibration: Raft", icon: ExclamationTriangleIcon, color: "indigo", description: "Calibration needed to improve raft detection."
                 }
 
                 const showAlert = this.detectionAlerts.filter(a => a.id === alert.id).length === 0;
