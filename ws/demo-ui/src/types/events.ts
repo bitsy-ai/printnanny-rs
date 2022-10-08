@@ -1,3 +1,6 @@
+
+import type { FunctionalComponent, HTMLAttributes, VNodeProps } from "vue";
+
 export interface QcDataframeRow {
     "detection_boxes_x0": number;
     "detection_boxes_y0": number;
@@ -15,4 +18,12 @@ export enum ConnectionStatus {
     ConnectionStreamLoading,
     ConnectionStreamReady,
     ConnectionError
+}
+
+export interface DetectionAlert {
+    id: string;
+    color: string;
+    header: string;
+    description: string;
+    icon: FunctionalComponent<HTMLAttributes & VNodeProps>;
 }

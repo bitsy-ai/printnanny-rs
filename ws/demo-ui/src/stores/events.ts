@@ -7,7 +7,7 @@ import StreamingPlugin from "janode/plugins/streaming";
 import { ArrowDownIcon, ArrowUpIcon, CheckIcon, ExclamationTriangleIcon } from '@heroicons/vue/20/solid'
 
 import type { QcDataframeRow, UiAlert } from "@types";
-import { ConnectionStatus, type JanusMedia, type JanusStream } from "@/types";
+import { ConnectionStatus, type JanusMedia, type JanusStream, type DetectionAlert } from "@/types";
 import { handleError } from "@/utils";
 
 function getNatsURI() {
@@ -22,6 +22,11 @@ function getJanusUri() {
     const uri = `ws://${hostname}:${import.meta.env.VITE_PRINTNANNY_EDGE_JANUS_WS_PORT}`;
     console.log(`Connecting to Janus signaling websocket: ${uri}`);
     return uri
+}
+
+// returns true if num truthy elements / total elements >= threshold
+function atLeast(arr: Array<boolean>, threshold: number): boolean {
+    return arr.filter(el => el === true).length / arr.length >= threshold
 }
 
 const RTCPeerConnection = window.RTCPeerConnection.bind(window);
@@ -39,77 +44,23 @@ export const useEventStore = defineStore({
         alerts: [] as Array<UiAlert>,
         streamList: [] as Array<JanusStream>,
         selectedStream: undefined as undefined | JanusStream,
+        detectionAlerts: [
+            {
+                id: "Example: Calibration Alert", icon: ExclamationTriangleIcon, color: "indigo", description: "If PrintNanny doesn't recognize your 3D printer, you'll see calibration recommendations."
+
+            } as DetectionAlert,
+            {
+                id: "Example: Failure Alert", icon: ExclamationTriangleIcon, color: "red", description: "When a print job is failing, PrintNanny will notify you."
+
+            } as DetectionAlert
+        ] as Array<DetectionAlert>
     }),
     getters: {
-        meter_x: (state) => state.df.map(el => el.ts),
-        meter_y_nozzle_mean: (state) => state.df.map(el => el.nozzle__mean),
-        nozzle_detected: (state) => {
-            const counts = state.df.map(el => el.nozzle__count > 0);
-            return counts.every(el => el === true)
+        meter_x(state): Array<number> {
+            return state.df.map(el => el.ts)
         },
-        print_detected: (state) => {
-            const counts = state.df.map(el => el.print__count > 0);
-            return counts.every(el => el === true)
-        },
-        raft_detected: (state) => {
-            const counts = state.df.map(el => el.raft__count > 0);
-            return counts.every(el => el === true)
-        },
-        failure_detected: (state) => {
-            const counts = state.df.map(el => el.adhesion__count > 0 || el.spaghetti__count > 0);
-            return counts.every(el => el === true)
-        },
-        detectionStats: (state) => {
-
-            const stats = [];
-
-            if (state.status === ConnectionStatus.ConnectionStreamReady) {
-                const nozzle_detected = this && this.nozzle_detected || false;
-                if (!nozzle_detected) {
-                    const nozzle_stats = {
-                        id: "Nozzle - Calibration", detected: nozzle_detected, icon: ExclamationTriangleIcon, color: "indigo", description: "Additional calibration needed to monitor your 3D printer nozzle."
-                    }
-                    stats.push(nozzle_stats)
-                }
-                const print_detected = this && this.print_detected || false;
-                if (!print_detected) {
-                    const printer_stats = {
-                        id: "Printer - Calibration", detected: nozzle_detected, icon: ExclamationTriangleIcon, color: "indigo", description: "Additional calibration needed to monitor your 3D printer."
-                    }
-                    stats.push(printer_stats)
-                }
-
-                const raft_detected = this && this.raft_detected || false;
-                if (!raft_detected) {
-                    const raft_stats = {
-                        id: "Raft - Calibration", detected: nozzle_detected, icon: ExclamationTriangleIcon, color: "indigo", description: "No raft detected. Additional calibration may be needed to monitor your print bed. You can ignore or supress this warning if you are printing without a raft. "
-                    }
-                    stats.push(raft_stats)
-                }
-                const failure_detected = this && this.failure_detected || false;
-
-                if (failure_detected) {
-                    const fail_stats = {
-                        id: "Failure!", detected: nozzle_detected, icon: ExclamationTriangleIcon, color: "red", description: "Critical failures detected. Pausing 3D print job."
-                    }
-                    stats.push(fail_stats)
-                }
-
-            } else {
-                const example_stats = {
-                    id: "Example: Calibration Alert", detected: false, icon: ExclamationTriangleIcon, color: "indigo", description: "If PrintNanny doesn't recognize your 3D printer, you'll see calibration recommendations."
-
-                }
-                const example_failure = {
-                    id: "Example: Failure Alert", detected: false, icon: ExclamationTriangleIcon, color: "red", description: "When a print job is failing, PrintNanny will notify you."
-
-                }
-                stats.push(example_stats)
-                stats.push(example_failure)
-            }
-            return stats
-
-
+        meter_y_nozzle_mean(state): Array<number> {
+            return state.df.map(el => el.nozzle__mean)
         },
         meter_y_nozzle_std: (state) => state.df.map(el => el.nozzle__std),
 
@@ -225,15 +176,10 @@ export const useEventStore = defineStore({
                     );
                 }
             );
-
-
             if (streamList.length > 0 && this.selectedStream == undefined) {
                 console.log("Setting selected stream to:", streamList[0])
                 this.$patch({ selectedStream: streamList[0] })
             }
-
-
-
             return true
         },
         async connect(): Promise<void> {
@@ -254,6 +200,67 @@ export const useEventStore = defineStore({
         //     await natsClient?.publish(subject, jsonCodec.encode(req));
         //     console.log(`Published to ${subject}`, req);
         // },
+        getDetectionAlerts(df: Array<QcDataframeRow>): Array<DetectionAlert> {
+            if (df.length < 10) {
+                console.warn("Skipping getDetectionAlerts(), less than 10 datapoints available");
+                return []
+            }
+            const nozzleDetected = atLeast(df.map(el => el.nozzle__count > 0), 0.3);
+            const printDetected = atLeast(df.map(el => el.print__count > 0), 0.4);
+            const raftDetected = atLeast(df.map(el => el.raft__count > 0), 0.3);
+            const adhesionFailureDetected = atLeast(df.map(el => el.adhesion__count > 0), 0.15);
+            const spaghettiFailureDetected = atLeast(df.map(el => el.spaghetti__count > 0), 0.15);
+            if (!nozzleDetected) {
+                const alert: DetectionAlert = {
+                    id: "nozzle", header: "Calibration: Nozzle", icon: ExclamationTriangleIcon, color: "indigo", description: "Additional calibration needed to reliably monitor printer nozzle."
+                }
+                const showAlert = this.detectionAlerts.filter(a => a.id === alert.id).length === 0;
+                if (showAlert) {
+                    this.detectionAlerts.push(alert)
+                }
+            }
+            if (!printDetected) {
+                const alert: DetectionAlert = {
+                    id: "print", header: "Calibration: Printer", icon: ExclamationTriangleIcon, color: "indigo", description: "Additional calibration needed to reliably monitor this 3D-printed object."
+                }
+                const printerAlertShown = this.detectionAlerts.filter(a => a.id === alert.id);
+                if (!printerAlertShown) {
+                    this.detectionAlerts.push(alert)
+                }
+            }
+
+            if (!raftDetected) {
+                const alert: DetectionAlert = {
+                    id: "raft", header: "Calibration: Raft", icon: ExclamationTriangleIcon, color: "indigo", description: "Additional calibration needed to reliably monitor raft."
+                }
+
+                const showAlert = this.detectionAlerts.filter(a => a.id === alert.id).length === 0;
+                if (showAlert) {
+                    this.detectionAlerts.push(alert)
+                }
+            }
+
+            if (adhesionFailureDetected) {
+                const alert: DetectionAlert = {
+                    id: "adhesion", header: "Failure: Bed Adhesion", icon: ExclamationTriangleIcon, color: "red", description: "Critical failures detected. Pausing 3D print job."
+                }
+                const showAlert = this.detectionAlerts.filter(a => a.id === alert.id).length === 0;
+                if (showAlert) {
+                    this.detectionAlerts.push(alert)
+                }
+            }
+            if (spaghettiFailureDetected) {
+                const alert: DetectionAlert = {
+                    id: "spaghetti", header: "Failure: Spaghetti", icon: ExclamationTriangleIcon, color: "red", description: "Critical failures detected. Pausing 3D print job."
+                }
+                const showAlert = this.detectionAlerts.filter(a => a.id === alert.id).length === 0;
+                if (showAlert) {
+                    this.detectionAlerts.push(alert)
+                }
+            }
+            return this.detectionAlerts
+        },
+
         async subscribeQcDataframes() {
             if (this.natsConnection == undefined) {
                 return;
@@ -271,15 +278,14 @@ export const useEventStore = defineStore({
                     const df: Array<QcDataframeRow> = jsonCodec.decode(
                         msg.data
                     );
-                    this.handle(df);
+                    this.getDetectionAlerts(df);
                     this.$patch({ df });
                     console.log("Deserialized dataframe", df);
                 }
                 console.log(`subscription ${sub.getSubject()} drained.`);
             })(sub);
         },
-        handle(event: Array<QcDataframeRow>) {
-        },
+
         pushAlert(alert: UiAlert) {
             // show at most 1 alert message with the same header
             const alreadyShown = this.alerts.filter(
@@ -392,8 +398,7 @@ export const useEventStore = defineStore({
                 console.warn("startStream() was called, but no stream is selected");
                 return
             }
-            this.$patch({ status: ConnectionStatus.ConnectionLoading });
-            this.$patch({ status: ConnectionStatus.ConnectionStreamLoading });
+            this.$patch({ status: ConnectionStatus.ConnectionStreamLoading, detectionAlerts: [] });
             const janusStreamingPluginHandle = toRaw(this.janusStreamingPluginHandle);
             const media = toRaw(this.selectedStream.media);
             const watchdata = {

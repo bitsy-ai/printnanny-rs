@@ -205,7 +205,7 @@ export const useWebrtcStore = defineStore({
         //     header: "Slow connection detected",
         //     icon: ExclamationIcon,
         //     actions: actions,
-        //   } as UiAlert;
+        //   } as UiStickyAlert;
         //   alertStore.push(alert);
         // });
         streamingHandle.on(Janode.EVENT.HANDLE_HANGUP, (evtdata: any) =>

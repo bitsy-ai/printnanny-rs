@@ -6,7 +6,7 @@ export interface AlertAction {
   onClick: () => void;
 }
 
-export interface UiAlert {
+export interface UiStickyAlert {
   message: string;
   header: string;
   icon?: FunctionalComponent<HTMLAttributes & VNodeProps>;

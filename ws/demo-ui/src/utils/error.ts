@@ -1,5 +1,5 @@
 import { useEventStore } from "@/stores/events";
-import type { UiAlert, AlertAction } from "@/types";
+import type { UiStickyAlert, AlertAction } from "@/types";
 
 function handleError(header: string, e: Error) {
   let message = e.message || e.toString();
@@ -12,7 +12,7 @@ function handleError(header: string, e: Error) {
       },
     },
   ] as Array<AlertAction>;
-  const alert: UiAlert = {
+  const alert: UiStickyAlert = {
     header,
     message,
     actions,
@@ -32,7 +32,7 @@ function alertMessage(header: string, message: string) {
       },
     },
   ] as Array<AlertAction>;
-  const alert: UiAlert = {
+  const alert: UiStickyAlert = {
     header,
     message,
     actions,
