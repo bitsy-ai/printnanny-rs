@@ -98,7 +98,7 @@ jobs:
   #       - x86_64-apple-ios
 
   linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: install-cross
     steps:
       - run: |
