@@ -20,6 +20,7 @@ jobs:
           components: rustfmt, clippy
       - name: Install gstreamer dependencies
         run: |
+          sudo apt-get remove libunwind-dev
           sudo apt-get update -y
           sudo apt-get install -y libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev 
           sudo apt-get install -y \
