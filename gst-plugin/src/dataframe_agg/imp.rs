@@ -211,11 +211,11 @@ impl DataframeAgg {
             truncate: false,
             include_boundaries: true,
         };
+        println!("{:?}", &state.dataframe.clone().collect());
 
         let mut windowed_df = state
             .dataframe
             .clone()
-            .filter(col("detection_classes").eq(0))
             .filter(col("detection_scores").gt(settings.filter_threshold))
             .filter(col("ts").gt_eq(col("ts").max() - lit(max_duration.nanoseconds())))
             .sort(

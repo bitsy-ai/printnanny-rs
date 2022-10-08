@@ -1,5 +1,5 @@
 <template>
-    <div :id="plotId"></div>
+    <div :id="plotId" class="h-80 px-10"></div>
 </template>
 <script setup lang="ts">
 import * as Plotly from 'plotly.js-dist-min';
@@ -20,10 +20,10 @@ const props = defineProps({
 const plotlyLayout:Plotly.Layout = { 
   title: 'PrintNanny Quality Monitor',
   font: { size: 12 },
-  legend: {
-    x: 0,
-    y: -0.5,
-  }
+  // legend: {
+  //   x: 0,
+  //   y: -0.5,
+  // }
 };
 
 
@@ -53,14 +53,14 @@ onMounted(() => {
 
     const adhesionPlot: Plotly.PlotData = {
       x: store.meter_x,
-      y: store.meter_y_raft,
+      y: store.meter_y_adhesion,
       mode: 'markers',
       name: 'Defect: Layer Warping'
     };
 
     const spaghettiPlot: Plotly.PlotData = {
       x: store.meter_x,
-      y: store.meter_y_raft,
+      y: store.meter_y_spaghetti,
       mode: 'markers',
       name: 'Defect: Spaghetti/Adhesion'
     };
@@ -99,14 +99,14 @@ store.$subscribe(() => {
 
     const adhesionPlot: Plotly.PlotData = {
       x: store.meter_x,
-      y: store.meter_y_raft,
+      y: store.meter_y_adhesion,
       mode: 'markers',
       name: 'Defect: Layer Warping',
     };
 
     const spaghettiPlot: Plotly.PlotData = {
       x: store.meter_x,
-      y: store.meter_y_raft,
+      y: store.meter_y_spaghetti,
       mode: 'markers',
       name: 'Defect: Spaghetti/Adhesion'
     };
