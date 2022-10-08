@@ -9,15 +9,15 @@ on:
 
 jobs:
   cratesio:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
       - name: Install latest nightly
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: stable
-            override: true
-            components: rustfmt, clippy
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
       - name: Install gstreamer dependencies
         run: |
           sudo apt-get update -y
