@@ -41,7 +41,11 @@ export const useEventStore = defineStore({
     }),
     getters: {
         meter_x: (state) => state.df.map(el => el.ts),
-        meter_y_nozzle: (state) => state.df.map(el => el.nozzle_mean)
+        meter_y_nozzle: (state) => state.df.map(el => el.nozzle__mean),
+        meter_y_print: (state) => state.df.map(el => el.print__mean),
+        meter_y_raft: (state) => state.df.map(el => el.raft__mean),
+        meter_y_adhesion: (state) => state.df.map(el => el.adhesion__mean),
+        meter_y_spaghetti: (state) => state.df.map(el => el.spaghetti__mean),
     },
     actions: {
 

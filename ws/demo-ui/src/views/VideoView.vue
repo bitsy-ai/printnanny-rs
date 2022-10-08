@@ -1,10 +1,11 @@
 <template>
-<div class="py-10">
-    <header>
-    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex grid grid-cols-2 justify-center">
-        
-        <div class="flex flex-1 h-24 justify-center w-full">
-            <Listbox as="div" v-model="store.selectedStream">
+<main class="py-10">
+    <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+        <!-- Replace with your content -->
+        <div class="px-4 py-8 sm:px-0 grid grid-cols-3 flex">
+            <VideoElement class="col-span-2 flex-1"/>
+            <div class="flex flex-1 h-24 justify-center w-full grid grid-cols-2">
+            <Listbox as="div" class="col-span-2" v-model="store.selectedStream">
                 <ListboxLabel class="block text-sm font-medium text-gray-700">Select a video stream:</ListboxLabel>
                 <div class="relative mt-1">
                 <ListboxButton class="relative w-48 cursor-default rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
@@ -48,28 +49,18 @@
                 class="inline-block h-10 px-6 py-2.5 mt-6 ml-4 bg-blue-600 text-white font-medium text-xs leading-tight uppercase rounded shadow-md hover:bg-blue-700 transition duration-150 ease-in-out">
                 Stop
             </button>
+            </div>
+            <div class="col-span-3">
+                <PlotlyElement/>
+            </div>
         </div>
-        <div class="flex flex-1 justify-center space-x-2">
-
-        </div>
+        <!-- /End replace -->   
     </div>
-    </header>
-    <main>
-    <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
-        <!-- Replace with your content -->
-        <div class="px-4 py-8 sm:px-0">
-        <div class="rounded-lg border-4 border-dashed border-gray-200 grid grid-cols-3 gap-4">
-            <VideoElement class="col-span-2"/>
-            <PlotlyElement />
-        </div>
-        </div>
-        <!-- /End replace -->
-    </div>
-    </main>
-</div>
+</main>
 </template>
 
 <script setup lang="ts">
+import * as Plotly from 'plotly.js-dist-min';
 import { ref } from "vue";
 import {
     Listbox,
@@ -84,7 +75,7 @@ import { ConnectionStatus } from "@/types";
 import TextSpinner from "@/components/TextSpinner.vue"
 import VideoElement from "@/components/VideoElement.vue";
 import PlotlyElement from "@/components/PlotlyElement.vue";
-
 const store = useEventStore();
+
 
 </script>
