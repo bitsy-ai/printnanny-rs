@@ -180,7 +180,13 @@ jobs:
           # - thumbv7em-none-eabihf
           # - thumbv7m-none-eabi
     steps:
-      - run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - run: |
+          sudo apt-get -y update
+          sudo apt-get install -y pkg-config libssl-dev \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
+            gstreamer1.0-libav libgstrtspserver-1.0-dev libges-1.0-dev \
+            gstreamer1.0-tools gstreamer1.0-x
       - uses: actions/checkout@v2
       - uses: actions/download-artifact@v1
         with:
@@ -193,16 +199,6 @@ jobs:
       - run: |
           tar -zcvf ${{ env.TAR }}-${{ matrix.target }}.tar.gz --directory=target/${{ matrix.target }}/release ${{ env.BIN }}
           sha256sum ${{ env.TAR }}-${{ matrix.target }}.tar.gz > ${{ env.TAR }}-${{ matrix.target }}.tar.gz.sha256
-      - name: Install gstreamer dependencies
-        run: |
-          sudo apt-get remove libunwind-14-dev
-          sudo apt-get update -y
-          sudo apt-get install -y libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev 
-          sudo apt-get install -y \
-            gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
-            gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
-            gstreamer1.0-libav libgstrtspserver-1.0-dev libges-1.0-dev \
-            gstreamer1.0-tools gstreamer1.0-x
       - name: Release
         id: upload-release-asset
         uses: softprops/action-gh-release@v1
