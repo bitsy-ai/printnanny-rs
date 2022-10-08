@@ -102,6 +102,7 @@ jobs:
     needs: install-cross
     steps:
       - run: |
+          sudo apt-get remove libunwind-14-dev
           sudo apt-get -y update
           sudo apt-get install -y pkg-config libssl-dev \
             gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
