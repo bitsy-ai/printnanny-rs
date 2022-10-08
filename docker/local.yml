@@ -1,0 +1,34 @@
+version: "3"
+volumes:
+  local_postgres_data: {}
+services:
+  nats:
+    hostname: nats
+    network_mode: host
+    container_name: printnanny_gst_nats_dev
+    image: nats:2.9.2
+    volumes:
+      - ./nats/:/etc/nats
+    command:
+      - -c
+      - /etc/nats/nats-server.conf
+      - --name
+      - localnats
+      - --debug
+    ports:
+      - "4222:4222"
+      - "8888:8888"
+  janus:
+    hostname: janus
+    network_mode: host
+
+    image: bitsyai/janus:1.1.0
+    container_name: printnanny_gst_janus_dev
+    ports:
+      - "8188:8188"
+      - "7188:7188"
+      - "7088:7088"
+      - "8088:8088"
+      - "39000-40000:39000-40000/udp"
+    volumes:
+      - ./janus:/etc/janus

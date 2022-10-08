@@ -11,12 +11,17 @@ repository = "https://github.com/bitsy-ai/printnanny-gst-plugin-rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.65"                                   # Flexible concrete Error type built on std::error::Error
 nats = "0.23.0"
 ndarray = "0.15.6"               # An n-dimensional array for general elements and for numerics. Lightweight array views and slic…
 arrow = "23.0.0"                     # Rust implementation of Apache Arrow
 bytes = { version = "1.2.1", features = ["std"] }                            # Types and traits for working with bytes
 byte-slice-cast = "1.2.1"    # Safely cast bytes slices from/to slices of built-in fundamental numeric types
+clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
 libc = "0.2.134"             # Raw FFI bindings to platform libraries like libc.
+env_logger = "0.9.1"              # A logging implementation for `log` which is configured via an environment variable. 
+log = "0.4.17"                  # A lightweight logging facade for Rust 
+git-version = "0.3"
 gst = { package = "gstreamer", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs" }
 gst-app = { package = "gstreamer-app", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs" }
 gst-sys = { package = "gstreamer-sys", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs" }
@@ -55,6 +60,9 @@ serde_json = "1"
 name = "gstprintnanny"
 crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
+
+[[bin]]
+name = "printnanny-video-demo"
 
 [dev-dependencies]
 glob = "0.3.0"              # Support for matching file paths against Unix shell style patterns.

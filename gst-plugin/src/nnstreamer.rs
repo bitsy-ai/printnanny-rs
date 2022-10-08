@@ -102,7 +102,10 @@ extern "C" fn printnanny_bb_dataframe_decoder(
     // timestamp value is GstClock time (relative to pipeline PLAYING event), not system clock time
 
     let result = catch_unwind(|| {
-        let ts = gst::util_get_timestamp().nseconds();
+        // let ts = gst::util_get_timestamp().nseconds();
+        let clock = gst::SystemClock::obtain();
+        let ts = clock.time().unwrap().nseconds();
+
         let num_tensors = unsafe { (*config).info.num_tensors };
         if num_tensors != 4 {
             gst::error!(

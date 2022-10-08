@@ -2,6 +2,7 @@ use gst::glib;
 use gst::prelude::*;
 use gst::subclass::prelude::*;
 use gst_base::subclass::prelude::*;
+use once_cell::sync::Lazy;
 use std::sync::Mutex;
 
 const DEFAULT_NATS_ADDRESS: &str = "127.0.0.1:4222";
@@ -39,9 +40,12 @@ pub struct NatsSink {
     state: Mutex<State>,
 }
 
-use once_cell::sync::Lazy;
 static CAT: Lazy<gst::DebugCategory> = Lazy::new(|| {
-    gst::DebugCategory::new("NatsSink", gst::DebugColorFlags::empty(), Some("NATS Sink"))
+    gst::DebugCategory::new(
+        "nats_sink",
+        gst::DebugColorFlags::empty(),
+        Some("NATS Sink"),
+    )
 });
 
 impl NatsSink {}

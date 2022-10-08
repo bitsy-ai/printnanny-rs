@@ -374,9 +374,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.58"
+version = "1.0.65"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb07d2053ccdbe10e2af2995a2f116c1330396493dc1269f6a91d0ae82e19704"
+checksum = "98161a4e3e2184da77bb14f02184cdd111e83bbbcc9979dfee3c44b9a85f5602"
 dependencies = [
  "backtrace",
 ]
@@ -4090,9 +4090,13 @@ dependencies = [
 name = "printnanny-gst-plugin-rs"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "arrow",
  "byte-slice-cast",
  "bytes",
+ "clap",
+ "env_logger",
+ "git-version",
  "glob",
  "gst-plugin-version-helper",
  "gstreamer 0.19.0",
@@ -4102,6 +4106,7 @@ dependencies = [
  "gstreamer-sys 0.19.0",
  "gstreamer-video",
  "libc",
+ "log",
  "nats",
  "ndarray",
  "once_cell",
