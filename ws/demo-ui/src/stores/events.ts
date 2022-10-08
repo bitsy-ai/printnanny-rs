@@ -313,7 +313,7 @@ export const useEventStore = defineStore({
                 });
             }
         },
-        async stopAllStreams() {
+        stopAllStreams() {
             const videoEl = document.getElementById(
                 "janus-video"
             ) as HTMLVideoElement;
@@ -327,8 +327,12 @@ export const useEventStore = defineStore({
                     .forEach((stream) => stream.stop());
                 videoEl.srcObject = null;
             }
-            this.$patch({ status: ConnectionStatus.ConnectionReady })
             // await eventsStore.publish_command(req);
+        },
+        reset() {
+            this.stopAllStreams();
+            this.$reset();
+            this.connect();
         },
 
         async closePC() {
