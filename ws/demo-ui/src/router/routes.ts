@@ -6,7 +6,7 @@ export default [
     },
     {
         path: '/demo-videos',
-        name: 'Demo Videos',
+        name: 'PrintNanny Vision',
         component: () => import('../views/VideoView.vue'),
     }
 ]

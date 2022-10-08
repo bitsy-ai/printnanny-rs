@@ -1,5 +1,5 @@
 <template>
-    <div :id="plotId" class="h-80 px-10"></div>
+    <div :id="plotId" class="m-auto"></div>
 </template>
 <script setup lang="ts">
 import * as Plotly from 'plotly.js-dist-min';
@@ -18,50 +18,93 @@ const props = defineProps({
 });
 
 const plotlyLayout:Plotly.Layout = { 
-  title: 'PrintNanny Quality Monitor',
+  title: 'PrintNanny Observations',
+  margin: {
+    l: 50,
+    r: 50,
+    b: 50,
+    t: 50,
+    pad: 2
+  },
   font: { size: 12 },
-  // legend: {
-  //   x: 0,
-  //   y: -0.5,
-  // }
+  yaxis: {
+  //  autorange: true,
+    range: [0.4, 1],
+    type: 'linear'
+  },
 };
 
 
-const config = { responsive: true }
+const config = { responsive: true, autosize: true }
 
 onMounted(() => {
     const nozzlePlot: Plotly.PlotData = {
       x: store.meter_x,
-      y: store.meter_y_nozzle,
-      mode: 'markers',
+      y: store.meter_y_nozzle_mean,
+      error_y: {
+        type: 'data',
+        array: store.meter_y_nozzle_std,
+        visible: true,
+        opacity: 0.3
+
+      },
+      mode: 'lines+markers',
       name: 'Ok: Nozzle'
     };
 
     const printPlot: Plotly.PlotData = {
       x: store.meter_x,
-      y: store.meter_y_print,
-      mode: 'markers',
+      y: store.meter_y_print_mean,
+      error_y: {
+        type: 'data',
+        array: store.meter_y_print_std,
+        visible: true,
+        opacity: 0.3
+
+      },
+      mode: 'lines+markers',
       name: 'Ok: Print'
     };
 
     const raftPlot: Plotly.PlotData = {
       x: store.meter_x,
-      y: store.meter_y_raft,
-      mode: 'markers',
+      y: store.meter_y_raft_mean,
+      error_y: {
+        type: 'data',
+        array: store.meter_y_raft_std,
+        visible: true,
+        opacity: 0.3
+
+      },
+      mode: 'lines+markers',
       name: 'Ok: Raft'
     };
 
     const adhesionPlot: Plotly.PlotData = {
       x: store.meter_x,
-      y: store.meter_y_adhesion,
-      mode: 'markers',
-      name: 'Defect: Layer Warping'
+      y: store.meter_y_adhesion_mean,
+      error_y: {
+        type: 'data',
+        array: store.meter_y_adhesion_std,
+        visible: true,
+        opacity: 0.3
+
+      },
+      mode: 'lines+markers',
+      name: 'Defect: Warping'
     };
 
     const spaghettiPlot: Plotly.PlotData = {
       x: store.meter_x,
-      y: store.meter_y_spaghetti,
-      mode: 'markers',
+      y: store.meter_y_spaghetti_mean,
+      error_y: {
+        type: 'data',
+        array: store.meter_y_spaghetti_std,
+        visible: true,
+        opacity: 0.3
+
+      },
+      mode: 'lines+markers',
       name: 'Defect: Spaghetti/Adhesion'
     };
 
@@ -78,36 +121,66 @@ onMounted(() => {
 store.$subscribe(() => {
   const nozzlePlot: Plotly.PlotData = {
       x: store.meter_x,
-      y: store.meter_y_nozzle,
-      mode: 'markers',
+      y: store.meter_y_nozzle_mean,
+      error_y: {
+        type: 'data',
+        array: store.meter_y_nozzle_std,
+        visible: true,
+        opacity: 0.3
+      },
+      mode: 'lines+markers',
       name: 'Ok: Nozzle'
 
   };
     const printPlot: Plotly.PlotData = {
       x: store.meter_x,
-      y: store.meter_y_print,
-      mode: 'markers',
+      y: store.meter_y_print_mean,
+      error_y: {
+        type: 'data',
+        array: store.meter_y_print_std,
+        visible: true,
+        opacity: 0.3
+      },
+      mode: 'lines+markers',
       name: 'Ok: Print'
     };
 
     const raftPlot: Plotly.PlotData = {
       x: store.meter_x,
-      y: store.meter_y_raft,
-      mode: 'markers',
+      y: store.meter_y_raft_mean,
+      error_y: {
+        type: 'data',
+        array: store.meter_y_raft_std,
+        visible: true,
+                opacity: 0.3
+      },
+      mode: 'lines+markers',
       name: 'Ok: Raft'
     };
 
     const adhesionPlot: Plotly.PlotData = {
       x: store.meter_x,
-      y: store.meter_y_adhesion,
-      mode: 'markers',
+      y: store.meter_y_adhesion_mean,
+      error_y: {
+        type: 'data',
+        array: store.meter_y_adhesion_std,
+        visible: true,
+        opacity: 0.3
+      },
+      mode: 'lines+markers',
       name: 'Defect: Layer Warping',
     };
 
     const spaghettiPlot: Plotly.PlotData = {
       x: store.meter_x,
-      y: store.meter_y_spaghetti,
-      mode: 'markers',
+      y: store.meter_y_spaghetti_mean,
+      error_y: {
+        type: 'data',
+        array: store.meter_y_spaghetti_std,
+        visible: true,
+        opacity: 0.3
+      },
+      mode: 'lines+markers',
       name: 'Defect: Spaghetti/Adhesion'
     };
 

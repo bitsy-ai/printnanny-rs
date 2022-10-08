@@ -4,6 +4,7 @@ import { connect, JSONCodec, credsAuthenticator, toJsMsg } from "nats.ws";
 import type { NatsConnection, Subscription } from "nats.ws";
 import Janode from "janode";
 import StreamingPlugin from "janode/plugins/streaming";
+import { ArrowDownIcon, ArrowUpIcon, CheckIcon, ExclamationTriangleIcon } from '@heroicons/vue/20/solid'
 
 import type { QcDataframeRow, UiAlert } from "@types";
 import { ConnectionStatus, type JanusMedia, type JanusStream } from "@/types";
@@ -41,11 +42,89 @@ export const useEventStore = defineStore({
     }),
     getters: {
         meter_x: (state) => state.df.map(el => el.ts),
-        meter_y_nozzle: (state) => state.df.map(el => el.nozzle__mean),
-        meter_y_print: (state) => state.df.map(el => el.print__mean),
-        meter_y_raft: (state) => state.df.map(el => el.raft__mean),
-        meter_y_adhesion: (state) => state.df.map(el => el.adhesion__mean),
-        meter_y_spaghetti: (state) => state.df.map(el => el.spaghetti__mean),
+        meter_y_nozzle_mean: (state) => state.df.map(el => el.nozzle__mean),
+        nozzle_detected: (state) => {
+            const counts = state.df.map(el => el.nozzle__count > 0);
+            return counts.every(el => el === true)
+        },
+        print_detected: (state) => {
+            const counts = state.df.map(el => el.print__count > 0);
+            return counts.every(el => el === true)
+        },
+        raft_detected: (state) => {
+            const counts = state.df.map(el => el.raft__count > 0);
+            return counts.every(el => el === true)
+        },
+        failure_detected: (state) => {
+            const counts = state.df.map(el => el.adhesion__count > 0 || el.spaghetti__count > 0);
+            return counts.every(el => el === true)
+        },
+        detectionStats: (state) => {
+
+            const stats = [];
+
+            if (state.status === ConnectionStatus.ConnectionStreamReady) {
+                const nozzle_detected = this && this.nozzle_detected || false;
+                if (!nozzle_detected) {
+                    const nozzle_stats = {
+                        id: "Nozzle - Calibration", detected: nozzle_detected, icon: ExclamationTriangleIcon, color: "indigo", description: "Additional calibration needed to monitor your 3D printer nozzle."
+                    }
+                    stats.push(nozzle_stats)
+                }
+                const print_detected = this && this.print_detected || false;
+                if (!print_detected) {
+                    const printer_stats = {
+                        id: "Printer - Calibration", detected: nozzle_detected, icon: ExclamationTriangleIcon, color: "indigo", description: "Additional calibration needed to monitor your 3D printer."
+                    }
+                    stats.push(printer_stats)
+                }
+
+                const raft_detected = this && this.raft_detected || false;
+                if (!raft_detected) {
+                    const raft_stats = {
+                        id: "Raft - Calibration", detected: nozzle_detected, icon: ExclamationTriangleIcon, color: "indigo", description: "No raft detected. Additional calibration may be needed to monitor your print bed. You can ignore or supress this warning if you are printing without a raft. "
+                    }
+                    stats.push(raft_stats)
+                }
+                const failure_detected = this && this.failure_detected || false;
+
+                if (failure_detected) {
+                    const fail_stats = {
+                        id: "Failure!", detected: nozzle_detected, icon: ExclamationTriangleIcon, color: "red", description: "Critical failures detected. Pausing 3D print job."
+                    }
+                    stats.push(fail_stats)
+                }
+
+            } else {
+                const example_stats = {
+                    id: "Example: Calibration Alert", detected: false, icon: ExclamationTriangleIcon, color: "indigo", description: "If PrintNanny doesn't recognize your 3D printer, you'll see calibration recommendations."
+
+                }
+                const example_failure = {
+                    id: "Example: Failure Alert", detected: false, icon: ExclamationTriangleIcon, color: "red", description: "When a print job is failing, PrintNanny will notify you."
+
+                }
+                stats.push(example_stats)
+                stats.push(example_failure)
+            }
+            return stats
+
+
+        },
+        meter_y_nozzle_std: (state) => state.df.map(el => el.nozzle__std),
+
+        meter_y_print_mean: (state) => state.df.map(el => el.print__mean),
+        meter_y_print_std: (state) => state.df.map(el => el.print__std),
+
+        meter_y_raft_mean: (state) => state.df.map(el => el.raft__mean),
+        meter_y_raft_std: (state) => state.df.map(el => el.raft__std),
+
+        meter_y_adhesion_mean: (state) => state.df.map(el => el.adhesion__mean),
+        meter_y_adhesion_std: (state) => state.df.map(el => el.adhesion__std),
+
+        meter_y_spaghetti_mean: (state) => state.df.map(el => el.spaghetti__mean),
+        meter_y_spaghetti_std: (state) => state.df.map(el => el.spaghetti__std),
+
     },
     actions: {
 

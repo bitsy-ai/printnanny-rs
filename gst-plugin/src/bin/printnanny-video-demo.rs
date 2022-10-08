@@ -26,19 +26,6 @@ use git_version::git_version;
 use log::{error, info, warn, LevelFilter};
 use once_cell::sync::Lazy;
 
-// #[derive(Debug, Display, Error)]
-// #[display(fmt = "Missing element {}", _0)]
-// struct MissingElement(#[error(not(source))] &'static str);
-
-// #[derive(Debug, Display, Error)]
-// #[display(fmt = "Received error from {}: {} (debug: {:?})", src, error, debug)]
-// struct ErrorMessage {
-//     src: String,
-//     error: String,
-//     debug: Option<String>,
-//     source: glib::Error,
-// }
-
 static CAT: Lazy<gst::DebugCategory> = Lazy::new(|| {
     gst::DebugCategory::new(
         "PrintNannyDemoVideo",
@@ -151,7 +138,7 @@ impl VideoDemoApp {
         // ! dataframe_agg \
         // ! nats_sink",
         let pipeline_str = format!(
-            "filesrc location={video_file} \
+            "filesrc location={video_file} do-timestamp=true \
             ! qtdemux name=demux \
             demux.video_0 ! decodebin \
             ! tee name=decoded_video_t \
