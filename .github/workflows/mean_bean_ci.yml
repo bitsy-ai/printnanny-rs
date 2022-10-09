@@ -13,7 +13,7 @@ jobs:
   # `ci.yml` and `deploy.yml`. Make sure to update both places when making
   # changes.
   install-cross:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v1
         with:
@@ -51,19 +51,19 @@ jobs:
   #     - run: tools/ci/test.bash cargo ${{ matrix.target }}
   #       shell: bash
 
-    # strategy:
-    #   fail-fast: true
-    #   matrix:
-    #     channel: [stable, beta, nightly]
-    #     target:
-    #       # MSVC
-    #       - i686-pc-windows-msvc
-    #       - x86_64-pc-windows-msvc
-    #       # GNU: You typically only need to test Windows GNU if you're
-    #       # specifically targetting it, and it can cause issues with some
-    #       # dependencies if you're not so it's disabled by self.
-    #       # - i686-pc-windows-gnu
-    #       # - x86_64-pc-windows-gnu
+  # strategy:
+  #   fail-fast: true
+  #   matrix:
+  #     channel: [stable, beta, nightly]
+  #     target:
+  #       # MSVC
+  #       - i686-pc-windows-msvc
+  #       - x86_64-pc-windows-msvc
+  #       # GNU: You typically only need to test Windows GNU if you're
+  #       # specifically targetting it, and it can cause issues with some
+  #       # dependencies if you're not so it's disabled by self.
+  #       # - i686-pc-windows-gnu
+  #       # - x86_64-pc-windows-gnu
 
   # macos:
   #   runs-on: macos-latest
@@ -86,22 +86,30 @@ jobs:
   #     - run: tools/ci/test.bash cross ${{ matrix.target }}
   #       if: matrix.target == 'x86_64-apple-darwin'
 
-    # strategy:
-    #   fail-fast: true
-    #   matrix:
-    #     channel: [stable, beta, nightly]
-    #     target:
-    #       # macOS
-    #       - x86_64-apple-darwin
-    #       # iOS
-    #       - aarch64-apple-ios
-    #       - x86_64-apple-ios
+  # strategy:
+  #   fail-fast: true
+  #   matrix:
+  #     channel: [stable, beta, nightly]
+  #     target:
+  #       # macOS
+  #       - x86_64-apple-darwin
+  #       # iOS
+  #       - aarch64-apple-ios
+  #       - x86_64-apple-ios
 
   linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: install-cross
     steps:
-      - run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - run: |
+          sudo apt-get remove libunwind-14-dev
+          sudo apt-get -y update
+          sudo apt-get install -y pkg-config libssl-dev \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
+            gstreamer1.0-libav libgstrtspserver-1.0-dev libges-1.0-dev \
+            gstreamer1.0-tools gstreamer1.0-x \
+            libglib2.0-dev
       - uses: actions/checkout@v2
       - name: Download Cross
         uses: actions/download-artifact@v1
@@ -137,7 +145,7 @@ jobs:
           # - arm-unknown-linux-musleabi
           # - arm-unknown-linux-musleabihf
           # - armv5te-unknown-linux-musleabi
-          - armv7-unknown-linux-gnueabihf
+          # - armv7-unknown-linux-gnueabihf
           # - armv7-unknown-linux-musleabihf
           # - i586-unknown-linux-gnu
           # - i586-unknown-linux-musl

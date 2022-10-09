@@ -9,20 +9,23 @@ on:
 
 jobs:
   cratesio:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
       - name: Install latest nightly
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: stable
-            override: true
-            components: rustfmt, clippy
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
       - name: Install gstreamer dependencies
         run: |
+          sudo apt-get remove libunwind-14-dev
           sudo apt-get update -y
-          sudo apt-get install -y libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev   \
+          sudo apt-get install -y libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev 
+          sudo apt-get install -y \
             gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
             gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
-            gstreamer1.0-libav libgstrtspserver-1.0-dev libges-1.0-dev
+            gstreamer1.0-libav libgstrtspserver-1.0-dev libges-1.0-dev \
+            gstreamer1.0-tools gstreamer1.0-x
       - run: cargo clippy --workspace
