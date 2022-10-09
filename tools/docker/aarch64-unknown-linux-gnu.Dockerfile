@@ -14,10 +14,10 @@ RUN apt-get update && apt-get install --assume-yes --no-install-recommends \
     g++-aarch64-linux-gnu \
     libc6-dev-arm64-cross
 
-COPY deny-debian-packages.sh /
-RUN TARGET_ARCH=arm64 /deny-debian-packages.sh \
-    binutils \
-    binutils-aarch64-linux-gnu
+# COPY deny-debian-packages.sh /
+# RUN TARGET_ARCH=arm64 /deny-debian-packages.sh \
+#     binutils \
+#     binutils-aarch64-linux-gnu
 
 COPY qemu.sh /
 RUN /qemu.sh aarch64 softmmu

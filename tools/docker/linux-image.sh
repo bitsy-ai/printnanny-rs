@@ -9,10 +9,10 @@ set -euo pipefail
 main() {
     # arch in the rust target
     local arch="${1}" \
-          kversion=5.8.0-63
+          kversion=5.15.0-48
 
-    local debsource="deb http://us.archive.ubuntu.com/ubuntu/ focal universe main"
-    debsource="${debsource}\ndeb http://us.archive.ubuntu.com/ubuntu/ focal-updates main multiverse"
+    # local debsource="deb http://us.archive.ubuntu.com/ubuntu/ jammy universe main"
+    # debsource="${debsource}\ndeb http://us.archive.ubuntu.com/ubuntu/ jammy-updates main multiverse"
 
     local dropbear="dropbear-bin"
 
@@ -23,12 +23,16 @@ main() {
     # select debian arch and kernel version
     case "${arch}" in
         aarch64)
+            libgcc="libgcc-s1"
             arch=arm64
-            kernel="${kversion}-arm64"
+            # kernel="${kversion}-arm64"
+            kernel="${kversion}-generic"
             ;;
         armv7)
+            libgcc="libgcc-s1"
             arch=armhf
-            kernel="${kversion}-armmp"
+            # kernel="${kversion}-armmp"
+            kernel="${kversion}-generic"
             ;;
         i686)
             arch=i386
@@ -88,6 +92,7 @@ main() {
             deps=(libcrypt1:"${arch}")
             ;;
         x86_64)
+            libgcc="libgcc-s1"
             arch=amd64
             kernel="${kversion}-generic"
             ;;
@@ -104,8 +109,8 @@ main() {
         gnupg
 
     # Download packages
-    mv /etc/apt/sources.list /etc/apt/sources.list.bak
-    echo -e "${debsource}" > /etc/apt/sources.list
+    # mv /etc/apt/sources.list /etc/apt/sources.list.bak
+    # echo -e "${debsource}" > /etc/apt/sources.list
 
     # Old ubuntu does not support --add-architecture, so we directly change multiarch file
     if [ -f /etc/dpkg/dpkg.cfg.d/multiarch ]; then
@@ -258,7 +263,7 @@ EOF
 
     # Clean up
     rm -rf "/qemu/${root}" "/qemu/${arch}"
-    mv -f /etc/apt/sources.list.bak /etc/apt/sources.list
+    # mv -f /etc/apt/sources.list.bak /etc/apt/sources.list
     if [ -f /etc/dpkg/dpkg.cfg.d/multiarch.bak ]; then
         mv /etc/dpkg/dpkg.cfg.d/multiarch.bak /etc/dpkg/dpkg.cfg.d/multiarch
     fi
