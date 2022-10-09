@@ -198,7 +198,7 @@ export const useEventStore = defineStore({
             const jsonCodec = JSONCodec<NatsQcStreamRequest>();
             const subject = NatsSubjectPattern.StreamRequest;
 
-            const res = await natsClient?.request(subject, jsonCodec.encode(request));
+            const res = await natsClient?.request(subject, jsonCodec.encode(request)).catch(e => handleError("Failed to publish NATS command", e));
             console.log(`Nats response on subject: ${subject}`, res);
         },
 
