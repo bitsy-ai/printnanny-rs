@@ -7,7 +7,7 @@ import StreamingPlugin from "janode/plugins/streaming";
 import { ArrowDownIcon, ArrowUpIcon, CheckIcon, ExclamationTriangleIcon } from '@heroicons/vue/20/solid'
 
 import type { QcDataframeRow, UiAlert } from "@types";
-import { ConnectionStatus, NatsSubjectPattern, type JanusMedia, type JanusStream, type DetectionAlert, type NatsQcStreamRequest } from "@/types";
+import { ConnectionStatus, NatsSubjectPattern, type JanusMedia, type JanusStream, type DetectionAlert, type NatsQcStreamRequest, NatsQcCommand } from "@/types";
 import { handleError } from "@/utils";
 
 function getNatsURI() {
@@ -341,7 +341,15 @@ export const useEventStore = defineStore({
             }
             // await eventsStore.publish_command(req);
         },
-        reset() {
+        async reset() {
+            if (this.selectedStream !== undefined) {
+                const natsRequest: NatsQcStreamRequest = {
+                    subject: NatsSubjectPattern.StreamRequest,
+                    stream: this.selectedStream,
+                    command: NatsQcCommand.Start
+                };
+                await this.publishNatsRequest(natsRequest);
+            }
             this.stopAllStreams();
             this.$reset();
             this.connect();
@@ -418,8 +426,8 @@ export const useEventStore = defineStore({
 
             const natsRequest: NatsQcStreamRequest = {
                 subject: NatsSubjectPattern.StreamRequest,
-                streamId: this.selectedStream.id,
-                streamDescription: this.selectedStream.description,
+                stream: this.selectedStream,
+                command: NatsQcCommand.Start
             };
             await this.publishNatsRequest(natsRequest);
 

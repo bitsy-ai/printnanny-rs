@@ -5,6 +5,10 @@ export interface JanusMedia {
     codec: string;
     label: string;
     mid: string;
+    mindex: number;
+    port: number;
+    pt: number;
+    rtpmap: string;
     type: string;
 }
 
@@ -55,8 +59,13 @@ export interface DetectionAlert {
     icon: FunctionalComponent<HTMLAttributes & VNodeProps>;
 }
 
+export enum NatsQcCommand {
+    Start = "Start",
+    Stop = "Stop"
+}
+
 export interface NatsQcStreamRequest {
     subject: string;
-    streamDescription: string;
-    streamId: number;
+    stream: JanusStream;
+    command: NatsQcCommand;
 }
