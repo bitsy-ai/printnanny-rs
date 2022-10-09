@@ -145,7 +145,7 @@ jobs:
           # - arm-unknown-linux-musleabi
           # - arm-unknown-linux-musleabihf
           # - armv5te-unknown-linux-musleabi
-          - armv7-unknown-linux-gnueabihf
+          # - armv7-unknown-linux-gnueabihf
           # - armv7-unknown-linux-musleabihf
           # - i586-unknown-linux-gnu
           # - i586-unknown-linux-musl
