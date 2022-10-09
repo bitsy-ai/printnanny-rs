@@ -20,7 +20,6 @@ name = "nats-edge-worker"
 anyhow = "1"
 async-nats = "0.18.0"
 async-process = "1.4.0"
-async-trait = "0.1"
 bytes = "1.2"
 chrono = "0.4.22"
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
