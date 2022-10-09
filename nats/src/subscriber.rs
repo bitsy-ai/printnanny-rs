@@ -12,11 +12,12 @@ use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, Duration};
 
 use super::error::NatsError;
+use super::message::{MessageHandler, NatsQcCommandRequest};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NatsSubscriber<T>
 where
-    T: Serialize + DeserializeOwned + Debug,
+    T: Serialize + DeserializeOwned + Debug + MessageHandler,
 {
     subject: String,
     nats_server_uri: String,
@@ -31,7 +32,7 @@ const DEFAULT_NATS_SUBJECT: &str = "pi.*";
 
 impl<T> NatsSubscriber<T>
 where
-    T: Serialize + DeserializeOwned + Debug,
+    T: Serialize + DeserializeOwned + Debug + MessageHandler,
 {
     pub fn clap_command() -> Command<'static> {
         let app_name = "nats-worker";
@@ -118,14 +119,12 @@ where
             let payload = serde_json::from_str::<T>(&s);
             match payload {
                 Ok(event) => {
-                    debug!("Deserialized ewvent: {:?}", event);
+                    info!("Deserialized ewvent: {:?}", event);
+                    event.handle();
                     // commands::handle_incoming(event, message.reply, &nats_client).await?;
                 }
                 Err(e) => {
-                    error!(
-                        "Failed to deserialize PolymorphicPiEventRequest from {} with error {}",
-                        &s, e
-                    );
+                    error!("Failed to deserialize {} with error {}", &s, e);
                 }
             };
         }

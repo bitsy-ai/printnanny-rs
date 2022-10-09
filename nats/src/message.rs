@@ -1,6 +1,12 @@
+use crate::error::{CommandError, NatsError};
+use log::info;
 use serde::{Deserialize, Serialize};
 
-use crate::error::NatsError;
+pub trait MessageHandler {
+    fn handle(&self) -> Result<(), CommandError> {
+        Ok(())
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JanusMedia {
@@ -70,4 +76,11 @@ impl NatsQcCommandRequest {
 pub struct NatsQcCommandResponse {
     request: NatsQcCommandRequest,
     result: NatsQcCommandResult,
+}
+
+impl MessageHandler for NatsQcCommandRequest {
+    fn handle(&self) -> Result<(), crate::error::CommandError> {
+        info!("Handling NatsQcCommandRequest {:?}", self);
+        Ok(())
+    }
 }

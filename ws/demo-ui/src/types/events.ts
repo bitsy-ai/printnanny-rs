@@ -66,6 +66,6 @@ export enum NatsQcCommand {
 
 export interface NatsQcStreamRequest {
     subject: string;
-    stream: JanusStream;
+    janus_stream: JanusStream;
     command: NatsQcCommand;
 }

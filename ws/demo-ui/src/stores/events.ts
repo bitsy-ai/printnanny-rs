@@ -208,8 +208,9 @@ export const useEventStore = defineStore({
             const jsonCodec = JSONCodec<NatsQcStreamRequest>();
             const subject = NatsSubjectPattern.StreamRequest;
 
+            console.log("Publishing NATS request:", request);
             const res = await natsClient?.request(subject, jsonCodec.encode(request)).catch(e => handleError("Failed to publish NATS command", e));
-            console.log(`Nats response on subject: ${subject}`, res);
+            console.log(`NATS response on subject: ${subject}`, res);
         },
 
         getDetectionAlerts(df: Array<QcDataframeRow>): Array<DetectionAlert> {
@@ -345,7 +346,7 @@ export const useEventStore = defineStore({
             if (this.selectedStream !== undefined) {
                 const natsRequest: NatsQcStreamRequest = {
                     subject: NatsSubjectPattern.StreamRequest,
-                    stream: this.selectedStream,
+                    janus_stream: toRaw(this.selectedStream),
                     command: NatsQcCommand.Start
                 };
                 await this.publishNatsRequest(natsRequest);
@@ -426,7 +427,7 @@ export const useEventStore = defineStore({
 
             const natsRequest: NatsQcStreamRequest = {
                 subject: NatsSubjectPattern.StreamRequest,
-                stream: this.selectedStream,
+                janus_stream: toRaw(this.selectedStream),
                 command: NatsQcCommand.Start
             };
             await this.publishNatsRequest(natsRequest);
