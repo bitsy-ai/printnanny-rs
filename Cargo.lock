@@ -4125,6 +4125,7 @@ dependencies = [
  "anyhow",
  "async-nats",
  "async-process",
+ "async-trait",
  "bytes",
  "chrono",
  "clap",

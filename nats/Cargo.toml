@@ -8,15 +8,19 @@ edition = "2021"
 rust-version = "1.59"
 
 [[bin]]
-name = "nats-publisher"
+name = "nats-cloud-publisher"
 
 [[bin]]
-name = "nats-worker"
+name = "nats-cloud-worker"
+
+[[bin]]
+name = "nats-edge-worker"
 
 [dependencies]
 anyhow = "1"
 async-nats = "0.18.0"
 async-process = "1.4.0"
+async-trait = "0.1"
 bytes = "1.2"
 chrono = "0.4.22"
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
