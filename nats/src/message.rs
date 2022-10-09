@@ -1,10 +1,27 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NatsQcRequest {
+pub enum NatsQcCommand {
+    Start,
+    Stop,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum NatsQcCommandResult {
+    Ok,
+    Error,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NatsQcCommandRequest {
     subject: String,
-    #[serde(rename = "streamDescription")]
     stream_description: String,
-    #[serde(rename = "streamId")]
     stream_id: String,
+    command: NatsQcCommand,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NatsQcCommandResponse {
+    request: NatsQcCommandRequest,
+    result: NatsQcCommandResult,
 }

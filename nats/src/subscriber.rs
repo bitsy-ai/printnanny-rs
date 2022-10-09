@@ -10,7 +10,6 @@ use log::{debug, error, info, warn};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, Duration};
-use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
 use super::error::NatsError;
 

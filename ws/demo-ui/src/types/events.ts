@@ -1,5 +1,27 @@
-
 import type { FunctionalComponent, HTMLAttributes, VNodeProps } from "vue";
+
+export interface JanusMedia {
+    age_ms: number;
+    codec: string;
+    label: string;
+    mid: string;
+    type: string;
+}
+
+export interface JanusStreamMetadata {
+    path: string;
+}
+export interface JanusStream {
+    description: string;
+    enabled: boolean;
+    id: number;
+    media: Array<JanusMedia>;
+    metadata: JanusStreamMetadata,
+    name: string;
+    type: string;
+    viewers: number
+}
+
 
 export enum NatsSubjectPattern {
     DataframeRow = "pi.qc.df",

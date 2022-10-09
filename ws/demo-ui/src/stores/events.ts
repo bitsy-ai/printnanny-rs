@@ -122,8 +122,18 @@ export const useEventStore = defineStore({
             // get detailed info from streamlist
             const streamList = await Promise.all(streamListRes.list.map(async (stream: any) => {
                 const res = await janusStreamingPluginHandle.info({ id: stream.id });
-                return res
+                return {
+                    description: res.description,
+                    enabled: res.enabled,
+                    id: res.id,
+                    media: res.media,
+                    metadata: JSON.parse(res.metadata),
+                    name: res.name,
+                    type: res.type,
+                    viewers: res.viewers
+                } as JanusStream
             }));
+
             console.log("Fetched detailed stream info", streamList);
 
 
