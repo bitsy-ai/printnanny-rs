@@ -18,7 +18,7 @@ use crate::error::NatsError;
 use crate::util::to_nats_command_subscribe_subject;
 
 #[derive(Debug, Clone)]
-pub struct NatsWorker {
+pub struct NatsCloudWorker {
     socket: PathBuf,
     subscribe_subject: String,
     nats_server_uri: String,
@@ -27,7 +27,7 @@ pub struct NatsWorker {
 }
 
 // Relays NatsJsonEvent published to Unix socket to NATS
-impl NatsWorker {
+impl NatsCloudWorker {
     pub async fn subscribe_nats_subject(&self) -> Result<()> {
         let mut nats_client: Option<async_nats::Client> = None;
         while nats_client.is_none() {
