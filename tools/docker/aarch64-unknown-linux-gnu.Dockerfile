@@ -40,10 +40,16 @@ ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
     PKG_CONFIG_PATH="/usr/lib/aarch64-linux-gnu/pkgconfig/:${PKG_CONFIG_PATH}"
 
 RUN dpkg --add-architecture arm64
+RUN apt-add-repository ppa:nnstreamer
 RUN apt-get update && apt-get install --assume-yes --upgrade \
     libssl-dev:arm64 \
     libgstreamer1.0-dev:arm64 libgstreamer-plugins-base1.0-dev:arm64 \
     gstreamer1.0-plugins-base:arm64 gstreamer1.0-plugins-good:arm64 \
     gstreamer1.0-plugins-bad:arm64 gstreamer1.0-plugins-ugly:arm64 \
     gstreamer1.0-libav:arm64 libgstrtspserver-1.0-dev:arm64 libges-1.0-dev:arm64 \
-    libglib2.0-dev:arm64
+    libglib2.0-dev:arm64 \
+    nnstreamer:arm64 \
+    nnstreamer-tensorflow2-lite:arm64 \
+    nnstreamer-dev:arm64 \
+    nnstreamer-cpp-dev:arm64 \
+    nnstreamer-cpp:arm64
