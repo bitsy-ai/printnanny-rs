@@ -27,8 +27,7 @@ fn init() {
 fn test_nats_sink() {
     init();
     let base_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let model_path: PathBuf = base_path.join("data/model.tflite");
-    let tmp_dir = base_path.join(".tmp");
+    let model_path: PathBuf = base_path.join("./fixtures/model.tflite");
     let num_detections = 40;
     let expected_buffers = 16;
 
@@ -76,8 +75,7 @@ fn test_nats_sink() {
 fn test_nnstreamer_callback() {
     init();
     let base_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let tmp_dir = base_path.join(".tmp");
-    let model_path: PathBuf = base_path.join("data/model.tflite");
+    let model_path: PathBuf = base_path.join("./fixtures/model.tflite");
 
     let num_detections = 40;
 
@@ -123,7 +121,7 @@ fn test_nnstreamer_callback() {
 fn test_dataframe_filesink() {
     init();
     let base_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let model_path: PathBuf = base_path.join("data/model.tflite");
+    let model_path: PathBuf = base_path.join("./fixtures/model.tflite");
     let tmp_dir = base_path.join(".tmp");
 
     let dataframe_location = format!("{}/videotestsrc_%05d.ipc", tmp_dir.display());
@@ -190,7 +188,7 @@ fn test_dataframe_agg() {
     init();
 
     let base_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let model_path: PathBuf = base_path.join("data/model.tflite");
+    let model_path: PathBuf = base_path.join("./fixtures/model.tflite");
 
     let expected_buffers = 512;
     let expected_columns = 19;
@@ -261,7 +259,7 @@ fn test_dataframe_agg_tcp() {
     init();
 
     let base_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let model_path: PathBuf = base_path.join("data/model.tflite");
+    let model_path: PathBuf = base_path.join("./fixtures/model.tflite");
 
     let expected_buffers = 512;
     let num_detections = 40;
