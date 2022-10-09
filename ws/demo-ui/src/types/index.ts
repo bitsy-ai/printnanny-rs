@@ -4,13 +4,13 @@ export * from "./events"
 
 export interface JanusMedia {
   age_ms: number,
-  label: String,
-  mid: String,
-  type: String,
-  codec: String
+  label: string,
+  mid: string,
+  type: string,
+  codec: string
 }
 export interface JanusStream {
-  description: String,
+  description: string,
   enabled: boolean,
   id: number,
   media: Array<JanusMedia>

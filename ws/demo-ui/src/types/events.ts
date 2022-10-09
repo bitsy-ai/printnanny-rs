@@ -1,6 +1,11 @@
 
 import type { FunctionalComponent, HTMLAttributes, VNodeProps } from "vue";
 
+export enum NatsSubjectPattern {
+    DataframeRow = "pi.qc.df",
+    StreamRequest = "pi.qc.stream"
+}
+
 export interface QcDataframeRow {
     "detection_boxes_x0": number;
     "detection_boxes_y0": number;
@@ -26,4 +31,10 @@ export interface DetectionAlert {
     header: string;
     description: string;
     icon: FunctionalComponent<HTMLAttributes & VNodeProps>;
+}
+
+export interface NatsQcStreamRequest {
+    subject: string;
+    streamDescription: string;
+    streamId: number;
 }

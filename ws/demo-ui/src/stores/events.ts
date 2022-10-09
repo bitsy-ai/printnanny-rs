@@ -7,7 +7,7 @@ import StreamingPlugin from "janode/plugins/streaming";
 import { ArrowDownIcon, ArrowUpIcon, CheckIcon, ExclamationTriangleIcon } from '@heroicons/vue/20/solid'
 
 import type { QcDataframeRow, UiAlert } from "@types";
-import { ConnectionStatus, type JanusMedia, type JanusStream, type DetectionAlert } from "@/types";
+import { ConnectionStatus, NatsSubjectPattern, type JanusMedia, type JanusStream, type DetectionAlert, type NatsQcStreamRequest } from "@/types";
 import { handleError } from "@/utils";
 
 function getNatsURI() {
@@ -193,13 +193,15 @@ export const useEventStore = defineStore({
             }
         },
 
-        // async publish_command(req: api.PolymorphicPiCommandRequest) {
-        //     const natsClient = await this.connect();
-        //     const jsonCodec = JSONCodec<api.PolymorphicPiCommandRequest>();
-        //     const subject = req.subject_pattern.replace("{pi_id}", req.pi.toString());
-        //     await natsClient?.publish(subject, jsonCodec.encode(req));
-        //     console.log(`Published to ${subject}`, req);
-        // },
+        async publishNatsRequest(request: NatsQcStreamRequest) {
+            const natsClient = toRaw(this.natsConnection);
+            const jsonCodec = JSONCodec<NatsQcStreamRequest>();
+            const subject = NatsSubjectPattern.StreamRequest;
+
+            const res = await natsClient?.request(subject, jsonCodec.encode(request));
+            console.log(`Nats response on subject: ${subject}`, res);
+        },
+
         getDetectionAlerts(df: Array<QcDataframeRow>): Array<DetectionAlert> {
             if (df.length < 10) {
                 console.warn("Skipping getDetectionAlerts(), less than 10 datapoints available");
@@ -403,6 +405,14 @@ export const useEventStore = defineStore({
                 return
             }
             this.$patch({ status: ConnectionStatus.ConnectionStreamLoading, detectionAlerts: [] });
+
+            const natsRequest: NatsQcStreamRequest = {
+                subject: NatsSubjectPattern.StreamRequest,
+                streamId: this.selectedStream.id,
+                streamDescription: this.selectedStream.description,
+            };
+            await this.publishNatsRequest(natsRequest);
+
             const janusStreamingPluginHandle = toRaw(this.janusStreamingPluginHandle);
             const media = toRaw(this.selectedStream.media);
             const watchdata = {
