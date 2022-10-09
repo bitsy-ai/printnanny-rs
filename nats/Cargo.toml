@@ -14,7 +14,7 @@ name = "nats-cloud-publisher"
 name = "nats-cloud-worker"
 
 [[bin]]
-name = "nats-edge-worker"
+name = "nats-qc-demo-worker"
 
 [dependencies]
 anyhow = "1"

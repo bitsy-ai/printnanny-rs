@@ -9,6 +9,9 @@ pub enum NatsError {
 
     #[error("Nats PublishError {error}")]
     PublishError { error: String },
+
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
 }
 
 #[derive(Error, Debug)]
