@@ -1,5 +1,5 @@
 [package]
-name = "printnanny-gst-plugin-rs"
+name = "printnanny-gst-plugin"
 description = "PrintNanny Gstreamer Plugins"
 version = "0.1.0"
 edition = "2021"

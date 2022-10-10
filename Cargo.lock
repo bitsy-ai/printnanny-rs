@@ -3226,7 +3226,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "printnanny-gst-plugin-rs"
+name = "printnanny-gst-plugin"
 version = "0.1.0"
 dependencies = [
  "anyhow",
