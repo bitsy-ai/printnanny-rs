@@ -8,17 +8,10 @@ edition = "2021"
 [dependencies]
 actix = "0.13"
 actix-web = "4"
-actix-codec = "0.5"        # Codec utilities for working with framed protocols
-actix-files = "0.6.2"            # Static file serving for Actix Web
-actix-web-actors = "4.1"         # Actix actors support for Actix Web
+actix-web-static-files = "4.0"
+static-files = "0.2.1"
 env_logger = "0.9"              # A logging implementation for `log` which is configured via an environment variable. 
-log = "0.4"                  # A lightweight logging facade for Rust 
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-rand = "0.8"
-tokio = { version = "1.21", features = ["full"] }
-tokio-util = "0.7.4"                   # Additional utilities for working with Tokio. 
+log = "0.4"                  # A lightweight logging facade for Rust                # Additional utilities for working with Tokio. 
 
-[lib]
-crate-type = ["rlib"]
-path = "src/lib.rs"
+[build-dependencies]
+static-files = "0.2.1"
