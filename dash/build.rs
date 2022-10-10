@@ -7,8 +7,10 @@ fn main() -> std::io::Result<()> {
     let dist_dir = ui_dir.join("dist");
     NpmBuild::new(ui_dir)
         .executable("npm")
-        .install()?
-        .run("build")?
+        .install()
+        .expect("Failed to run npm install")
+        .run("build")
+        .expect("Failed to run npm build")
         .target(dist_dir)
         .to_resource_dir()
         .build()
