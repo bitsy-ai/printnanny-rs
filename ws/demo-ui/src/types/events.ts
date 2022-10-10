@@ -33,11 +33,21 @@ export enum NatsSubjectPattern {
 }
 
 export interface QcDataframeRow {
-    "detection_boxes_x0": number;
-    "detection_boxes_y0": number;
-    "detection_boxes_x1": number;
-    "detection_boxes_y1": number;
-    "detection_classes": number;
+    "adhesion__count": number;
+    "adhesion__mean": number;
+    "adhesion__std": number;
+    "nozzle__count": number;
+    "nozzle__mean": number;
+    "nozzle__std": number;
+    "print__count": number;
+    "print__mean": number;
+    "print__std": number;
+    "raft__count": number;
+    "raft__mean": number;
+    "raft__std": number;
+    "spaghetti__mean": number;
+    "spaghetti__count": number;
+    "spaghetti__std": number;
     "detection_scores": number;
     "ts": number;
 }

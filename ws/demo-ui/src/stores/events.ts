@@ -6,8 +6,7 @@ import Janode from "janode";
 import StreamingPlugin from "janode/plugins/streaming";
 import { ArrowDownIcon, ArrowUpIcon, CheckIcon, ExclamationTriangleIcon } from '@heroicons/vue/20/solid'
 
-import type { QcDataframeRow, UiAlert } from "@types";
-import { ConnectionStatus, NatsSubjectPattern, type JanusMedia, type JanusStream, type DetectionAlert, type NatsQcStreamRequest, NatsQcCommand } from "@/types";
+import { ConnectionStatus, NatsSubjectPattern, type JanusMedia, type JanusStream, type DetectionAlert, type NatsQcStreamRequest, type QcDataframeRow, type UiStickyAlert, NatsQcCommand } from "@/types";
 import { handleError } from "@/utils";
 
 function getNatsURI() {
@@ -36,12 +35,12 @@ export const useEventStore = defineStore({
     state: () => ({
         df: [] as Array<QcDataframeRow>,
         natsConnection: undefined as NatsConnection | undefined,
-        janusWsConnection: undefined as undefined | Janode.Connection,
+        janusWsConnection: undefined as undefined | any, // Janode.Connection, but Janode doe snot export types
         janusSession: undefined as undefined | any,
         janusPeerConnection: undefined as undefined | RTCPeerConnection,
         janusStreamingPluginHandle: undefined as undefined | any,
         status: ConnectionStatus.ConnectionNotStarted as ConnectionStatus,
-        alerts: [] as Array<UiAlert>,
+        alerts: [] as Array<UiStickyAlert>,
         streamList: [] as Array<JanusStream>,
         selectedStream: undefined as undefined | JanusStream,
         detectionAlerts: [
@@ -112,7 +111,7 @@ export const useEventStore = defineStore({
                     url: janusUri,
                 },
             };
-            const janusWsConnection: Janode.Connection = await Janode.connect(connectOpts).catch((e: Error) => handleError("Janus websocket connection failed", e));
+            const janusWsConnection = await Janode.connect(connectOpts).catch((e: Error) => handleError("Janus websocket connection failed", e));
             console.log("Got janusWsConnection", janusWsConnection);
             const janusSession = await janusWsConnection.create().catch((e: Error) => handleError("Failed to create Janus websocket session ", e));
             const janusStreamingPluginHandle = await janusSession.attach(StreamingPlugin)
@@ -299,7 +298,7 @@ export const useEventStore = defineStore({
             })(sub);
         },
 
-        pushAlert(alert: UiAlert) {
+        pushAlert(alert: UiStickyAlert) {
             // show at most 1 alert message with the same header
             const alreadyShown = this.alerts.filter(
                 (a) => a.header == alert.header

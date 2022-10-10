@@ -1,4 +1,4 @@
-import './polyfills'
+// import './polyfills'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 
