@@ -137,6 +137,7 @@ impl From<&ArgMatches> for PipelineApp {
             input_path,
             video_height,
             video_width,
+            video_stream_src: video_stream_src.clone(),
             udp_port,
         }
     }
