@@ -136,10 +136,10 @@ async fn main() -> Result<()> {
                 .about("Synchronize device with PrintNanny Cloud")
             ))
         // nats-worker
-        .subcommand(printnanny_nats::worker::NatsWorker::clap_command())
+        .subcommand(printnanny_nats::cloud_worker::NatsCloudWorker::clap_command())
 
         // nats-publisher
-        .subcommand(printnanny_nats::publisher::EventPublisher::clap_command())
+        .subcommand(printnanny_nats::cloud_publisher::CloudEventPublisher::clap_command())
         // os <issue|motd>
         .subcommand(Command::new("os")
             .author(crate_authors!())
@@ -196,12 +196,12 @@ async fn main() -> Result<()> {
             info!("Initialized rocket server {:?}", rocket);
         },
         Some(("nats-publisher", sub_m)) => {
-            let app = printnanny_nats::publisher::EventPublisher::new(sub_m)?;
+            let app = printnanny_nats::cloud_publisher::CloudEventPublisher::new(sub_m)?;
             app.run().await?;
         },
 
         Some(("nats-worker", sub_m)) => {
-            let app = printnanny_nats::worker::NatsWorker::new(sub_m).await?;
+            let app = printnanny_nats::cloud_worker::NatsCloudWorker::new(sub_m).await?;
             app.run().await?;
         },
         Some(("config", subm)) => {

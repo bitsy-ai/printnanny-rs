@@ -42,7 +42,7 @@ impl CloudEventPublisher {
         })
     }
     pub fn clap_command() -> Command<'static> {
-        let app_name = "nats-publisher";
+        let app_name = "nats-cloud-publisher";
         let app = Command::new(app_name)
             .author(crate_authors!())
             .about("Issue command via NATs")
