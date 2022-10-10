@@ -111,6 +111,9 @@ jobs:
             gstreamer1.0-tools gstreamer1.0-x \
             libglib2.0-dev
       - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "16"
       - name: Download Cross
         uses: actions/download-artifact@v1
         with:
