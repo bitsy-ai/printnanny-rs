@@ -127,6 +127,7 @@ demo-video-1: {
     type = "rtp"
     id = 001
     description = "Demo Video #1"
+    metadata = "{ \"path\": \"/media/demo_video_1.mp4\", \"video_stream_src\": \"File\" }"
     media = (
         {
           type = "video"
@@ -144,6 +145,7 @@ live-camera-1: {
     type = "rtp"
     id = 005
     description = "Live Camera Feed"
+    metadata = "{ \"path\": \"/dev/video0\", \"video_stream_src\": \"Device\" }"
     media = (
         {
           type = "video"

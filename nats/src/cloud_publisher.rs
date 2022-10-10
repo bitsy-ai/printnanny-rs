@@ -19,7 +19,7 @@ use crate::error;
 use crate::subjects;
 
 #[derive(Debug, Clone)]
-pub struct EventPublisher {
+pub struct CloudEventPublisher {
     args: ArgMatches,
     config: PrintNannyConfig,
 }
@@ -31,8 +31,8 @@ pub enum PayloadFormat {
     // Bytes,
 }
 
-impl EventPublisher {
-    // initialize EventPublisher from clap::Command ArgMatches
+impl CloudEventPublisher {
+    // initialize CloudEventPublisher from clap::Command ArgMatches
     pub fn new(args: &ArgMatches) -> Result<Self, PrintNannyConfigError> {
         let config = PrintNannyConfig::new().unwrap();
         config.try_check_license()?;
@@ -42,7 +42,7 @@ impl EventPublisher {
         })
     }
     pub fn clap_command() -> Command<'static> {
-        let app_name = "nats-publisher";
+        let app_name = "nats-cloud-publisher";
         let app = Command::new(app_name)
             .author(crate_authors!())
             .about("Issue command via NATs")

@@ -8,10 +8,13 @@ edition = "2021"
 rust-version = "1.59"
 
 [[bin]]
-name = "nats-publisher"
+name = "nats-cloud-publisher"
 
 [[bin]]
-name = "nats-worker"
+name = "nats-cloud-worker"
+
+[[bin]]
+name = "nats-qc-demo-worker"
 
 [dependencies]
 anyhow = "1"

@@ -4,7 +4,7 @@ use clap::{crate_authors, ArgMatches, Command};
 use futures::prelude::*;
 use log::{debug, error, info, warn};
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tokio::net::{UnixListener, UnixStream};
 use tokio::time::{sleep, Duration};
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
@@ -13,12 +13,12 @@ use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEv
 use printnanny_services::config::PrintNannyConfig;
 
 // use crate::commands;
-use crate::commands;
+use crate::cloud_commands;
 use crate::error::NatsError;
 use crate::util::to_nats_command_subscribe_subject;
 
 #[derive(Debug, Clone)]
-pub struct NatsWorker {
+pub struct NatsCloudWorker {
     socket: PathBuf,
     subscribe_subject: String,
     nats_server_uri: String,
@@ -27,7 +27,7 @@ pub struct NatsWorker {
 }
 
 // Relays NatsJsonEvent published to Unix socket to NATS
-impl NatsWorker {
+impl NatsCloudWorker {
     pub async fn subscribe_nats_subject(&self) -> Result<()> {
         let mut nats_client: Option<async_nats::Client> = None;
         while nats_client.is_none() {
@@ -61,7 +61,7 @@ impl NatsWorker {
             match payload {
                 Ok(event) => {
                     debug!("Deserialized PolymorphicPiEvent: {:?}", event);
-                    commands::handle_incoming(event, message.reply, &nats_client).await?;
+                    cloud_commands::handle_incoming(event, message.reply, &nats_client).await?;
                 }
                 Err(e) => {
                     error!(
@@ -227,7 +227,7 @@ impl NatsWorker {
     }
 
     pub fn clap_command() -> Command<'static> {
-        let app_name = "nats-worker";
+        let app_name = "nats-cloud-worker";
         let app = Command::new(app_name)
             .author(crate_authors!())
             .about("Run NATS-based pub/sub workers");

@@ -7,7 +7,7 @@ import StreamingPlugin from "janode/plugins/streaming";
 import { ArrowDownIcon, ArrowUpIcon, CheckIcon, ExclamationTriangleIcon } from '@heroicons/vue/20/solid'
 
 import type { QcDataframeRow, UiAlert } from "@types";
-import { ConnectionStatus, type JanusMedia, type JanusStream, type DetectionAlert } from "@/types";
+import { ConnectionStatus, NatsSubjectPattern, type JanusMedia, type JanusStream, type DetectionAlert, type NatsQcStreamRequest, NatsQcCommand } from "@/types";
 import { handleError } from "@/utils";
 
 function getNatsURI() {
@@ -122,8 +122,18 @@ export const useEventStore = defineStore({
             // get detailed info from streamlist
             const streamList = await Promise.all(streamListRes.list.map(async (stream: any) => {
                 const res = await janusStreamingPluginHandle.info({ id: stream.id });
-                return res
+                return {
+                    description: res.description,
+                    enabled: res.enabled,
+                    id: res.id,
+                    media: res.media,
+                    metadata: JSON.parse(res.metadata),
+                    name: res.name,
+                    type: res.type,
+                    viewers: res.viewers
+                } as JanusStream
             }));
+
             console.log("Fetched detailed stream info", streamList);
 
 
@@ -193,13 +203,16 @@ export const useEventStore = defineStore({
             }
         },
 
-        // async publish_command(req: api.PolymorphicPiCommandRequest) {
-        //     const natsClient = await this.connect();
-        //     const jsonCodec = JSONCodec<api.PolymorphicPiCommandRequest>();
-        //     const subject = req.subject_pattern.replace("{pi_id}", req.pi.toString());
-        //     await natsClient?.publish(subject, jsonCodec.encode(req));
-        //     console.log(`Published to ${subject}`, req);
-        // },
+        async publishNatsRequest(request: NatsQcStreamRequest) {
+            const natsClient = toRaw(this.natsConnection);
+            const jsonCodec = JSONCodec<NatsQcStreamRequest>();
+            const subject = NatsSubjectPattern.StreamRequest;
+
+            console.log("Publishing NATS request:", request);
+            const res = await natsClient?.request(subject, jsonCodec.encode(request), { timeout: 5000 }).catch(e => handleError("Command Failed", e));
+            console.log(`NATS response on subject: ${subject}`, res);
+        },
+
         getDetectionAlerts(df: Array<QcDataframeRow>): Array<DetectionAlert> {
             if (df.length < 10) {
                 console.warn("Skipping getDetectionAlerts(), less than 10 datapoints available");
@@ -329,7 +342,15 @@ export const useEventStore = defineStore({
             }
             // await eventsStore.publish_command(req);
         },
-        reset() {
+        async reset() {
+            if (this.selectedStream !== undefined) {
+                const natsRequest: NatsQcStreamRequest = {
+                    subject: NatsSubjectPattern.StreamRequest,
+                    janus_stream: toRaw(this.selectedStream),
+                    command: NatsQcCommand.Start
+                };
+                await this.publishNatsRequest(natsRequest);
+            }
             this.stopAllStreams();
             this.$reset();
             this.connect();
@@ -403,6 +424,14 @@ export const useEventStore = defineStore({
                 return
             }
             this.$patch({ status: ConnectionStatus.ConnectionStreamLoading, detectionAlerts: [] });
+
+            const natsRequest: NatsQcStreamRequest = {
+                subject: NatsSubjectPattern.StreamRequest,
+                janus_stream: toRaw(this.selectedStream),
+                command: NatsQcCommand.Start
+            };
+            await this.publishNatsRequest(natsRequest);
+
             const janusStreamingPluginHandle = toRaw(this.janusStreamingPluginHandle);
             const media = toRaw(this.selectedStream.media);
             const watchdata = {
