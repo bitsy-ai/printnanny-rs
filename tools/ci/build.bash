@@ -20,4 +20,3 @@ if [ -z "$RELEASE_BUILD" ]; then
 else
     $CROSS build --workspace --verbose --target $TARGET_TRIPLE --all-features --release
 fi
-
