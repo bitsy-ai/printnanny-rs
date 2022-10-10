@@ -17,7 +17,6 @@ targets = [
 ]
 
 [dependencies]
-printnanny-gst = {path = "../gst", version = "^0.25.0"}
 printnanny-dash = {path = "../dash", version = "^0.25.0"}
 printnanny-services = {path = "../services", version = "^0.25.0"}
 printnanny-nats = {path = "../nats", version = "^0.25.0"}

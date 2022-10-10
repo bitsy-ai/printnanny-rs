@@ -1225,16 +1225,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ctrlc"
-version = "3.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d91974fbbe88ec1df0c24a4f00f99583667a7e2e6272b2b92d294d81e462173"
-dependencies = [
- "nix 0.25.0",
- "winapi 0.3.9",
-]
-
-[[package]]
 name = "curve25519-dalek"
 version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1603,7 +1593,7 @@ dependencies = [
  "cc",
  "libc",
  "mktemp",
- "nix 0.24.1",
+ "nix",
 ]
 
 [[package]]
@@ -3224,18 +3214,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nix"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e322c04a9e3440c327fca7b6c8a63e6890a32fa2ad689db972425f07e0d22abb"
-dependencies = [
- "autocfg",
- "bitflags",
- "cfg-if 1.0.0",
- "libc",
-]
-
-[[package]]
 name = "nkeys"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4038,7 +4016,6 @@ dependencies = [
  "log",
  "printnanny-api-client",
  "printnanny-dash",
- "printnanny-gst",
  "printnanny-nats",
  "printnanny-services",
  "rocket",
@@ -4067,22 +4044,6 @@ dependencies = [
  "serde_json",
  "thiserror",
  "time 0.3.9",
- "tokio",
-]
-
-[[package]]
-name = "printnanny-gst"
-version = "0.25.0"
-dependencies = [
- "anyhow",
- "clap",
- "ctrlc",
- "derive_more",
- "env_logger",
- "gstreamer 0.18.8",
- "log",
- "printnanny-api-client",
- "printnanny-services",
  "tokio",
 ]
 
