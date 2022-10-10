@@ -2,6 +2,7 @@ import { useEventStore } from "@/stores/events";
 import type { UiStickyAlert, AlertAction } from "@/types";
 
 function handleError(header: string, e: Error) {
+  console.error(e);
   let message = e.message || e.toString();
   const actions = [
     {

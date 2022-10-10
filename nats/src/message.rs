@@ -8,6 +8,10 @@ pub trait MessageHandler {
     }
 }
 
+pub trait MessageResponse<Request, Response> {
+    fn new(request: Option<Request>, status: ResponseStatus, detail: String) -> Response;
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JanusMedia {
     age_ms: u64,
@@ -54,7 +58,7 @@ pub enum NatsQcCommand {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum NatsQcCommandResult {
+pub enum ResponseStatus {
     Ok,
     Error,
 }
@@ -72,10 +76,25 @@ impl NatsQcCommandRequest {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NatsQcCommandResponse {
-    request: NatsQcCommandRequest,
-    result: NatsQcCommandResult,
+    request: Option<NatsQcCommandRequest>,
+    status: ResponseStatus,
+    detail: String,
+}
+
+impl MessageResponse<NatsQcCommandRequest, NatsQcCommandResponse> for NatsQcCommandResponse {
+    fn new(
+        request: Option<NatsQcCommandRequest>,
+        status: ResponseStatus,
+        detail: String,
+    ) -> NatsQcCommandResponse {
+        NatsQcCommandResponse {
+            request,
+            status,
+            detail,
+        }
+    }
 }
 
 impl MessageHandler for NatsQcCommandRequest {

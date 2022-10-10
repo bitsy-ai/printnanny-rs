@@ -11,28 +11,31 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, Duration};
 
-use super::error::NatsError;
-use super::message::{MessageHandler, NatsQcCommandRequest};
+use super::error::{CommandError, NatsError};
+use super::message::{MessageHandler, MessageResponse, NatsQcCommandRequest, ResponseStatus};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NatsSubscriber<T>
+pub struct NatsSubscriber<Request, Response>
 where
-    T: Serialize + DeserializeOwned + Debug + MessageHandler,
+    Request: Serialize + DeserializeOwned + Debug + MessageHandler,
+    Response: Serialize + DeserializeOwned + Debug + MessageResponse<Request, Response>,
 {
     subject: String,
     nats_server_uri: String,
     require_tls: bool,
     nats_creds: Option<PathBuf>,
-    _marker: PhantomData<T>,
+    _request: PhantomData<Request>,
+    _response: PhantomData<Response>,
 }
 
 const DEFAULT_NATS_SOCKET_PATH: &str = "/var/run/printnanny/nats-worker.sock";
 const DEFAULT_NATS_URI: &str = "nats://localhost:4222";
 const DEFAULT_NATS_SUBJECT: &str = "pi.*";
 
-impl<T> NatsSubscriber<T>
+impl<Request, Response> NatsSubscriber<Request, Response>
 where
-    T: Serialize + DeserializeOwned + Debug + MessageHandler,
+    Request: Serialize + DeserializeOwned + Debug + MessageHandler,
+    Response: Serialize + DeserializeOwned + Debug + MessageResponse<Request, Response>,
 {
     pub fn clap_command() -> Command<'static> {
         let app_name = "nats-worker";
@@ -86,11 +89,12 @@ where
             nats_server_uri: nats_server_uri.to_string(),
             nats_creds,
             require_tls,
-            _marker: PhantomData,
+            _request: PhantomData,
+            _response: PhantomData,
         }
     }
 
-    pub async fn subscribe_nats_subject(&self) -> Result<(), NatsError> {
+    pub async fn subscribe_nats_subject(&self) -> Result<(), CommandError> {
         let mut nats_client: Option<async_nats::Client> = None;
         while nats_client.is_none() {
             match self.try_init_nats_client().await {
@@ -116,17 +120,36 @@ where
             debug!("init String");
             message.payload.reader().read_to_string(&mut s)?;
             debug!("read message.payload to String");
-            let payload = serde_json::from_str::<T>(&s);
-            match payload {
+            let payload = serde_json::from_str::<Request>(&s);
+            let res: Response = match payload {
                 Ok(event) => {
-                    info!("Deserialized ewvent: {:?}", event);
-                    event.handle();
-                    // commands::handle_incoming(event, message.reply, &nats_client).await?;
+                    info!("Deserialized request: {:?}", event);
+                    event.handle()?;
+                    Response::new(Some(event), ResponseStatus::Ok, "".into())
                 }
                 Err(e) => {
-                    error!("Failed to deserialize {} with error {}", &s, e);
+                    let detail = format!("Failed to deserialize {} with error {}", &s, e);
+                    error!("{}", &detail);
+                    let err = CommandError::SerdeJson {
+                        payload: s.to_string(),
+                        error: e.to_string(),
+                        source: e,
+                    };
+                    Response::new(None, ResponseStatus::Error, detail)
                 }
             };
+            match message.reply {
+                Some(reply_inbox) => {
+                    let payload = serde_json::to_vec(&res).unwrap();
+                    match nats_client.publish(reply_inbox, payload.into()).await {
+                        Ok(_) => Ok(()),
+                        Err(e) => Err(CommandError::NatsError(NatsError::PublishError {
+                            error: e.to_string(),
+                        })),
+                    }
+                }
+                None => Ok(()),
+            }?;
         }
         Ok(())
     }
@@ -180,7 +203,7 @@ where
             }
         }
     }
-    pub async fn run(&self) -> Result<(), NatsError> {
+    pub async fn run(&self) -> Result<(), CommandError> {
         self.subscribe_nats_subject().await?;
         Ok(())
     }
