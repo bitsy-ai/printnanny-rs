@@ -167,18 +167,14 @@ async fn main() -> Result<()> {
     match verbosity {
         0 => {
             builder.filter_level(LevelFilter::Warn).init();
-            gst::debug_set_default_threshold(gst::DebugLevel::Warning);
         }
         1 => {
             builder.filter_level(LevelFilter::Info).init();
-            gst::debug_set_default_threshold(gst::DebugLevel::Info);
         }
         2 => {
             builder.filter_level(LevelFilter::Debug).init();
-            gst::debug_set_default_threshold(gst::DebugLevel::Debug);
         }
         _ => {
-            gst::debug_set_default_threshold(gst::DebugLevel::Trace);
             builder.filter_level(LevelFilter::Trace).init()
         }
     };
