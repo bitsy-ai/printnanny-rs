@@ -1,7 +1,11 @@
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::fs::File;
+use std::process::Command;
+use std::{fmt, io::Write};
 
 use crate::error::{CommandError, NatsError};
+
+const DEFAULT_GST_STREAM_CONF: &str = "/var/run/printnanny/printnanny-gst-vision.conf";
 
 pub trait MessageHandler {
     fn handle(&self) -> Result<(), CommandError>;
@@ -71,6 +75,15 @@ impl JanusStream {
             video_stream_src = self.metadata.video_stream_src,
         )
     }
+    pub fn write_gst_pipeline_conf(&self) -> Result<(), std::io::Error> {
+        let conf = self.gst_pipeline_conf();
+        let mut f = File::options()
+            .write(true)
+            .create(true)
+            .open(DEFAULT_GST_STREAM_CONF)?;
+
+        f.write_all(conf.as_bytes())
+    }
 }
 
 impl Default for JanusStream {
@@ -124,9 +137,17 @@ pub struct NatsQcCommandRequest {
 
 impl NatsQcCommandRequest {
     fn start(&self) -> Result<(), CommandError> {
+        // write conf file before restarting systemd unit
+        self.janus_stream.write_gst_pipeline_conf()?;
+        Command::new("sudo")
+            .args(&["systemctl", "restart", "printnanny-gst-vision.service"])
+            .output()?;
         Ok(())
     }
     fn stop(&self) -> Result<(), CommandError> {
+        Command::new("sudo")
+            .args(&["systemctl", "stop", "printnanny-gst-vision.service"])
+            .output()?;
         Ok(())
     }
 }

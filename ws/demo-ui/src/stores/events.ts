@@ -209,7 +209,7 @@ export const useEventStore = defineStore({
             const subject = NatsSubjectPattern.StreamRequest;
 
             console.log("Publishing NATS request:", request);
-            const res = await natsClient?.request(subject, jsonCodec.encode(request), { timeout: 5000 }).catch(e => handleError("Failed to publish NATS command", e));
+            const res = await natsClient?.request(subject, jsonCodec.encode(request), { timeout: 5000 }).catch(e => handleError("Command Failed", e));
             console.log(`NATS response on subject: ${subject}`, res);
         },
 
