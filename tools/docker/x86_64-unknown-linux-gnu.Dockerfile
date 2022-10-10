@@ -35,4 +35,7 @@ RUN apt-get update -y && apt-get install -y --upgrade \
     libglib2.0-dev \
     nnstreamer \
     nnstreamer-tensorflow2-lite \
-    nnstreamer-dev \
+    nnstreamer-dev
+
+# nodejs is required to build printnanny-dash package
+RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs build-essential
