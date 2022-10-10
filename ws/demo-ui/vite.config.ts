@@ -1,7 +1,7 @@
-import { fileURLToPath, URL } from 'node:url'
+import { fileURLToPath, URL } from "node:url";
 
-import { defineConfig, loadEnv } from 'vite'
-import vue from '@vitejs/plugin-vue'
+import { defineConfig, loadEnv } from "vite";
+import vue from "@vitejs/plugin-vue";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ _command, mode }) => {
@@ -21,12 +21,12 @@ export default defineConfig(({ _command, mode }) => {
     envDir: ".env",
     resolve: {
       alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url))
-      }
+        "@": fileURLToPath(new URL("./src", import.meta.url)),
+      },
     },
     define: {
-      'process.env': {},
-      'UnixTransport': {}
-    }
-  }
-})
+      "process.env": {},
+      UnixTransport: {},
+    },
+  };
+});

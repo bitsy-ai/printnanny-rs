@@ -1,31 +1,42 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { toRaw } from "vue";
-import { connect, JSONCodec, credsAuthenticator, toJsMsg } from "nats.ws";
+import { connect, JSONCodec } from "nats.ws";
 import type { NatsConnection, Subscription } from "nats.ws";
 import Janode from "janode";
 import StreamingPlugin from "janode/plugins/streaming";
-import { ArrowDownIcon, ArrowUpIcon, CheckIcon, ExclamationTriangleIcon } from '@heroicons/vue/20/solid'
+import { ExclamationTriangleIcon } from "@heroicons/vue/20/solid";
 
-import { ConnectionStatus, NatsSubjectPattern, type JanusMedia, type JanusStream, type DetectionAlert, type NatsQcStreamRequest, type QcDataframeRow, type UiStickyAlert, NatsQcCommand } from "@/types";
+import {
+    ConnectionStatus,
+    NatsSubjectPattern,
+    type JanusStream,
+    type DetectionAlert,
+    type NatsQcStreamRequest,
+    type QcDataframeRow,
+    type UiStickyAlert,
+    NatsQcCommand,
+} from "@/types";
 import { handleError } from "@/utils";
 
 function getNatsURI() {
     const hostname = window.location.hostname;
-    const uri = `ws://${hostname}:${import.meta.env.VITE_PRINTNANNY_EDGE_NATS_WS_PORT}`;
-    console.log(`Connecting to NATS server: ${uri}`)
-    return uri
+    const uri = `ws://${hostname}:${import.meta.env.VITE_PRINTNANNY_EDGE_NATS_WS_PORT
+        }`;
+    console.log(`Connecting to NATS server: ${uri}`);
+    return uri;
 }
 
 function getJanusUri() {
     const hostname = window.location.hostname;
-    const uri = `ws://${hostname}:${import.meta.env.VITE_PRINTNANNY_EDGE_JANUS_WS_PORT}`;
+    const uri = `ws://${hostname}:${import.meta.env.VITE_PRINTNANNY_EDGE_JANUS_WS_PORT
+        }`;
     console.log(`Connecting to Janus signaling websocket: ${uri}`);
-    return uri
+    return uri;
 }
 
 // returns true if num truthy elements / total elements >= threshold
 function atLeast(arr: Array<boolean>, threshold: number): boolean {
-    return arr.filter(el => el === true).length / arr.length >= threshold
+    return arr.filter((el) => el === true).length / arr.length >= threshold;
 }
 
 const RTCPeerConnection = window.RTCPeerConnection.bind(window);
@@ -45,39 +56,42 @@ export const useEventStore = defineStore({
         selectedStream: undefined as undefined | JanusStream,
         detectionAlerts: [
             {
-                id: "Example: Calibration Alert", icon: ExclamationTriangleIcon, color: "indigo", description: "If PrintNanny doesn't recognize your 3D printer, you'll see calibration recommendations."
-
+                id: "Example: Calibration Alert",
+                icon: ExclamationTriangleIcon,
+                color: "indigo",
+                description:
+                    "If PrintNanny doesn't recognize your 3D printer, you'll see calibration recommendations.",
             } as DetectionAlert,
             {
-                id: "Example: Failure Alert", icon: ExclamationTriangleIcon, color: "red", description: "When a print job is failing, PrintNanny will notify you."
-
-            } as DetectionAlert
-        ] as Array<DetectionAlert>
+                id: "Example: Failure Alert",
+                icon: ExclamationTriangleIcon,
+                color: "red",
+                description: "When a print job is failing, PrintNanny will notify you.",
+            } as DetectionAlert,
+        ] as Array<DetectionAlert>,
     }),
     getters: {
         meter_x(state): Array<number> {
-            return state.df.map(el => el.ts)
+            return state.df.map((el) => el.ts);
         },
         meter_y_nozzle_mean(state): Array<number> {
-            return state.df.map(el => el.nozzle__mean)
+            return state.df.map((el) => el.nozzle__mean);
         },
-        meter_y_nozzle_std: (state) => state.df.map(el => el.nozzle__std),
+        meter_y_nozzle_std: (state) => state.df.map((el) => el.nozzle__std),
 
-        meter_y_print_mean: (state) => state.df.map(el => el.print__mean),
-        meter_y_print_std: (state) => state.df.map(el => el.print__std),
+        meter_y_print_mean: (state) => state.df.map((el) => el.print__mean),
+        meter_y_print_std: (state) => state.df.map((el) => el.print__std),
 
-        meter_y_raft_mean: (state) => state.df.map(el => el.raft__mean),
-        meter_y_raft_std: (state) => state.df.map(el => el.raft__std),
+        meter_y_raft_mean: (state) => state.df.map((el) => el.raft__mean),
+        meter_y_raft_std: (state) => state.df.map((el) => el.raft__std),
 
-        meter_y_adhesion_mean: (state) => state.df.map(el => el.adhesion__mean),
-        meter_y_adhesion_std: (state) => state.df.map(el => el.adhesion__std),
+        meter_y_adhesion_mean: (state) => state.df.map((el) => el.adhesion__mean),
+        meter_y_adhesion_std: (state) => state.df.map((el) => el.adhesion__std),
 
-        meter_y_spaghetti_mean: (state) => state.df.map(el => el.spaghetti__mean),
-        meter_y_spaghetti_std: (state) => state.df.map(el => el.spaghetti__std),
-
+        meter_y_spaghetti_mean: (state) => state.df.map((el) => el.spaghetti__mean),
+        meter_y_spaghetti_std: (state) => state.df.map((el) => el.spaghetti__std),
     },
     actions: {
-
         async connectNats(): Promise<boolean> {
             // create nats connection if not initialized
             if (this.natsConnection === undefined) {
@@ -90,16 +104,18 @@ export const useEventStore = defineStore({
                 if (import.meta.env.VITE_PRINTNANNY_DEBUG == true) {
                     connectOptions.debug = true;
                 }
-                const natsConnection = await connect(connectOptions).catch((e: Error) => handleError("Failed to connect to NATS server", e));
+                const natsConnection = await connect(connectOptions).catch((e: Error) =>
+                    handleError("Failed to connect to NATS server", e)
+                );
                 if (natsConnection) {
                     console.log(`Initialized NATs connection to ${servers}`);
                     this.$patch({ natsConnection });
                     await this.subscribeQcDataframes();
-                    return true
+                    return true;
                 }
-                return false
+                return false;
             } else {
-                return true
+                return true;
             }
         },
 
@@ -111,30 +127,40 @@ export const useEventStore = defineStore({
                     url: janusUri,
                 },
             };
-            const janusWsConnection = await Janode.connect(connectOpts).catch((e: Error) => handleError("Janus websocket connection failed", e));
+            const janusWsConnection = await Janode.connect(connectOpts).catch(
+                (e: Error) => handleError("Janus websocket connection failed", e)
+            );
             console.log("Got janusWsConnection", janusWsConnection);
-            const janusSession = await janusWsConnection.create().catch((e: Error) => handleError("Failed to create Janus websocket session ", e));
-            const janusStreamingPluginHandle = await janusSession.attach(StreamingPlugin)
-                .catch((e: Error) => handleError("Failed to create Janus streaming handle", e));
+            const janusSession = await janusWsConnection
+                .create()
+                .catch((e: Error) =>
+                    handleError("Failed to create Janus websocket session ", e)
+                );
+            const janusStreamingPluginHandle = await janusSession
+                .attach(StreamingPlugin)
+                .catch((e: Error) =>
+                    handleError("Failed to create Janus streaming handle", e)
+                );
             const streamListRes = await janusStreamingPluginHandle.list();
             console.log("Found streamlist", streamListRes);
             // get detailed info from streamlist
-            const streamList = await Promise.all(streamListRes.list.map(async (stream: any) => {
-                const res = await janusStreamingPluginHandle.info({ id: stream.id });
-                return {
-                    description: res.description,
-                    enabled: res.enabled,
-                    id: res.id,
-                    media: res.media,
-                    metadata: JSON.parse(res.metadata),
-                    name: res.name,
-                    type: res.type,
-                    viewers: res.viewers
-                } as JanusStream
-            }));
+            const streamList = await Promise.all(
+                streamListRes.list.map(async (stream: any) => {
+                    const res = await janusStreamingPluginHandle.info({ id: stream.id });
+                    return {
+                        description: res.description,
+                        enabled: res.enabled,
+                        id: res.id,
+                        media: res.media,
+                        metadata: JSON.parse(res.metadata),
+                        name: res.name,
+                        type: res.type,
+                        viewers: res.viewers,
+                    } as JanusStream;
+                })
+            );
 
             console.log("Fetched detailed stream info", streamList);
-
 
             this.$patch({
                 streamList,
@@ -147,23 +173,28 @@ export const useEventStore = defineStore({
                 console.log(`${janusStreamingPluginHandle} manager handle detached`);
             });
             // Janode exports "EVENT" property with core events
-            janusStreamingPluginHandle.on(Janode.EVENT.HANDLE_WEBRTCUP, (_data: any) =>
-                console.log("webrtcup event")
+            janusStreamingPluginHandle.on(
+                Janode.EVENT.HANDLE_WEBRTCUP,
+                (_data: any) => console.log("webrtcup event")
             );
-            janusStreamingPluginHandle.on(Janode.EVENT.HANDLE_SLOWLINK, (evtdata: any) => {
-                console.log("slowlink event", evtdata);
-            });
-            janusStreamingPluginHandle.on(Janode.EVENT.HANDLE_HANGUP, (evtdata: any) =>
-                console.log("hangup event", evtdata)
+            janusStreamingPluginHandle.on(
+                Janode.EVENT.HANDLE_SLOWLINK,
+                (evtdata: any) => {
+                    console.log("slowlink event", evtdata);
+                }
             );
-            janusStreamingPluginHandle.on(Janode.EVENT.HANDLE_DETACHED, (evtdata: any) =>
-                console.log("detached event", evtdata)
+            janusStreamingPluginHandle.on(
+                Janode.EVENT.HANDLE_HANGUP,
+                (evtdata: any) => console.log("hangup event", evtdata)
+            );
+            janusStreamingPluginHandle.on(
+                Janode.EVENT.HANDLE_DETACHED,
+                (evtdata: any) => console.log("detached event", evtdata)
             );
 
             janusWsConnection.on(Janode.EVENT.CONNECTION_CLOSED, () => {
                 console.log(`Connection with ${janusUri} closed`);
             });
-
 
             janusWsConnection.on(
                 Janode.EVENT.CONNECTION_ERROR,
@@ -186,13 +217,13 @@ export const useEventStore = defineStore({
                 }
             );
             if (streamList.length > 0 && this.selectedStream == undefined) {
-                console.log("Setting selected stream to:", streamList[0])
-                this.$patch({ selectedStream: streamList[0] })
+                console.log("Setting selected stream to:", streamList[0]);
+                this.$patch({ selectedStream: streamList[0] });
             }
-            return true
+            return true;
         },
         async connect(): Promise<void> {
-            this.$patch({ status: ConnectionStatus.ConnectionLoading })
+            this.$patch({ status: ConnectionStatus.ConnectionLoading });
             const natsOk = await this.connectNats();
             const janusOk = await this.connectJanus();
             if (natsOk && janusOk) {
@@ -208,69 +239,114 @@ export const useEventStore = defineStore({
             const subject = NatsSubjectPattern.StreamRequest;
 
             console.log("Publishing NATS request:", request);
-            const res = await natsClient?.request(subject, jsonCodec.encode(request), { timeout: 5000 }).catch(e => handleError("Command Failed", e));
+            const res = await natsClient
+                ?.request(subject, jsonCodec.encode(request), { timeout: 5000 })
+                .catch((e) => handleError("Command Failed", e));
             console.log(`NATS response on subject: ${subject}`, res);
         },
 
         getDetectionAlerts(df: Array<QcDataframeRow>): Array<DetectionAlert> {
             if (df.length < 10) {
-                console.warn("Skipping getDetectionAlerts(), less than 10 datapoints available");
-                return []
+                console.warn(
+                    "Skipping getDetectionAlerts(), less than 10 datapoints available"
+                );
+                return [];
             }
-            const nozzleDetected = atLeast(df.map(el => el.nozzle__count > 0), 0.3);
-            const printDetected = atLeast(df.map(el => el.print__count > 0), 0.4);
-            const raftDetected = atLeast(df.map(el => el.raft__count > 0), 0.3);
-            const adhesionFailureDetected = atLeast(df.map(el => el.adhesion__count > 0), 0.15);
-            const spaghettiFailureDetected = atLeast(df.map(el => el.spaghetti__count > 0), 0.15);
+            const nozzleDetected = atLeast(
+                df.map((el) => el.nozzle__count > 0),
+                0.3
+            );
+            const printDetected = atLeast(
+                df.map((el) => el.print__count > 0),
+                0.4
+            );
+            const raftDetected = atLeast(
+                df.map((el) => el.raft__count > 0),
+                0.3
+            );
+            const adhesionFailureDetected = atLeast(
+                df.map((el) => el.adhesion__count > 0),
+                0.15
+            );
+            const spaghettiFailureDetected = atLeast(
+                df.map((el) => el.spaghetti__count > 0),
+                0.15
+            );
             if (!nozzleDetected) {
                 const alert: DetectionAlert = {
-                    id: "nozzle", header: "Calibration: Nozzle", icon: ExclamationTriangleIcon, color: "indigo", description: "Calibration needed to improve nozzle monitoring."
-                }
-                const showAlert = this.detectionAlerts.filter(a => a.id === alert.id).length === 0;
+                    id: "nozzle",
+                    header: "Calibration: Nozzle",
+                    icon: ExclamationTriangleIcon,
+                    color: "indigo",
+                    description: "Calibration needed to improve nozzle monitoring.",
+                };
+                const showAlert =
+                    this.detectionAlerts.filter((a) => a.id === alert.id).length === 0;
                 if (showAlert) {
-                    this.detectionAlerts.push(alert)
+                    this.detectionAlerts.push(alert);
                 }
             }
             if (!printDetected) {
                 const alert: DetectionAlert = {
-                    id: "print", header: "Calibration: Printer", icon: ExclamationTriangleIcon, color: "indigo", description: "Calibration needed to improve print object detection."
-                }
-                const printerAlertShown = this.detectionAlerts.filter(a => a.id === alert.id);
+                    id: "print",
+                    header: "Calibration: Printer",
+                    icon: ExclamationTriangleIcon,
+                    color: "indigo",
+                    description: "Calibration needed to improve print object detection.",
+                };
+                const printerAlertShown = this.detectionAlerts.filter(
+                    (a) => a.id === alert.id
+                );
                 if (!printerAlertShown) {
-                    this.detectionAlerts.push(alert)
+                    this.detectionAlerts.push(alert);
                 }
             }
 
             if (!raftDetected) {
                 const alert: DetectionAlert = {
-                    id: "raft", header: "Calibration: Raft", icon: ExclamationTriangleIcon, color: "indigo", description: "Calibration needed to improve raft detection."
-                }
+                    id: "raft",
+                    header: "Calibration: Raft",
+                    icon: ExclamationTriangleIcon,
+                    color: "indigo",
+                    description: "Calibration needed to improve raft detection.",
+                };
 
-                const showAlert = this.detectionAlerts.filter(a => a.id === alert.id).length === 0;
+                const showAlert =
+                    this.detectionAlerts.filter((a) => a.id === alert.id).length === 0;
                 if (showAlert) {
-                    this.detectionAlerts.push(alert)
+                    this.detectionAlerts.push(alert);
                 }
             }
 
             if (adhesionFailureDetected) {
                 const alert: DetectionAlert = {
-                    id: "adhesion", header: "Failure: Bed Adhesion", icon: ExclamationTriangleIcon, color: "red", description: "Critical failures detected. Pausing 3D print job."
-                }
-                const showAlert = this.detectionAlerts.filter(a => a.id === alert.id).length === 0;
+                    id: "adhesion",
+                    header: "Failure: Bed Adhesion",
+                    icon: ExclamationTriangleIcon,
+                    color: "red",
+                    description: "Critical failures detected. Pausing 3D print job.",
+                };
+                const showAlert =
+                    this.detectionAlerts.filter((a) => a.id === alert.id).length === 0;
                 if (showAlert) {
-                    this.detectionAlerts.push(alert)
+                    this.detectionAlerts.push(alert);
                 }
             }
             if (spaghettiFailureDetected) {
                 const alert: DetectionAlert = {
-                    id: "spaghetti", header: "Failure: Spaghetti", icon: ExclamationTriangleIcon, color: "red", description: "Critical failures detected. Pausing 3D print job."
-                }
-                const showAlert = this.detectionAlerts.filter(a => a.id === alert.id).length === 0;
+                    id: "spaghetti",
+                    header: "Failure: Spaghetti",
+                    icon: ExclamationTriangleIcon,
+                    color: "red",
+                    description: "Critical failures detected. Pausing 3D print job.",
+                };
+                const showAlert =
+                    this.detectionAlerts.filter((a) => a.id === alert.id).length === 0;
                 if (showAlert) {
-                    this.detectionAlerts.push(alert)
+                    this.detectionAlerts.push(alert);
                 }
             }
-            return this.detectionAlerts
+            return this.detectionAlerts;
         },
 
         async subscribeQcDataframes() {
@@ -287,9 +363,7 @@ export const useEventStore = defineStore({
             (async (sub: Subscription) => {
                 console.log(`Subscribed to ${sub.getSubject()} events...`);
                 for await (const msg of sub) {
-                    const df: Array<QcDataframeRow> = jsonCodec.decode(
-                        msg.data
-                    );
+                    const df: Array<QcDataframeRow> = jsonCodec.decode(msg.data);
                     this.getDetectionAlerts(df);
                     this.$patch({ df });
                     console.log("Deserialized dataframe", df);
@@ -300,9 +374,7 @@ export const useEventStore = defineStore({
 
         pushAlert(alert: UiStickyAlert) {
             // show at most 1 alert message with the same header
-            const alreadyShown = this.alerts.filter(
-                (a) => a.header == alert.header
-            );
+            const alreadyShown = this.alerts.filter((a) => a.header == alert.header);
             if (alreadyShown.length === 0) {
                 this.alerts.push(alert);
             }
@@ -310,8 +382,10 @@ export const useEventStore = defineStore({
         async trickle(event: any) {
             const { candidate } = event;
             if (this.janusStreamingPluginHandle === undefined) {
-                console.warn("trickle() called with undefined janusStreamingPluginHandle");
-                return
+                console.warn(
+                    "trickle() called with undefined janusStreamingPluginHandle"
+                );
+                return;
             }
             const janusStreamingPluginHandle = toRaw(this.janusStreamingPluginHandle);
 
@@ -346,7 +420,7 @@ export const useEventStore = defineStore({
                 const natsRequest: NatsQcStreamRequest = {
                     subject: NatsSubjectPattern.StreamRequest,
                     janus_stream: toRaw(this.selectedStream),
-                    command: NatsQcCommand.Start
+                    command: NatsQcCommand.Start,
                 };
                 await this.publishNatsRequest(natsRequest);
             }
@@ -420,14 +494,17 @@ export const useEventStore = defineStore({
         async startStream() {
             if (this.selectedStream == undefined) {
                 console.warn("startStream() was called, but no stream is selected");
-                return
+                return;
             }
-            this.$patch({ status: ConnectionStatus.ConnectionStreamLoading, detectionAlerts: [] });
+            this.$patch({
+                status: ConnectionStatus.ConnectionStreamLoading,
+                detectionAlerts: [],
+            });
 
             const natsRequest: NatsQcStreamRequest = {
                 subject: NatsSubjectPattern.StreamRequest,
                 janus_stream: toRaw(this.selectedStream),
-                command: NatsQcCommand.Start
+                command: NatsQcCommand.Start,
             };
             await this.publishNatsRequest(natsRequest);
 
@@ -435,14 +512,18 @@ export const useEventStore = defineStore({
             const media = toRaw(this.selectedStream.media);
             const watchdata = {
                 id: this.selectedStream.id,
-                media
+                media,
             };
             console.log("Sending watchdata", watchdata);
-            const { jsep, _restart = false } = await janusStreamingPluginHandle.watch(watchdata);
+            const { jsep, _restart = false } = await janusStreamingPluginHandle.watch(
+                watchdata
+            );
             console.log(`Received offer`, jsep);
 
             const answer = await this.jsepAnswer(jsep);
-            const { status, id } = await janusStreamingPluginHandle.start({ jsep: answer });
+            const { status, id } = await janusStreamingPluginHandle.start({
+                jsep: answer,
+            });
             console.log(`start ${id} response sent with status ${status}`);
         },
         async setVideoElement(mediaStream: any) {
