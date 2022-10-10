@@ -3,8 +3,5 @@
 
 *.db*
 env/
-
-*.bb
-
 target/
 .vscode

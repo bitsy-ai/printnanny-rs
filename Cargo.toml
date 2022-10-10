@@ -1,11 +1,10 @@
 [workspace]
 members = [
     "services",
-    "dash",
     "cli",
+    "dash",
     "nats",
     "gst-plugin",
-    "ws"
 ]
 [build]
 targets = [

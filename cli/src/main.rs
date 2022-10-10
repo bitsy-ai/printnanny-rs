@@ -2,18 +2,11 @@
 
 use anyhow::{ Result };
 use env_logger::Builder;
-use log::{ LevelFilter , info};
+use log::{ LevelFilter};
 use clap::{ 
     Arg, Command
 };
-use rocket_dyn_templates::Template;
-
 use git_version::git_version;
-
-use printnanny_dash::issue;
-use printnanny_dash::auth;
-use printnanny_dash::debug;
-use printnanny_dash::home;
 
 use printnanny_services::config::ConfigFormat;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
@@ -180,17 +173,6 @@ async fn main() -> Result<()> {
     };
 
     match app_m.subcommand() {
-        Some(("dash", _)) => {
-            let rocket = rocket::build()
-            .mount("/", home::routes())
-            .mount("/debug", debug::routes())
-            .mount("/issue", issue::routes())
-            .mount("/login", auth::routes())
-            .attach(Template::fairing())
-            .launch()
-            .await?;
-            info!("Initialized rocket server {:?}", rocket);
-        },
         Some(("nats-publisher", sub_m)) => {
             let app = printnanny_nats::cloud_publisher::CloudEventPublisher::new(sub_m)?;
             app.run().await?;

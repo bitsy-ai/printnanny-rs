@@ -1,40 +1,18 @@
 [package]
 name = "printnanny-dash"
-description = "PrintNanny Device Management Dashboard"
-license = "AGPL-3.0-or-later"
-version = "0.25.0"
-authors = ["Leigh Johnson <leigh@printnanny.ai>"]
+version = "0.1.0"
 edition = "2021"
-rust-version = "1.59"
-
-[build]
-targets = [
-    "aarch64-unknown-linux-gnu",
-    "armv7-unknown-linux-gnueabihf",
-    "x86_64-unknown-linux-gnu",
-]
+repository = "https://github.com/bitsy-ai/printnanny-rs/"
+license_file = "LICENSE"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-printnanny-services = {path = "../services", version = "^0.25.0"}
-printnanny-api-client = "0.107.2"
-serde = "1"
-thiserror = "1"
-indexmap = "1.8.0"
-log = "0.4" 
-anyhow = "1"
-serde_json = "1"
-time = { version = "0.3", features = ["macros", "parsing"] }
-tokio = "1.19"
+actix = "0.13"
+actix-web = "4"
+actix-web-static-files = "4.0"
+static-files = "0.2.1"
+env_logger = "0.9"              # A logging implementation for `log` which is configured via an environment variable. 
+log = "0.4"                  # A lightweight logging facade for Rust                # Additional utilities for working with Tokio. 
 
-[dependencies.clap]
-version = "3.0"
-features = ["cargo"]
-
-[dependencies.rocket]
-version = "0.5.0-rc.2"
-features = ["json","secrets", "tls"]
-
-
-[dependencies.rocket_dyn_templates]
-version = "0.1.0-rc.2"
-features = ["handlebars", "tera"]
+[build-dependencies]
+static-files = "0.2.1"
