@@ -10,7 +10,7 @@
 // This is the format we request:
 // Audio / Signed 16bit / 1 channel / arbitrary sample rate
 
-use clap::{crate_authors, crate_description, Arg, ArgMatches, Command};
+use clap::{crate_authors, crate_description, value_parser, Arg, ArgMatches, Command};
 use gst::element_error;
 use gst::glib;
 use gst::prelude::*;
@@ -33,6 +33,12 @@ static CAT: Lazy<gst::DebugCategory> = Lazy::new(|| {
         Some("PritnNanny demo video pipeline"),
     )
 });
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+pub enum VideoStreamSource {
+    File,
+    Device,
+}
 
 struct TfliteModel {
     label_file: String,
@@ -95,19 +101,25 @@ impl From<&ArgMatches> for TfliteModel {
         }
     }
 }
-struct VideoDemoApp {
-    video_file: String,
+struct PipelineApp {
+    video_stream_src: VideoStreamSource,
+    input_path: String,
     video_height: i32,
     video_width: i32,
     model: TfliteModel,
     udp_port: i32,
 }
 
-impl From<&ArgMatches> for VideoDemoApp {
+impl From<&ArgMatches> for PipelineApp {
     fn from(args: &ArgMatches) -> Self {
         let model = TfliteModel::from(args);
-        let video_file = args
-            .value_of("video_file")
+
+        let video_stream_src: &VideoStreamSource = args
+            .get_one::<VideoStreamSource>("video_stream_src")
+            .expect("--video-stream-src");
+
+        let input_path = args
+            .value_of("input_path")
             .expect("--video-file is required")
             .into();
         let video_height: i32 = args
@@ -122,7 +134,7 @@ impl From<&ArgMatches> for VideoDemoApp {
 
         Self {
             model,
-            video_file,
+            input_path,
             video_height,
             video_width,
             udp_port,
@@ -130,15 +142,23 @@ impl From<&ArgMatches> for VideoDemoApp {
     }
 }
 
-impl VideoDemoApp {
+impl PipelineApp {
+    fn pipeline_src(&self) -> String {
+        match self.video_stream_src {
+            VideoStreamSource::File => format!(
+                "filesrc location={input_path} do-timestamp=true",
+                input_path = self.input_path
+            ),
+            VideoStreamSource::Device => format!("libcamerasrc"),
+        }
+    }
+
     pub fn create_pipeline(&self) -> Result<gst::Pipeline, Error> {
         gst::init()?;
 
-        // tensor_t. ! tensor_decoder mode=custom-code option1=printnanny_bb_dataframe_decoder \
-        // ! dataframe_agg \
-        // ! nats_sink",
+        let pipeline_src = self.pipeline_src();
         let pipeline_str = format!(
-            "filesrc location={video_file} do-timestamp=true \
+            "{pipeline_src} \
             ! qtdemux name=demux \
             demux.video_0 ! decodebin \
             ! tee name=decoded_video_t \
@@ -176,7 +196,6 @@ impl VideoDemoApp {
             ! queue2 \
             ! nats_sink \
             ",
-            video_file = &self.video_file,
             tensor_height = &self.model.tensor_height,
             tensor_width = &self.model.tensor_width,
             model_file = &self.model.model_file,
@@ -185,7 +204,8 @@ impl VideoDemoApp {
             video_width = &self.video_width,
             video_height = &self.video_height,
             framerate = 15,
-            udp_port = &self.udp_port
+            udp_port = &self.udp_port,
+            pipeline_src = pipeline_src
         );
 
         let pipeline = gst::parse_launch(&pipeline_str)?;
@@ -272,13 +292,13 @@ fn main() {
                 .default_value("50")
                 .help("Non-max supression threshold"),
         )
-        // --video-file
+        // --input-path
         .arg(
-            Arg::new("video_file")
-                .long("video-file")
+            Arg::new("input_path")
+                .long("input-path")
                 .required(true)
                 .takes_value(true)
-                .help("Path to .mp4 video file"),
+                .help("Path to video file or camera device"),
         )
         .arg(
             Arg::new("video_height")
@@ -293,6 +313,13 @@ fn main() {
                 .default_value("960")
                 .takes_value(true)
                 .help("Width of input video file"),
+        )
+        // --video-stream-src
+        .arg(
+            Arg::new("video_stream_src")
+                .long("video-stream-src")
+                .value_parser(value_parser!(VideoStreamSource))
+                .takes_value(true),
         )
         // --tensor-queue-max-size-bytes
         .arg(
@@ -370,7 +397,7 @@ fn main() {
             log_builder.filter_level(LevelFilter::Trace).init()
         }
     };
-    let app = VideoDemoApp::from(&args);
+    let app = PipelineApp::from(&args);
     match app.create_pipeline().and_then(run) {
         Ok(r) => r,
         Err(e) => error!("Error running pipeline: {:?}", e),

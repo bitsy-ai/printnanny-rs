@@ -1,11 +1,10 @@
-use crate::error::{CommandError, NatsError};
-use log::info;
 use serde::{Deserialize, Serialize};
+use std::fmt;
+
+use crate::error::{CommandError, NatsError};
 
 pub trait MessageHandler {
-    fn handle(&self) -> Result<(), CommandError> {
-        Ok(())
-    }
+    fn handle(&self) -> Result<(), CommandError>;
 }
 
 pub trait MessageResponse<Request, Response> {
@@ -27,15 +26,24 @@ pub struct JanusMedia {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum JanusStreamSource {
+pub enum VideoStreamSource {
     File,
     Device,
+}
+
+impl fmt::Display for VideoStreamSource {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::File => write!(f, "{}", "file"),
+            Self::Device => write!(f, "{}", "device"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JanusStreamMetadata {
     path: String,
-    source: JanusStreamSource,
+    video_stream_src: VideoStreamSource,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,7 +79,27 @@ pub struct NatsQcCommandRequest {
 }
 
 impl NatsQcCommandRequest {
-    pub fn handle(&self) -> Result<(), NatsError> {
+    fn conf(&self) -> String {
+        let media = self
+            .janus_stream
+            .media
+            .get(0)
+            .expect("Expected JanusMedia to be set");
+        format!(
+            r#"
+        UDP_PORT={udp_port}
+        INPUT_PATH={input_path}
+        VIDEO_STREAM_SRC={video_stream_src}
+        "#,
+            udp_port = media.port,
+            input_path = self.janus_stream.metadata.path,
+            video_stream_src = self.janus_stream.metadata.video_stream_src,
+        );
+    }
+    fn start(&self) -> Result<(), CommandError> {
+        Ok(())
+    }
+    fn stop(&self) -> Result<(), CommandError> {
         Ok(())
     }
 }
@@ -99,7 +127,9 @@ impl MessageResponse<NatsQcCommandRequest, NatsQcCommandResponse> for NatsQcComm
 
 impl MessageHandler for NatsQcCommandRequest {
     fn handle(&self) -> Result<(), crate::error::CommandError> {
-        info!("Handling NatsQcCommandRequest {:?}", self);
-        Ok(())
+        match self.command {
+            NatsQcCommand::Start => self.start(),
+            NatsQcCommand::Stop => self.stop(),
+        }
     }
 }
