@@ -6,7 +6,7 @@ edition = "2021"
 authors = ["Leigh Johnson <leigh@printnanny.ai>"]
 license = "AGPL-3.0-or-later"
 rust-version = "1.63"
-repository = "https://github.com/bitsy-ai/printnanny-gst-plugin-rs"
+repository = "https://github.com/bitsy-ai/printnanny-rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
