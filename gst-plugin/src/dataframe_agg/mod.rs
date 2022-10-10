@@ -18,11 +18,6 @@ pub enum DataframeOutputType {
         nick = "json"
     )]
     Json = 1,
-    #[enum_value(
-        name = "JSON: output the aggregate dataframe as framed JSON bytearray",
-        nick = "json-framed"
-    )]
-    JsonFramed = 2,
 }
 
 // The public Rust wrapper type for our element
