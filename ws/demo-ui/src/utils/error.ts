@@ -3,7 +3,7 @@ import type { UiStickyAlert, AlertAction } from "@/types";
 
 function handleError(header: string, e: Error) {
   console.error(e);
-  let message = e.message || e.toString();
+  const message = e.message || e.toString();
   const actions = [
     {
       color: "red",
@@ -37,10 +37,10 @@ function alertMessage(header: string, message: string) {
     header,
     message,
     actions,
-    error: undefined
+    error: undefined,
   };
   const store = useEventStore();
   store.pushAlert(alert);
 }
 
-export { handleError }
+export { handleError };
