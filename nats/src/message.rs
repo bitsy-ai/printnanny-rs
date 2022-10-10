@@ -59,6 +59,50 @@ pub struct JanusStream {
     viewers: i32,
 }
 
+impl JanusStream {
+    pub fn gst_pipeline_conf(&self) -> String {
+        let media = self.media.get(0).expect("Expected JanusMedia to be set");
+        format!(
+            r#"UDP_PORT={udp_port}
+        INPUT_PATH={input_path}
+        VIDEO_STREAM_SRC={video_stream_src}"#,
+            udp_port = media.port,
+            input_path = self.metadata.path,
+            video_stream_src = self.metadata.video_stream_src,
+        )
+    }
+}
+
+impl Default for JanusStream {
+    fn default() -> Self {
+        let media = JanusMedia {
+            age_ms: 13385101,
+            codec: "h264".into(),
+            label: "label".into(),
+            mid: "v1".into(),
+            mindex: 0,
+            port: 20001,
+            rtpmap: "H264/90000".into(),
+            pt: 96,
+            _type: "video".into(),
+        };
+        let metadata = JanusStreamMetadata {
+            path: "/dev/video0".into(),
+            video_stream_src: VideoStreamSource::Device,
+        };
+        Self {
+            description: "".into(),
+            enabled: false,
+            id: 0,
+            media: vec![media],
+            metadata: metadata,
+            name: "".into(),
+            _type: "".into(),
+            viewers: 0,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NatsQcCommand {
     Start,
@@ -79,23 +123,6 @@ pub struct NatsQcCommandRequest {
 }
 
 impl NatsQcCommandRequest {
-    fn conf(&self) -> String {
-        let media = self
-            .janus_stream
-            .media
-            .get(0)
-            .expect("Expected JanusMedia to be set");
-        format!(
-            r#"
-        UDP_PORT={udp_port}
-        INPUT_PATH={input_path}
-        VIDEO_STREAM_SRC={video_stream_src}
-        "#,
-            udp_port = media.port,
-            input_path = self.janus_stream.metadata.path,
-            video_stream_src = self.janus_stream.metadata.video_stream_src,
-        );
-    }
     fn start(&self) -> Result<(), CommandError> {
         Ok(())
     }
@@ -131,5 +158,20 @@ impl MessageHandler for NatsQcCommandRequest {
             NatsQcCommand::Start => self.start(),
             NatsQcCommand::Stop => self.stop(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_conf_file() {
+        let janus_stream = JanusStream::default();
+        let conf = janus_stream.gst_pipeline_conf();
+        let expected = r#"UDP_PORT=20001
+        INPUT_PATH=/dev/video0
+        VIDEO_STREAM_SRC=device"#;
+        assert_eq!(expected, conf);
     }
 }
