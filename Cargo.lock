@@ -1672,6 +1672,29 @@ dependencies = [
 [[package]]
 name = "gstreamer"
 version = "0.19.0"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3#bff1354b74c8d1296216d1a3a42f42c44d89dbe3"
+dependencies = [
+ "bitflags",
+ "cfg-if",
+ "futures-channel",
+ "futures-core",
+ "futures-util",
+ "glib",
+ "gstreamer-sys 0.19.0 (git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3)",
+ "libc",
+ "muldiv",
+ "num-integer",
+ "num-rational",
+ "once_cell",
+ "option-operations",
+ "paste",
+ "pretty-hex",
+ "thiserror",
+]
+
+[[package]]
+name = "gstreamer"
+version = "0.19.0"
 source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs#d8a57e6d4a8508143d395ff830a427d1a13695cd"
 dependencies = [
  "bitflags",
@@ -1680,7 +1703,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "glib",
- "gstreamer-sys",
+ "gstreamer-sys 0.19.0 (git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs)",
  "libc",
  "muldiv",
  "num-integer",
@@ -1695,13 +1718,13 @@ dependencies = [
 [[package]]
 name = "gstreamer-app"
 version = "0.19.0"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs#d8a57e6d4a8508143d395ff830a427d1a13695cd"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3#bff1354b74c8d1296216d1a3a42f42c44d89dbe3"
 dependencies = [
  "bitflags",
  "futures-core",
  "futures-sink",
  "glib",
- "gstreamer",
+ "gstreamer 0.19.0 (git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3)",
  "gstreamer-app-sys",
  "gstreamer-base",
  "libc",
@@ -1711,11 +1734,11 @@ dependencies = [
 [[package]]
 name = "gstreamer-app-sys"
 version = "0.19.0"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs#d8a57e6d4a8508143d395ff830a427d1a13695cd"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3#bff1354b74c8d1296216d1a3a42f42c44d89dbe3"
 dependencies = [
  "glib-sys",
  "gstreamer-base-sys",
- "gstreamer-sys",
+ "gstreamer-sys 0.19.0 (git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3)",
  "libc",
  "system-deps",
 ]
@@ -1723,13 +1746,13 @@ dependencies = [
 [[package]]
 name = "gstreamer-base"
 version = "0.19.0"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs#d8a57e6d4a8508143d395ff830a427d1a13695cd"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3#bff1354b74c8d1296216d1a3a42f42c44d89dbe3"
 dependencies = [
  "atomic_refcell",
  "bitflags",
  "cfg-if",
  "glib",
- "gstreamer",
+ "gstreamer 0.19.0 (git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3)",
  "gstreamer-base-sys",
  "libc",
 ]
@@ -1737,11 +1760,11 @@ dependencies = [
 [[package]]
 name = "gstreamer-base-sys"
 version = "0.19.0"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs#d8a57e6d4a8508143d395ff830a427d1a13695cd"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3#bff1354b74c8d1296216d1a3a42f42c44d89dbe3"
 dependencies = [
  "glib-sys",
  "gobject-sys",
- "gstreamer-sys",
+ "gstreamer-sys 0.19.0 (git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3)",
  "libc",
  "system-deps",
 ]
@@ -1753,7 +1776,7 @@ source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs#d8a57e6d4a85
 dependencies = [
  "bitflags",
  "glib",
- "gstreamer",
+ "gstreamer 0.19.0 (git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs)",
  "gstreamer-check-sys",
 ]
 
@@ -1764,7 +1787,18 @@ source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs#d8a57e6d4a85
 dependencies = [
  "glib-sys",
  "gobject-sys",
- "gstreamer-sys",
+ "gstreamer-sys 0.19.0 (git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs)",
+ "libc",
+ "system-deps",
+]
+
+[[package]]
+name = "gstreamer-sys"
+version = "0.19.0"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3#bff1354b74c8d1296216d1a3a42f42c44d89dbe3"
+dependencies = [
+ "glib-sys",
+ "gobject-sys",
  "libc",
  "system-deps",
 ]
@@ -1783,13 +1817,13 @@ dependencies = [
 [[package]]
 name = "gstreamer-video"
 version = "0.19.0"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs#d8a57e6d4a8508143d395ff830a427d1a13695cd"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3#bff1354b74c8d1296216d1a3a42f42c44d89dbe3"
 dependencies = [
  "bitflags",
  "cfg-if",
  "futures-channel",
  "glib",
- "gstreamer",
+ "gstreamer 0.19.0 (git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3)",
  "gstreamer-base",
  "gstreamer-video-sys",
  "libc",
@@ -1799,12 +1833,12 @@ dependencies = [
 [[package]]
 name = "gstreamer-video-sys"
 version = "0.19.0"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs#d8a57e6d4a8508143d395ff830a427d1a13695cd"
+source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3#bff1354b74c8d1296216d1a3a42f42c44d89dbe3"
 dependencies = [
  "glib-sys",
  "gobject-sys",
  "gstreamer-base-sys",
- "gstreamer-sys",
+ "gstreamer-sys 0.19.0 (git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3)",
  "libc",
  "system-deps",
 ]
@@ -3238,11 +3272,11 @@ dependencies = [
  "git-version",
  "glob",
  "gst-plugin-version-helper",
- "gstreamer",
+ "gstreamer 0.19.0 (git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3)",
  "gstreamer-app",
  "gstreamer-base",
  "gstreamer-check",
- "gstreamer-sys",
+ "gstreamer-sys 0.19.0 (git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?rev=bff1354b74c8d1296216d1a3a42f42c44d89dbe3)",
  "gstreamer-video",
  "libc",
  "log",

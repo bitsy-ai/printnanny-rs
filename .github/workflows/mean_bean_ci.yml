@@ -8,31 +8,6 @@ on:
   pull_request:
 
 jobs:
-  # This job downloads and stores `cross` as an artifact, so that it can be
-  # redownloaded across all of the jobs. Currently this copied pasted between
-  # `ci.yml` and `deploy.yml`. Make sure to update both places when making
-  # changes.
-  install-cross:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v1
-        with:
-          depth: 50
-      - uses: XAMPPRocky/get-github-release@v1
-        id: cross
-        with:
-          owner: rust-embedded
-          repo: cross
-          matches: ${{ matrix.platform }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/upload-artifact@v1
-        with:
-          name: cross-${{ matrix.platform }}
-          path: ${{ steps.cross.outputs.install_path }}
-    strategy:
-      matrix:
-        platform: [linux-musl, apple-darwin]
-
   # windows:
   #   runs-on: windows-latest
   #   # Windows technically doesn't need this, but if we don't block windows on it
@@ -99,8 +74,10 @@ jobs:
 
   linux:
     runs-on: ubuntu-22.04
-    needs: install-cross
     steps:
+      - name: Install cross
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
       - run: |
           sudo apt-get remove libunwind-14-dev
           sudo apt-get -y update
@@ -111,21 +88,14 @@ jobs:
             gstreamer1.0-tools gstreamer1.0-x \
             libglib2.0-dev
       - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "16"
-      - name: Download Cross
-        uses: actions/download-artifact@v1
-        with:
-          name: cross-linux-musl
-          path: /tmp/
-      - run: chmod +x /tmp/cross
       - run: tools/ci/set_rust_version.bash ${{ matrix.channel }} ${{ matrix.target }}
-      - run: tools/ci/build.bash /tmp/cross ${{ matrix.target }}
+      - run: tools/ci/build.bash $(which cross) ${{ matrix.target }}
         # These targets have issues with being tested so they are disabled
         # by default. You can try disabling to see if they work for
         # your project.
-      - run: tools/ci/test.bash /tmp/cross ${{ matrix.target }}
+      - run: |
+          mkdir ui/dist
+          tools/ci/test.bash /tmp/cross ${{ matrix.target }}
         if: |
           !contains(matrix.target, 'android') &&
           !contains(matrix.target, 'bsd') &&

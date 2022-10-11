@@ -15,37 +15,6 @@ env:
   CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
 jobs:
-  # cratesio:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - name: Install latest nightly
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #           toolchain: stable
-  #           override: true
-  #           components: rustfmt, clippy
-  #     - run: cargo install cargo-release
-  #     - run: cargo release --no-tag --no-push --workspace --publish --execute --no-confirm
-  install-cross:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: XAMPPRocky/get-github-release@v1
-        id: cross
-        with:
-          owner: rust-embedded
-          repo: cross
-          matches: ${{ matrix.platform }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/upload-artifact@v1
-        with:
-          name: cross-${{ matrix.platform }}
-          path: ${{ steps.cross.outputs.install_path }}
-    strategy:
-      matrix:
-        platform: [linux-musl, apple-darwin]
-
   # windows:
   #   runs-on: windows-latest
   #   needs: install-cross
@@ -136,7 +105,6 @@ jobs:
 
   linux:
     runs-on: ubuntu-22.04
-    needs: install-cross
     strategy:
       matrix:
         target:
@@ -180,6 +148,9 @@ jobs:
           # - thumbv7em-none-eabihf
           # - thumbv7m-none-eabi
     steps:
+      - name: Install cross
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
       - run: |
           sudo apt-get remove libunwind-14-dev
           sudo apt-get -y update
@@ -193,14 +164,8 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: "16"
-      - uses: actions/download-artifact@v1
-        with:
-          name: cross-linux-musl
-          path: /tmp/
-      - run: chmod +x /tmp/cross
-
       - run: tools/ci/set_rust_version.bash stable ${{ matrix.target }}
-      - run: tools/ci/build.bash /tmp/cross ${{ matrix.target }} RELEASE
+      - run: tools/ci/build.bash $(which cross) ${{ matrix.target }} RELEASE
       - run: |
           tar -zcvf ${{ env.TAR }}-${{ matrix.target }}.tar.gz --directory=target/${{ matrix.target }}/release ${{ env.BIN }}
           sha256sum ${{ env.TAR }}-${{ matrix.target }}.tar.gz > ${{ env.TAR }}-${{ matrix.target }}.tar.gz.sha256
