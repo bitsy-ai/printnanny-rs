@@ -10,7 +10,7 @@ on:
 
 name: Publish
 env:
-  BIN: printnanny-cli
+  BIN: printnanny-cli nats-cloud-worker nats-cloud-publisher nats-dash-worker
   TAR: printnanny
   CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
