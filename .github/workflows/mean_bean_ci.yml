@@ -88,15 +88,14 @@ jobs:
             gstreamer1.0-tools gstreamer1.0-x \
             libglib2.0-dev
       - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "16"
       - run: tools/ci/set_rust_version.bash ${{ matrix.channel }} ${{ matrix.target }}
       - run: tools/ci/build.bash $(which cross) ${{ matrix.target }}
         # These targets have issues with being tested so they are disabled
         # by default. You can try disabling to see if they work for
         # your project.
-      - run: tools/ci/test.bash /tmp/cross ${{ matrix.target }}
+      - run: |
+          mkdir ui/dist
+          tools/ci/test.bash /tmp/cross ${{ matrix.target }}
         if: |
           !contains(matrix.target, 'android') &&
           !contains(matrix.target, 'bsd') &&

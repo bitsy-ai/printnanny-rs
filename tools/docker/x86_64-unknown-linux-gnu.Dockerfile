@@ -38,4 +38,4 @@ RUN apt-get update -y && apt-get install -y --upgrade \
     nnstreamer-dev
 
 # nodejs is required to build printnanny-dash package
-RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs build-essential
+RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs build-essential gcc g++ make
