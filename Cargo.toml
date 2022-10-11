@@ -3,7 +3,6 @@ members = [
     "services",
     "cli",
     "nats",
-    "gst-plugin",
 ]
 [build]
 targets = [
