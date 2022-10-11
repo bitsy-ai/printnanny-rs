@@ -2,7 +2,6 @@
 members = [
     "services",
     "cli",
-    "dash",
     "nats",
     "gst-plugin",
 ]
