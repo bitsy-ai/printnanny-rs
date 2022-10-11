@@ -94,7 +94,6 @@ jobs:
         # by default. You can try disabling to see if they work for
         # your project.
       - run: |
-          mkdir ui/dist
           tools/ci/test.bash /tmp/cross ${{ matrix.target }}
         if: |
           !contains(matrix.target, 'android') &&
