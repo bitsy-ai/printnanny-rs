@@ -3,7 +3,7 @@ use std::fs::File;
 use std::process::Command;
 use std::{fmt, io::Write};
 
-use crate::error::{CommandError, NatsError};
+use crate::error::CommandError;
 
 const DEFAULT_GST_STREAM_CONF: &str = "/var/run/printnanny/printnanny-gst-vision.conf";
 
