@@ -128,10 +128,12 @@ async fn main() -> Result<()> {
                 .version(GIT_VERSION)
                 .about("Synchronize device with PrintNanny Cloud")
             ))
-        // nats-worker
-        .subcommand(printnanny_nats::cloud_worker::NatsCloudWorker::clap_command())
 
-        // nats-publisher
+        // nats-edge-worker
+        .subcommand(printnanny_nats::subscriber::NatsWorker::clap_command())
+        // nats-cloud-worker
+        .subcommand(printnanny_nats::cloud_worker::NatsCloudWorker::clap_command())
+        // nats-cloud-publisher
         .subcommand(printnanny_nats::cloud_publisher::CloudEventPublisher::clap_command())
         // os <issue|motd>
         .subcommand(Command::new("os")

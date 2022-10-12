@@ -38,7 +38,7 @@ where
     Response: Serialize + DeserializeOwned + Debug + MessageResponse<Request, Response>,
 {
     pub fn clap_command() -> Command<'static> {
-        let app_name = "nats-worker";
+        let app_name = "nats-edge-worker";
         let app = Command::new(app_name)
             .author(crate_authors!())
             .about("Run NATS-based pub/sub workers")
