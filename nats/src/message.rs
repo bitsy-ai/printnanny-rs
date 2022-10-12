@@ -117,9 +117,13 @@ impl Default for JanusStream {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum NatsQcCommand {
+pub enum SystemctlCommand {
     Start,
     Stop,
+    Restart,
+    Status,
+    Enable,
+    Disable,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -129,13 +133,13 @@ pub enum ResponseStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NatsQcCommandRequest {
+pub struct QcCommandRequest {
     subject: String,
     janus_stream: JanusStream,
-    command: NatsQcCommand,
+    command: SystemctlCommand,
 }
 
-impl NatsQcCommandRequest {
+impl QcCommandRequest {
     fn start(&self) -> Result<(), CommandError> {
         // write conf file before restarting systemd unit
         self.janus_stream.write_gst_pipeline_conf()?;
@@ -153,19 +157,19 @@ impl NatsQcCommandRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct NatsQcCommandResponse {
-    request: Option<NatsQcCommandRequest>,
+pub struct QcCommandResponse {
+    request: Option<QcCommandRequest>,
     status: ResponseStatus,
     detail: String,
 }
 
-impl MessageResponse<NatsQcCommandRequest, NatsQcCommandResponse> for NatsQcCommandResponse {
+impl MessageResponse<QcCommandRequest, QcCommandResponse> for QcCommandResponse {
     fn new(
-        request: Option<NatsQcCommandRequest>,
+        request: Option<QcCommandRequest>,
         status: ResponseStatus,
         detail: String,
-    ) -> NatsQcCommandResponse {
-        NatsQcCommandResponse {
+    ) -> QcCommandResponse {
+        QcCommandResponse {
             request,
             status,
             detail,
@@ -173,13 +177,85 @@ impl MessageResponse<NatsQcCommandRequest, NatsQcCommandResponse> for NatsQcComm
     }
 }
 
-impl MessageHandler for NatsQcCommandRequest {
+impl MessageHandler for QcCommandRequest {
     fn handle(&self) -> Result<(), crate::error::CommandError> {
         match self.command {
-            NatsQcCommand::Start => self.start(),
-            NatsQcCommand::Stop => self.stop(),
+            SystemctlCommand::Start => self.start(),
+            SystemctlCommand::Stop => self.stop(),
+            _ => unimplemented!(),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QcCommandRequest {
+    subject: String,
+    janus_stream: JanusStream,
+    command: SystemctlCommand,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemctlCommandRequest {
+    service: String,
+    command: SystemctlCommand,
+}
+
+impl SystemctlCommandRequest {
+    fn start(&self) -> Result<(), CommandError> {
+        // write conf file before restarting systemd unit
+        self.janus_stream.write_gst_pipeline_conf()?;
+        Command::new("sudo")
+            .args(&["systemctl", "start", &self.service])
+            .output()?;
+        Ok(())
+    }
+    fn stop(&self) -> Result<(), CommandError> {
+        Command::new("sudo")
+            .args(&["systemctl", "stop", &self.service])
+            .output()?;
+        Ok(())
+    }
+    fn restart(&self) -> Result<(), CommandError> {
+        Command::new("sudo")
+            .args(&["systemctl", "restart", &self.service])
+            .output()?;
+        Ok(())
+    }
+}
+
+impl MessageHandler for SystemctlCommandRequest {
+    fn handle(&self) -> Result<(), crate::error::CommandError> {
+        match self.command {
+            SystemctlCommand::Start => self.start(),
+            SystemctlCommand::Stop => self.stop(),
+            _ => unimplemented!(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SystemctlCommandResponse {
+    request: Option<SystemctlCommandRequest>,
+    status: ResponseStatus,
+    detail: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "subject")]
+pub enum NatsRequest {
+    #[serde(rename = "pi.command.qc")]
+    QcCommandRequest(QcCommandRequest),
+    #[serde(rename = "pi.command.systemctl")]
+    SystemctlCommandRequest(SystemctlCommandRequest),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "subject_pattern")]
+pub enum NatsResponse {
+    #[serde(rename = "pi.command.qc")]
+    QcCommandResponse(QcCommandResponse),
+    #[serde(rename = "pi.command.systemctl")]
+    SystemctlCommandResponse(SystemctlCommandResponse),
 }
 
 #[cfg(test)]
