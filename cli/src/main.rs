@@ -8,6 +8,8 @@ use clap::{
 };
 use git_version::git_version;
 
+
+use printnanny_nats::message::{NatsQcCommandRequest, NatsQcCommandResponse};
 use printnanny_services::config::ConfigFormat;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_cli::config::{ConfigCommand};
@@ -128,10 +130,12 @@ async fn main() -> Result<()> {
                 .version(GIT_VERSION)
                 .about("Synchronize device with PrintNanny Cloud")
             ))
-        // nats-worker
-        .subcommand(printnanny_nats::cloud_worker::NatsCloudWorker::clap_command())
 
-        // nats-publisher
+        // nats-edge-worker
+        .subcommand(printnanny_nats::subscriber::NatsSubscriber::<NatsQcCommandRequest, NatsQcCommandResponse>::clap_command("nats-qc-worker"))
+        // nats-cloud-worker
+        .subcommand(printnanny_nats::cloud_worker::NatsCloudWorker::clap_command())
+        // nats-cloud-publisher
         .subcommand(printnanny_nats::cloud_publisher::CloudEventPublisher::clap_command())
         // os <issue|motd>
         .subcommand(Command::new("os")

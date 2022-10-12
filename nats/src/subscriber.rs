@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, Duration};
 
 use super::error::{CommandError, NatsError};
-use super::message::{MessageHandler, MessageResponse, NatsQcCommandRequest, ResponseStatus};
+use super::message::{MessageHandler, MessageResponse, ResponseStatus};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NatsSubscriber<Request, Response>
@@ -37,8 +37,7 @@ where
     Request: Serialize + DeserializeOwned + Debug + MessageHandler,
     Response: Serialize + DeserializeOwned + Debug + MessageResponse<Request, Response>,
 {
-    pub fn clap_command() -> Command<'static> {
-        let app_name = "nats-worker";
+    pub fn clap_command(app_name: &str) -> Command<'static> {
         let app = Command::new(app_name)
             .author(crate_authors!())
             .about("Run NATS-based pub/sub workers")

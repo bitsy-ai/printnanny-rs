@@ -36,7 +36,6 @@ impl Default for PrintNannyPaths {
         let log: PathBuf = "/var/log/printnanny".into();
         let seed_file_pattern = "/boot/printnanny*.zip".into();
         let os_release = "/etc/os-release".into();
-        let video_socket = run.join("video.socket");
         Self {
             etc,
             run,
