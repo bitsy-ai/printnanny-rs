@@ -284,8 +284,8 @@ impl SystemctlCommandRequest {
         self.build_response(&output)
     }
     fn status(&self) -> Result<SystemctlCommandResponse> {
-        let output = process::Command::new("sudo")
-            .args(&["systemctl", "show", &self.service])
+        let output = process::Command::new("systemctl")
+            .args(&["show", &self.service])
             .output()?;
 
         let mut res = self.build_response(&output)?;
