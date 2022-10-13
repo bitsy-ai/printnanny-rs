@@ -9,7 +9,7 @@ use async_process::Output;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::util;
+use crate::util::{self, SystemctlListUnit};
 
 const DEFAULT_GST_STREAM_CONF: &str = "/var/run/printnanny/printnanny-gst-vision.conf";
 
@@ -130,6 +130,7 @@ pub enum SystemctlCommand {
     Status,
     Enable,
     Disable,
+    ListEnabled,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -146,6 +147,7 @@ pub struct SystemctlCommandRequest {
 
 impl SystemctlCommandRequest {
     fn build_response(&self, output: &Output) -> Result<SystemctlCommandResponse> {
+        let data: HashMap<String, serde_json::Value> = HashMap::new();
         let res = match output.status.success() {
             true => {
                 let detail = String::from_utf8(output.stdout.clone())?;
@@ -153,7 +155,7 @@ impl SystemctlCommandRequest {
                     request: Some(self.clone()),
                     status: ResponseStatus::Ok,
                     detail: detail,
-                    data: None,
+                    data,
                 }
             }
             false => {
@@ -162,10 +164,23 @@ impl SystemctlCommandRequest {
                     request: Some(self.clone()),
                     status: ResponseStatus::Error,
                     detail: detail,
-                    data: None,
+                    data,
                 }
             }
         };
+        Ok(res)
+    }
+
+    fn list_enabled(&self) -> Result<SystemctlCommandResponse> {
+        let output = process::Command::new("systemctl")
+            .args(&["list-unit-files", "--state=enabled", "--output=json"])
+            .output()?;
+        let mut res = self.build_response(&output)?;
+        let list_units = serde_json::from_slice::<Vec<SystemctlListUnit>>(&output.stdout)?;
+        for unit in list_units.iter() {
+            res.data
+                .insert(unit.unit_file.clone(), serde_json::to_value(unit)?);
+        }
         Ok(res)
     }
 
@@ -206,7 +221,7 @@ impl SystemctlCommandRequest {
             .output()?;
 
         let mut res = self.build_response(&output)?;
-        res.data = Some(util::systemctl_show_payload(res.detail.as_bytes())?);
+        res.data = util::systemctl_show_payload(res.detail.as_bytes())?;
         Ok(res)
     }
 }
@@ -216,7 +231,7 @@ pub struct SystemctlCommandResponse {
     request: Option<SystemctlCommandRequest>,
     status: ResponseStatus,
     detail: String,
-    data: Option<HashMap<String, serde_json::Value>>,
+    data: HashMap<String, serde_json::Value>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -239,6 +254,9 @@ impl MessageHandler<NatsRequest, NatsResponse> for NatsRequest {
     fn handle(&self, request: &NatsRequest) -> Result<NatsResponse> {
         match request {
             NatsRequest::SystemctlCommandRequest(request) => match request.command {
+                SystemctlCommand::ListEnabled => Ok(NatsResponse::SystemctlCommandResponse(
+                    request.list_enabled()?,
+                )),
                 SystemctlCommand::Start => {
                     Ok(NatsResponse::SystemctlCommandResponse(request.start()?))
                 }
@@ -275,5 +293,20 @@ mod tests {
         INPUT_PATH=/dev/video0
         VIDEO_STREAM_SRC=device"#;
         assert_eq!(expected, conf);
+    }
+
+    #[test]
+    fn test_systemctl_list_units() {
+        let request = SystemctlCommandRequest {
+            service: "".into(),
+            command: SystemctlCommand::ListEnabled,
+        };
+
+        let res = request.list_enabled().unwrap();
+
+        let (_, unit) = res.data.iter().next().unwrap();
+
+        let unit = serde_json::from_value::<util::SystemctlListUnit>(unit.clone()).unwrap();
+        assert_eq!(unit.state, "enabled");
     }
 }

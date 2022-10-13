@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -8,6 +9,12 @@ pub fn to_nats_command_subscribe_subject(pi_id: &i32) -> String {
     return format!("pi.{}.command.>", pi_id);
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SystemctlListUnit {
+    pub unit_file: String,
+    pub state: String,
+    pub vendor_preset: String,
+}
 // parses output of `systemctl show` into a hashmap
 pub fn systemctl_show_payload(stdout: &[u8]) -> Result<HashMap<String, Value>, CommandError> {
     let mut result: HashMap<String, Value> = HashMap::new();

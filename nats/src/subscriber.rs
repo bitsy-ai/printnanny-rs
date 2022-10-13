@@ -7,13 +7,13 @@ use anyhow::Result;
 use bytes::Buf;
 use clap::{crate_authors, Arg, ArgMatches, Command};
 use futures::stream::StreamExt;
-use log::{debug, error, info, warn};
+use log::{debug, info, warn};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, Duration};
 
 use super::error::{CommandError, NatsError};
-use super::message::{MessageHandler, ResponseStatus};
+use super::message::MessageHandler;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NatsSubscriber<Request, Response>
