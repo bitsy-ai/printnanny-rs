@@ -9,7 +9,6 @@ use async_process::Output;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::error::CommandError;
 use crate::util;
 
 const DEFAULT_GST_STREAM_CONF: &str = "/var/run/printnanny/printnanny-gst-vision.conf";
