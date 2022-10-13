@@ -170,18 +170,44 @@ pub struct MediaCommandRequest {
 }
 
 impl MediaCommandRequest {
-    fn build_response(&self, output: &Output) -> Result<MediaCommandResponse> {}
+    fn build_response(&self, output: &Output) -> Result<MediaCommandResponse> {
+        let data: HashMap<String, serde_json::Value> = HashMap::new();
+        let res = match output.status.success() {
+            true => {
+                let detail = String::from_utf8(output.stdout.clone())?;
+                MediaCommandResponse {
+                    request: Some(self.clone()),
+                    status: ResponseStatus::Ok,
+                    detail: detail,
+                    data,
+                }
+            }
+            false => {
+                let detail = String::from_utf8(output.stderr.clone())?;
+                MediaCommandResponse {
+                    request: Some(self.clone()),
+                    status: ResponseStatus::Error,
+                    detail: detail,
+                    data,
+                }
+            }
+        };
+        Ok(res)
+    }
 
     fn start(&self) -> Result<MediaCommandResponse> {
+        // write stream config before restarting service
+        self.janus_stream.write_gst_pipeline_conf()?;
+
         let output = process::Command::new("sudo")
-            .args(&["systemctl", "start", &self.service])
+            .args(&["systemctl", "restart", &self.service])
             .output()?;
         self.build_response(&output)
     }
 
     fn stop(&self) -> Result<MediaCommandResponse> {
         let output = process::Command::new("sudo")
-            .args(&["systemctl", "start", &self.service])
+            .args(&["systemctl", "stop", &self.service])
             .output()?;
         self.build_response(&output)
     }
@@ -278,7 +304,7 @@ pub struct SystemctlCommandResponse {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MediaCommandResponse {
-    request: Option<SystemctlCommandRequest>,
+    request: Option<MediaCommandRequest>,
     status: ResponseStatus,
     detail: String,
     data: HashMap<String, serde_json::Value>,
@@ -329,7 +355,6 @@ impl MessageHandler<NatsRequest, NatsResponse> for NatsRequest {
                 SystemctlCommand::Disable => {
                     Ok(NatsResponse::SystemctlCommandResponse(request.disable()?))
                 }
-                _ => unimplemented!(),
             },
             NatsRequest::MediaCommandRequest(request) => match request.command {
                 MediaCommand::Start => Ok(NatsResponse::MediaCommandResponse(request.start()?)),
