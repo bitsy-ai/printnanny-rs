@@ -31,7 +31,7 @@ where
 
 const DEFAULT_NATS_SOCKET_PATH: &str = "/var/run/printnanny/nats-worker.sock";
 const DEFAULT_NATS_URI: &str = "nats://localhost:4222";
-const DEFAULT_NATS_SUBJECT: &str = "pi.*";
+const DEFAULT_NATS_SUBJECT: &str = "pi.>";
 
 impl<Request, Response> NatsSubscriber<Request, Response>
 where
@@ -113,13 +113,17 @@ where
         );
         let nats_client = nats_client.unwrap();
         let mut subscriber = nats_client.subscribe(self.subject.clone()).await.unwrap();
+        warn!(
+            "Listening on {} where subject={}",
+            &self.nats_server_uri, &self.subject
+        );
         while let Some(message) = subscriber.next().await {
             debug!("Received NATS Message: {:?}", message);
             // try deserializing payload
             let mut s = String::new();
             debug!("init String");
             message.payload.reader().read_to_string(&mut s)?;
-            debug!("read message.payload to String");
+            debug!("read message.payload {}", &s);
             let request = serde_json::from_str::<Request>(&s)?;
             let res = request.handle(&request)?;
 
