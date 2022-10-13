@@ -1,18 +1,24 @@
-use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fmt::Debug;
 use std::fs::File;
-use std::process::Command;
+use std::process;
 use std::{fmt, io::Write};
 
-use crate::error::CommandError;
+use anyhow::Result;
+use async_process::Output;
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+
+use crate::util;
 
 const DEFAULT_GST_STREAM_CONF: &str = "/var/run/printnanny/printnanny-gst-vision.conf";
 
-pub trait MessageHandler {
-    fn handle(&self) -> Result<(), CommandError>;
-}
-
-pub trait MessageResponse<Request, Response> {
-    fn new(request: Option<Request>, status: ResponseStatus, detail: String) -> Response;
+pub trait MessageHandler<Request, Response>
+where
+    Request: Serialize + DeserializeOwned + Debug,
+    Response: Serialize + DeserializeOwned + Debug,
+{
+    fn handle(&self, request: &Request) -> Result<Response>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,68 +122,143 @@ impl Default for JanusStream {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum NatsQcCommand {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum SystemctlCommand {
     Start,
     Stop,
+    Restart,
+    Status,
+    Enable,
+    Disable,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ResponseStatus {
     Ok,
     Error,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NatsQcCommandRequest {
-    subject: String,
-    janus_stream: JanusStream,
-    command: NatsQcCommand,
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SystemctlCommandRequest {
+    service: String,
+    command: SystemctlCommand,
 }
 
-impl NatsQcCommandRequest {
-    fn start(&self) -> Result<(), CommandError> {
-        // write conf file before restarting systemd unit
-        self.janus_stream.write_gst_pipeline_conf()?;
-        Command::new("sudo")
-            .args(&["systemctl", "restart", "printnanny-gst-vision.service"])
-            .output()?;
-        Ok(())
+impl SystemctlCommandRequest {
+    fn build_response(&self, output: &Output) -> Result<SystemctlCommandResponse> {
+        let res = match output.status.success() {
+            true => {
+                let detail = String::from_utf8(output.stdout.clone())?;
+                SystemctlCommandResponse {
+                    request: Some(self.clone()),
+                    status: ResponseStatus::Ok,
+                    detail: detail,
+                    data: None,
+                }
+            }
+            false => {
+                let detail = String::from_utf8(output.stderr.clone())?;
+                SystemctlCommandResponse {
+                    request: Some(self.clone()),
+                    status: ResponseStatus::Error,
+                    detail: detail,
+                    data: None,
+                }
+            }
+        };
+        Ok(res)
     }
-    fn stop(&self) -> Result<(), CommandError> {
-        Command::new("sudo")
-            .args(&["systemctl", "stop", "printnanny-gst-vision.service"])
+
+    fn disable(&self) -> Result<SystemctlCommandResponse> {
+        let output = process::Command::new("sudo")
+            .args(&["systemctl", "disable", &self.service])
             .output()?;
-        Ok(())
+        self.build_response(&output)
+    }
+
+    fn enable(&self) -> Result<SystemctlCommandResponse> {
+        let output = process::Command::new("sudo")
+            .args(&["systemctl", "enable", &self.service])
+            .output()?;
+        self.build_response(&output)
+    }
+    fn start(&self) -> Result<SystemctlCommandResponse> {
+        let output = process::Command::new("sudo")
+            .args(&["systemctl", "start", &self.service])
+            .output()?;
+        self.build_response(&output)
+    }
+    fn stop(&self) -> Result<SystemctlCommandResponse> {
+        let output = process::Command::new("sudo")
+            .args(&["systemctl", "stop", &self.service])
+            .output()?;
+        self.build_response(&output)
+    }
+    fn restart(&self) -> Result<SystemctlCommandResponse> {
+        let output = process::Command::new("sudo")
+            .args(&["systemctl", "restart", &self.service])
+            .output()?;
+        self.build_response(&output)
+    }
+    fn status(&self) -> Result<SystemctlCommandResponse> {
+        let output = process::Command::new("sudo")
+            .args(&["systemctl", "show", &self.service])
+            .output()?;
+
+        let mut res = self.build_response(&output)?;
+        res.data = Some(util::systemctl_show_payload(res.detail.as_bytes())?);
+        Ok(res)
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NatsQcCommandResponse {
-    request: Option<NatsQcCommandRequest>,
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SystemctlCommandResponse {
+    request: Option<SystemctlCommandRequest>,
     status: ResponseStatus,
     detail: String,
+    data: Option<HashMap<String, serde_json::Value>>,
 }
 
-impl MessageResponse<NatsQcCommandRequest, NatsQcCommandResponse> for NatsQcCommandResponse {
-    fn new(
-        request: Option<NatsQcCommandRequest>,
-        status: ResponseStatus,
-        detail: String,
-    ) -> NatsQcCommandResponse {
-        NatsQcCommandResponse {
-            request,
-            status,
-            detail,
-        }
-    }
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "subject")]
+pub enum NatsRequest {
+    #[serde(rename = "pi.command.systemctl")]
+    SystemctlCommandRequest(SystemctlCommandRequest),
 }
 
-impl MessageHandler for NatsQcCommandRequest {
-    fn handle(&self) -> Result<(), crate::error::CommandError> {
-        match self.command {
-            NatsQcCommand::Start => self.start(),
-            NatsQcCommand::Stop => self.stop(),
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "subject")]
+pub enum NatsResponse {
+    #[serde(rename = "pi.command.systemctl")]
+    SystemctlCommandResponse(SystemctlCommandResponse),
+}
+
+impl NatsResponse {}
+
+impl MessageHandler<NatsRequest, NatsResponse> for NatsRequest {
+    fn handle(&self, request: &NatsRequest) -> Result<NatsResponse> {
+        match request {
+            NatsRequest::SystemctlCommandRequest(request) => match request.command {
+                SystemctlCommand::Start => {
+                    Ok(NatsResponse::SystemctlCommandResponse(request.start()?))
+                }
+                SystemctlCommand::Stop => {
+                    Ok(NatsResponse::SystemctlCommandResponse(request.stop()?))
+                }
+                SystemctlCommand::Restart => {
+                    Ok(NatsResponse::SystemctlCommandResponse(request.restart()?))
+                }
+                SystemctlCommand::Status => {
+                    Ok(NatsResponse::SystemctlCommandResponse(request.status()?))
+                }
+                SystemctlCommand::Enable => {
+                    Ok(NatsResponse::SystemctlCommandResponse(request.enable()?))
+                }
+                SystemctlCommand::Disable => {
+                    Ok(NatsResponse::SystemctlCommandResponse(request.disable()?))
+                }
+                _ => unimplemented!(),
+            },
         }
     }
 }

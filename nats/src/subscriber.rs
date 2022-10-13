@@ -3,6 +3,7 @@ use std::io::Read;
 use std::marker::PhantomData;
 use std::path::PathBuf;
 
+use anyhow::Result;
 use bytes::Buf;
 use clap::{crate_authors, Arg, ArgMatches, Command};
 use futures::stream::StreamExt;
@@ -12,13 +13,13 @@ use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, Duration};
 
 use super::error::{CommandError, NatsError};
-use super::message::{MessageHandler, MessageResponse, ResponseStatus};
+use super::message::{MessageHandler, ResponseStatus};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NatsSubscriber<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Debug + MessageHandler,
-    Response: Serialize + DeserializeOwned + Debug + MessageResponse<Request, Response>,
+    Request: Serialize + DeserializeOwned + Debug + MessageHandler<Request, Response>,
+    Response: Serialize + DeserializeOwned + Debug,
 {
     subject: String,
     nats_server_uri: String,
@@ -34,8 +35,8 @@ const DEFAULT_NATS_SUBJECT: &str = "pi.*";
 
 impl<Request, Response> NatsSubscriber<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Debug + MessageHandler,
-    Response: Serialize + DeserializeOwned + Debug + MessageResponse<Request, Response>,
+    Request: Serialize + DeserializeOwned + Debug + MessageHandler<Request, Response>,
+    Response: Serialize + DeserializeOwned + Debug,
 {
     pub fn clap_command(app_name: &str) -> Command<'static> {
         let app = Command::new(app_name)
@@ -93,7 +94,7 @@ where
         }
     }
 
-    pub async fn subscribe_nats_subject(&self) -> Result<(), CommandError> {
+    pub async fn subscribe_nats_subject(&self) -> Result<()> {
         let mut nats_client: Option<async_nats::Client> = None;
         while nats_client.is_none() {
             match self.try_init_nats_client().await {
@@ -119,24 +120,9 @@ where
             debug!("init String");
             message.payload.reader().read_to_string(&mut s)?;
             debug!("read message.payload to String");
-            let payload = serde_json::from_str::<Request>(&s);
-            let res: Response = match payload {
-                Ok(event) => {
-                    info!("Deserialized request: {:?}", event);
-                    event.handle()?;
-                    Response::new(Some(event), ResponseStatus::Ok, "".into())
-                }
-                Err(e) => {
-                    let detail = format!("Failed to deserialize {} with error {}", &s, e);
-                    error!("{}", &detail);
-                    let err = CommandError::SerdeJson {
-                        payload: s.to_string(),
-                        error: e.to_string(),
-                        source: e,
-                    };
-                    Response::new(None, ResponseStatus::Error, detail)
-                }
-            };
+            let request = serde_json::from_str::<Request>(&s)?;
+            let res = request.handle(&request)?;
+
             match message.reply {
                 Some(reply_inbox) => {
                     let payload = serde_json::to_vec(&res).unwrap();
@@ -155,11 +141,11 @@ where
     // FIFO buffer flush
     pub async fn try_flush_buffer(
         &self,
-        event_buffer: &[(String, Vec<u8>)],
+        request_buffer: &[(String, Vec<u8>)],
         nats_client: &async_nats::Client,
     ) -> Result<(), NatsError> {
-        for event in event_buffer.iter() {
-            let (subject, payload) = event;
+        for request in request_buffer.iter() {
+            let (subject, payload) = request;
             match nats_client
                 .publish(subject.to_string(), payload.clone().into())
                 .await
@@ -202,7 +188,7 @@ where
             }
         }
     }
-    pub async fn run(&self) -> Result<(), CommandError> {
+    pub async fn run(&self) -> Result<()> {
         self.subscribe_nats_subject().await?;
         Ok(())
     }
