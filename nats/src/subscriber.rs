@@ -19,7 +19,7 @@ use super::message::{MessageHandler, ResponseStatus};
 pub struct NatsSubscriber<Request, Response>
 where
     Request: Serialize + DeserializeOwned + Debug + MessageHandler<Request, Response>,
-    Response: Serialize + DeserializeOwned + Debug + MessageHandler<Request, Response>,
+    Response: Serialize + DeserializeOwned + Debug,
 {
     subject: String,
     nats_server_uri: String,
@@ -36,7 +36,7 @@ const DEFAULT_NATS_SUBJECT: &str = "pi.*";
 impl<Request, Response> NatsSubscriber<Request, Response>
 where
     Request: Serialize + DeserializeOwned + Debug + MessageHandler<Request, Response>,
-    Response: Serialize + DeserializeOwned + Debug + MessageHandler<Request, Response>,
+    Response: Serialize + DeserializeOwned + Debug,
 {
     pub fn clap_command(app_name: &str) -> Command<'static> {
         let app = Command::new(app_name)
@@ -120,24 +120,9 @@ where
             debug!("init String");
             message.payload.reader().read_to_string(&mut s)?;
             debug!("read message.payload to String");
-            let payload = serde_json::from_str::<Request>(&s);
-            let res: Response = match payload {
-                Ok(request) => {
-                    info!("Deserialized request: {:?}", request);
-                    let res = request.handle(&request)?;
-                    res
-                }
-                Err(e) => {
-                    let detail = format!("Failed to deserialize {} with error {}", &s, e);
-                    error!("{}", &detail);
-                    let err = CommandError::SerdeJson {
-                        payload: s.to_string(),
-                        error: e.to_string(),
-                        source: e,
-                    };
-                    Response::new(None, ResponseStatus::Error, detail)
-                }
-            };
+            let request = serde_json::from_str::<Request>(&s)?;
+            let res = request.handle(&request)?;
+
             match message.reply {
                 Some(reply_inbox) => {
                     let payload = serde_json::to_vec(&res).unwrap();
