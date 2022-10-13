@@ -32,7 +32,46 @@ mod tests {
     use super::*;
 
     #[test_log::test]
-    fn test_systemctl_show_payload() {
+    fn test_systemctl_show_service_payload() {
+        let stdout = r#"
+        Type=simple
+Restart=no
+NotifyAccess=none
+RestartUSec=100ms
+TimeoutStartUSec=1min 30s
+TimeoutStopUSec=1min 30s
+TimeoutAbortUSec=1min 30s
+TimeoutStartFailureMode=terminate
+TimeoutStopFailureMode=terminate
+RuntimeMaxUSec=infinity
+WatchdogUSec=0
+WatchdogTimestamp=n/a
+WatchdogTimestampMonotonic=0
+RootDirectoryStartOnly=no
+RemainAfterExit=no
+GuessMainPID=yes
+MainPID=1697
+ControlPID=0
+FileDescriptorStoreMax=0
+NFileDescriptorStore=0
+StatusErrno=0
+Result=success
+ReloadResult=success
+CleanResult=success
+UID=[not set]
+GID=[not set]
+NRestarts=0
+OOMPolicy=stop
+        "#;
+
+        let result = systemctl_show_payload(stdout.as_bytes()).unwrap();
+        println!("{:?}", result);
+        assert_eq!(result.get("Result"), Some(&Value::from("success")));
+        assert_eq!(result.get("StatusErrno"), Some(&Value::from("0")));
+    }
+
+    #[test_log::test]
+    fn test_systemctl_show_all_payload() {
         let stdout = r#"
 Version=251.1+
 Features=-PAM -AUDIT -SELINUX -APPARMOR +IMA -SMACK +SECCOMP -GCRYPT -GNUTLS +OPENSSL +ACL +BLKID -CURL -ELFUTILS -FIDO2 -IDN2 -IDN -IPTC +KMOD -LIBCRYPTSETUP +LIBFDISK -PCRE2 -PWQUALITY -P11KIT -QRENCODE -TPM2 -BZIP2 -LZ4 -XZ -ZLIB +ZSTD -BPF_FRAMEWORK +XKBCOMMON +UTMP +SYSVINIT default-hierarchy=hybrid
