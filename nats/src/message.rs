@@ -21,7 +21,7 @@ where
     fn handle(&self, request: &Request) -> Result<Response>;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct JanusMedia {
     age_ms: u64,
     codec: String,
@@ -35,7 +35,7 @@ pub struct JanusMedia {
     _type: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum VideoStreamSource {
     File,
     Device,
@@ -50,13 +50,13 @@ impl fmt::Display for VideoStreamSource {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct JanusStreamMetadata {
     path: String,
     video_stream_src: VideoStreamSource,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct JanusStream {
     description: String,
     enabled: bool,
@@ -124,18 +124,35 @@ impl Default for JanusStream {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SystemctlCommand {
+    #[serde(rename = "start")]
     Start,
+    #[serde(rename = "stop")]
     Stop,
+    #[serde(rename = "restart")]
     Restart,
+    #[serde(rename = "status")]
     Status,
+    #[serde(rename = "enable")]
     Enable,
+    #[serde(rename = "disable")]
     Disable,
+    #[serde(rename = "list_enabled")]
     ListEnabled,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum MediaCommand {
+    #[serde(rename = "start")]
+    Start,
+    #[serde(rename = "stop")]
+    Stop,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ResponseStatus {
+    #[serde(rename = "ok")]
     Ok,
+    #[serde(rename = "error")]
     Error,
 }
 
@@ -143,6 +160,57 @@ pub enum ResponseStatus {
 pub struct SystemctlCommandRequest {
     service: String,
     command: SystemctlCommand,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MediaCommandRequest {
+    service: String,
+    janus_stream: JanusStream,
+    command: MediaCommand,
+}
+
+impl MediaCommandRequest {
+    fn build_response(&self, output: &Output) -> Result<MediaCommandResponse> {
+        let data: HashMap<String, serde_json::Value> = HashMap::new();
+        let res = match output.status.success() {
+            true => {
+                let detail = String::from_utf8(output.stdout.clone())?;
+                MediaCommandResponse {
+                    request: Some(self.clone()),
+                    status: ResponseStatus::Ok,
+                    detail: detail,
+                    data,
+                }
+            }
+            false => {
+                let detail = String::from_utf8(output.stderr.clone())?;
+                MediaCommandResponse {
+                    request: Some(self.clone()),
+                    status: ResponseStatus::Error,
+                    detail: detail,
+                    data,
+                }
+            }
+        };
+        Ok(res)
+    }
+
+    fn start(&self) -> Result<MediaCommandResponse> {
+        // write stream config before restarting service
+        self.janus_stream.write_gst_pipeline_conf()?;
+
+        let output = process::Command::new("sudo")
+            .args(&["systemctl", "restart", &self.service])
+            .output()?;
+        self.build_response(&output)
+    }
+
+    fn stop(&self) -> Result<MediaCommandResponse> {
+        let output = process::Command::new("sudo")
+            .args(&["systemctl", "stop", &self.service])
+            .output()?;
+        self.build_response(&output)
+    }
 }
 
 impl SystemctlCommandRequest {
@@ -216,8 +284,8 @@ impl SystemctlCommandRequest {
         self.build_response(&output)
     }
     fn status(&self) -> Result<SystemctlCommandResponse> {
-        let output = process::Command::new("sudo")
-            .args(&["systemctl", "show", &self.service])
+        let output = process::Command::new("systemctl")
+            .args(&["show", &self.service])
             .output()?;
 
         let mut res = self.build_response(&output)?;
@@ -234,11 +302,21 @@ pub struct SystemctlCommandResponse {
     data: HashMap<String, serde_json::Value>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MediaCommandResponse {
+    request: Option<MediaCommandRequest>,
+    status: ResponseStatus,
+    detail: String,
+    data: HashMap<String, serde_json::Value>,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "subject")]
 pub enum NatsRequest {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandRequest(SystemctlCommandRequest),
+    #[serde(rename = "pi.command.media")]
+    MediaCommandRequest(MediaCommandRequest),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -246,6 +324,8 @@ pub enum NatsRequest {
 pub enum NatsResponse {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandResponse(SystemctlCommandResponse),
+    #[serde(rename = "pi.command.media")]
+    MediaCommandResponse(MediaCommandResponse),
 }
 
 impl NatsResponse {}
@@ -275,7 +355,10 @@ impl MessageHandler<NatsRequest, NatsResponse> for NatsRequest {
                 SystemctlCommand::Disable => {
                     Ok(NatsResponse::SystemctlCommandResponse(request.disable()?))
                 }
-                _ => unimplemented!(),
+            },
+            NatsRequest::MediaCommandRequest(request) => match request.command {
+                MediaCommand::Start => Ok(NatsResponse::MediaCommandResponse(request.start()?)),
+                MediaCommand::Stop => Ok(NatsResponse::MediaCommandResponse(request.stop()?)),
             },
         }
     }
