@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use log::error;
-use printnanny_services::config::PrintNannyConfig;
+use printnanny_services::config::PrintNannyCloudConfig;
 use std::fs;
 
 pub struct OsCommand;
@@ -18,7 +18,7 @@ _____      _       _   _   _
 ";
 
 fn handle_issue() -> Result<()> {
-    let config = PrintNannyConfig::new()?;
+    let config = PrintNannyCloudConfig::new()?;
     let result = fs::read_to_string(&config.paths.issue_txt);
     let output = match result {
         Ok(content) => content,

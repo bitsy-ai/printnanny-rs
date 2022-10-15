@@ -10,7 +10,7 @@ use tokio::time::{sleep, Duration};
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
 use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
-use printnanny_services::config::PrintNannyConfig;
+use printnanny_services::config::PrintNannyCloudConfig;
 
 // use crate::commands;
 use crate::cloud_commands;
@@ -235,7 +235,7 @@ impl NatsCloudWorker {
     }
 
     pub async fn new(_args: &ArgMatches) -> Result<Self> {
-        let config = PrintNannyConfig::new()?;
+        let config = PrintNannyCloudConfig::new()?;
         // ensure pi, nats_app, nats_creds are provided
         config.try_check_license()?;
 

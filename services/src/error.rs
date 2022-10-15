@@ -7,7 +7,7 @@ use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::apis::Error as ApiError;
 
 #[derive(Error, Debug)]
-pub enum PrintNannyConfigError {
+pub enum PrintNannyCloudConfigError {
     #[error("Failed to load license from {pattern:?}. Please download a license from https://printnanny.ai/dashboard/ and save to /boot")]
     PatternNotFound { pattern: String },
     #[error("Refusing to overwrite existing file at {path:?}.")]
@@ -145,7 +145,7 @@ pub enum ServiceError {
     #[error(transparent)]
     FigmentError(#[from] figment::error::Error),
     #[error(transparent)]
-    PrintNannyConfigError(#[from] PrintNannyConfigError),
+    PrintNannyCloudConfigError(#[from] PrintNannyCloudConfigError),
 
     #[error("Setup incomplete, failed to read {field:?} {detail:?}")]
     SetupIncomplete {

@@ -4,7 +4,7 @@ use bytes::Bytes;
 use chrono::prelude::{DateTime, Utc};
 use log::{debug, warn};
 use printnanny_api_client::models::{self, PolymorphicPiEventRequest};
-use printnanny_services::config::PrintNannyConfig;
+use printnanny_services::config::PrintNannyCloudConfig;
 use printnanny_services::swupdate::Swupdate;
 use std::collections::HashMap;
 use std::time::SystemTime;
@@ -162,7 +162,7 @@ pub async fn handle_pi_boot_command(
             //  publish to status topic
             nats_client.publish(subject.clone(), req).await?;
 
-            let config = PrintNannyConfig::new()?;
+            let config = PrintNannyCloudConfig::new()?;
             let result = config.sync().await;
 
             match result {

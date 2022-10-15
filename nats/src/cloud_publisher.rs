@@ -10,7 +10,7 @@ use log::debug;
 use printnanny_api_client::models;
 use printnanny_api_client::models::polymorphic_octo_print_event_request::PolymorphicOctoPrintEventRequest;
 use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
-use printnanny_services::{config::PrintNannyConfig, error::PrintNannyConfigError};
+use printnanny_services::{config::PrintNannyCloudConfig, error::PrintNannyCloudConfigError};
 use tokio::net::UnixStream;
 use tokio_util::codec::{FramedWrite, LengthDelimitedCodec};
 use uuid::Uuid;
@@ -21,7 +21,7 @@ use crate::subjects;
 #[derive(Debug, Clone)]
 pub struct CloudEventPublisher {
     args: ArgMatches,
-    config: PrintNannyConfig,
+    config: PrintNannyCloudConfig,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -33,8 +33,8 @@ pub enum PayloadFormat {
 
 impl CloudEventPublisher {
     // initialize CloudEventPublisher from clap::Command ArgMatches
-    pub fn new(args: &ArgMatches) -> Result<Self, PrintNannyConfigError> {
-        let config = PrintNannyConfig::new().unwrap();
+    pub fn new(args: &ArgMatches) -> Result<Self, PrintNannyCloudConfigError> {
+        let config = PrintNannyCloudConfig::new().unwrap();
         config.try_check_license()?;
         Ok(Self {
             args: args.clone(),
@@ -331,7 +331,7 @@ impl CloudEventPublisher {
             .config
             .pi
             .as_ref()
-            .expect("Failed to read PrintNannyConfig.pi.id")
+            .expect("Failed to read PrintNannyCloudConfig.pi.id")
             .id;
         let id = Some(Uuid::new_v4().to_string());
         let created_dt: DateTime<Utc> = SystemTime::now().into();
@@ -512,10 +512,10 @@ impl CloudEventPublisher {
                     .config
                     .pi
                     .as_ref()
-                    .expect("Failed to readPrintNannyConfig.pi")
+                    .expect("Failed to readPrintNannyCloudConfig.pi")
                     .octoprint_server
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.pi.octoprint_server")
+                    .expect("Failed to read PrintNannyCloudConfig.pi.octoprint_server")
                     .id;
                 let event_type = self
                     .args
@@ -544,10 +544,10 @@ impl CloudEventPublisher {
                     .config
                     .pi
                     .as_ref()
-                    .expect("Failed to readPrintNannyConfig.pi")
+                    .expect("Failed to readPrintNannyCloudConfig.pi")
                     .octoprint_server
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.pi.octoprint_server")
+                    .expect("Failed to read PrintNannyCloudConfig.pi.octoprint_server")
                     .id;
                 let event_type = self
                     .args
@@ -579,10 +579,10 @@ impl CloudEventPublisher {
                     .config
                     .pi
                     .as_ref()
-                    .expect("Failed to readPrintNannyConfig.pi")
+                    .expect("Failed to readPrintNannyCloudConfig.pi")
                     .octoprint_server
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.pi.octoprint_server")
+                    .expect("Failed to read PrintNannyCloudConfig.pi.octoprint_server")
                     .id;
                 let event_type = self
                     .args
@@ -613,10 +613,10 @@ impl CloudEventPublisher {
                     .config
                     .pi
                     .as_ref()
-                    .expect("Failed to readPrintNannyConfig.pi")
+                    .expect("Failed to readPrintNannyCloudConfig.pi")
                     .octoprint_server
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.pi.octoprint_server")
+                    .expect("Failed to read PrintNannyCloudConfig.pi.octoprint_server")
                     .id;
                 let event_type = self
                     .args
