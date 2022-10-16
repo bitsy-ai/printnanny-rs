@@ -1854,7 +1854,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-cli"
-version = "0.26.2-alpha.1"
+version = "0.26.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -1875,7 +1875,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-nats"
-version = "0.26.2-alpha.1"
+version = "0.26.2"
 dependencies = [
  "anyhow",
  "async-nats",
@@ -1903,7 +1903,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-services"
-version = "0.26.2-alpha.1"
+version = "0.26.2"
 dependencies = [
  "anyhow",
  "assert_cmd",
