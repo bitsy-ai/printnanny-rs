@@ -24,7 +24,7 @@ use printnanny_api_client::models;
 // FACTORY_RESET holds the struct field names of PrintNannyCloudConfig
 // each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
 // as the name implies, this const is used for performing a reset of any config data modified from defaults
-const FACTORY_RESET: [&str; 3] = ["cloud.api", "cloud.pi", "systemd_units"];
+const FACTORY_RESET: [&str; 2] = ["cloud", "systemd_units"];
 
 lazy_static! {
     static ref DEFAULT_SYSTEMD_UNITS: HashMap<String, SystemdUnit> = {
@@ -373,18 +373,12 @@ impl PrintNannyConfig {
         filename: &PathBuf,
     ) -> Result<(), PrintNannyConfigError> {
         let content = match key {
-            "cloud.api" => Ok(serde_json::to_string(
-                &figment::util::map! {key => &self.cloud.api},
+            "cloud" => Ok(serde_json::to_string(
+                &figment::util::map! {key => &self.cloud},
             )?),
-            "cloud.pi" => match &self.cloud.pi.as_ref() {
-                Some(_) => Ok(serde_json::to_string(
-                    &figment::util::map! {key => &self.cloud.pi},
-                )?),
-                None => Err(PrintNannyConfigError::SetupIncomplete {
-                    field: "pi".to_string(),
-                    detail: Some("Failed to write .json config fragment".to_string()),
-                }),
-            },
+            "systemd_units" => Ok(serde_json::to_string(
+                &figment::util::map! {key => &self.systemd_units},
+            )?),
             _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
         }?;
 
@@ -485,7 +479,7 @@ mod tests {
     fn test_config_file_not_found() {
         figment::Jail::expect_with(|jail| {
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
-            let result = PrintNannyCloudConfig::figment();
+            let result = PrintNannyConfig::figment();
             assert!(result.is_err());
             // assert_eq!(result, expected);
             Ok(())
@@ -510,8 +504,8 @@ mod tests {
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
             let expected = PathBuf::from("testing");
             jail.set_env("PRINTNANNY_PATHS__ETC", &expected.display());
-            let figment = PrintNannyCloudConfig::figment().unwrap();
-            let config: PrintNannyCloudConfig = figment.extract()?;
+            let figment = PrintNannyConfig::figment().unwrap();
+            let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(config.paths.etc, expected);
             Ok(())
         });
@@ -533,8 +527,8 @@ mod tests {
                 "#,
             )?;
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
-            let figment = PrintNannyCloudConfig::figment().unwrap();
-            let config: PrintNannyCloudConfig = figment.extract()?;
+            let figment = PrintNannyConfig::figment().unwrap();
+            let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
                 config.paths.data(),
                 PathBuf::from("/opt/printnanny/etc/data")
@@ -554,24 +548,24 @@ mod tests {
                 data = "/opt/printnanny/default/data"
 
                 
-                [api]
+                [cloud.api]
                 base_path = "https://print-nanny.com"
                 "#,
             )?;
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
-            let config = PrintNannyCloudConfig::new().unwrap();
+            let config = PrintNannyConfig::new().unwrap();
             assert_eq!(
-                config.api,
+                config.cloud.api,
                 models::PrintNannyApiConfig {
                     base_path: "https://print-nanny.com".into(),
                     bearer_access_token: None,
                 }
             );
-            jail.set_env("PRINTNANNY_API.BEARER_ACCESS_TOKEN", "secret");
-            let figment = PrintNannyCloudConfig::figment().unwrap();
-            let config: PrintNannyCloudConfig = figment.extract()?;
+            jail.set_env("PRINTNANNY_CLOUD__API.BEARER_ACCESS_TOKEN", "secret");
+            let figment = PrintNannyConfig::figment().unwrap();
+            let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
-                config.api,
+                config.cloud.api,
                 models::PrintNannyApiConfig {
                     base_path: "https://print-nanny.com".into(),
                     bearer_access_token: Some("secret".into()),
@@ -592,21 +586,21 @@ mod tests {
                 [paths]
                 etc = ".tmp"
                 
-                [api]
+                [cloud.api]
                 base_path = "http://aurora:8000"
                 "#,
             )?;
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
 
-            let figment = PrintNannyCloudConfig::figment().unwrap();
-            let config: PrintNannyCloudConfig = figment.extract()?;
+            let figment = PrintNannyConfig::figment().unwrap();
+            let config: PrintNannyConfig = figment.extract()?;
 
             let base_path = "http://aurora:8000".into();
             assert_eq!(config.paths.confd(), PathBuf::from(".tmp/conf.d"));
-            assert_eq!(config.api.base_path, base_path);
+            assert_eq!(config.cloud.api.base_path, base_path);
 
             assert_eq!(
-                config.api,
+                config.cloud.api,
                 models::PrintNannyApiConfig {
                     base_path: base_path,
                     bearer_access_token: None,
@@ -625,7 +619,7 @@ mod tests {
                 &format!(
                     r#"
                 profile = "local"
-                [api]
+                [cloud.api]
                 base_path = "http://aurora:8000"
 
                 [paths]
@@ -638,19 +632,19 @@ mod tests {
             )?;
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
 
-            let figment = PrintNannyCloudConfig::figment().unwrap();
-            let mut config: PrintNannyCloudConfig = figment.extract()?;
+            let figment = PrintNannyConfig::figment().unwrap();
+            let mut config: PrintNannyConfig = figment.extract()?;
             config.paths.try_init_dirs().unwrap();
 
             let expected = models::PrintNannyApiConfig {
-                base_path: config.api.base_path,
+                base_path: config.cloud.api.base_path,
                 bearer_access_token: Some("secret_token".to_string()),
             };
-            config.api = expected.clone();
+            config.cloud.api = expected.clone();
             config.try_save().unwrap();
-            let figment = PrintNannyCloudConfig::figment().unwrap();
-            let new: PrintNannyCloudConfig = figment.extract()?;
-            assert_eq!(new.api, expected);
+            let figment = PrintNannyConfig::figment().unwrap();
+            let new: PrintNannyConfig = figment.extract()?;
+            assert_eq!(new.cloud.api, expected);
             Ok(())
         });
     }
@@ -662,7 +656,7 @@ mod tests {
                 "Local.toml",
                 r#"
                 profile = "local"
-                [api]
+                [cloud.api]
                 base_path = "http://aurora:8000"
                 "#,
             )?;
@@ -670,7 +664,7 @@ mod tests {
             jail.set_env("PRINTNANNY_PATHS.confd", format!("{:?}", jail.directory()));
 
             let expected: Option<String> = Some("http://aurora:8000".into());
-            let value: Option<String> = PrintNannyCloudConfig::find_value("api.base_path")
+            let value: Option<String> = PrintNannyConfig::find_value("cloud.api.base_path")
                 .unwrap()
                 .into_string();
             assert_eq!(value, expected);
@@ -716,7 +710,7 @@ VARIANT_ID=printnanny-octoprint
                 format!("{:?}", jail.directory().join("os-release")),
             );
 
-            let config = PrintNannyCloudConfig::new().unwrap();
+            let config = PrintNannyConfig::new().unwrap();
             let os_release = config.paths.load_os_release().unwrap();
             assert_eq!("2022-06-18T18:46:49Z".to_string(), os_release.build_id);
             Ok(())
