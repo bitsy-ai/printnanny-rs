@@ -1,5 +1,5 @@
 use log::{info, warn};
-use printnanny_services::config::{ConfigFormat, PrintNannyCloudConfig};
+use printnanny_services::config::{ConfigFormat, PrintNannyConfig};
 use printnanny_services::error::{PrintNannyConfigError, ServiceError};
 use printnanny_services::printnanny_api::ApiService;
 use std::io::{self, Write};
@@ -8,7 +8,7 @@ pub struct ConfigCommand;
 
 impl ConfigCommand {
     pub async fn handle(sub_m: &clap::ArgMatches) -> Result<(), ServiceError> {
-        let config: PrintNannyCloudConfig = PrintNannyCloudConfig::new()?;
+        let config: PrintNannyConfig = PrintNannyConfig::new()?;
         match sub_m.subcommand() {
             Some(("get", args)) => {
                 let key = args.value_of("key");
@@ -16,21 +16,21 @@ impl ConfigCommand {
                 let v = match f {
                     ConfigFormat::Json => match key {
                         Some(k) => {
-                            let data = PrintNannyCloudConfig::find_value(k)?;
+                            let data = PrintNannyConfig::find_value(k)?;
                             serde_json::to_vec_pretty(&data)?
                         }
                         None => {
-                            let data = PrintNannyCloudConfig::new()?;
+                            let data = PrintNannyConfig::new()?;
                             serde_json::to_vec_pretty(&data)?
                         }
                     },
                     ConfigFormat::Toml => match key {
                         Some(k) => {
-                            let data = PrintNannyCloudConfig::find_value(k)?;
+                            let data = PrintNannyConfig::find_value(k)?;
                             toml::ser::to_vec(&data)?
                         }
                         None => {
-                            let data = PrintNannyCloudConfig::new()?;
+                            let data = PrintNannyConfig::new()?;
                             toml::ser::to_vec(&data)?
                         }
                     },
@@ -40,14 +40,14 @@ impl ConfigCommand {
             Some(("set", args)) => {
                 let key = args.value_of("key").unwrap();
                 let value = args.value_of("value").unwrap();
-                let figment = PrintNannyCloudConfig::figment()?;
+                let figment = PrintNannyConfig::figment()?;
                 let data = figment::providers::Serialized::global(key, &value);
                 let figment = figment.merge(data);
-                let config: PrintNannyCloudConfig = figment.extract()?;
+                let config: PrintNannyConfig = figment.extract()?;
                 config.try_save()?;
             }
             Some(("sync", _args)) => {
-                let config = PrintNannyCloudConfig::new()?;
+                let config = PrintNannyConfig::new()?;
                 let mut service = ApiService::new(config)?;
                 service.sync().await?;
             }
@@ -61,7 +61,7 @@ impl ConfigCommand {
             }
             Some(("init", args)) => {
                 let force = args.is_present("force");
-                info!("PrintNannyCloudConfig.paths {:?}", config.paths);
+                info!("PrintNannyConfig.paths {:?}", config.paths);
                 config.paths.try_init_dirs()?;
                 match config.paths.unpack_seed(force) {
                     Ok(_r) => Ok(()),
