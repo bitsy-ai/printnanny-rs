@@ -12,7 +12,10 @@ async fn main() -> Result<()> {
     config.try_check_license()?;
 
     // try_check_license guards the following properties set, so it's safe to unwrap here
-    let pi = config.pi.unwrap();
+    let pi = config
+        .cloud
+        .pi
+        .expect("pi is not registered with PrintNanny Cloud");
     let nats_app = pi.nats_app.unwrap();
 
     let subject = to_nats_command_subscribe_subject(&pi.id);

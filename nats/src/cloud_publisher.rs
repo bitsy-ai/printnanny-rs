@@ -329,9 +329,10 @@ impl CloudEventPublisher {
 
         let pi_id = self
             .config
+            .cloud
             .pi
             .as_ref()
-            .expect("Failed to read PrintNannyConfig.pi.id")
+            .expect("Failed to read PrintNannyConfig.cloud.pi.id")
             .id;
         let id = Some(Uuid::new_v4().to_string());
         let created_dt: DateTime<Utc> = SystemTime::now().into();
@@ -510,12 +511,13 @@ impl CloudEventPublisher {
                     serde_json::from_str::<models::OctoPrintClientStatusPayloadRequest>(payload)?;
                 let octoprint_server = self
                     .config
+                    .cloud
                     .pi
                     .as_ref()
-                    .expect("Failed to readPrintNannyConfig.pi")
+                    .expect("Failed to read PrintNannyConfig.cloud.pi")
                     .octoprint_server
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.pi.octoprint_server")
+                    .expect("Failed to read PrintNannyConfig.cloud.pi.octoprint_server")
                     .id;
                 let event_type = self
                     .args
@@ -542,12 +544,13 @@ impl CloudEventPublisher {
                     serde_json::from_str::<models::OctoPrintPrintJobPayloadRequest>(payload)?;
                 let octoprint_server = self
                     .config
+                    .cloud
                     .pi
                     .as_ref()
-                    .expect("Failed to readPrintNannyConfig.pi")
+                    .expect("Failed to readPrintNannyConfig.cloud.pi")
                     .octoprint_server
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.pi.octoprint_server")
+                    .expect("Failed to read PrintNannyConfig.cloud.pi.octoprint_server")
                     .id;
                 let event_type = self
                     .args
@@ -577,12 +580,13 @@ impl CloudEventPublisher {
                 };
                 let octoprint_server = self
                     .config
+                    .cloud
                     .pi
                     .as_ref()
-                    .expect("Failed to readPrintNannyConfig.pi")
+                    .expect("Failed to readPrintNannyConfig.cloud.pi")
                     .octoprint_server
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.pi.octoprint_server")
+                    .expect("Failed to read PrintNannyConfig.cloud.pi.octoprint_server")
                     .id;
                 let event_type = self
                     .args
@@ -611,12 +615,13 @@ impl CloudEventPublisher {
                 };
                 let octoprint_server = self
                     .config
+                    .cloud
                     .pi
                     .as_ref()
-                    .expect("Failed to readPrintNannyConfig.pi")
+                    .expect("Failed to readPrintNannyConfig.cloud.pi")
                     .octoprint_server
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.pi.octoprint_server")
+                    .expect("Failed to read PrintNannyConfig.cloud.pi.octoprint_server")
                     .id;
                 let event_type = self
                     .args

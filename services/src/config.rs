@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::prelude::*;
@@ -9,6 +10,7 @@ use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
 use file_lock::{FileLock, FileOptions};
 use glob::glob;
+use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
@@ -19,10 +21,44 @@ use super::paths::{PrintNannyPaths, PRINTNANNY_CONFIG_DEFAULT};
 use super::printnanny_api::ApiService;
 use printnanny_api_client::models;
 
-// FACTORY_RESET holds the struct field names of PrintNannyConfig
+// FACTORY_RESET holds the struct field names of PrintNannyCloudConfig
 // each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
 // as the name implies, this const is used for performing a reset of any config data modified from defaults
-const FACTORY_RESET: [&str; 2] = ["api", "pi"];
+const FACTORY_RESET: [&str; 2] = ["cloud", "systemd_units"];
+
+lazy_static! {
+    static ref DEFAULT_SYSTEMD_UNITS: HashMap<String, SystemdUnit> = {
+        let mut m = HashMap::new();
+
+        // printnanny-vision.service
+        m.insert(
+            "printnanny-vision.service".to_string(),
+            SystemdUnit {
+                unit: "printnanny-vision.service".to_string(),
+                enabled: true,
+            },
+        );
+
+        // octoprint.service
+        m.insert(
+            "octoprint.service".to_string(),
+            SystemdUnit {
+                unit: "octoprint.service".to_string(),
+                enabled: true,
+            },
+        );
+
+        // mainsail.service
+        m.insert(
+            "mainsail.service".to_string(),
+            SystemdUnit {
+                unit: "mansail.service".to_string(),
+                enabled: false,
+            },
+        );
+        m
+    };
+}
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
 pub enum ConfigFormat {
@@ -76,24 +112,6 @@ impl std::str::FromStr for ConfigFormat {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct DashConfig {
-    pub base_url: String,
-    pub base_path: String,
-    pub port: i32,
-}
-
-impl Default for DashConfig {
-    fn default() -> Self {
-        let hostname = sys_info::hostname().unwrap_or_else(|_| "localhost".to_string());
-        Self {
-            base_url: format!("http://{}/", hostname),
-            base_path: "/".into(),
-            port: 9001,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PrintNannyCloudProxy {
     pub hostname: String,
     pub base_path: String,
@@ -114,16 +132,13 @@ impl Default for PrintNannyCloudProxy {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct PrintNannyConfig {
+pub struct PrintNannyCloudConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
-    // Pi device data present on all Print Nanny OS editions
     pub pi: Option<models::Pi>,
-    pub paths: PrintNannyPaths,
     pub api: models::PrintNannyApiConfig,
-    pub dash: DashConfig,
 }
 
-impl Default for PrintNannyConfig {
+impl Default for PrintNannyCloudConfig {
     fn default() -> Self {
         // default to unauthenticated api config, until api creds are unpacked from seed archive
         let api = models::PrintNannyApiConfig {
@@ -131,12 +146,30 @@ impl Default for PrintNannyConfig {
             bearer_access_token: None,
         };
         let paths = PrintNannyPaths::default();
-        let dash = DashConfig::default();
+        PrintNannyCloudConfig { api, pi: None }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct SystemdUnit {
+    unit: String,
+    enabled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct PrintNannyConfig {
+    pub cloud: PrintNannyCloudConfig,
+    pub paths: PrintNannyPaths,
+    pub systemd_units: HashMap<String, SystemdUnit>,
+}
+
+impl Default for PrintNannyConfig {
+    fn default() -> Self {
+        let paths = PrintNannyPaths::default();
         PrintNannyConfig {
-            api,
-            dash,
             paths,
-            pi: None,
+            cloud: PrintNannyCloudConfig::default(),
+            systemd_units: DEFAULT_SYSTEMD_UNITS.clone(),
         }
     }
 }
@@ -190,7 +223,9 @@ impl PrintNannyConfig {
                 }
             }
             Err(_) => {
-                warn!("PRINTNANNY_CONFIG not set. Initializing from PrintNannyConfig::default()");
+                warn!(
+                    "PRINTNANNY_CONFIG not set. Initializing from PrintNannyCloudConfig::default()"
+                );
                 Ok(())
             }
         }
@@ -246,7 +281,7 @@ impl PrintNannyConfig {
             // PRINTNANNY_KEY__SUBKEY
             .merge(Env::prefixed("PRINTNANNY_").split("__"));
 
-        info!("Finalized PrintNannyConfig: \n {:?}", result);
+        info!("Finalized PrintNannyCloudConfig: \n {:?}", result);
         Ok(result)
     }
 
@@ -270,14 +305,14 @@ impl PrintNannyConfig {
     }
 
     pub fn try_check_license(&self) -> Result<(), PrintNannyConfigError> {
-        match &self.pi {
+        match &self.cloud.pi {
             Some(_) => Ok(()),
             None => Err(PrintNannyConfigError::LicenseMissing {
                 path: "pi".to_string(),
             }),
         }?;
 
-        match &self.api.bearer_access_token {
+        match &self.cloud.api.bearer_access_token {
             Some(_) => Ok(()),
             None => Err(PrintNannyConfigError::LicenseMissing {
                 path: "api.bearer_access_token".to_string(),
@@ -291,7 +326,7 @@ impl PrintNannyConfig {
             }),
         }?;
 
-        match self.pi.as_ref().unwrap().nats_app {
+        match self.cloud.pi.as_ref().unwrap().nats_app {
             Some(_) => Ok(()),
             None => Err(PrintNannyConfigError::LicenseMissing {
                 path: "pi.nats_app".to_string(),
@@ -316,7 +351,7 @@ impl PrintNannyConfig {
     /// # Panics
     ///
     /// If serialization or fs write fails, prints an error message indicating the failure and
-    /// panics. For a version that doesn't panic, use [`PrintNannyConfig::try_save_by_key()`].
+    /// panics. For a version that doesn't panic, use [`PrintNannyCloudConfig::try_save_by_key()`].
     pub fn save_by_key(&self) {
         unimplemented!()
     }
@@ -338,18 +373,12 @@ impl PrintNannyConfig {
         filename: &PathBuf,
     ) -> Result<(), PrintNannyConfigError> {
         let content = match key {
-            "api" => Ok(serde_json::to_string(
-                &figment::util::map! {key => &self.api},
+            "cloud" => Ok(serde_json::to_string(
+                &figment::util::map! {key => &self.cloud},
             )?),
-            "pi" => match &self.pi.as_ref() {
-                Some(_) => Ok(serde_json::to_string(
-                    &figment::util::map! {key => &self.pi},
-                )?),
-                None => Err(PrintNannyConfigError::SetupIncomplete {
-                    field: "pi".to_string(),
-                    detail: Some("Failed to write .json config fragment".to_string()),
-                }),
-            },
+            "systemd_units" => Ok(serde_json::to_string(
+                &figment::util::map! {key => &self.systemd_units},
+            )?),
             _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
         }?;
 
@@ -399,7 +428,7 @@ impl PrintNannyConfig {
     /// # Panics
     ///
     /// If extraction fails, prints an error message indicating the failure and
-    /// panics. For a version that doesn't panic, use [`PrintNannyConfig::try_save()`].
+    /// panics. For a version that doesn't panic, use [`PrintNannyCloudConfig::try_save()`].
     ///
     pub fn save(&self) {
         unimplemented!()
@@ -519,24 +548,24 @@ mod tests {
                 data = "/opt/printnanny/default/data"
 
                 
-                [api]
+                [cloud.api]
                 base_path = "https://print-nanny.com"
                 "#,
             )?;
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
             let config = PrintNannyConfig::new().unwrap();
             assert_eq!(
-                config.api,
+                config.cloud.api,
                 models::PrintNannyApiConfig {
                     base_path: "https://print-nanny.com".into(),
                     bearer_access_token: None,
                 }
             );
-            jail.set_env("PRINTNANNY_API.BEARER_ACCESS_TOKEN", "secret");
+            jail.set_env("PRINTNANNY_CLOUD__API.BEARER_ACCESS_TOKEN", "secret");
             let figment = PrintNannyConfig::figment().unwrap();
             let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
-                config.api,
+                config.cloud.api,
                 models::PrintNannyApiConfig {
                     base_path: "https://print-nanny.com".into(),
                     bearer_access_token: Some("secret".into()),
@@ -557,7 +586,7 @@ mod tests {
                 [paths]
                 etc = ".tmp"
                 
-                [api]
+                [cloud.api]
                 base_path = "http://aurora:8000"
                 "#,
             )?;
@@ -568,10 +597,10 @@ mod tests {
 
             let base_path = "http://aurora:8000".into();
             assert_eq!(config.paths.confd(), PathBuf::from(".tmp/conf.d"));
-            assert_eq!(config.api.base_path, base_path);
+            assert_eq!(config.cloud.api.base_path, base_path);
 
             assert_eq!(
-                config.api,
+                config.cloud.api,
                 models::PrintNannyApiConfig {
                     base_path: base_path,
                     bearer_access_token: None,
@@ -590,7 +619,7 @@ mod tests {
                 &format!(
                     r#"
                 profile = "local"
-                [api]
+                [cloud.api]
                 base_path = "http://aurora:8000"
 
                 [paths]
@@ -608,14 +637,14 @@ mod tests {
             config.paths.try_init_dirs().unwrap();
 
             let expected = models::PrintNannyApiConfig {
-                base_path: config.api.base_path,
+                base_path: config.cloud.api.base_path,
                 bearer_access_token: Some("secret_token".to_string()),
             };
-            config.api = expected.clone();
+            config.cloud.api = expected.clone();
             config.try_save().unwrap();
             let figment = PrintNannyConfig::figment().unwrap();
             let new: PrintNannyConfig = figment.extract()?;
-            assert_eq!(new.api, expected);
+            assert_eq!(new.cloud.api, expected);
             Ok(())
         });
     }
@@ -627,7 +656,7 @@ mod tests {
                 "Local.toml",
                 r#"
                 profile = "local"
-                [api]
+                [cloud.api]
                 base_path = "http://aurora:8000"
                 "#,
             )?;
@@ -635,7 +664,7 @@ mod tests {
             jail.set_env("PRINTNANNY_PATHS.confd", format!("{:?}", jail.directory()));
 
             let expected: Option<String> = Some("http://aurora:8000".into());
-            let value: Option<String> = PrintNannyConfig::find_value("api.base_path")
+            let value: Option<String> = PrintNannyConfig::find_value("cloud.api.base_path")
                 .unwrap()
                 .into_string();
             assert_eq!(value, expected);

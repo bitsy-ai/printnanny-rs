@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::util::{self, SystemctlListUnit};
 
-const DEFAULT_GST_STREAM_CONF: &str = "/var/run/printnanny/printnanny-gst-vision.conf";
+const DEFAULT_GST_STREAM_CONF: &str = "/var/run/printnanny/printnanny-vision.conf";
 
 pub trait MessageHandler<Request, Response>
 where

@@ -240,7 +240,7 @@ impl NatsCloudWorker {
         config.try_check_license()?;
 
         // try_check_license guards the following properties set, so it's safe to unwrap here
-        let pi = config.pi.unwrap();
+        let pi = config.cloud.pi.unwrap();
         let nats_app = pi.nats_app.unwrap();
 
         let subscribe_subject = to_nats_command_subscribe_subject(&pi.id);

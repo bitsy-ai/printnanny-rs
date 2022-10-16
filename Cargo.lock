@@ -1922,6 +1922,7 @@ dependencies = [
  "hex",
  "http",
  "jsonwebtoken",
+ "lazy_static",
  "log",
  "mockall",
  "predicates 2.1.1",
