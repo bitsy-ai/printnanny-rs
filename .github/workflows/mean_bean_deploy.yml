@@ -1,7 +1,7 @@
 on:
-  release:
-    # Sequence of patterns matched against refs/tags
-    types: [published]
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:
