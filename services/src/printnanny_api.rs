@@ -14,16 +14,16 @@ use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::models;
 
-use super::config::PrintNannyCloudConfig;
+use super::config::{PrintNannyCloudConfig, PrintNannyConfig};
 use super::cpuinfo::RpiCpuInfo;
-use super::error::{PrintNannyCloudConfigError, ServiceError};
+use super::error::{PrintNannyConfigError, ServiceError};
 use super::file::open;
 use super::octoprint::OctoPrintHelper;
 
 #[derive(Debug, Clone)]
 pub struct ApiService {
     pub reqwest: ReqwestConfig,
-    pub config: PrintNannyCloudConfig,
+    pub config: PrintNannyConfig,
     pub pi: Option<models::Pi>,
     pub user: Option<models::User>,
 }
@@ -43,11 +43,12 @@ pub fn save_model_json<T: serde::Serialize>(model: &T, path: &Path) -> Result<()
 impl ApiService {
     // config priority:
     // args >> api_config.json >> anonymous api usage only
-    pub fn new(config: PrintNannyCloudConfig) -> Result<ApiService, ServiceError> {
+    pub fn new(config: PrintNannyConfig) -> Result<ApiService, ServiceError> {
         debug!("Initializing ApiService from config: {:?}", config);
+
         let reqwest = ReqwestConfig {
-            base_path: config.api.base_path.to_string(),
-            bearer_access_token: config.api.bearer_access_token.clone(),
+            base_path: config.cloud.api.base_path.to_string(),
+            bearer_access_token: config.cloud.api.bearer_access_token.clone(),
             ..ReqwestConfig::default()
         };
         Ok(Self {
@@ -92,7 +93,8 @@ impl ApiService {
     // performs any necessary one-time setup tasks, like registering Cloudiot Device
     pub async fn sync(&mut self) -> Result<(), ServiceError> {
         // verify pi is authenticated
-        match &self.config.pi {
+
+        match &self.config.cloud.pi {
             Some(pi) => {
                 // always update SystemInfo
                 info!("Calling device_system_info_update_or_create()");
@@ -109,7 +111,7 @@ impl ApiService {
                 }
 
                 let pi = self.pi_retrieve(pi.id).await?;
-                self.config.pi = Some(pi);
+                self.config.cloud.pi = Some(pi);
                 self.config.try_save()?;
                 Ok(())
             }
@@ -246,8 +248,8 @@ impl ApiService {
     pub async fn load_model<T: serde::de::DeserializeOwned + serde::Serialize + std::fmt::Debug>(
         &self,
         path: &Path,
-        f: impl Future<Output = Result<T, PrintNannyCloudConfigError>>,
-    ) -> Result<T, PrintNannyCloudConfigError> {
+        f: impl Future<Output = Result<T, PrintNannyConfigError>>,
+    ) -> Result<T, PrintNannyConfigError> {
         let m = read_model_json::<T>(path);
         match m {
             Ok(v) => Ok(v),
@@ -261,7 +263,7 @@ impl ApiService {
                     Ok(v) => {
                         match save_model_json::<T>(&v, path) {
                             Ok(()) => Ok(()),
-                            Err(error) => Err(PrintNannyCloudConfigError::WriteIOError {
+                            Err(error) => Err(PrintNannyConfigError::WriteIOError {
                                 path: path.to_path_buf(),
                                 error,
                             }),

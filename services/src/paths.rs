@@ -12,7 +12,7 @@ use zip::ZipArchive;
 use chrono::{DateTime, Utc}; // 0.4.15
 use std::time::SystemTime;
 
-use super::error::PrintNannyCloudConfigError;
+use super::error::PrintNannyConfigError;
 
 pub const PRINTNANNY_CONFIG_FILENAME: &str = "default.toml";
 pub const PRINTNANNY_CONFIG_DEFAULT: &str = "/etc/printnanny/default.toml";
@@ -93,7 +93,7 @@ impl PrintNannyPaths {
         self.creds().join("license.json")
     }
 
-    pub fn try_init_dirs(&self) -> Result<(), PrintNannyCloudConfigError> {
+    pub fn try_init_dirs(&self) -> Result<(), PrintNannyConfigError> {
         let dirs = [
             &self.etc,
             &self.recovery(),
@@ -116,7 +116,7 @@ impl PrintNannyPaths {
                         info!("Created directory {:?}", &dir);
                         Ok(())
                     }
-                    Err(error) => Err(PrintNannyCloudConfigError::WriteIOError {
+                    Err(error) => Err(PrintNannyConfigError::WriteIOError {
                         path: dir.to_path_buf(),
                         error,
                     }),
@@ -132,13 +132,13 @@ impl PrintNannyPaths {
         OsRelease::new_from(&self.os_release)
     }
 
-    fn try_find_seed(&self, pattern: &str) -> Result<PathBuf, PrintNannyCloudConfigError> {
+    fn try_find_seed(&self, pattern: &str) -> Result<PathBuf, PrintNannyConfigError> {
         // find seed file zip using glob pattern
         // the zip file is named PrintNanny-${hostname}.zip to make it easy for users to differentiate configs for multiple Pis
         let matched_zip = glob(pattern);
         let mut matched_zip = match matched_zip {
             Ok(v) => Ok(v),
-            Err(_) => Err(PrintNannyCloudConfigError::PatternNotFound {
+            Err(_) => Err(PrintNannyConfigError::PatternNotFound {
                 pattern: pattern.to_string(),
             }),
         }?;
@@ -147,18 +147,18 @@ impl PrintNannyPaths {
         match matched_zip {
             Some(result) => match result {
                 Ok(v) => Ok(v),
-                Err(_) => Err(PrintNannyCloudConfigError::PatternNotFound {
+                Err(_) => Err(PrintNannyConfigError::PatternNotFound {
                     pattern: pattern.to_string(),
                 }),
             },
-            None => Err(PrintNannyCloudConfigError::PatternNotFound {
+            None => Err(PrintNannyConfigError::PatternNotFound {
                 pattern: pattern.to_string(),
             }),
         }
     }
 
     // backup PrintNanny.zip to data partition
-    pub fn try_copy_seed(&self, force: bool) -> Result<(), PrintNannyCloudConfigError> {
+    pub fn try_copy_seed(&self, force: bool) -> Result<(), PrintNannyConfigError> {
         let matched_zip = self.try_find_seed(&self.seed_file_pattern)?;
         let filename = matched_zip.file_name().unwrap();
         let dest = self.recovery().join(filename);
@@ -168,14 +168,14 @@ impl PrintNannyPaths {
                     info!("Copied {:?} to {:?}", &matched_zip, &dest);
                     Ok(())
                 }
-                Err(error) => Err(PrintNannyCloudConfigError::CopyIOError {
+                Err(error) => Err(PrintNannyConfigError::CopyIOError {
                     src: matched_zip,
                     dest,
                     error,
                 }),
             }
         } else {
-            Err(PrintNannyCloudConfigError::FileExists { path: dest })
+            Err(PrintNannyConfigError::FileExists { path: dest })
         }
     }
 
@@ -184,11 +184,11 @@ impl PrintNannyPaths {
     pub fn unpack_seed(
         &self,
         force: bool,
-    ) -> Result<[(String, PathBuf); 2], PrintNannyCloudConfigError> {
+    ) -> Result<[(String, PathBuf); 2], PrintNannyConfigError> {
         let matched_zip = self.try_find_seed(&self.seed_file_pattern)?;
         let file = match std::fs::File::open(&matched_zip) {
             Ok(f) => Ok(f),
-            Err(error) => Err(PrintNannyCloudConfigError::ReadIOError {
+            Err(error) => Err(PrintNannyConfigError::ReadIOError {
                 path: matched_zip.clone(),
                 error,
             }),
@@ -206,7 +206,7 @@ impl PrintNannyPaths {
         for (filename, dest) in results.iter() {
             // if target file already fails and --force flag not passed
             if dest.exists() && !force {
-                return Err(PrintNannyCloudConfigError::FileExists {
+                return Err(PrintNannyConfigError::FileExists {
                     path: dest.to_path_buf(),
                 });
             }
@@ -214,7 +214,7 @@ impl PrintNannyPaths {
             let file = archive.by_name(filename);
             let mut file = match file {
                 Ok(f) => Ok(f),
-                Err(_) => Err(PrintNannyCloudConfigError::ArchiveMissingFile {
+                Err(_) => Err(PrintNannyConfigError::ArchiveMissingFile {
                     filename: filename.to_string(),
                     archive: matched_zip.clone(),
                 }),
@@ -224,7 +224,7 @@ impl PrintNannyPaths {
 
             match file.read_to_string(&mut contents) {
                 Ok(_) => Ok(()),
-                Err(error) => Err(PrintNannyCloudConfigError::ReadIOError {
+                Err(error) => Err(PrintNannyConfigError::ReadIOError {
                     path: PathBuf::from(filename),
                     error,
                 }),
@@ -232,7 +232,7 @@ impl PrintNannyPaths {
 
             match std::fs::write(&dest, contents) {
                 Ok(_) => Ok(()),
-                Err(error) => Err(PrintNannyCloudConfigError::WriteIOError {
+                Err(error) => Err(PrintNannyConfigError::WriteIOError {
                     path: PathBuf::from(filename),
                     error,
                 }),

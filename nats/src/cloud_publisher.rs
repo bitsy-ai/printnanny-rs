@@ -10,7 +10,7 @@ use log::debug;
 use printnanny_api_client::models;
 use printnanny_api_client::models::polymorphic_octo_print_event_request::PolymorphicOctoPrintEventRequest;
 use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
-use printnanny_services::{config::PrintNannyCloudConfig, error::PrintNannyCloudConfigError};
+use printnanny_services::{config::PrintNannyConfig, error::PrintNannyConfigError};
 use tokio::net::UnixStream;
 use tokio_util::codec::{FramedWrite, LengthDelimitedCodec};
 use uuid::Uuid;
@@ -21,7 +21,7 @@ use crate::subjects;
 #[derive(Debug, Clone)]
 pub struct CloudEventPublisher {
     args: ArgMatches,
-    config: PrintNannyCloudConfig,
+    config: PrintNannyConfig,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -33,8 +33,8 @@ pub enum PayloadFormat {
 
 impl CloudEventPublisher {
     // initialize CloudEventPublisher from clap::Command ArgMatches
-    pub fn new(args: &ArgMatches) -> Result<Self, PrintNannyCloudConfigError> {
-        let config = PrintNannyCloudConfig::new().unwrap();
+    pub fn new(args: &ArgMatches) -> Result<Self, PrintNannyConfigError> {
+        let config = PrintNannyConfig::new().unwrap();
         config.try_check_license()?;
         Ok(Self {
             args: args.clone(),
@@ -329,6 +329,7 @@ impl CloudEventPublisher {
 
         let pi_id = self
             .config
+            .cloud
             .pi
             .as_ref()
             .expect("Failed to read PrintNannyCloudConfig.pi.id")
@@ -510,6 +511,7 @@ impl CloudEventPublisher {
                     serde_json::from_str::<models::OctoPrintClientStatusPayloadRequest>(payload)?;
                 let octoprint_server = self
                     .config
+                    .cloud
                     .pi
                     .as_ref()
                     .expect("Failed to readPrintNannyCloudConfig.pi")
@@ -542,6 +544,7 @@ impl CloudEventPublisher {
                     serde_json::from_str::<models::OctoPrintPrintJobPayloadRequest>(payload)?;
                 let octoprint_server = self
                     .config
+                    .cloud
                     .pi
                     .as_ref()
                     .expect("Failed to readPrintNannyCloudConfig.pi")
@@ -577,6 +580,7 @@ impl CloudEventPublisher {
                 };
                 let octoprint_server = self
                     .config
+                    .cloud
                     .pi
                     .as_ref()
                     .expect("Failed to readPrintNannyCloudConfig.pi")
@@ -611,6 +615,7 @@ impl CloudEventPublisher {
                 };
                 let octoprint_server = self
                     .config
+                    .cloud
                     .pi
                     .as_ref()
                     .expect("Failed to readPrintNannyCloudConfig.pi")

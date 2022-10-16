@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::prelude::*;
@@ -9,12 +10,13 @@ use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
 use file_lock::{FileLock, FileOptions};
 use glob::glob;
+use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
 use crate::error::ServiceError;
 
-use super::error::PrintNannyCloudConfigError;
+use super::error::PrintNannyConfigError;
 use super::paths::{PrintNannyPaths, PRINTNANNY_CONFIG_DEFAULT};
 use super::printnanny_api::ApiService;
 use printnanny_api_client::models;
@@ -22,7 +24,41 @@ use printnanny_api_client::models;
 // FACTORY_RESET holds the struct field names of PrintNannyCloudConfig
 // each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
 // as the name implies, this const is used for performing a reset of any config data modified from defaults
-const FACTORY_RESET: [&str; 2] = ["api", "pi"];
+const FACTORY_RESET: [&str; 3] = ["cloud.api", "cloud.pi", "systemd_units"];
+
+lazy_static! {
+    static ref DEFAULT_SYSTEMD_UNITS: HashMap<String, SystemdUnit> = {
+        let mut m = HashMap::new();
+
+        // printnanny-vision.service
+        m.insert(
+            "printnanny-vision.service".to_string(),
+            SystemdUnit {
+                unit: "printnanny-vision.service".to_string(),
+                enabled: true,
+            },
+        );
+
+        // octoprint.service
+        m.insert(
+            "octoprint.service".to_string(),
+            SystemdUnit {
+                unit: "octoprint.service".to_string(),
+                enabled: true,
+            },
+        );
+
+        // mainsail.service
+        m.insert(
+            "mainsail.service".to_string(),
+            SystemdUnit {
+                unit: "mansail.service".to_string(),
+                enabled: false,
+            },
+        );
+        m
+    };
+}
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
 pub enum ConfigFormat {
@@ -76,24 +112,6 @@ impl std::str::FromStr for ConfigFormat {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct DashConfig {
-    pub base_url: String,
-    pub base_path: String,
-    pub port: i32,
-}
-
-impl Default for DashConfig {
-    fn default() -> Self {
-        let hostname = sys_info::hostname().unwrap_or_else(|_| "localhost".to_string());
-        Self {
-            base_url: format!("http://{}/", hostname),
-            base_path: "/".into(),
-            port: 9001,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PrintNannyCloudProxy {
     pub hostname: String,
     pub base_path: String,
@@ -116,11 +134,8 @@ impl Default for PrintNannyCloudProxy {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyCloudConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
-    // Pi device data present on all Print Nanny OS editions
     pub pi: Option<models::Pi>,
-    pub paths: PrintNannyPaths,
     pub api: models::PrintNannyApiConfig,
-    pub dash: DashConfig,
 }
 
 impl Default for PrintNannyCloudConfig {
@@ -131,27 +146,45 @@ impl Default for PrintNannyCloudConfig {
             bearer_access_token: None,
         };
         let paths = PrintNannyPaths::default();
-        let dash = DashConfig::default();
-        PrintNannyCloudConfig {
-            api,
-            dash,
+        PrintNannyCloudConfig { api, pi: None }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct SystemdUnit {
+    unit: String,
+    enabled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct PrintNannyConfig {
+    pub cloud: PrintNannyCloudConfig,
+    pub paths: PrintNannyPaths,
+    pub systemd_units: HashMap<String, SystemdUnit>,
+}
+
+impl Default for PrintNannyConfig {
+    fn default() -> Self {
+        let paths = PrintNannyPaths::default();
+        PrintNannyConfig {
             paths,
-            pi: None,
+            cloud: PrintNannyCloudConfig::default(),
+            systemd_units: DEFAULT_SYSTEMD_UNITS.clone(),
         }
     }
 }
 
-impl PrintNannyCloudConfig {
+impl PrintNannyConfig {
     // See example: https://docs.rs/figment/latest/figment/index.html#extracting-and-profiles
     // Note the `nested` option on both `file` providers. This makes each
     // top-level dictionary act as a profile
-    pub fn new() -> Result<Self, PrintNannyCloudConfigError> {
+    pub fn new() -> Result<Self, PrintNannyConfigError> {
         let figment = Self::figment()?;
         let result = figment.extract()?;
         debug!("Initialized config {:?}", result);
         Ok(result)
     }
-    pub fn find_value(key: &str) -> Result<figment::value::Value, PrintNannyCloudConfigError> {
+    pub fn find_value(key: &str) -> Result<figment::value::Value, PrintNannyConfigError> {
         let figment = Self::figment()?;
         Ok(figment.find_value(key)?)
     }
@@ -178,7 +211,7 @@ impl PrintNannyCloudConfig {
     //
     // 4) Defaults (from implement Default)
 
-    pub fn check_file_from_env_var(var: &str) -> Result<(), PrintNannyCloudConfigError> {
+    pub fn check_file_from_env_var(var: &str) -> Result<(), PrintNannyConfigError> {
         // try reading env var
         match env::var(var) {
             Ok(value) => {
@@ -186,7 +219,7 @@ impl PrintNannyCloudConfig {
                 let path = PathBuf::from(value);
                 match path.exists() {
                     true => Ok(()),
-                    false => Err(PrintNannyCloudConfigError::ConfigFileNotFound { path }),
+                    false => Err(PrintNannyConfigError::ConfigFileNotFound { path }),
                 }
             }
             Err(_) => {
@@ -198,7 +231,7 @@ impl PrintNannyCloudConfig {
         }
     }
 
-    pub fn figment() -> Result<Figment, PrintNannyCloudConfigError> {
+    pub fn figment() -> Result<Figment, PrintNannyConfigError> {
         // merge file in PRINTNANNY_CONFIG env var (if set)
         let result = Figment::from(Self { ..Self::default() })
             .merge(Toml::file(Env::var_or(
@@ -271,38 +304,38 @@ impl PrintNannyCloudConfig {
         result
     }
 
-    pub fn try_check_license(&self) -> Result<(), PrintNannyCloudConfigError> {
-        match &self.pi {
+    pub fn try_check_license(&self) -> Result<(), PrintNannyConfigError> {
+        match &self.cloud.pi {
             Some(_) => Ok(()),
-            None => Err(PrintNannyCloudConfigError::LicenseMissing {
+            None => Err(PrintNannyConfigError::LicenseMissing {
                 path: "pi".to_string(),
             }),
         }?;
 
-        match &self.api.bearer_access_token {
+        match &self.cloud.api.bearer_access_token {
             Some(_) => Ok(()),
-            None => Err(PrintNannyCloudConfigError::LicenseMissing {
+            None => Err(PrintNannyConfigError::LicenseMissing {
                 path: "api.bearer_access_token".to_string(),
             }),
         }?;
 
         match self.paths.nats_creds().exists() {
             true => Ok(()),
-            false => Err(PrintNannyCloudConfigError::LicenseMissing {
+            false => Err(PrintNannyConfigError::LicenseMissing {
                 path: self.paths.nats_creds().display().to_string(),
             }),
         }?;
 
-        match self.pi.as_ref().unwrap().nats_app {
+        match self.cloud.pi.as_ref().unwrap().nats_app {
             Some(_) => Ok(()),
-            None => Err(PrintNannyCloudConfigError::LicenseMissing {
+            None => Err(PrintNannyConfigError::LicenseMissing {
                 path: "pi.nats_app".to_string(),
             }),
         }?;
         Ok(())
     }
 
-    pub fn try_factory_reset(&self) -> Result<(), PrintNannyCloudConfigError> {
+    pub fn try_factory_reset(&self) -> Result<(), PrintNannyConfigError> {
         // for each key/value pair in FACTORY_RESET, remove file
         for key in FACTORY_RESET.iter() {
             let filename = format!("{}.json", key);
@@ -326,7 +359,7 @@ impl PrintNannyCloudConfig {
     /// Save FACTORY_RESET field as <field>.toml Figment fragments
     ///
     /// If serialization or fs write fails, prints an error message indicating the failure
-    pub fn try_save_by_key(&self, key: &str) -> Result<PathBuf, PrintNannyCloudConfigError> {
+    pub fn try_save_by_key(&self, key: &str) -> Result<PathBuf, PrintNannyConfigError> {
         let filename = format!("{}.json", key);
         let filename = self.paths.confd().join(filename);
         self.try_save_fragment(key, &filename)?;
@@ -338,21 +371,21 @@ impl PrintNannyCloudConfig {
         &self,
         key: &str,
         filename: &PathBuf,
-    ) -> Result<(), PrintNannyCloudConfigError> {
+    ) -> Result<(), PrintNannyConfigError> {
         let content = match key {
-            "api" => Ok(serde_json::to_string(
-                &figment::util::map! {key => &self.api},
+            "cloud.api" => Ok(serde_json::to_string(
+                &figment::util::map! {key => &self.cloud.api},
             )?),
-            "pi" => match &self.pi.as_ref() {
+            "cloud.pi" => match &self.cloud.pi.as_ref() {
                 Some(_) => Ok(serde_json::to_string(
-                    &figment::util::map! {key => &self.pi},
+                    &figment::util::map! {key => &self.cloud.pi},
                 )?),
-                None => Err(PrintNannyCloudConfigError::SetupIncomplete {
+                None => Err(PrintNannyConfigError::SetupIncomplete {
                     field: "pi".to_string(),
                     detail: Some("Failed to write .json config fragment".to_string()),
                 }),
             },
-            _ => Err(PrintNannyCloudConfigError::InvalidValue { value: key.into() }),
+            _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
         }?;
 
         info!("Saving {}.json to {:?}", &key, &filename);
@@ -371,7 +404,7 @@ impl PrintNannyCloudConfig {
     ///
     /// If extraction fails, prints an error message indicating the failure
     ///
-    pub fn try_save(&self) -> Result<(), PrintNannyCloudConfigError> {
+    pub fn try_save(&self) -> Result<(), PrintNannyConfigError> {
         // for each key/value pair in FACTORY_RESET vec, write a separate .toml
         for key in FACTORY_RESET.iter() {
             match self.try_save_by_key(key) {
@@ -387,7 +420,7 @@ impl PrintNannyCloudConfig {
         &self,
         filename: &str,
         format: &ConfigFormat,
-    ) -> Result<(), PrintNannyCloudConfigError> {
+    ) -> Result<(), PrintNannyConfigError> {
         let content: String = match format {
             ConfigFormat::Json => serde_json::to_string_pretty(self)?,
             ConfigFormat::Toml => toml::ser::to_string_pretty(self)?,
@@ -432,9 +465,9 @@ impl PrintNannyCloudConfig {
     }
 }
 
-impl Provider for PrintNannyCloudConfig {
+impl Provider for PrintNannyConfig {
     fn metadata(&self) -> Metadata {
-        Metadata::named("PrintNannyCloudConfig")
+        Metadata::named("PrintNannyConfig")
     }
 
     fn data(&self) -> figment::error::Result<Map<Profile, Dict>> {

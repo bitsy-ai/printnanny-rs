@@ -1,6 +1,6 @@
 use log::{info, warn};
 use printnanny_services::config::{ConfigFormat, PrintNannyCloudConfig};
-use printnanny_services::error::{PrintNannyCloudConfigError, ServiceError};
+use printnanny_services::error::{PrintNannyConfigError, ServiceError};
 use printnanny_services::printnanny_api::ApiService;
 use std::io::{self, Write};
 
@@ -66,7 +66,7 @@ impl ConfigCommand {
                 match config.paths.unpack_seed(force) {
                     Ok(_r) => Ok(()),
                     Err(e) => match e {
-                        PrintNannyCloudConfigError::FileExists { .. } => {
+                        PrintNannyConfigError::FileExists { .. } => {
                             warn!("{}", e);
                             Ok(())
                         }

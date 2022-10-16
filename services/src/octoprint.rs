@@ -4,7 +4,7 @@ use std::process::Command;
 use printnanny_api_client::models;
 use serde::{Deserialize, Serialize};
 
-use super::error::PrintNannyCloudConfigError;
+use super::error::PrintNannyConfigError;
 
 pub const OCTOPRINT_BASE_PATH: &str = "/home/octoprint/.octoprint";
 pub const PYTHON_BIN: &str = "/usr/bin/python3";
@@ -20,7 +20,7 @@ pub struct OctoPrintHelper {
     pub octoprint_server: models::OctoPrintServer,
 }
 
-pub fn parse_pip_list_json(stdout: &str) -> Result<Vec<PipPackage>, PrintNannyCloudConfigError> {
+pub fn parse_pip_list_json(stdout: &str) -> Result<Vec<PipPackage>, PrintNannyConfigError> {
     let v: Vec<PipPackage> = serde_json::from_str(stdout)?;
     Ok(v)
 }
@@ -53,7 +53,7 @@ impl OctoPrintHelper {
             _ => false,
         }
     }
-    pub fn pip_version(&self) -> Result<Option<String>, PrintNannyCloudConfigError> {
+    pub fn pip_version(&self) -> Result<Option<String>, PrintNannyConfigError> {
         let msg = format!(
             "{:?} -m pip --version failed",
             &self.octoprint_server.python_path
@@ -79,7 +79,7 @@ impl OctoPrintHelper {
                 let code = output.status.code();
                 let stderr = String::from_utf8_lossy(&output.stderr).into();
                 let stdout = stdout.into();
-                Err(PrintNannyCloudConfigError::CommandError {
+                Err(PrintNannyConfigError::CommandError {
                     cmd: msg,
                     stdout,
                     stderr,
@@ -89,7 +89,7 @@ impl OctoPrintHelper {
         }
     }
 
-    pub fn pip_packages(&self) -> Result<Vec<PipPackage>, PrintNannyCloudConfigError> {
+    pub fn pip_packages(&self) -> Result<Vec<PipPackage>, PrintNannyConfigError> {
         let output = Command::new(&self.octoprint_server.python_path)
             .arg("-m")
             .arg("pip")
@@ -117,7 +117,7 @@ impl OctoPrintHelper {
                 let code = output.status.code();
                 let stderr = String::from_utf8_lossy(&output.stderr).into();
                 let stdout = stdout.into();
-                Err(PrintNannyCloudConfigError::CommandError {
+                Err(PrintNannyConfigError::CommandError {
                     cmd,
                     stdout,
                     stderr,
@@ -127,7 +127,7 @@ impl OctoPrintHelper {
         }
     }
 
-    pub fn python_version(&self) -> Result<Option<String>, PrintNannyCloudConfigError> {
+    pub fn python_version(&self) -> Result<Option<String>, PrintNannyConfigError> {
         let msg = format!("{:?} --version failed", &self.octoprint_server.python_path);
         let output = Command::new(&self.octoprint_server.python_path)
             .arg("--version")
@@ -149,7 +149,7 @@ impl OctoPrintHelper {
                 let code = output.status.code();
                 let stderr = String::from_utf8_lossy(&output.stderr).into();
                 let stdout = stdout.into();
-                Err(PrintNannyCloudConfigError::CommandError {
+                Err(PrintNannyConfigError::CommandError {
                     cmd,
                     stdout,
                     stderr,
@@ -162,11 +162,11 @@ impl OctoPrintHelper {
     pub fn octoprint_version(
         &self,
         packages: &[PipPackage],
-    ) -> Result<String, PrintNannyCloudConfigError> {
+    ) -> Result<String, PrintNannyConfigError> {
         let v: Vec<&PipPackage> = packages.iter().filter(|p| p.name == "OctoPrint").collect();
         let result = match v.first() {
             Some(p) => Ok(p.version.clone()),
-            None => Err(PrintNannyCloudConfigError::OctoPrintServerConfigError {
+            None => Err(PrintNannyConfigError::OctoPrintServerConfigError {
                 field: "octoprint_version".into(),
                 detail: None,
             }),
@@ -181,14 +181,14 @@ impl OctoPrintHelper {
     pub fn printnanny_plugin_version(
         &self,
         packages: &[PipPackage],
-    ) -> Result<Option<String>, PrintNannyCloudConfigError> {
+    ) -> Result<Option<String>, PrintNannyConfigError> {
         let v: Vec<&PipPackage> = packages
             .iter()
             .filter(|p| p.name == "OctoPrint-Nanny")
             .collect();
         let result = match v.first() {
             Some(p) => Ok(p.version.clone()),
-            None => Err(PrintNannyCloudConfigError::OctoPrintServerConfigError {
+            None => Err(PrintNannyConfigError::OctoPrintServerConfigError {
                 field: "printnanny_plugin_version".into(),
                 detail: None,
             }),
