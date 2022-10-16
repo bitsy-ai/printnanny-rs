@@ -132,7 +132,7 @@ async fn main() -> Result<()> {
             ))
 
         // nats-edge-worker
-        .subcommand(printnanny_nats::subscriber::NatsSubscriber::<NatsRequest, NatsResponse>::clap_command("nats-qc-worker"))
+        .subcommand(printnanny_nats::subscriber::NatsSubscriber::<NatsRequest, NatsResponse>::clap_command("nats-edge-worker"))
         // nats-cloud-worker
         .subcommand(printnanny_nats::cloud_worker::NatsCloudWorker::clap_command())
         // nats-cloud-publisher
