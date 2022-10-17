@@ -152,7 +152,6 @@ impl Default for PrintNannyCloudConfig {
             base_path: "https://printnanny.ai".into(),
             bearer_access_token: None,
         };
-        let paths = PrintNannyPaths::default();
         PrintNannyCloudConfig { api, pi: None }
     }
 }
@@ -207,10 +206,6 @@ impl From<&ArgMatches> for TfliteModelConfig {
         let tensor_channels: i32 = args
             .value_of_t::<i32>("tensor_channels")
             .expect("--tensor-channels must be an integer");
-
-        let tensor_queue_max_size_bytes: u32 = args
-            .value_of_t::<u32>("tensor_queue_max_size_bytes")
-            .expect("--tensor-queue-max-size-bytes must be an integer");
 
         let nms_threshold: i32 = args
             .value_of_t::<i32>("nms_threshold")

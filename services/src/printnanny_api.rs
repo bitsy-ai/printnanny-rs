@@ -14,7 +14,7 @@ use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::models;
 
-use super::config::{PrintNannyCloudConfig, PrintNannyConfig};
+use super::config::PrintNannyConfig;
 use super::cpuinfo::RpiCpuInfo;
 use super::error::{PrintNannyConfigError, ServiceError};
 use super::file::open;

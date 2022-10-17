@@ -1884,6 +1884,7 @@ dependencies = [
  "chrono",
  "clap",
  "env_logger",
+ "figment",
  "futures",
  "log",
  "printnanny-api-client",
