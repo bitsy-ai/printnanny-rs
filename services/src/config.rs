@@ -4,7 +4,7 @@ use std::fs;
 use std::io::prelude::*;
 use std::path::PathBuf;
 
-use clap::{ArgEnum, PossibleValue};
+use clap::{ArgEnum, ArgMatches, PossibleValue};
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
@@ -24,7 +24,7 @@ use printnanny_api_client::models;
 // FACTORY_RESET holds the struct field names of PrintNannyCloudConfig
 // each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
 // as the name implies, this const is used for performing a reset of any config data modified from defaults
-const FACTORY_RESET: [&str; 2] = ["cloud", "systemd_units"];
+const FACTORY_RESET: [&str; 3] = ["cloud", "systemd_units", "vision"];
 
 lazy_static! {
     static ref DEFAULT_SYSTEMD_UNITS: HashMap<String, SystemdUnit> = {
@@ -131,7 +131,6 @@ impl Default for PrintNannyCloudProxy {
     }
 }
 
-
 #[derive(Debug, Clone, clap::ValueEnum, Deserialize, Serialize, PartialEq)]
 pub enum VideoStreamSource {
     File,
@@ -162,7 +161,6 @@ impl Default for PrintNannyCloudConfig {
 pub struct TfliteModelConfig {
     pub label_file: String,
     pub model_file: String,
-    pub metadata_file: String,
     pub nms_threshold: i32,
     pub tensor_batch_size: i32,
     pub tensor_channels: i32,
@@ -175,12 +173,57 @@ impl Default for TfliteModelConfig {
         Self {
             label_file: "/etc/printnanny/data/dict.txt".into(),
             model_file: "/etc/printnanny/data/model.tflite".into(),
-            metadata_file: "/etc/printnanny/data/tflite_metadata.json".into(),
             nms_threshold: 50,
             tensor_batch_size: 40,
             tensor_channels: 3,
             tensor_height: 320,
-            tensor_width: 320
+            tensor_width: 320,
+        }
+    }
+}
+
+impl From<&ArgMatches> for TfliteModelConfig {
+    fn from(args: &ArgMatches) -> Self {
+        let label_file = args
+            .value_of("label_file")
+            .expect("--label-file is required")
+            .into();
+        let model_file = args
+            .value_of("model_file")
+            .expect("--model-file is required")
+            .into();
+        let tensor_batch_size: i32 = args
+            .value_of_t::<i32>("tensor_batch_size")
+            .expect("--tensor-batch-size must be an integer");
+
+        let tensor_height: i32 = args
+            .value_of_t::<i32>("tensor_height")
+            .expect("--tensor-height must be an integer");
+
+        let tensor_width: i32 = args
+            .value_of_t::<i32>("tensor_width")
+            .expect("--tensor-width must be an integer");
+
+        let tensor_channels: i32 = args
+            .value_of_t::<i32>("tensor_channels")
+            .expect("--tensor-channels must be an integer");
+
+        let tensor_queue_max_size_bytes: u32 = args
+            .value_of_t::<u32>("tensor_queue_max_size_bytes")
+            .expect("--tensor-queue-max-size-bytes must be an integer");
+
+        let nms_threshold: i32 = args
+            .value_of_t::<i32>("nms_threshold")
+            .expect("--nms-threshold must be an integer");
+
+        Self {
+            label_file,
+            model_file,
+            nms_threshold,
+            tensor_batch_size,
+            tensor_channels,
+            tensor_height,
+            tensor_width,
         }
     }
 }
@@ -217,16 +260,53 @@ impl Default for PrintNannyGstPipelineConfig {
     }
 }
 
+impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
+    fn from(args: &ArgMatches) -> Self {
+        let tflite_model = TfliteModelConfig::from(args);
+
+        let video_stream_src: &VideoStreamSource = args
+            .get_one::<VideoStreamSource>("video_stream_src")
+            .expect("--video-stream-src");
+
+        let input_path = args
+            .value_of("input_path")
+            .expect("--video-file is required")
+            .into();
+        let video_height: i32 = args
+            .value_of_t::<i32>("video_height")
+            .expect("--video-height must be an integer");
+
+        let video_width: i32 = args
+            .value_of_t::<i32>("video_width")
+            .expect("--video-width must be an integer");
+
+        let udp_port: i32 = args
+            .value_of_t("udp_port")
+            .expect("--udp-port must be an integer");
+
+        let preview = args.is_present("preview");
+
+        Self {
+            tflite_model,
+            preview,
+            input_path,
+            video_height,
+            video_width,
+            video_stream_src: video_stream_src.clone(),
+            udp_port,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct SystemdUnit {
     unit: String,
     enabled: bool,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
-    pub pipeline: PrintNannyGstPipelineConfig,
+    pub vision: PrintNannyGstPipelineConfig,
     pub cloud: PrintNannyCloudConfig,
     pub paths: PrintNannyPaths,
     pub systemd_units: HashMap<String, SystemdUnit>,
@@ -239,7 +319,7 @@ impl Default for PrintNannyConfig {
             paths,
             cloud: PrintNannyCloudConfig::default(),
             systemd_units: DEFAULT_SYSTEMD_UNITS.clone(),
-            pipeline: PrintNannyGstPipelineConfig::default()
+            vision: PrintNannyGstPipelineConfig::default(),
         }
     }
 }
@@ -449,6 +529,9 @@ impl PrintNannyConfig {
             "systemd_units" => Ok(serde_json::to_string(
                 &figment::util::map! {key => &self.systemd_units},
             )?),
+            "vision" => Ok(serde_json::to_string(
+                &figment::util::map! {key => &self.vision},
+            )?),
             _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
         }?;
 
@@ -501,7 +584,7 @@ impl PrintNannyConfig {
     /// panics. For a version that doesn't panic, use [`PrintNannyCloudConfig::try_save()`].
     ///
     pub fn save(&self) {
-        unimplemented!()
+        return self.try_save().expect("Failed to save PrintNannyConfig");
     }
 
     /// Extract a `Config` from `provider`, panicking if extraction fails.
@@ -783,6 +866,56 @@ VARIANT_ID=printnanny-octoprint
             let config = PrintNannyConfig::new().unwrap();
             let os_release = config.paths.load_os_release().unwrap();
             assert_eq!("2022-06-18T18:46:49Z".to_string(), os_release.build_id);
+            Ok(())
+        });
+    }
+
+    #[test_log::test]
+    fn test_vision_gst_pipeline_conf() {
+        figment::Jail::expect_with(|jail| {
+            let input_path = "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4";
+            let video_stream_src = "Uri";
+            let output = jail.directory().to_str().unwrap();
+
+            jail.create_file(
+                PRINTNANNY_CONFIG_FILENAME,
+                &format!(
+                    r#"
+                profile = "local"
+                [paths]
+                etc = "{output}/etc"
+                run = "{output}/run"
+                log = "{output}/log"
+
+                [vision]
+                video_stream_src = "{video_stream_src}"
+                input_path = "{input_path}"
+                [vision.tflite_model]
+                tensor_height = 400
+                tensor_width = 400
+                
+                "#,
+                    input_path = input_path,
+                    video_stream_src = video_stream_src,
+                    output = output
+                ),
+            )?;
+            jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
+
+            let mut config = PrintNannyConfig::new().unwrap();
+            assert_eq!(config.vision.video_stream_src, VideoStreamSource::Uri);
+            assert_eq!(config.vision.tflite_model.tensor_height, 400);
+            assert_eq!(config.vision.tflite_model.tensor_width, 400);
+
+            // test saving config
+            config.vision.tflite_model.nms_threshold = 66;
+            config.paths.try_init_dirs().unwrap();
+            config.save();
+
+            let config2 = PrintNannyConfig::new().unwrap();
+
+            assert_eq!(config.vision, config2.vision);
+
             Ok(())
         });
     }
