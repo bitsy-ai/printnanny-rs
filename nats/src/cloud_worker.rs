@@ -253,7 +253,7 @@ impl NatsCloudWorker {
             "Attempting to initialize NATS connection to {}",
             nats_app.nats_server_uri
         );
-        let nats_creds = config.paths.nats_creds();
+        let nats_creds = config.paths.cloud_nats_creds();
 
         Ok(Self {
             socket: config.paths.events_socket(),
