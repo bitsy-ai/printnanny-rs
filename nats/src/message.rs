@@ -1,3 +1,4 @@
+use std::alloc::System;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs::File;
@@ -163,53 +164,40 @@ pub struct SystemctlCommandRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MediaCommandRequest {
-    service: String,
-    janus_stream: JanusStream,
-    command: MediaCommand,
+pub struct PiConfigRequest {
+    json: String, // json string, intended for use with Figment.rs JSON provider: https://docs.rs/figment/latest/figment/providers/struct.Json.html
+    pre_commands: Vec<SystemctlCommand>, // run commands prior to applying config merge/save
+    post_commands: Vec<SystemctlCommand>, // run commands after applying config merge/save
 }
 
-impl MediaCommandRequest {
-    fn build_response(&self, output: &Output) -> Result<MediaCommandResponse> {
-        let data: HashMap<String, serde_json::Value> = HashMap::new();
-        let res = match output.status.success() {
-            true => {
-                let detail = String::from_utf8(output.stdout.clone())?;
-                MediaCommandResponse {
-                    request: Some(self.clone()),
-                    status: ResponseStatus::Ok,
-                    detail: detail,
-                    data,
-                }
-            }
-            false => {
-                let detail = String::from_utf8(output.stderr.clone())?;
-                MediaCommandResponse {
-                    request: Some(self.clone()),
-                    status: ResponseStatus::Error,
-                    detail: detail,
-                    data,
-                }
-            }
-        };
-        Ok(res)
-    }
+impl PiConfigRequest {
+    // fn build_response(&self, output: &Output) -> Result<PiConfigResponse> {
+    //     let data: HashMap<String, serde_json::Value> = HashMap::new();
+    //     let res = match output.status.success() {
+    //         true => {
+    //             let detail = String::from_utf8(output.stdout.clone())?;
+    //             MediaCommandResponse {
+    //                 request: Some(self.clone()),
+    //                 status: ResponseStatus::Ok,
+    //                 detail: detail,
+    //                 data,
+    //             }
+    //         }
+    //         false => {
+    //             let detail = String::from_utf8(output.stderr.clone())?;
+    //             MediaCommandResponse {
+    //                 request: Some(self.clone()),
+    //                 status: ResponseStatus::Error,
+    //                 detail: detail,
+    //                 data,
+    //             }
+    //         }
+    //     };
+    //     Ok(res)
+    // }
 
-    fn start(&self) -> Result<MediaCommandResponse> {
-        // write stream config before restarting service
-        self.janus_stream.write_gst_pipeline_conf()?;
-
-        let output = process::Command::new("sudo")
-            .args(&["systemctl", "restart", &self.service])
-            .output()?;
-        self.build_response(&output)
-    }
-
-    fn stop(&self) -> Result<MediaCommandResponse> {
-        let output = process::Command::new("sudo")
-            .args(&["systemctl", "stop", &self.service])
-            .output()?;
-        self.build_response(&output)
+    fn handle(&self) -> Result<()> {
+        Ok(())
     }
 }
 
@@ -303,11 +291,12 @@ pub struct SystemctlCommandResponse {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MediaCommandResponse {
-    request: Option<MediaCommandRequest>,
+pub struct PiConfigResponse {
+    request: Option<PiConfigRequest>,
     status: ResponseStatus,
     detail: String,
-    data: HashMap<String, serde_json::Value>,
+    pre_commands: Vec<SystemctlCommandResponse>,
+    post_commands: Vec<SystemctlCommandResponse>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -315,11 +304,8 @@ pub struct MediaCommandResponse {
 pub enum NatsRequest {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandRequest(SystemctlCommandRequest),
-    #[serde(rename = "pi.command.media")]
-    MediaCommandRequest(MediaCommandRequest),
-
     #[serde(rename = "pi.config")]
-    PiConfigRequest(MediaCommandRequest),
+    PiConfigRequest(PiConfigRequest),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -327,9 +313,8 @@ pub enum NatsRequest {
 pub enum NatsResponse {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandResponse(SystemctlCommandResponse),
-
-    #[serde(rename = "pi.command.media")]
-    MediaCommandResponse(MediaCommandResponse),
+    #[serde(rename = "pi.config")]
+    PiConfigResponse(PiConfigResponse),
 }
 
 impl NatsResponse {}
@@ -360,10 +345,7 @@ impl MessageHandler<NatsRequest, NatsResponse> for NatsRequest {
                     Ok(NatsResponse::SystemctlCommandResponse(request.disable()?))
                 }
             },
-            NatsRequest::MediaCommandRequest(request) => match request.command {
-                MediaCommand::Start => Ok(NatsResponse::MediaCommandResponse(request.start()?)),
-                MediaCommand::Stop => Ok(NatsResponse::MediaCommandResponse(request.stop()?)),
-            },
+            NatsRequest::PiConfigRequest(request) => request.handle()?,
         }
     }
 }
