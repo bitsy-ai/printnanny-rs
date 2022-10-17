@@ -317,6 +317,9 @@ pub enum NatsRequest {
     SystemctlCommandRequest(SystemctlCommandRequest),
     #[serde(rename = "pi.command.media")]
     MediaCommandRequest(MediaCommandRequest),
+
+    #[serde(rename = "pi.config")]
+    PiConfigRequest(MediaCommandRequest),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -324,6 +327,7 @@ pub enum NatsRequest {
 pub enum NatsResponse {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandResponse(SystemctlCommandResponse),
+
     #[serde(rename = "pi.command.media")]
     MediaCommandResponse(MediaCommandResponse),
 }
