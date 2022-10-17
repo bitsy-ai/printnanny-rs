@@ -1,17 +1,18 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::fs::File;
 use std::process;
-use std::{fmt, io::Write};
 
 use anyhow::Result;
 use async_process::Output;
+use log::info;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::util::{self, SystemctlListUnit};
+use printnanny_services::config::PrintNannyConfig;
+use printnanny_services::figment;
+use printnanny_services::figment::providers::Format;
 
-const DEFAULT_GST_STREAM_CONF: &str = "/var/run/printnanny/printnanny-vision.conf";
+use crate::util::{self, SystemctlListUnit};
 
 pub trait MessageHandler<Request, Response>
 where
@@ -19,107 +20,6 @@ where
     Response: Serialize + DeserializeOwned + Debug,
 {
     fn handle(&self, request: &Request) -> Result<Response>;
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct JanusMedia {
-    age_ms: u64,
-    codec: String,
-    label: String,
-    mid: String,
-    mindex: i32,
-    port: i32,
-    pt: i32,
-    rtpmap: String,
-    #[serde(rename = "type")]
-    _type: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum VideoStreamSource {
-    File,
-    Device,
-}
-
-impl fmt::Display for VideoStreamSource {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::File => write!(f, "{}", "file"),
-            Self::Device => write!(f, "{}", "device"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct JanusStreamMetadata {
-    path: String,
-    video_stream_src: VideoStreamSource,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct JanusStream {
-    description: String,
-    enabled: bool,
-    id: i32,
-    media: Vec<JanusMedia>,
-    metadata: JanusStreamMetadata,
-    name: String,
-    #[serde(rename = "type")]
-    _type: String,
-    viewers: i32,
-}
-
-impl JanusStream {
-    pub fn gst_pipeline_conf(&self) -> String {
-        let media = self.media.get(0).expect("Expected JanusMedia to be set");
-        format!(
-            r#"UDP_PORT={udp_port}
-        INPUT_PATH={input_path}
-        VIDEO_STREAM_SRC={video_stream_src}"#,
-            udp_port = media.port,
-            input_path = self.metadata.path,
-            video_stream_src = self.metadata.video_stream_src,
-        )
-    }
-    pub fn write_gst_pipeline_conf(&self) -> Result<(), std::io::Error> {
-        let conf = self.gst_pipeline_conf();
-        let mut f = File::options()
-            .write(true)
-            .create(true)
-            .open(DEFAULT_GST_STREAM_CONF)?;
-
-        f.write_all(conf.as_bytes())
-    }
-}
-
-impl Default for JanusStream {
-    fn default() -> Self {
-        let media = JanusMedia {
-            age_ms: 13385101,
-            codec: "h264".into(),
-            label: "label".into(),
-            mid: "v1".into(),
-            mindex: 0,
-            port: 20001,
-            rtpmap: "H264/90000".into(),
-            pt: 96,
-            _type: "video".into(),
-        };
-        let metadata = JanusStreamMetadata {
-            path: "/dev/video0".into(),
-            video_stream_src: VideoStreamSource::Device,
-        };
-        Self {
-            description: "".into(),
-            enabled: false,
-            id: 0,
-            media: vec![media],
-            metadata: metadata,
-            name: "".into(),
-            _type: "".into(),
-            viewers: 0,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -163,53 +63,60 @@ pub struct SystemctlCommandRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MediaCommandRequest {
-    service: String,
-    janus_stream: JanusStream,
-    command: MediaCommand,
+pub struct PiConfigRequest {
+    json: String, // json string, intended for use with Figment.rs JSON provider: https://docs.rs/figment/latest/figment/providers/struct.Json.html
+    pre_save: Vec<SystemctlCommandRequest>, // run commands prior to applying config merge/save
+    post_save: Vec<SystemctlCommandRequest>, // run commands after applying config merge/save
 }
 
-impl MediaCommandRequest {
-    fn build_response(&self, output: &Output) -> Result<MediaCommandResponse> {
-        let data: HashMap<String, serde_json::Value> = HashMap::new();
-        let res = match output.status.success() {
-            true => {
-                let detail = String::from_utf8(output.stdout.clone())?;
-                MediaCommandResponse {
-                    request: Some(self.clone()),
-                    status: ResponseStatus::Ok,
-                    detail: detail,
-                    data,
-                }
-            }
-            false => {
-                let detail = String::from_utf8(output.stderr.clone())?;
-                MediaCommandResponse {
-                    request: Some(self.clone()),
-                    status: ResponseStatus::Error,
-                    detail: detail,
-                    data,
-                }
-            }
-        };
-        Ok(res)
+impl PiConfigRequest {
+    // merge incoming "figment" (configurationf fragment) with existing configuration, sourced from .json/.toml serializable data structure and env variables prefixed with PRINTNANNY_
+    fn _handle(&self) -> Result<(Vec<SystemctlCommandResponse>, Vec<SystemctlCommandResponse>)> {
+        // build a config fragment from json string
+        let incoming = figment::providers::Json::string(&self.json);
+        let figment = PrintNannyConfig::figment()?.merge(incoming);
+        let config: PrintNannyConfig = figment.extract()?;
+
+        // run pre-save command hooks
+        info!("Running pre-save commands: {:?}", self.pre_save);
+        let pre_save: Vec<SystemctlCommandResponse> = self
+            .pre_save
+            .iter()
+            .map(|request| request.handle())
+            .collect();
+        info!("Finished running post-save commands, attempting to save merged configuration");
+        // save merged configuration
+        config.try_save()?;
+
+        // run post-save command hooks
+        info!("Running pre-save commands: {:?}", self.pre_save);
+        let post_save: Vec<SystemctlCommandResponse> = self
+            .post_save
+            .iter()
+            .map(|request| request.handle())
+            .collect();
+        info!("Finished running post-save commands, attempting to save merged configuration");
+
+        Ok((pre_save, post_save))
     }
 
-    fn start(&self) -> Result<MediaCommandResponse> {
-        // write stream config before restarting service
-        self.janus_stream.write_gst_pipeline_conf()?;
-
-        let output = process::Command::new("sudo")
-            .args(&["systemctl", "restart", &self.service])
-            .output()?;
-        self.build_response(&output)
-    }
-
-    fn stop(&self) -> Result<MediaCommandResponse> {
-        let output = process::Command::new("sudo")
-            .args(&["systemctl", "stop", &self.service])
-            .output()?;
-        self.build_response(&output)
+    pub fn handle(&self) -> PiConfigResponse {
+        match self._handle() {
+            Ok((pre_save, post_save)) => PiConfigResponse {
+                pre_save,
+                post_save,
+                request: Some(self.clone()),
+                detail: "Updated PrintNanny configuration".into(),
+                status: ResponseStatus::Ok,
+            },
+            Err(e) => PiConfigResponse {
+                pre_save: vec![],
+                post_save: vec![],
+                request: Some(self.clone()),
+                detail: format!("Error updating PrintNanny configuration: {:?}", e),
+                status: ResponseStatus::Error,
+            },
+        }
     }
 }
 
@@ -237,6 +144,30 @@ impl SystemctlCommandRequest {
             }
         };
         Ok(res)
+    }
+
+    fn handle(&self) -> SystemctlCommandResponse {
+        let result = match self.command {
+            SystemctlCommand::ListEnabled => self.list_enabled(),
+            SystemctlCommand::Start => self.start(),
+            SystemctlCommand::Stop => self.stop(),
+            SystemctlCommand::Restart => self.restart(),
+            SystemctlCommand::Status => self.status(),
+            SystemctlCommand::Enable => self.enable(),
+            SystemctlCommand::Disable => self.disable(),
+        };
+        match result {
+            Ok(response) => response,
+            Err(e) => {
+                let data: HashMap<String, serde_json::Value> = HashMap::new();
+                SystemctlCommandResponse {
+                    request: Some(self.clone()),
+                    status: ResponseStatus::Error,
+                    detail: format!("Error running {:?} {}: {:?}", self.command, self.service, e),
+                    data,
+                }
+            }
+        }
     }
 
     fn list_enabled(&self) -> Result<SystemctlCommandResponse> {
@@ -303,11 +234,12 @@ pub struct SystemctlCommandResponse {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MediaCommandResponse {
-    request: Option<MediaCommandRequest>,
+pub struct PiConfigResponse {
+    request: Option<PiConfigRequest>,
     status: ResponseStatus,
     detail: String,
-    data: HashMap<String, serde_json::Value>,
+    pre_save: Vec<SystemctlCommandResponse>,
+    post_save: Vec<SystemctlCommandResponse>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -315,8 +247,8 @@ pub struct MediaCommandResponse {
 pub enum NatsRequest {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandRequest(SystemctlCommandRequest),
-    #[serde(rename = "pi.command.media")]
-    MediaCommandRequest(MediaCommandRequest),
+    #[serde(rename = "pi.config")]
+    PiConfigRequest(PiConfigRequest),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -324,8 +256,8 @@ pub enum NatsRequest {
 pub enum NatsResponse {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandResponse(SystemctlCommandResponse),
-    #[serde(rename = "pi.command.media")]
-    MediaCommandResponse(MediaCommandResponse),
+    #[serde(rename = "pi.config")]
+    PiConfigResponse(PiConfigResponse),
 }
 
 impl NatsResponse {}
@@ -333,33 +265,12 @@ impl NatsResponse {}
 impl MessageHandler<NatsRequest, NatsResponse> for NatsRequest {
     fn handle(&self, request: &NatsRequest) -> Result<NatsResponse> {
         match request {
-            NatsRequest::SystemctlCommandRequest(request) => match request.command {
-                SystemctlCommand::ListEnabled => Ok(NatsResponse::SystemctlCommandResponse(
-                    request.list_enabled()?,
-                )),
-                SystemctlCommand::Start => {
-                    Ok(NatsResponse::SystemctlCommandResponse(request.start()?))
-                }
-                SystemctlCommand::Stop => {
-                    Ok(NatsResponse::SystemctlCommandResponse(request.stop()?))
-                }
-                SystemctlCommand::Restart => {
-                    Ok(NatsResponse::SystemctlCommandResponse(request.restart()?))
-                }
-                SystemctlCommand::Status => {
-                    Ok(NatsResponse::SystemctlCommandResponse(request.status()?))
-                }
-                SystemctlCommand::Enable => {
-                    Ok(NatsResponse::SystemctlCommandResponse(request.enable()?))
-                }
-                SystemctlCommand::Disable => {
-                    Ok(NatsResponse::SystemctlCommandResponse(request.disable()?))
-                }
-            },
-            NatsRequest::MediaCommandRequest(request) => match request.command {
-                MediaCommand::Start => Ok(NatsResponse::MediaCommandResponse(request.start()?)),
-                MediaCommand::Stop => Ok(NatsResponse::MediaCommandResponse(request.stop()?)),
-            },
+            NatsRequest::SystemctlCommandRequest(request) => {
+                Ok(NatsResponse::SystemctlCommandResponse(request.handle()))
+            }
+            NatsRequest::PiConfigRequest(request) => {
+                Ok(NatsResponse::PiConfigResponse(request.handle()))
+            }
         }
     }
 }
@@ -367,15 +278,54 @@ impl MessageHandler<NatsRequest, NatsResponse> for NatsRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use printnanny_services::config::VideoStreamSource;
+    use printnanny_services::paths::PRINTNANNY_CONFIG_FILENAME;
 
     #[test]
-    fn test_conf_file() {
-        let janus_stream = JanusStream::default();
-        let conf = janus_stream.gst_pipeline_conf();
-        let expected = r#"UDP_PORT=20001
-        INPUT_PATH=/dev/video0
-        VIDEO_STREAM_SRC=device"#;
-        assert_eq!(expected, conf);
+    fn test_pi_config_update_handler() {
+        figment::Jail::expect_with(|jail| {
+            let output = jail.directory().to_str().unwrap();
+
+            jail.create_file(
+                PRINTNANNY_CONFIG_FILENAME,
+                &format!(
+                    r#"
+                profile = "default"
+
+                [paths]
+                etc = "{output}/etc"
+                run = "{output}/run"
+                log = "{output}/log"
+                "#,
+                    output = output
+                ),
+            )?;
+            jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
+
+            let default_config = PrintNannyConfig::new().unwrap();
+            default_config.paths.try_init_dirs().unwrap();
+
+            let input_path = "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4";
+
+            let request_json = r#"{
+                "vision": { "input_path": "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4", "video_stream_src": "Uri"}
+            }"#;
+
+            let request = PiConfigRequest {
+                json: request_json.into(),
+                pre_save: vec![],
+                post_save: vec![],
+            };
+
+            let res = request.handle();
+
+            assert_eq!(res.status, ResponseStatus::Ok);
+
+            let saved_config = PrintNannyConfig::new().unwrap();
+            assert_eq!(saved_config.vision.input_path, input_path);
+            assert_eq!(saved_config.vision.video_stream_src, VideoStreamSource::Uri);
+            Ok(())
+        });
     }
 
     #[test]

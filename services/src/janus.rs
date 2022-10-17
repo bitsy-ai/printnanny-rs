@@ -5,7 +5,7 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
 
-use super::config::{PrintNannyCloudConfig, PrintNannyConfig};
+use super::config::PrintNannyConfig;
 use super::error::ServiceError;
 
 #[derive(PartialEq, Debug, Clone, Copy, ArgEnum)]
