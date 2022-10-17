@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::ServiceError;
 
 use super::error::PrintNannyConfigError;
-use super::paths::{PrintNannyPaths, PRINTNANNY_CONFIG_DEFAULT};
+use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_CONFIG};
 use super::printnanny_api::ApiService;
 use printnanny_api_client::models;
 
@@ -131,6 +131,14 @@ impl Default for PrintNannyCloudProxy {
     }
 }
 
+
+#[derive(Debug, Clone, clap::ValueEnum, Deserialize, Serialize, PartialEq)]
+pub enum VideoStreamSource {
+    File,
+    Device,
+    Uri,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyCloudConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -151,13 +159,74 @@ impl Default for PrintNannyCloudConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct TfliteModelConfig {
+    pub label_file: String,
+    pub model_file: String,
+    pub metadata_file: String,
+    pub nms_threshold: i32,
+    pub tensor_batch_size: i32,
+    pub tensor_channels: i32,
+    pub tensor_height: i32,
+    pub tensor_width: i32,
+}
+
+impl Default for TfliteModelConfig {
+    fn default() -> Self {
+        Self {
+            label_file: "/etc/printnanny/data/dict.txt".into(),
+            model_file: "/etc/printnanny/data/model.tflite".into(),
+            metadata_file: "/etc/printnanny/data/tflite_metadata.json".into(),
+            nms_threshold: 50,
+            tensor_batch_size: 40,
+            tensor_channels: 3,
+            tensor_height: 320,
+            tensor_width: 320
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct PrintNannyGstPipelineConfig {
+    pub input_path: String,
+    pub preview: bool,
+    pub tflite_model: TfliteModelConfig,
+    pub udp_port: i32,
+    pub video_height: i32,
+    pub video_stream_src: VideoStreamSource,
+    pub video_width: i32,
+}
+
+impl Default for PrintNannyGstPipelineConfig {
+    fn default() -> Self {
+        let input_path = "/dev/video0".into();
+        let preview = false;
+        let tflite_model = TfliteModelConfig::default();
+        let udp_port = 20001;
+        let video_stream_src = VideoStreamSource::Device;
+        let video_height = 480;
+        let video_width = 640;
+        Self {
+            input_path,
+            tflite_model,
+            video_stream_src,
+            video_height,
+            video_width,
+            udp_port,
+            preview,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct SystemdUnit {
     unit: String,
     enabled: bool,
 }
 
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
+    pub pipeline: PrintNannyGstPipelineConfig,
     pub cloud: PrintNannyCloudConfig,
     pub paths: PrintNannyPaths,
     pub systemd_units: HashMap<String, SystemdUnit>,
@@ -170,6 +239,7 @@ impl Default for PrintNannyConfig {
             paths,
             cloud: PrintNannyCloudConfig::default(),
             systemd_units: DEFAULT_SYSTEMD_UNITS.clone(),
+            pipeline: PrintNannyGstPipelineConfig::default()
         }
     }
 }
@@ -236,7 +306,7 @@ impl PrintNannyConfig {
         let result = Figment::from(Self { ..Self::default() })
             .merge(Toml::file(Env::var_or(
                 "PRINTNANNY_CONFIG",
-                PRINTNANNY_CONFIG_DEFAULT,
+                DEFAULT_PRINTNANNY_CONFIG,
             )))
             // allow nested environment variables:
             // PRINTNANNY_KEY__SUBKEY
@@ -275,7 +345,7 @@ impl PrintNannyConfig {
         let result = result
             .merge(Toml::file(Env::var_or(
                 "PRINTNANNY_CONFIG",
-                PRINTNANNY_CONFIG_DEFAULT,
+                DEFAULT_PRINTNANNY_CONFIG,
             )))
             // allow nested environment variables:
             // PRINTNANNY_KEY__SUBKEY
@@ -319,10 +389,10 @@ impl PrintNannyConfig {
             }),
         }?;
 
-        match self.paths.nats_creds().exists() {
+        match self.paths.cloud_nats_creds().exists() {
             true => Ok(()),
             false => Err(PrintNannyConfigError::LicenseMissing {
-                path: self.paths.nats_creds().display().to_string(),
+                path: self.paths.cloud_nats_creds().display().to_string(),
             }),
         }?;
 

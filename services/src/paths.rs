@@ -15,7 +15,7 @@ use std::time::SystemTime;
 use super::error::PrintNannyConfigError;
 
 pub const PRINTNANNY_CONFIG_FILENAME: &str = "default.toml";
-pub const PRINTNANNY_CONFIG_DEFAULT: &str = "/etc/printnanny/default.toml";
+pub const DEFAULT_PRINTNANNY_CONFIG: &str = "/etc/printnanny/default.toml";
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct PrintNannyPaths {
@@ -55,42 +55,51 @@ impl PrintNannyPaths {
         self.video().join(format!("{}.h264", now))
     }
 
-    pub fn video_socket(&self) -> PathBuf {
-        self.run.join("video.socket")
-    }
-    pub fn events_socket(&self) -> PathBuf {
-        self.run.join("events.socket")
-    }
+    // lock acquired when persisting config contents
     pub fn confd_lock(&self) -> PathBuf {
         self.run.join("confd.lock")
     }
 
-    pub fn video(&self) -> PathBuf {
-        self.data().join("video")
+    // secrets, keys, credentials dir
+    pub fn creds(&self) -> PathBuf {
+        self.etc.join("creds")
     }
 
+    // data directory
     pub fn data(&self) -> PathBuf {
         self.etc.join("data")
     }
 
+    // event adaptor used to bridge any sender -> cloud NATS
+    pub fn events_socket(&self) -> PathBuf {
+        self.run.join("events.socket")
+    }
+
+    // cloud nats jwt
+    pub fn cloud_nats_creds(&self) -> PathBuf {
+        self.creds().join("nats.creds")
+    }
+
+    // recovery direcotry
     pub fn recovery(&self) -> PathBuf {
         self.etc.join("recovery")
     }
 
-    pub fn creds(&self) -> PathBuf {
-        self.etc.join("creds")
+    // media (videos)
+    pub fn video(&self) -> PathBuf {
+        self.data().join("video")
     }
 
     pub fn confd(&self) -> PathBuf {
         self.etc.join("conf.d")
     }
 
-    pub fn nats_creds(&self) -> PathBuf {
-        self.creds().join("nats.creds")
-    }
-
     pub fn license(&self) -> PathBuf {
         self.creds().join("license.json")
+    }
+
+    pub fn vision_conf(&self) -> PathBuf {
+        self.run.join("printnanny-vision.conf")
     }
 
     pub fn try_init_dirs(&self) -> Result<(), PrintNannyConfigError> {
@@ -126,7 +135,7 @@ impl PrintNannyPaths {
         Ok(())
     }
     pub fn try_load_nats_creds(&self) -> Result<String, std::io::Error> {
-        std::fs::read_to_string(self.nats_creds())
+        std::fs::read_to_string(self.cloud_nats_creds())
     }
     pub fn load_os_release(&self) -> Result<OsRelease, std::io::Error> {
         OsRelease::new_from(&self.os_release)
@@ -265,16 +274,15 @@ impl serde::Serialize for PrintNannyPaths {
             pub nats_creds: PathBuf,
             pub new_video_filename: PathBuf,
             pub recovery: PathBuf,
-            pub video_socket: PathBuf,
+            pub vision_conf: PathBuf,
         }
 
         let ext = Extended {
-            video_socket: self.video_socket(),
             events_socket: self.events_socket(),
             confd_lock: self.confd_lock(),
             data: self.data(),
             recovery: self.recovery(),
-            nats_creds: self.nats_creds(),
+            nats_creds: self.cloud_nats_creds(),
             license: self.license(),
 
             etc: self.etc.clone(),
@@ -284,6 +292,7 @@ impl serde::Serialize for PrintNannyPaths {
             run: self.run.clone(),
             os_release: self.os_release.clone(),
             new_video_filename: self.new_video_filename(),
+            vision_conf: self.vision_conf(),
         };
 
         Ok(ext.serialize(serializer)?)
