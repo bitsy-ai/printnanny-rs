@@ -98,10 +98,6 @@ impl PrintNannyPaths {
         self.creds().join("license.json")
     }
 
-    pub fn vision_conf(&self) -> PathBuf {
-        self.run.join("printnanny-vision.conf")
-    }
-
     pub fn try_init_dirs(&self) -> Result<(), PrintNannyConfigError> {
         let dirs = [
             &self.etc,
@@ -274,7 +270,6 @@ impl serde::Serialize for PrintNannyPaths {
             pub nats_creds: PathBuf,
             pub new_video_filename: PathBuf,
             pub recovery: PathBuf,
-            pub vision_conf: PathBuf,
         }
 
         let ext = Extended {
@@ -292,7 +287,6 @@ impl serde::Serialize for PrintNannyPaths {
             run: self.run.clone(),
             os_release: self.os_release.clone(),
             new_video_filename: self.new_video_filename(),
-            vision_conf: self.vision_conf(),
         };
 
         Ok(ext.serialize(serializer)?)
