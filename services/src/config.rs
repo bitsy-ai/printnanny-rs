@@ -232,6 +232,7 @@ pub struct PrintNannyGstPipelineConfig {
     pub video_height: i32,
     pub video_src_type: VideoSrcType,
     pub video_width: i32,
+    pub video_framerate: i32,
 }
 
 impl Default for PrintNannyGstPipelineConfig {
@@ -243,12 +244,14 @@ impl Default for PrintNannyGstPipelineConfig {
         let video_src_type = VideoSrcType::Device;
         let video_height = 480;
         let video_width = 640;
+        let video_framerate = 15;
         Self {
             video_src,
             tflite_model,
             video_src_type,
             video_height,
             video_width,
+            video_framerate,
             udp_port,
             preview,
         }
@@ -271,6 +274,10 @@ impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
             .value_of_t::<i32>("video_height")
             .expect("--video-height must be an integer");
 
+        let video_framerate: i32 = args
+            .value_of_t::<i32>("video_framerate")
+            .expect("--video-framerate must be an integer");
+
         let video_width: i32 = args
             .value_of_t::<i32>("video_width")
             .expect("--video-width must be an integer");
@@ -287,6 +294,7 @@ impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
             video_src,
             video_height,
             video_width,
+            video_framerate,
             video_src_type: video_src_type.clone(),
             udp_port,
         }
