@@ -927,4 +927,38 @@ VARIANT_ID=printnanny-octoprint
             Ok(())
         });
     }
+
+    #[test_log::test]
+    fn test_user_provided_toml_file() {
+        figment::Jail::expect_with(|jail| {
+            let output = jail.directory().to_str().unwrap();
+
+            let filename = "custom.toml";
+
+            jail.create_file(
+                filename,
+                &format!(
+                    r#"
+                profile = "local"
+                [paths]
+                etc = "{output}/etc"
+                run = "{output}/run"
+                log = "{output}/log"
+
+                [vision]
+                video_height = 400
+                video_width = 400
+                
+                "#,
+                    output = output
+                ),
+            )?;
+
+            let config = PrintNannyConfig::from_toml(PathBuf::from(output).join(filename)).unwrap();
+            assert_eq!(config.vision.video_height, 400);
+            assert_eq!(config.vision.video_width, 400);
+
+            Ok(())
+        });
+    }
 }
