@@ -230,7 +230,7 @@ pub struct PrintNannyGstPipelineConfig {
     pub tflite_model: TfliteModelConfig,
     pub udp_port: i32,
     pub video_height: i32,
-    pub video_stream_src: VideoSrcType,
+    pub video_src_type: VideoSrcType,
     pub video_width: i32,
 }
 
@@ -240,13 +240,13 @@ impl Default for PrintNannyGstPipelineConfig {
         let preview = false;
         let tflite_model = TfliteModelConfig::default();
         let udp_port = 20001;
-        let video_stream_src = VideoSrcType::Device;
+        let video_src_type = VideoSrcType::Device;
         let video_height = 480;
         let video_width = 640;
         Self {
             video_src,
             tflite_model,
-            video_stream_src,
+            video_src_type,
             video_height,
             video_width,
             udp_port,
@@ -259,7 +259,7 @@ impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
     fn from(args: &ArgMatches) -> Self {
         let tflite_model = TfliteModelConfig::from(args);
 
-        let video_stream_src: &VideoSrcType = args
+        let video_src_type: &VideoSrcType = args
             .get_one::<VideoSrcType>("video_src_type")
             .expect("--video-src-type");
 
@@ -287,7 +287,7 @@ impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
             video_src,
             video_height,
             video_width,
-            video_stream_src: video_stream_src.clone(),
+            video_src_type: video_src_type.clone(),
             udp_port,
         }
     }
@@ -869,7 +869,7 @@ VARIANT_ID=printnanny-octoprint
     fn test_vision_gst_pipeline_conf() {
         figment::Jail::expect_with(|jail| {
             let video_src = "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4";
-            let video_stream_src = "Uri";
+            let video_src_type = "Uri";
             let output = jail.directory().to_str().unwrap();
 
             jail.create_file(
@@ -883,7 +883,7 @@ VARIANT_ID=printnanny-octoprint
                 log = "{output}/log"
 
                 [vision]
-                video_stream_src = "{video_stream_src}"
+                video_src_type = "{video_src_type}"
                 video_src = "{video_src}"
                 [vision.tflite_model]
                 tensor_height = 400
@@ -891,14 +891,14 @@ VARIANT_ID=printnanny-octoprint
                 
                 "#,
                     video_src = video_src,
-                    video_stream_src = video_stream_src,
+                    video_src_type = video_src_type,
                     output = output
                 ),
             )?;
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
 
             let mut config = PrintNannyConfig::new().unwrap();
-            assert_eq!(config.vision.video_stream_src, VideoSrcType::Uri);
+            assert_eq!(config.vision.video_src_type, VideoSrcType::Uri);
             assert_eq!(config.vision.tflite_model.tensor_height, 400);
             assert_eq!(config.vision.tflite_model.tensor_width, 400);
 
