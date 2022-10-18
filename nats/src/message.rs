@@ -308,7 +308,7 @@ mod tests {
             let src = "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4";
 
             let request_json = r#"{
-                "vision": { "src": "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4", "video_src_type": "Uri"}
+                "vision": { "video_src": "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4", "video_src_type": "Uri"}
             }"#;
 
             let request = PiConfigRequest {
