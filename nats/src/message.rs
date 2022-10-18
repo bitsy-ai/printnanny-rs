@@ -247,7 +247,7 @@ pub struct PiConfigResponse {
 pub enum NatsRequest {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandRequest(SystemctlCommandRequest),
-    #[serde(rename = "pi.config")]
+    #[serde(rename = "pi.command.config")]
     PiConfigRequest(PiConfigRequest),
 }
 
@@ -256,7 +256,7 @@ pub enum NatsRequest {
 pub enum NatsResponse {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandResponse(SystemctlCommandResponse),
-    #[serde(rename = "pi.config")]
+    #[serde(rename = "pi.command.config")]
     PiConfigResponse(PiConfigResponse),
 }
 
