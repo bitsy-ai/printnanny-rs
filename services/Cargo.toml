@@ -2,7 +2,7 @@
 name = "printnanny-services"
 description = "Library of MQTT, API, and other services used by PrintNanny"
 license = "AGPL-3.0-or-later"
-version = "0.26.4"
+version = "0.26.5"
 authors = ["Leigh Johnson <leigh@printnanny.ai>"]
 edition = "2021"
 rust-version = "1.59"
