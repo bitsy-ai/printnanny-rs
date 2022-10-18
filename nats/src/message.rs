@@ -278,7 +278,7 @@ impl MessageHandler<NatsRequest, NatsResponse> for NatsRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use printnanny_services::config::VideoStreamSource;
+    use printnanny_services::config::VideoSrcType;
     use printnanny_services::paths::PRINTNANNY_CONFIG_FILENAME;
 
     #[test]
@@ -305,10 +305,10 @@ mod tests {
             let default_config = PrintNannyConfig::new().unwrap();
             default_config.paths.try_init_dirs().unwrap();
 
-            let input_path = "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4";
+            let src = "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4";
 
             let request_json = r#"{
-                "vision": { "input_path": "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4", "video_stream_src": "Uri"}
+                "vision": { "video_src": "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4", "video_src_type": "Uri"}
             }"#;
 
             let request = PiConfigRequest {
@@ -322,8 +322,8 @@ mod tests {
             assert_eq!(res.status, ResponseStatus::Ok);
 
             let saved_config = PrintNannyConfig::new().unwrap();
-            assert_eq!(saved_config.vision.input_path, input_path);
-            assert_eq!(saved_config.vision.video_stream_src, VideoStreamSource::Uri);
+            assert_eq!(saved_config.vision.video_src, src);
+            assert_eq!(saved_config.vision.video_src_type, VideoSrcType::Uri);
             Ok(())
         });
     }

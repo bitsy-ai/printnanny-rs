@@ -132,7 +132,7 @@ impl Default for PrintNannyCloudProxy {
 }
 
 #[derive(Debug, Clone, clap::ValueEnum, Deserialize, Serialize, PartialEq)]
-pub enum VideoStreamSource {
+pub enum VideoSrcType {
     File,
     Device,
     Uri,
@@ -225,28 +225,28 @@ impl From<&ArgMatches> for TfliteModelConfig {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyGstPipelineConfig {
-    pub input_path: String,
+    pub video_src: String,
     pub preview: bool,
     pub tflite_model: TfliteModelConfig,
     pub udp_port: i32,
     pub video_height: i32,
-    pub video_stream_src: VideoStreamSource,
+    pub video_src_type: VideoSrcType,
     pub video_width: i32,
 }
 
 impl Default for PrintNannyGstPipelineConfig {
     fn default() -> Self {
-        let input_path = "/dev/video0".into();
+        let video_src = "/dev/video0".into();
         let preview = false;
         let tflite_model = TfliteModelConfig::default();
         let udp_port = 20001;
-        let video_stream_src = VideoStreamSource::Device;
+        let video_src_type = VideoSrcType::Device;
         let video_height = 480;
         let video_width = 640;
         Self {
-            input_path,
+            video_src,
             tflite_model,
-            video_stream_src,
+            video_src_type,
             video_height,
             video_width,
             udp_port,
@@ -259,13 +259,13 @@ impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
     fn from(args: &ArgMatches) -> Self {
         let tflite_model = TfliteModelConfig::from(args);
 
-        let video_stream_src: &VideoStreamSource = args
-            .get_one::<VideoStreamSource>("video_stream_src")
-            .expect("--video-stream-src");
+        let video_src_type: &VideoSrcType = args
+            .get_one::<VideoSrcType>("video_src_type")
+            .expect("--video-src-type");
 
-        let input_path = args
-            .value_of("input_path")
-            .expect("--video-file is required")
+        let video_src = args
+            .value_of("video_src")
+            .expect("--video-src is required")
             .into();
         let video_height: i32 = args
             .value_of_t::<i32>("video_height")
@@ -284,10 +284,10 @@ impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
         Self {
             tflite_model,
             preview,
-            input_path,
+            video_src,
             video_height,
             video_width,
-            video_stream_src: video_stream_src.clone(),
+            video_src_type: video_src_type.clone(),
             udp_port,
         }
     }
@@ -868,8 +868,8 @@ VARIANT_ID=printnanny-octoprint
     #[test_log::test]
     fn test_vision_gst_pipeline_conf() {
         figment::Jail::expect_with(|jail| {
-            let input_path = "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4";
-            let video_stream_src = "Uri";
+            let video_src = "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4";
+            let video_src_type = "Uri";
             let output = jail.directory().to_str().unwrap();
 
             jail.create_file(
@@ -883,22 +883,22 @@ VARIANT_ID=printnanny-octoprint
                 log = "{output}/log"
 
                 [vision]
-                video_stream_src = "{video_stream_src}"
-                input_path = "{input_path}"
+                video_src_type = "{video_src_type}"
+                video_src = "{video_src}"
                 [vision.tflite_model]
                 tensor_height = 400
                 tensor_width = 400
                 
                 "#,
-                    input_path = input_path,
-                    video_stream_src = video_stream_src,
+                    video_src = video_src,
+                    video_src_type = video_src_type,
                     output = output
                 ),
             )?;
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
 
             let mut config = PrintNannyConfig::new().unwrap();
-            assert_eq!(config.vision.video_stream_src, VideoStreamSource::Uri);
+            assert_eq!(config.vision.video_src_type, VideoSrcType::Uri);
             assert_eq!(config.vision.tflite_model.tensor_height, 400);
             assert_eq!(config.vision.tflite_model.tensor_width, 400);
 
