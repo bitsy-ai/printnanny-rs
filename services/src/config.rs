@@ -438,6 +438,11 @@ impl PrintNannyConfig {
         Ok(result)
     }
 
+    pub fn from_toml(f: PathBuf) -> Result<Self, PrintNannyConfigError> {
+        let figment = PrintNannyConfig::figment()?.merge(Toml::file(f));
+        Ok(figment.extract()?)
+    }
+
     fn read_path_glob<T: 'static + figment::providers::Format>(
         pattern: &str,
         figment: Figment,
