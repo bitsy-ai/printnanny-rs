@@ -10,6 +10,8 @@ use git_version::git_version;
 
 
 use printnanny_nats::message::{NatsResponse, NatsRequest};
+use printnanny_nats::cloud_worker::DEFAULT_NATS_CLOUD_APP_NAME;
+use printnanny_nats::subscriber::{ NatsSubscriber, DEFAULT_NATS_EDGE_APP_NAME};
 use printnanny_services::config::ConfigFormat;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_cli::config::{ConfigCommand};
@@ -132,9 +134,9 @@ async fn main() -> Result<()> {
             ))
 
         // nats-edge-worker
-        .subcommand(printnanny_nats::subscriber::NatsSubscriber::<NatsRequest, NatsResponse>::clap_command("nats-edge-worker"))
+        .subcommand(printnanny_nats::subscriber::NatsSubscriber::<NatsRequest, NatsResponse>::clap_command(None))
         // nats-cloud-worker
-        .subcommand(printnanny_nats::cloud_worker::NatsCloudWorker::clap_command())
+        .subcommand(printnanny_nats::cloud_worker::NatsCloudWorker::clap_command(None))
         // nats-cloud-publisher
         .subcommand(printnanny_nats::cloud_publisher::CloudEventPublisher::clap_command())
         // os <issue|motd>
@@ -182,10 +184,17 @@ async fn main() -> Result<()> {
             app.run().await?;
         },
 
-        Some(("nats-worker", sub_m)) => {
+        Some((DEFAULT_NATS_CLOUD_APP_NAME, sub_m)) => {
             let app = printnanny_nats::cloud_worker::NatsCloudWorker::new(sub_m).await?;
             app.run().await?;
         },
+
+        Some((DEFAULT_NATS_EDGE_APP_NAME, sub_m)) => {
+            let app = NatsSubscriber::<NatsRequest, NatsResponse>::clap_command(None);
+            let worker = NatsSubscriber::<NatsRequest, NatsResponse>::new(&sub_m);
+            worker.run().await?;
+        },
+
         Some(("config", subm)) => {
             ConfigCommand::handle(subm).await?;
         },
