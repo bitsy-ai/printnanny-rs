@@ -6,7 +6,7 @@ use printnanny_nats::subscriber::NatsSubscriber;
 async fn main() -> Result<()> {
     env_logger::init();
 
-    let app = NatsSubscriber::<NatsRequest, NatsResponse>::clap_command("nats-qc-worker");
+    let app = NatsSubscriber::<NatsRequest, NatsResponse>::clap_command(None);
     let worker = NatsSubscriber::<NatsRequest, NatsResponse>::new(&app.get_matches());
     worker.run().await?;
     Ok(())
