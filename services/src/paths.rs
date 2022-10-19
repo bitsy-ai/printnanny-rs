@@ -74,7 +74,6 @@ impl PrintNannyPaths {
     pub fn events_socket(&self) -> PathBuf {
         self.run.join("events.socket")
     }
-
     // cloud nats jwt
     pub fn cloud_nats_creds(&self) -> PathBuf {
         self.creds().join("nats.creds")

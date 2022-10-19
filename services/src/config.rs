@@ -242,7 +242,9 @@ pub struct PrintNannyGstPipelineConfig {
     //
     // 2) and 3) Explicitly enabled/disabled, indicated by Some(bool)
     // Some(bool) -> bool
-    pub hls_http: Option<bool>,
+    pub hls_http_enabled: Option<bool>,
+    pub hls_segments: String,
+    pub hls_playlist: String,
 }
 
 impl PrintNannyGstPipelineConfig {
@@ -261,7 +263,10 @@ impl Default for PrintNannyGstPipelineConfig {
         let video_height = 480;
         let video_width = 640;
         let video_framerate = 15;
-        let hls_http = None;
+        let hls_http_enabled = None;
+        let hls_segments = "/var/run/printnanny/segment%05d.ts".into();
+        let hls_playlist = "/var/run/printnanny/playlist.m3u8".into();
+
         Self {
             video_src,
             tflite_model,
@@ -271,7 +276,9 @@ impl Default for PrintNannyGstPipelineConfig {
             video_framerate,
             udp_port,
             preview,
-            hls_http,
+            hls_http_enabled,
+            hls_segments,
+            hls_playlist,
         }
     }
 }
@@ -306,10 +313,20 @@ impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
 
         let preview = args.is_present("preview");
 
-        let hls_http = match args.is_present("hls_http") {
+        let hls_http_enabled = match args.is_present("hls_http") {
             true => Some(true),
             false => None,
         };
+
+        let hls_segments: String = args
+            .value_of("hls_segments")
+            .expect("--hls-segments is required")
+            .into();
+
+        let hls_playlist: String = args
+            .value_of("hls_playlist")
+            .expect("--hls-playlist is required")
+            .into();
 
         Self {
             tflite_model,
@@ -320,7 +337,9 @@ impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
             video_framerate,
             video_src_type: video_src_type.clone(),
             udp_port,
-            hls_http,
+            hls_http_enabled,
+            hls_segments,
+            hls_playlist,
         }
     }
 }
