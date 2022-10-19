@@ -31,14 +31,18 @@ where
 
 const DEFAULT_NATS_SOCKET_PATH: &str = "/var/run/printnanny/nats-worker.sock";
 const DEFAULT_NATS_URI: &str = "nats://localhost:4222";
-const DEFAULT_NATS_SUBJECT: &str = "pi.>";
+const DEFAULT_NATS_SUBJECT: &str = "pi.command.>";
+
+pub const DEFAULT_NATS_EDGE_APP_NAME: &str = "nats-edge-worker";
 
 impl<Request, Response> NatsSubscriber<Request, Response>
 where
     Request: Serialize + DeserializeOwned + Debug + MessageHandler<Request, Response>,
     Response: Serialize + DeserializeOwned + Debug,
 {
-    pub fn clap_command(app_name: &str) -> Command<'static> {
+    pub fn clap_command(app_name: Option<String>) -> Command<'static> {
+        let app_name = app_name.unwrap_or_else(|| DEFAULT_NATS_EDGE_APP_NAME.to_string());
+
         let app = Command::new(app_name)
             .author(crate_authors!())
             .about("Run NATS-based pub/sub workers")
