@@ -235,10 +235,18 @@ pub struct PrintNannyGstPipelineConfig {
     pub video_src_type: VideoSrcType,
     pub video_width: i32,
     pub video_framerate: i32,
+    //
+    // hls_http has 3 possible states:
+    // 1) Detect enabled/disabled based on enabled systemd services, indicated by None value
+    //  detect_hls_http_enabled() will be called
+    //
+    // 2) and 3) Explicitly enabled/disabled, indicated by Some(bool)
+    // Some(bool) -> bool
+    pub hls_http: Option<bool>,
 }
 
 impl PrintNannyGstPipelineConfig {
-    pub fn hls_http_enabled(&self) -> Result<bool> {
+    pub fn detect_hls_http_enabled(&self) -> Result<bool> {
         systemctl_unit_is_enabled("octoprint.service")
     }
 }
@@ -253,6 +261,7 @@ impl Default for PrintNannyGstPipelineConfig {
         let video_height = 480;
         let video_width = 640;
         let video_framerate = 15;
+        let hls_http = None;
         Self {
             video_src,
             tflite_model,
@@ -262,6 +271,7 @@ impl Default for PrintNannyGstPipelineConfig {
             video_framerate,
             udp_port,
             preview,
+            hls_http,
         }
     }
 }
@@ -296,6 +306,11 @@ impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
 
         let preview = args.is_present("preview");
 
+        let hls_http = match args.is_present("hls_http") {
+            true => Some(true),
+            false => None,
+        };
+
         Self {
             tflite_model,
             preview,
@@ -305,6 +320,7 @@ impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
             video_framerate,
             video_src_type: video_src_type.clone(),
             udp_port,
+            hls_http,
         }
     }
 }
