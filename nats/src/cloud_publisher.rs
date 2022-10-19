@@ -15,7 +15,8 @@ use tokio::net::UnixStream;
 use tokio_util::codec::{FramedWrite, LengthDelimitedCodec};
 use uuid::Uuid;
 
-use crate::error;
+use printnanny_services::error;
+
 use crate::subjects;
 
 #[derive(Debug, Clone)]

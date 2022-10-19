@@ -12,7 +12,8 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, Duration};
 
-use super::error::{CommandError, NatsError};
+use printnanny_services::error::{CommandError, NatsError};
+
 use super::message::MessageHandler;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

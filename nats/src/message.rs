@@ -12,7 +12,9 @@ use printnanny_services::config::PrintNannyConfig;
 use printnanny_services::figment;
 use printnanny_services::figment::providers::Format;
 
-use crate::util::{self, SystemctlListUnit};
+use printnanny_services::systemd::{
+    systemctl_list_enabled_units, systemctl_show_payload, SystemctlListUnit,
+};
 
 pub trait MessageHandler<Request, Response>
 where
@@ -171,14 +173,10 @@ impl SystemctlCommandRequest {
     }
 
     fn list_enabled(&self) -> Result<SystemctlCommandResponse> {
-        let output = process::Command::new("systemctl")
-            .args(&["list-unit-files", "--state=enabled", "--output=json"])
-            .output()?;
+        let (output, unitmap) = systemctl_list_enabled_units()?;
         let mut res = self.build_response(&output)?;
-        let list_units = serde_json::from_slice::<Vec<SystemctlListUnit>>(&output.stdout)?;
-        for unit in list_units.iter() {
-            res.data
-                .insert(unit.unit_file.clone(), serde_json::to_value(unit)?);
+        for (key, value) in unitmap.iter() {
+            res.data.insert(key.clone(), serde_json::to_value(value)?);
         }
         Ok(res)
     }
@@ -220,7 +218,7 @@ impl SystemctlCommandRequest {
             .output()?;
 
         let mut res = self.build_response(&output)?;
-        res.data = util::systemctl_show_payload(res.detail.as_bytes())?;
+        res.data = systemctl_show_payload(res.detail.as_bytes())?;
         Ok(res)
     }
 }

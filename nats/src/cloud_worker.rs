@@ -11,10 +11,9 @@ use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
 use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
 use printnanny_services::config::PrintNannyConfig;
+use printnanny_services::error::NatsError;
 
-// use crate::commands;
 use crate::cloud_commands;
-use crate::error::NatsError;
 use crate::util::to_nats_command_subscribe_subject;
 
 pub const DEFAULT_NATS_CLOUD_APP_NAME: &str = "nats-cloud-worker";
