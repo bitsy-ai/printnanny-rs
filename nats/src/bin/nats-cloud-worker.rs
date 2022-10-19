@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
 
     let subject = to_nats_command_subscribe_subject(&pi.id);
 
-    let app = NatsCloudWorker::clap_command();
+    let app = NatsCloudWorker::clap_command(None);
     let mut worker = NatsCloudWorker::new(&app.get_matches()).await?;
     worker.run().await?;
     Ok(())
