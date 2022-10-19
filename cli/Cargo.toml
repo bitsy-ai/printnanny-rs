@@ -3,7 +3,7 @@ name = "printnanny-cli"
 description = "PrintNanny Command-line Interface"
 license = "AGPL-3.0-or-later"
 license-file = "LICENSE"
-version = "0.26.9"
+version = "0.26.10"
 authors = ["Leigh Johnson <leigh@printnanny.ai>"]
 edition = "2021"
 rust-version = "1.59"
@@ -17,8 +17,8 @@ targets = [
 ]
 
 [dependencies]
-printnanny-services = {path = "../services", version = "^0.26.9"}
-printnanny-nats = {path = "../nats", version = "^0.26.9"}
+printnanny-services = {path = "../services", version = "^0.26.10"}
+printnanny-nats = {path = "../nats", version = "^0.26.10"}
 printnanny-api-client = "0.107.2"
 figment = { version = "0.10", features = ["env", "json", "toml"] }
 anyhow = { version = "1", features = ["backtrace"] }
