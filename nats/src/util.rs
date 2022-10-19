@@ -6,7 +6,7 @@ use printnanny_services::error::CommandError;
 
 // subscribe to commands with any subject prefix
 pub fn to_nats_command_subscribe_subject(pi_id: &i32) -> String {
-    return format!("pi.{}.command.>", pi_id);
+    format!("pi.{}.command.>", pi_id)
 }
 
 #[cfg(test)]

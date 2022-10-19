@@ -70,14 +70,10 @@ where
     }
 
     pub fn new(args: &ArgMatches) -> Self {
-        let subject = args
-            .value_of("subject")
-            .unwrap_or_else(|| DEFAULT_NATS_SUBJECT);
+        let subject = args.value_of("subject").unwrap_or(DEFAULT_NATS_SUBJECT);
 
         // check if uri requires tls
-        let nats_server_uri: &str = args
-            .value_of("nats_server_uri")
-            .unwrap_or_else(|| DEFAULT_NATS_URI);
+        let nats_server_uri: &str = args.value_of("nats_server_uri").unwrap_or(DEFAULT_NATS_URI);
         let require_tls = nats_server_uri.contains("tls");
 
         // if nats.creds available, initialize authenticated nats connection
@@ -87,7 +83,7 @@ where
         );
 
         let nats_creds = args.value_of("nats_creds");
-        let nats_creds = nats_creds.map(|v| PathBuf::from(v));
+        let nats_creds = nats_creds.map(PathBuf::from);
 
         Self {
             subject: subject.to_string(),

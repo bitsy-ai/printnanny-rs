@@ -24,7 +24,7 @@ where
     fn handle(&self, request: &Request) -> Result<Response>;
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum SystemctlCommand {
     #[serde(rename = "start")]
     Start,
@@ -42,7 +42,7 @@ pub enum SystemctlCommand {
     ListEnabled,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum MediaCommand {
     #[serde(rename = "start")]
     Start,
@@ -50,7 +50,7 @@ pub enum MediaCommand {
     Stop,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ResponseStatus {
     #[serde(rename = "ok")]
     Ok,
@@ -58,13 +58,13 @@ pub enum ResponseStatus {
     Error,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SystemctlCommandRequest {
     service: String,
     command: SystemctlCommand,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PiConfigRequest {
     json: String, // json string, intended for use with Figment.rs JSON provider: https://docs.rs/figment/latest/figment/providers/struct.Json.html
     pre_save: Vec<SystemctlCommandRequest>, // run commands prior to applying config merge/save
