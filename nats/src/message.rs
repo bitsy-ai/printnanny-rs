@@ -337,7 +337,7 @@ mod tests {
 
         let (_, unit) = res.data.iter().next().unwrap();
 
-        let unit = serde_json::from_value::<util::SystemctlListUnit>(unit.clone()).unwrap();
+        let unit = serde_json::from_value::<SystemctlListUnit>(unit.clone()).unwrap();
         assert_eq!(unit.state, "enabled");
     }
 }
