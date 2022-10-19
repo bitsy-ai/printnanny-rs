@@ -12,7 +12,9 @@ use printnanny_services::config::PrintNannyConfig;
 use printnanny_services::figment;
 use printnanny_services::figment::providers::Format;
 
-use crate::util::{self, SystemctlListUnit};
+use printnanny_services::systemd::{
+    systemctl_list_enabled_units, systemctl_show_payload, SystemctlListUnit,
+};
 
 pub trait MessageHandler<Request, Response>
 where
@@ -22,7 +24,7 @@ where
     fn handle(&self, request: &Request) -> Result<Response>;
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum SystemctlCommand {
     #[serde(rename = "start")]
     Start,
@@ -40,7 +42,7 @@ pub enum SystemctlCommand {
     ListEnabled,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum MediaCommand {
     #[serde(rename = "start")]
     Start,
@@ -48,7 +50,7 @@ pub enum MediaCommand {
     Stop,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ResponseStatus {
     #[serde(rename = "ok")]
     Ok,
@@ -56,13 +58,13 @@ pub enum ResponseStatus {
     Error,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SystemctlCommandRequest {
     service: String,
     command: SystemctlCommand,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PiConfigRequest {
     json: String, // json string, intended for use with Figment.rs JSON provider: https://docs.rs/figment/latest/figment/providers/struct.Json.html
     pre_save: Vec<SystemctlCommandRequest>, // run commands prior to applying config merge/save
@@ -171,14 +173,10 @@ impl SystemctlCommandRequest {
     }
 
     fn list_enabled(&self) -> Result<SystemctlCommandResponse> {
-        let output = process::Command::new("systemctl")
-            .args(&["list-unit-files", "--state=enabled", "--output=json"])
-            .output()?;
+        let (output, unitmap) = systemctl_list_enabled_units()?;
         let mut res = self.build_response(&output)?;
-        let list_units = serde_json::from_slice::<Vec<SystemctlListUnit>>(&output.stdout)?;
-        for unit in list_units.iter() {
-            res.data
-                .insert(unit.unit_file.clone(), serde_json::to_value(unit)?);
+        for (key, value) in unitmap.iter() {
+            res.data.insert(key.clone(), serde_json::to_value(value)?);
         }
         Ok(res)
     }
@@ -220,7 +218,7 @@ impl SystemctlCommandRequest {
             .output()?;
 
         let mut res = self.build_response(&output)?;
-        res.data = util::systemctl_show_payload(res.detail.as_bytes())?;
+        res.data = systemctl_show_payload(res.detail.as_bytes())?;
         Ok(res)
     }
 }

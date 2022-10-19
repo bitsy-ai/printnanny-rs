@@ -190,8 +190,7 @@ async fn main() -> Result<()> {
         },
 
         Some((DEFAULT_NATS_EDGE_APP_NAME, sub_m)) => {
-            let app = NatsSubscriber::<NatsRequest, NatsResponse>::clap_command(None);
-            let worker = NatsSubscriber::<NatsRequest, NatsResponse>::new(&sub_m);
+            let worker = NatsSubscriber::<NatsRequest, NatsResponse>::new(sub_m);
             worker.run().await?;
         },
 

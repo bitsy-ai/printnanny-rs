@@ -4,6 +4,7 @@ use std::fs;
 use std::io::prelude::*;
 use std::path::PathBuf;
 
+use anyhow::Result;
 use clap::{ArgEnum, ArgMatches, PossibleValue};
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
@@ -15,6 +16,7 @@ use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
 use crate::error::ServiceError;
+use crate::systemd::systemctl_unit_is_enabled;
 
 use super::error::PrintNannyConfigError;
 use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_CONFIG};
@@ -233,6 +235,12 @@ pub struct PrintNannyGstPipelineConfig {
     pub video_src_type: VideoSrcType,
     pub video_width: i32,
     pub video_framerate: i32,
+}
+
+impl PrintNannyGstPipelineConfig {
+    pub fn hls_http_enabled(&self) -> Result<bool> {
+        systemctl_unit_is_enabled("octoprint.service")
+    }
 }
 
 impl Default for PrintNannyGstPipelineConfig {

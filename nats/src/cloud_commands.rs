@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::time::SystemTime;
 use uuid::Uuid;
 
-use crate::util::systemctl_show_payload;
+use printnanny_services::systemd::systemctl_show_payload;
 
 pub fn build_status_payload(request: &PolymorphicPiEventRequest) -> Result<Bytes> {
     Ok(serde_json::ser::to_vec(request)?.into())

@@ -8,6 +8,7 @@ pub mod os_release;
 pub mod paths;
 pub mod printnanny_api;
 pub mod swupdate;
+pub mod systemd;
 
 // pub exports
 pub use figment;
