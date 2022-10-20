@@ -1854,7 +1854,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-cli"
-version = "0.26.16"
+version = "0.26.17"
 dependencies = [
  "anyhow",
  "clap",
