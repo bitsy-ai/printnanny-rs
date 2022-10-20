@@ -313,7 +313,7 @@ impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
 
         let preview = args.is_present("preview");
 
-        let hls_http_enabled = match args.is_present("hls_http") {
+        let hls_http_enabled = match args.is_present("hls_http_enabled") {
             true => Some(true),
             false => None,
         };
