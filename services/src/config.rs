@@ -264,8 +264,8 @@ impl Default for PrintNannyGstPipelineConfig {
         let video_width = 640;
         let video_framerate = 15;
         let hls_http_enabled = None;
-        let hls_segments = "/var/run/printnanny/segment%05d.ts".into();
-        let hls_playlist = "/var/run/printnanny/playlist.m3u8".into();
+        let hls_segments = "/var/run/printnanny-hls/segment%05d.ts".into();
+        let hls_playlist = "/var/run/printnanny-hls/playlist.m3u8".into();
 
         Self {
             video_src,
