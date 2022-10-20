@@ -267,6 +267,7 @@ impl Default for PrintNannyGstPipelineConfig {
         let hls_http_enabled = None;
         let hls_segments = "/var/run/printnanny-hls/segment%05d.ts".into();
         let hls_playlist = "/var/run/printnanny-hls/playlist.m3u8".into();
+        let hls_playlist_root = "/printnanny-hls/".into();
 
         Self {
             video_src,
@@ -280,6 +281,7 @@ impl Default for PrintNannyGstPipelineConfig {
             hls_http_enabled,
             hls_segments,
             hls_playlist,
+            hls_playlist_root
         }
     }
 }
