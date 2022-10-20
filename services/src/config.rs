@@ -245,6 +245,7 @@ pub struct PrintNannyGstPipelineConfig {
     pub hls_http_enabled: Option<bool>,
     pub hls_segments: String,
     pub hls_playlist: String,
+    pub hls_playlist_root: String,
 }
 
 impl PrintNannyGstPipelineConfig {
@@ -328,6 +329,11 @@ impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
             .expect("--hls-playlist is required")
             .into();
 
+        let hls_playlist_root: String = args
+        .value_of("hls_playlist_root")
+        .expect("--hls-playlist-root is required")
+        .into();
+
         Self {
             tflite_model,
             preview,
@@ -340,6 +346,7 @@ impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
             hls_http_enabled,
             hls_segments,
             hls_playlist,
+            hls_playlist_root,
         }
     }
 }
