@@ -230,6 +230,7 @@ pub struct PrintNannyGstPipelineConfig {
     pub video_src: String,
     pub preview: bool,
     pub tflite_model: TfliteModelConfig,
+    pub nats_server_uri: String,
     pub udp_port: i32,
     pub video_height: i32,
     pub video_src_type: VideoSrcType,
@@ -269,6 +270,8 @@ impl Default for PrintNannyGstPipelineConfig {
         let hls_playlist = "/var/run/printnanny-hls/playlist.m3u8".into();
         let hls_playlist_root = "/printnanny-hls/".into();
 
+        let nats_server_uri = "nats://127.0.0.1:4223".into();
+
         Self {
             video_src,
             tflite_model,
@@ -282,6 +285,7 @@ impl Default for PrintNannyGstPipelineConfig {
             hls_segments,
             hls_playlist,
             hls_playlist_root,
+            nats_server_uri,
         }
     }
 }
@@ -336,6 +340,11 @@ impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
             .expect("--hls-playlist-root is required")
             .into();
 
+        let nats_server_uri: String = args
+            .value_of("nats_server_uri")
+            .expect("--nats-server-uri is required")
+            .into();
+
         Self {
             tflite_model,
             preview,
@@ -349,6 +358,7 @@ impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
             hls_segments,
             hls_playlist,
             hls_playlist_root,
+            nats_server_uri,
         }
     }
 }
