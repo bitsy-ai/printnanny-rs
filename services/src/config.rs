@@ -614,6 +614,7 @@ impl PrintNannyConfig {
     pub fn try_save(&self) -> Result<(), PrintNannyConfigError> {
         // for each key/value pair in FACTORY_RESET vec, write a separate .toml
         for key in FACTORY_RESET.iter() {
+            info!("Attempting to save {}", &key);
             match self.try_save_by_key(key) {
                 Ok(_) => (),
                 Err(e) => error!("{}", e),
