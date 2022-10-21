@@ -16,8 +16,8 @@ services:
       - localnats
       - --debug
     ports:
-      - "4222:4222"
-      - "8888:8888"
+      - "4223:4222"
+      - "8844:8888"
   janus:
     hostname: janus
     network_mode: host
