@@ -4,7 +4,7 @@ use std::process;
 
 use anyhow::Result;
 use async_process::Output;
-use log::info;
+use log::{error, info};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -86,9 +86,9 @@ impl PiConfigRequest {
             .iter()
             .map(|request| request.handle())
             .collect();
-        info!("Finished running post-save commands, attempting to save merged configuration");
+        info!("Finished running pre-save commands: {:?}", pre_save);
         // save merged configuration
-        config.try_save()?;
+        config.save();
 
         // run post-save command hooks
         info!("Running pre-save commands: {:?}", self.pre_save);
@@ -97,7 +97,7 @@ impl PiConfigRequest {
             .iter()
             .map(|request| request.handle())
             .collect();
-        info!("Finished running post-save commands, attempting to save merged configuration");
+        info!("Finished running post-save commands {:?}", post_save);
 
         Ok((pre_save, post_save))
     }
@@ -151,12 +151,12 @@ impl SystemctlCommandRequest {
     fn handle(&self) -> SystemctlCommandResponse {
         let result = match self.command {
             SystemctlCommand::ListEnabled => self.list_enabled(),
-            SystemctlCommand::Start => self.start(),
-            SystemctlCommand::Stop => self.stop(),
-            SystemctlCommand::Restart => self.restart(),
+            SystemctlCommand::Start => self._systemctl_action("start"),
+            SystemctlCommand::Stop => self._systemctl_action("stop"),
+            SystemctlCommand::Restart => self._systemctl_action("start"),
             SystemctlCommand::Status => self.status(),
-            SystemctlCommand::Enable => self.enable(),
-            SystemctlCommand::Disable => self.disable(),
+            SystemctlCommand::Enable => self._systemctl_action("enable"),
+            SystemctlCommand::Disable => self._systemctl_action("disable"),
         };
         match result {
             Ok(response) => response,
@@ -172,6 +172,16 @@ impl SystemctlCommandRequest {
         }
     }
 
+    fn _systemctl_action(&self, action: &str) -> Result<SystemctlCommandResponse> {
+        let args = ["systemctl", action, &self.service];
+        let output = process::Command::new("sudo").args(&args).output()?;
+        info!("{:?} stdout: {:?}", args, output.stdout);
+        if output.stdout.len() > 0 {
+            error!("{:?} stdout: {:?}", args, output.stdout);
+        }
+        self.build_response(&output)
+    }
+
     fn list_enabled(&self) -> Result<SystemctlCommandResponse> {
         let (output, unitmap) = systemctl_list_enabled_units()?;
         let mut res = self.build_response(&output)?;
@@ -181,37 +191,6 @@ impl SystemctlCommandRequest {
         Ok(res)
     }
 
-    fn disable(&self) -> Result<SystemctlCommandResponse> {
-        let output = process::Command::new("sudo")
-            .args(&["systemctl", "disable", &self.service])
-            .output()?;
-        self.build_response(&output)
-    }
-
-    fn enable(&self) -> Result<SystemctlCommandResponse> {
-        let output = process::Command::new("sudo")
-            .args(&["systemctl", "enable", &self.service])
-            .output()?;
-        self.build_response(&output)
-    }
-    fn start(&self) -> Result<SystemctlCommandResponse> {
-        let output = process::Command::new("sudo")
-            .args(&["systemctl", "start", &self.service])
-            .output()?;
-        self.build_response(&output)
-    }
-    fn stop(&self) -> Result<SystemctlCommandResponse> {
-        let output = process::Command::new("sudo")
-            .args(&["systemctl", "stop", &self.service])
-            .output()?;
-        self.build_response(&output)
-    }
-    fn restart(&self) -> Result<SystemctlCommandResponse> {
-        let output = process::Command::new("sudo")
-            .args(&["systemctl", "restart", &self.service])
-            .output()?;
-        self.build_response(&output)
-    }
     fn status(&self) -> Result<SystemctlCommandResponse> {
         let output = process::Command::new("systemctl")
             .args(&["show", &self.service])

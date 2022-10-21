@@ -172,8 +172,8 @@ pub struct TfliteModelConfig {
 impl Default for TfliteModelConfig {
     fn default() -> Self {
         Self {
-            label_file: "/etc/printnanny/data/dict.txt".into(),
-            model_file: "/etc/printnanny/data/model.tflite".into(),
+            label_file: "/usr/share/printnanny/model/labels.txt".into(),
+            model_file: "/usr/share/printnanny/model/model.tflite".into(),
             nms_threshold: 50,
             tensor_batch_size: 40,
             tensor_channels: 3,
@@ -281,7 +281,7 @@ impl Default for PrintNannyGstPipelineConfig {
             hls_http_enabled,
             hls_segments,
             hls_playlist,
-            hls_playlist_root
+            hls_playlist_root,
         }
     }
 }
@@ -332,9 +332,9 @@ impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
             .into();
 
         let hls_playlist_root: String = args
-        .value_of("hls_playlist_root")
-        .expect("--hls-playlist-root is required")
-        .into();
+            .value_of("hls_playlist_root")
+            .expect("--hls-playlist-root is required")
+            .into();
 
         Self {
             tflite_model,
@@ -614,6 +614,7 @@ impl PrintNannyConfig {
     pub fn try_save(&self) -> Result<(), PrintNannyConfigError> {
         // for each key/value pair in FACTORY_RESET vec, write a separate .toml
         for key in FACTORY_RESET.iter() {
+            info!("Attempting to save {}", &key);
             match self.try_save_by_key(key) {
                 Ok(_) => (),
                 Err(e) => error!("{}", e),
