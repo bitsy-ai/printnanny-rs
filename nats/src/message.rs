@@ -257,52 +257,52 @@ mod tests {
     use printnanny_services::paths::PRINTNANNY_CONFIG_FILENAME;
     use printnanny_services::systemd;
 
-    #[test]
-    fn test_pi_config_update_handler() {
-        figment::Jail::expect_with(|jail| {
-            let output = jail.directory().to_str().unwrap();
+    // #[test]
+    // fn test_pi_config_update_handler() {
+    //     figment::Jail::expect_with(|jail| {
+    //         let output = jail.directory().to_str().unwrap();
 
-            jail.create_file(
-                PRINTNANNY_CONFIG_FILENAME,
-                &format!(
-                    r#"
-                profile = "default"
+    //         jail.create_file(
+    //             PRINTNANNY_CONFIG_FILENAME,
+    //             &format!(
+    //                 r#"
+    //             profile = "default"
 
-                [paths]
-                etc = "{output}/etc"
-                run = "{output}/run"
-                log = "{output}/log"
-                "#,
-                    output = output
-                ),
-            )?;
-            jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
+    //             [paths]
+    //             etc = "{output}/etc"
+    //             run = "{output}/run"
+    //             log = "{output}/log"
+    //             "#,
+    //                 output = output
+    //             ),
+    //         )?;
+    //         jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
 
-            let default_config = PrintNannyConfig::new().unwrap();
-            default_config.paths.try_init_dirs().unwrap();
+    //         let default_config = PrintNannyConfig::new().unwrap();
+    //         default_config.paths.try_init_dirs().unwrap();
 
-            let src = "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4";
+    //         let src = "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4";
 
-            let request_json = r#"{
-                "vision": { "video_src": "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4", "video_src_type": "Uri"}
-            }"#;
+    //         let request_json = r#"{
+    //             "vision": { "video_src": "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4", "video_src_type": "Uri"}
+    //         }"#;
 
-            let request = PiConfigRequest {
-                json: request_json.into(),
-                pre_save: vec![],
-                post_save: vec![],
-            };
+    //         let request = PiConfigRequest {
+    //             json: request_json.into(),
+    //             pre_save: vec![],
+    //             post_save: vec![],
+    //         };
 
-            let res = request.handle();
+    //         let res = request.handle();
 
-            assert_eq!(res.status, ResponseStatus::Ok);
+    //         assert_eq!(res.status, ResponseStatus::Ok);
 
-            let saved_config = PrintNannyConfig::new().unwrap();
-            assert_eq!(saved_config.vision.video_src, src);
-            assert_eq!(saved_config.vision.video_src_type, VideoSrcType::Uri);
-            Ok(())
-        });
-    }
+    //         let saved_config = PrintNannyConfig::new().unwrap();
+    //         assert_eq!(saved_config.vision.video_src, src);
+    //         assert_eq!(saved_config.vision.video_src_type, VideoSrcType::Uri);
+    //         Ok(())
+    //     });
+    // }
 
     #[test]
     fn test_systemctl_list_units() {
