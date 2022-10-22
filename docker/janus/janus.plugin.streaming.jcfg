@@ -123,35 +123,25 @@ general: {
 # an x264enc+rtph264pay pipeline in gstreamer, an ffmpeg script or other.
 # https://github.com/meetecho/janus-gateway/blob/master/conf/janus.plugin.streaming.jcfg.sample.in
 
-demo-video-1: {
+printnanny-cam: {
     type = "rtp"
     id = 001
-    description = "Demo Video #1"
-    metadata = "{ \"path\": \"/media/demo_video_1.mp4\", \"video_stream_src\": \"File\" }"
+    description = "PrintNanny Camera"
     media = (
         {
           type = "video"
           mid = "v1"
-          label = "Video stream #1"
+          label = "Camera"
           port = 20001
           pt = 96
           rtpmap = "H264/90000"
           videofmtp = "profile-level-id=42e01f;packetization-mode=1"
         }
-    )
-}
-
-live-camera-1: {
-    type = "rtp"
-    id = 005
-    description = "Live Camera Feed"
-    metadata = "{ \"path\": \"/dev/video0\", \"video_stream_src\": \"Device\" }"
-    media = (
         {
           type = "video"
-          mid = "v1"
-          label = "Live Camera Feed #1"
-          port = 20002
+          mid = "v2"
+          label = "Overlay"
+          port = 20001
           pt = 96
           rtpmap = "H264/90000"
           videofmtp = "profile-level-id=42e01f;packetization-mode=1"
