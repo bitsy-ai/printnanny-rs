@@ -109,13 +109,17 @@ impl GstPipelineConfigRequest {
                 detail: "Updated PrintNanny configuration".into(),
                 status: ResponseStatus::Ok,
             },
-            Err(e) => GstPipelineConfigResponse {
-                pre_save: vec![],
-                post_save: vec![],
-                request: Some(self.clone()),
-                detail: format!("Error updating PrintNanny configuration: {:?}", e),
-                status: ResponseStatus::Error,
-            },
+            Err(e) => {
+                let detail = format!("Error updating PrintNanny configuration: {:?}", e);
+                error!("{}", &detail);
+                GstPipelineConfigResponse {
+                    pre_save: vec![],
+                    post_save: vec![],
+                    request: Some(self.clone()),
+                    status: ResponseStatus::Error,
+                    detail,
+                }
+            }
         }
     }
 }
@@ -275,9 +279,7 @@ mod tests {
 
             let src = "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4";
 
-            let request_json = r#"{
-                "vision": { "video_src": "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4", "video_src_type": "Uri"}
-            }"#;
+            let request_json = r#"{ "video_src": "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4", "video_src_type": "Uri"}"#;
 
             let request = GstPipelineConfigRequest {
                 json: request_json.into(),

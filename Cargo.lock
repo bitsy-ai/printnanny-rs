@@ -1875,8 +1875,8 @@ dependencies = [
 
 [[package]]
 name = "printnanny-gst-config"
-version = "0.1.0"
-source = "git+https://github.com/bitsy-ai/printnanny-gst-plugin-rs.git#7f8c6da15573ff9c4b3f94832b1b38e19230848d"
+version = "0.1.1"
+source = "git+https://github.com/bitsy-ai/printnanny-gst-plugin-rs.git#5d8297360a370811c34976d597d21e8bd5795856"
 dependencies = [
  "clap",
  "file-lock",
