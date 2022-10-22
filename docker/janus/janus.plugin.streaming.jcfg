@@ -131,7 +131,7 @@ printnanny-cam: {
         {
           type = "video"
           mid = "v1"
-          label = "Camera"
+          label = "H264-encoded camera stream"
           port = 20001
           pt = 96
           rtpmap = "H264/90000"
