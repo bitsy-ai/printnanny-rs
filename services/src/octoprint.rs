@@ -9,7 +9,7 @@ use super::error::PrintNannyConfigError;
 pub const OCTOPRINT_BASE_PATH: &str = "/home/octoprint/.octoprint";
 pub const PYTHON_BIN: &str = "/usr/bin/python3";
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PipPackage {
     name: String,
     version: String,

@@ -52,7 +52,7 @@ macro_rules! map_keys {
     }};
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct OsRelease {
     pub bug_report_url: String,
     pub build_id: String,

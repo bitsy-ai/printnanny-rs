@@ -17,7 +17,7 @@ use super::error::PrintNannyConfigError;
 pub const PRINTNANNY_CONFIG_FILENAME: &str = "default.toml";
 pub const DEFAULT_PRINTNANNY_CONFIG: &str = "/etc/printnanny/default.toml";
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
 pub struct PrintNannyPaths {
     pub etc: PathBuf,
     pub seed_file_pattern: String,

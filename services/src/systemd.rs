@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use crate::error::CommandError;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SystemctlListUnit {
     pub unit_file: String,
     pub state: String,

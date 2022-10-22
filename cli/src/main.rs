@@ -153,6 +153,18 @@ async fn main() -> Result<()> {
                 Command::new("motd")
                 .about("Show message of the day")
             )
+            .subcommand(
+                Command::new("system-info")
+                .about("Print SystemInfo")
+                .arg(Arg::new("format")
+                    .short('f')
+                    .long("format")
+                    .takes_value(true)
+                    .possible_values(ConfigFormat::possible_values())
+                    .default_value("json")
+                    .help("Output format")
+                )
+            )
             .about("Interact with PrintNanny OS")
         );
     

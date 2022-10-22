@@ -12,9 +12,7 @@ use printnanny_services::config::PrintNannyConfig;
 use printnanny_services::figment;
 use printnanny_services::figment::providers::Format;
 
-use printnanny_services::systemd::{
-    systemctl_list_enabled_units, systemctl_show_payload, SystemctlListUnit,
-};
+use printnanny_services::systemd::{systemctl_list_enabled_units, systemctl_show_payload};
 
 pub trait MessageHandler<Request, Response>
 where
@@ -131,7 +129,7 @@ impl SystemctlCommandRequest {
                 SystemctlCommandResponse {
                     request: Some(self.clone()),
                     status: ResponseStatus::Ok,
-                    detail: detail,
+                    detail,
                     data,
                 }
             }
@@ -140,7 +138,7 @@ impl SystemctlCommandRequest {
                 SystemctlCommandResponse {
                     request: Some(self.clone()),
                     status: ResponseStatus::Error,
-                    detail: detail,
+                    detail,
                     data,
                 }
             }
@@ -176,7 +174,7 @@ impl SystemctlCommandRequest {
         let args = ["systemctl", action, &self.service];
         let output = process::Command::new("sudo").args(&args).output()?;
         info!("{:?} stdout: {:?}", args, output.stdout);
-        if output.stdout.len() > 0 {
+        if !output.stdout.is_empty() {
             error!("{:?} stdout: {:?}", args, output.stdout);
         }
         self.build_response(&output)
@@ -202,7 +200,7 @@ impl SystemctlCommandRequest {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SystemctlCommandResponse {
     request: Option<SystemctlCommandRequest>,
     status: ResponseStatus,
@@ -210,7 +208,7 @@ pub struct SystemctlCommandResponse {
     data: HashMap<String, serde_json::Value>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PiConfigResponse {
     request: Option<PiConfigRequest>,
     status: ResponseStatus,
@@ -219,7 +217,7 @@ pub struct PiConfigResponse {
     post_save: Vec<SystemctlCommandResponse>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "subject")]
 pub enum NatsRequest {
     #[serde(rename = "pi.command.systemctl")]
@@ -228,7 +226,7 @@ pub enum NatsRequest {
     PiConfigRequest(PiConfigRequest),
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "subject")]
 pub enum NatsResponse {
     #[serde(rename = "pi.command.systemctl")]
@@ -257,6 +255,7 @@ mod tests {
     use super::*;
     use printnanny_services::config::VideoSrcType;
     use printnanny_services::paths::PRINTNANNY_CONFIG_FILENAME;
+    use printnanny_services::systemd;
 
     #[test]
     fn test_pi_config_update_handler() {
@@ -316,7 +315,7 @@ mod tests {
 
         let (_, unit) = res.data.iter().next().unwrap();
 
-        let unit = serde_json::from_value::<SystemctlListUnit>(unit.clone()).unwrap();
+        let unit = serde_json::from_value::<systemd::SystemctlListUnit>(unit.clone()).unwrap();
         assert_eq!(unit.state, "enabled");
     }
 }

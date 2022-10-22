@@ -1,7 +1,10 @@
 use anyhow::{anyhow, Result};
+use clap::ArgMatches;
 use log::error;
-use printnanny_services::config::PrintNannyConfig;
+use printnanny_services::config::{ConfigFormat, PrintNannyConfig};
 use std::fs;
+
+use printnanny_services::metadata;
 
 pub struct OsCommand;
 
@@ -43,11 +46,24 @@ fn handle_motd() -> Result<()> {
     handle_issue()
 }
 
+fn handle_system_info(args: &ArgMatches) -> Result<()> {
+    let system_info = metadata::system_info()?;
+    let format = args.value_of_t::<ConfigFormat>("format")?;
+    let output = match format {
+        ConfigFormat::Json => serde_json::to_string(&system_info)?,
+        ConfigFormat::Toml => toml::ser::to_string(&system_info)?,
+    };
+    print!("{}", &output);
+    Ok(())
+}
+
 impl OsCommand {
     pub fn handle(sub_m: &clap::ArgMatches) -> Result<()> {
         match sub_m.subcommand() {
             Some(("issue", _args)) => handle_issue(),
             Some(("motd", _args)) => handle_motd(),
+            Some(("system-info", args)) => handle_system_info(args),
+
             _ => Err(anyhow!("Unhandled subcommand")),
         }
     }

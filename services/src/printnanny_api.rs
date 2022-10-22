@@ -1,12 +1,9 @@
 use log::{debug, info, warn};
 use std::collections::HashMap;
-use std::convert::TryInto;
-use std::fs::{read_to_string, File};
+use std::fs::File;
 use std::future::Future;
 use std::io::BufReader;
-use std::path::{Path, PathBuf};
-
-use sysinfo::{DiskExt, System, SystemExt};
+use std::path::Path;
 
 use printnanny_api_client::apis::accounts_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
@@ -15,9 +12,9 @@ use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::models;
 
 use super::config::PrintNannyConfig;
-use super::cpuinfo::RpiCpuInfo;
 use super::error::{PrintNannyConfigError, ServiceError};
 use super::file::open;
+use super::metadata;
 use super::octoprint::OctoPrintHelper;
 
 #[derive(Debug, Clone)]
@@ -105,7 +102,7 @@ impl ApiService {
                 // let os_release = self.config.paths.load_os_release()?;
                 match &pi.octoprint_server {
                     Some(octoprint_server) => {
-                        self.octoprint_server_update(*&octoprint_server).await?;
+                        self.octoprint_server_update(octoprint_server).await?;
                     }
                     None => (),
                 }
@@ -140,75 +137,30 @@ impl ApiService {
         &self,
         pi: i32,
     ) -> Result<models::SystemInfo, ServiceError> {
-        let machine_id: String = read_to_string("/etc/machine-id")?;
-
-        let mut sys = System::new_all();
-        sys.refresh_all();
-
-        // hacky parsing of rpi-specific /proc/cpuinfo
-        let rpi_cpuinfo = RpiCpuInfo::new()?;
-        let model = rpi_cpuinfo.model.unwrap_or_else(|| "unknown".to_string());
-        let serial = rpi_cpuinfo.serial.unwrap_or_else(|| "unknown".to_string());
-        let revision = rpi_cpuinfo
-            .revision
-            .unwrap_or_else(|| "unknown".to_string());
-
-        let cpuinfo = procfs::CpuInfo::new()?;
-        let cores: i32 = cpuinfo.num_cores().try_into().unwrap();
-
-        let meminfo = procfs::Meminfo::new()?;
-        let ram = meminfo.mem_total.try_into().unwrap();
-
-        let os_release = self.config.paths.load_os_release()?;
+        let system_info = metadata::system_info()?;
         let os_release_json: HashMap<String, serde_json::Value> =
-            serde_json::from_str(&serde_json::to_string(&os_release)?)?;
-
-        let mut bootfs_used: i64 = 0;
-        let mut bootfs_size: i64 = 0;
-        let bootfs_mountpoint = PathBuf::from("/dev/mmcblk0p1");
-
-        let mut datafs_used: i64 = 0;
-        let mut datafs_size: i64 = 0;
-        let datafs_mountpoint = PathBuf::from("/dev/mmcblk0p4");
-
-        let mut rootfs_used: i64 = 0;
-        let mut rootfs_size: i64 = 0;
-        let rootfs_mountpoint = PathBuf::from("/");
-
-        for disk in sys.disks() {
-            if disk.mount_point() == rootfs_mountpoint {
-                rootfs_size = disk.total_space() as i64;
-                rootfs_used = rootfs_size - disk.available_space() as i64;
-            } else if disk.mount_point() == datafs_mountpoint {
-                bootfs_size = disk.total_space() as i64;
-                bootfs_used = bootfs_size - disk.available_space() as i64;
-            } else if disk.mount_point() == datafs_mountpoint {
-                datafs_size = disk.total_space() as i64;
-                datafs_used = datafs_size - disk.available_space() as i64;
-            }
-        }
-
-        let uptime = sys.uptime() as i64;
+            serde_json::from_str(&serde_json::to_string(&system_info.os_release)?)?;
 
         let request = models::SystemInfoRequest {
-            machine_id,
-            serial,
-            revision,
-            model,
-            cores,
-            ram,
             pi,
-            os_build_id: os_release.build_id,
-            os_variant_id: os_release.variant_id,
-            os_version_id: os_release.version_id,
+            os_build_id: system_info.os_release.build_id,
+            os_variant_id: system_info.os_release.variant_id,
+            os_version_id: system_info.os_release.version_id,
             os_release_json: Some(os_release_json),
-            bootfs_size,
-            bootfs_used,
-            datafs_size,
-            datafs_used,
-            rootfs_size,
-            rootfs_used,
-            uptime,
+
+            machine_id: system_info.machine_id,
+            serial: system_info.serial,
+            revision: system_info.revision,
+            model: system_info.model,
+            cores: system_info.cores,
+            ram: system_info.ram,
+            bootfs_size: system_info.bootfs_size,
+            bootfs_used: system_info.bootfs_used,
+            datafs_size: system_info.datafs_size,
+            datafs_used: system_info.datafs_used,
+            rootfs_size: system_info.rootfs_size,
+            rootfs_used: system_info.rootfs_used,
+            uptime: system_info.uptime,
         };
         info!("device_system_info_update_or_create request {:?}", request);
         let res = devices_api::system_info_update_or_create(&self.reqwest, pi, request).await?;

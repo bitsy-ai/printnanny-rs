@@ -158,7 +158,7 @@ impl Default for PrintNannyCloudConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct TfliteModelConfig {
     pub label_file: String,
     pub model_file: String,
@@ -655,7 +655,7 @@ impl PrintNannyConfig {
     /// panics. For a version that doesn't panic, use [`PrintNannyCloudConfig::try_save()`].
     ///
     pub fn save(&self) {
-        return self.try_save().expect("Failed to save PrintNannyConfig");
+        self.try_save().expect("Failed to save PrintNannyConfig");
     }
 
     /// Extract a `Config` from `provider`, panicking if extraction fails.
