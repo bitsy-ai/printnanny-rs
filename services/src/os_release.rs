@@ -58,6 +58,7 @@ pub struct OsRelease {
     pub build_id: String,
     pub home_url: String,
     pub id_like: String,
+    pub image_name: String,
     pub id: String,
     pub name: String,
     pub pretty_name: String,
@@ -101,6 +102,7 @@ impl FromIterator<String> for OsRelease {
                 "BUILD_ID=" => os_release.build_id,
                 "HOME_URL=" => os_release.home_url,
                 "ID_LIKE=" => os_release.id_like,
+                "IMAGE_NAME=" => os_release.image_name,
                 "ID=" => os_release.id,
                 "NAME=" => os_release.name,
                 "PRETTY_NAME=" => os_release.pretty_name,
@@ -179,6 +181,7 @@ UBUNTU_CODENAME=jammy
 
     const PRINTNANNY_OS_EXAMPLE: &str = r#"ID=printnanny
 ID_LIKE="BitsyLinux"
+IMAGE_NAME="printnanny-debug-image-raspberrypi4-64-20221022033443"
 BUILD_ID="2022-06-18T18:46:49Z"
 NAME="PrintNanny Linux"
 VERSION="0.1.2 (Amber)"
@@ -219,6 +222,7 @@ VARIANT_ID=printnanny-octoprint
                 bug_report_url: "https://github.com/bitsy-ai/printnanny-os/issues".into(),
                 privacy_policy_url: "https://printnanny.ai/privacy-policy".into(),
                 version_codename: "Amber".into(),
+                image_name: "printnanny-debug-image-raspberrypi4-64-20221022033443".into(),
                 extra: {
                     let mut map = BTreeMap::new();
                     map.insert("SDK_VERSION".to_owned(), "0.1.2".to_owned());
