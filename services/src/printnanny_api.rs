@@ -106,7 +106,7 @@ impl ApiService {
                 // let os_release = self.config.paths.load_os_release()?;
                 match &pi.octoprint_server {
                     Some(octoprint_server) => {
-                        self.octoprint_server_update(*&octoprint_server).await?;
+                        self.octoprint_server_update(octoprint_server).await?;
                     }
                     None => (),
                 }

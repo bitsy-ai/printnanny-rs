@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use super::config::PrintNannyConfig;
 use super::error::ServiceError;
 
-#[derive(PartialEq, Debug, Clone, Copy, ArgEnum)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy, ArgEnum)]
 pub enum JanusAdminEndpoint {
     GetStatus,
     Info,

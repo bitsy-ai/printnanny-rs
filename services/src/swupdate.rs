@@ -8,7 +8,7 @@ use tempfile::Builder;
 
 use printnanny_api_client::models::pi_software_update_payload_request::PiSoftwareUpdatePayloadRequest;
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Swupdate {
     swu_url: String,
     version: String,

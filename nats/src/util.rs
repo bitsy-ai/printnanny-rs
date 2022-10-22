@@ -1,9 +1,3 @@
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::HashMap;
-
-use printnanny_services::error::CommandError;
-
 // subscribe to commands with any subject prefix
 pub fn to_nats_command_subscribe_subject(pi_id: &i32) -> String {
     format!("pi.{}.command.>", pi_id)
