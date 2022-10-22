@@ -255,6 +255,7 @@ mod tests {
     use super::*;
     use printnanny_services::config::VideoSrcType;
     use printnanny_services::paths::PRINTNANNY_CONFIG_FILENAME;
+    use printnanny_services::systemd;
 
     #[test]
     fn test_pi_config_update_handler() {
@@ -314,7 +315,7 @@ mod tests {
 
         let (_, unit) = res.data.iter().next().unwrap();
 
-        let unit = serde_json::from_value::<SystemctlListUnit>(unit.clone()).unwrap();
+        let unit = serde_json::from_value::<systemd::SystemctlListUnit>(unit.clone()).unwrap();
         assert_eq!(unit.state, "enabled");
     }
 }

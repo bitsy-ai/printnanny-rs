@@ -1,21 +1,17 @@
 use log::{debug, info, warn};
 use std::collections::HashMap;
-use std::convert::TryInto;
-use std::fs::{read_to_string, File};
+use std::fs::File;
 use std::future::Future;
 use std::io::BufReader;
-use std::path::{Path, PathBuf};
-
-use sysinfo::{DiskExt, System, SystemExt};
+use std::path::Path;
 
 use printnanny_api_client::apis::accounts_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::octoprint_api;
-use printnanny_api_client::models::{self, system_info};
+use printnanny_api_client::models;
 
 use super::config::PrintNannyConfig;
-use super::cpuinfo::RpiCpuInfo;
 use super::error::{PrintNannyConfigError, ServiceError};
 use super::file::open;
 use super::metadata;
