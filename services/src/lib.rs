@@ -12,4 +12,5 @@ pub mod swupdate;
 pub mod systemd;
 
 // pub exports
+pub use clap;
 pub use figment;

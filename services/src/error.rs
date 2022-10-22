@@ -176,7 +176,8 @@ pub enum CommandError {
         error: String,
         source: serde_json::Error,
     },
-
+    #[error(transparent)]
+    JsonSerError(#[from] serde_json::Error),
     #[error(transparent)]
     NatsError(#[from] NatsError),
 

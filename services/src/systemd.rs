@@ -2,7 +2,6 @@
 use std::collections::HashMap;
 use std::process;
 
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -16,7 +15,7 @@ pub struct SystemctlListUnit {
 }
 
 pub fn systemctl_list_enabled_units(
-) -> Result<(process::Output, HashMap<String, SystemctlListUnit>)> {
+) -> Result<(process::Output, HashMap<String, SystemctlListUnit>), CommandError> {
     let output = process::Command::new("systemctl")
         .args(&["list-unit-files", "--state=enabled", "--output=json"])
         .output()?;
@@ -29,7 +28,7 @@ pub fn systemctl_list_enabled_units(
     Ok((output, map))
 }
 
-pub fn systemctl_unit_is_enabled(unit: &str) -> Result<bool> {
+pub fn systemctl_unit_is_enabled(unit: &str) -> Result<bool, CommandError> {
     let (_, enabled_units) = systemctl_list_enabled_units()?;
     Ok(enabled_units.contains_key(unit))
 }

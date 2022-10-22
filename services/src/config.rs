@@ -5,7 +5,7 @@ use std::io::prelude::*;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use clap::{ArgEnum, ArgMatches, PossibleValue};
+use clap::{ArgEnum, PossibleValue};
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
@@ -16,7 +16,6 @@ use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
 use crate::error::ServiceError;
-use crate::systemd::systemctl_unit_is_enabled;
 
 use super::error::PrintNannyConfigError;
 use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_CONFIG};
@@ -26,7 +25,7 @@ use printnanny_api_client::models;
 // FACTORY_RESET holds the struct field names of PrintNannyCloudConfig
 // each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
 // as the name implies, this const is used for performing a reset of any config data modified from defaults
-const FACTORY_RESET: [&str; 3] = ["cloud", "systemd_units", "vision"];
+const FACTORY_RESET: [&str; 2] = ["cloud", "systemd_units"];
 
 lazy_static! {
     static ref DEFAULT_SYSTEMD_UNITS: HashMap<String, SystemdUnit> = {
@@ -158,211 +157,6 @@ impl Default for PrintNannyCloudConfig {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
-pub struct TfliteModelConfig {
-    pub label_file: String,
-    pub model_file: String,
-    pub nms_threshold: i32,
-    pub tensor_batch_size: i32,
-    pub tensor_channels: i32,
-    pub tensor_height: i32,
-    pub tensor_width: i32,
-}
-
-impl Default for TfliteModelConfig {
-    fn default() -> Self {
-        Self {
-            label_file: "/usr/share/printnanny/model/labels.txt".into(),
-            model_file: "/usr/share/printnanny/model/model.tflite".into(),
-            nms_threshold: 50,
-            tensor_batch_size: 40,
-            tensor_channels: 3,
-            tensor_height: 320,
-            tensor_width: 320,
-        }
-    }
-}
-
-impl From<&ArgMatches> for TfliteModelConfig {
-    fn from(args: &ArgMatches) -> Self {
-        let label_file = args
-            .value_of("label_file")
-            .expect("--label-file is required")
-            .into();
-        let model_file = args
-            .value_of("model_file")
-            .expect("--model-file is required")
-            .into();
-        let tensor_batch_size: i32 = args
-            .value_of_t::<i32>("tensor_batch_size")
-            .expect("--tensor-batch-size must be an integer");
-
-        let tensor_height: i32 = args
-            .value_of_t::<i32>("tensor_height")
-            .expect("--tensor-height must be an integer");
-
-        let tensor_width: i32 = args
-            .value_of_t::<i32>("tensor_width")
-            .expect("--tensor-width must be an integer");
-
-        let tensor_channels: i32 = args
-            .value_of_t::<i32>("tensor_channels")
-            .expect("--tensor-channels must be an integer");
-
-        let nms_threshold: i32 = args
-            .value_of_t::<i32>("nms_threshold")
-            .expect("--nms-threshold must be an integer");
-
-        Self {
-            label_file,
-            model_file,
-            nms_threshold,
-            tensor_batch_size,
-            tensor_channels,
-            tensor_height,
-            tensor_width,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct PrintNannyGstPipelineConfig {
-    pub video_src: String,
-    pub preview: bool,
-    pub tflite_model: TfliteModelConfig,
-    pub nats_server_uri: String,
-    pub udp_port: i32,
-    pub video_height: i32,
-    pub video_src_type: VideoSrcType,
-    pub video_width: i32,
-    pub video_framerate: i32,
-    //
-    // hls_http has 3 possible states:
-    // 1) Detect enabled/disabled based on enabled systemd services, indicated by None value
-    //  detect_hls_http_enabled() will be called
-    //
-    // 2) and 3) Explicitly enabled/disabled, indicated by Some(bool)
-    // Some(bool) -> bool
-    pub hls_http_enabled: Option<bool>,
-    pub hls_segments: String,
-    pub hls_playlist: String,
-    pub hls_playlist_root: String,
-}
-
-impl PrintNannyGstPipelineConfig {
-    pub fn detect_hls_http_enabled(&self) -> Result<bool> {
-        systemctl_unit_is_enabled("octoprint.service")
-    }
-}
-
-impl Default for PrintNannyGstPipelineConfig {
-    fn default() -> Self {
-        let video_src = "/dev/video0".into();
-        let preview = false;
-        let tflite_model = TfliteModelConfig::default();
-        let udp_port = 20001;
-        let video_src_type = VideoSrcType::Device;
-        let video_height = 480;
-        let video_width = 640;
-        let video_framerate = 15;
-        let hls_http_enabled = None;
-        let hls_segments = "/var/run/printnanny-hls/segment%05d.ts".into();
-        let hls_playlist = "/var/run/printnanny-hls/playlist.m3u8".into();
-        let hls_playlist_root = "/printnanny-hls/".into();
-
-        let nats_server_uri = "nats://127.0.0.1:4223".into();
-
-        Self {
-            video_src,
-            tflite_model,
-            video_src_type,
-            video_height,
-            video_width,
-            video_framerate,
-            udp_port,
-            preview,
-            hls_http_enabled,
-            hls_segments,
-            hls_playlist,
-            hls_playlist_root,
-            nats_server_uri,
-        }
-    }
-}
-
-impl From<&ArgMatches> for PrintNannyGstPipelineConfig {
-    fn from(args: &ArgMatches) -> Self {
-        let tflite_model = TfliteModelConfig::from(args);
-
-        let video_src_type: &VideoSrcType = args
-            .get_one::<VideoSrcType>("video_src_type")
-            .expect("--video-src-type");
-
-        let video_src = args
-            .value_of("video_src")
-            .expect("--video-src is required")
-            .into();
-        let video_height: i32 = args
-            .value_of_t::<i32>("video_height")
-            .expect("--video-height must be an integer");
-
-        let video_framerate: i32 = args
-            .value_of_t::<i32>("video_framerate")
-            .expect("--video-framerate must be an integer");
-
-        let video_width: i32 = args
-            .value_of_t::<i32>("video_width")
-            .expect("--video-width must be an integer");
-
-        let udp_port: i32 = args
-            .value_of_t("udp_port")
-            .expect("--udp-port must be an integer");
-
-        let preview = args.is_present("preview");
-
-        let hls_http_enabled = match args.is_present("hls_http_enabled") {
-            true => Some(true),
-            false => None,
-        };
-
-        let hls_segments: String = args
-            .value_of("hls_segments")
-            .expect("--hls-segments is required")
-            .into();
-
-        let hls_playlist: String = args
-            .value_of("hls_playlist")
-            .expect("--hls-playlist is required")
-            .into();
-
-        let hls_playlist_root: String = args
-            .value_of("hls_playlist_root")
-            .expect("--hls-playlist-root is required")
-            .into();
-
-        let nats_server_uri: String = args
-            .value_of("nats_server_uri")
-            .expect("--nats-server-uri is required")
-            .into();
-
-        Self {
-            tflite_model,
-            preview,
-            video_src,
-            video_height,
-            video_width,
-            video_framerate,
-            video_src_type: video_src_type.clone(),
-            udp_port,
-            hls_http_enabled,
-            hls_segments,
-            hls_playlist,
-            hls_playlist_root,
-            nats_server_uri,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct SystemdUnit {
     unit: String,
@@ -371,7 +165,6 @@ pub struct SystemdUnit {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyConfig {
-    pub vision: PrintNannyGstPipelineConfig,
     pub cloud: PrintNannyCloudConfig,
     pub paths: PrintNannyPaths,
     pub systemd_units: HashMap<String, SystemdUnit>,
@@ -384,7 +177,6 @@ impl Default for PrintNannyConfig {
             paths,
             cloud: PrintNannyCloudConfig::default(),
             systemd_units: DEFAULT_SYSTEMD_UNITS.clone(),
-            vision: PrintNannyGstPipelineConfig::default(),
         }
     }
 }
@@ -599,9 +391,6 @@ impl PrintNannyConfig {
             "systemd_units" => Ok(serde_json::to_string(
                 &figment::util::map! {key => &self.systemd_units},
             )?),
-            "vision" => Ok(serde_json::to_string(
-                &figment::util::map! {key => &self.vision},
-            )?),
             _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
         }?;
 
@@ -705,7 +494,6 @@ mod tests {
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
             let result = PrintNannyConfig::figment();
             assert!(result.is_err());
-            // assert_eq!(result, expected);
             Ok(())
         });
     }
@@ -942,56 +730,6 @@ VARIANT_ID=printnanny-octoprint
     }
 
     #[test_log::test]
-    fn test_vision_gst_pipeline_conf() {
-        figment::Jail::expect_with(|jail| {
-            let video_src = "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4";
-            let video_src_type = "Uri";
-            let output = jail.directory().to_str().unwrap();
-
-            jail.create_file(
-                PRINTNANNY_CONFIG_FILENAME,
-                &format!(
-                    r#"
-                profile = "local"
-                [paths]
-                etc = "{output}/etc"
-                run = "{output}/run"
-                log = "{output}/log"
-
-                [vision]
-                video_src_type = "{video_src_type}"
-                video_src = "{video_src}"
-                [vision.tflite_model]
-                tensor_height = 400
-                tensor_width = 400
-                
-                "#,
-                    video_src = video_src,
-                    video_src_type = video_src_type,
-                    output = output
-                ),
-            )?;
-            jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
-
-            let mut config = PrintNannyConfig::new().unwrap();
-            assert_eq!(config.vision.video_src_type, VideoSrcType::Uri);
-            assert_eq!(config.vision.tflite_model.tensor_height, 400);
-            assert_eq!(config.vision.tflite_model.tensor_width, 400);
-
-            // test saving config
-            config.vision.tflite_model.nms_threshold = 66;
-            config.paths.try_init_dirs().unwrap();
-            config.save();
-
-            let config2 = PrintNannyConfig::new().unwrap();
-
-            assert_eq!(config.vision, config2.vision);
-
-            Ok(())
-        });
-    }
-
-    #[test_log::test]
     fn test_user_provided_toml_file() {
         figment::Jail::expect_with(|jail| {
             let output = jail.directory().to_str().unwrap();
@@ -1007,19 +745,13 @@ VARIANT_ID=printnanny-octoprint
                 etc = "{output}/etc"
                 run = "{output}/run"
                 log = "{output}/log"
-
-                [vision]
-                video_height = 400
-                video_width = 400
-                
                 "#,
                     output = output
                 ),
             )?;
 
             let config = PrintNannyConfig::from_toml(PathBuf::from(output).join(filename)).unwrap();
-            assert_eq!(config.vision.video_height, 400);
-            assert_eq!(config.vision.video_width, 400);
+            assert_eq!(config.paths.etc, PathBuf::from(format!("{}/etc", output)));
 
             Ok(())
         });
