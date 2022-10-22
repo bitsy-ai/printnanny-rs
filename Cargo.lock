@@ -1865,11 +1865,26 @@ dependencies = [
  "log",
  "printnanny-api-client",
  "printnanny-nats",
- "printnanny-services",
+ "printnanny-services 0.27.3",
  "serde 1.0.137",
  "serde_bytes",
  "serde_json",
  "tokio",
+ "toml",
+]
+
+[[package]]
+name = "printnanny-gst-config"
+version = "0.1.1"
+source = "git+https://github.com/bitsy-ai/printnanny-gst-plugin-rs.git#5d8297360a370811c34976d597d21e8bd5795856"
+dependencies = [
+ "clap",
+ "file-lock",
+ "log",
+ "printnanny-services 0.27.3 (git+https://github.com/bitsy-ai/printnanny-cli.git)",
+ "serde 1.0.137",
+ "serde_json",
+ "thiserror",
  "toml",
 ]
 
@@ -1888,7 +1903,8 @@ dependencies = [
  "futures",
  "log",
  "printnanny-api-client",
- "printnanny-services",
+ "printnanny-gst-config",
+ "printnanny-services 0.27.3",
  "serde 1.0.137",
  "serde-reflection",
  "serde_bytes",
@@ -1940,6 +1956,50 @@ dependencies = [
  "sysinfo",
  "tempfile",
  "test-log",
+ "thiserror",
+ "tokio",
+ "tokio-rustls 0.22.0",
+ "tokio-serde",
+ "tokio-util 0.7.4",
+ "toml",
+ "warp",
+ "zip",
+]
+
+[[package]]
+name = "printnanny-services"
+version = "0.27.3"
+source = "git+https://github.com/bitsy-ai/printnanny-cli.git#ae1b2c9859a16c3bc50678fa0be3eac444b48725"
+dependencies = [
+ "anyhow",
+ "async-process",
+ "bytes",
+ "chrono",
+ "clap",
+ "config",
+ "console",
+ "dialoguer",
+ "figment",
+ "file-lock",
+ "futures",
+ "glob",
+ "hex",
+ "http",
+ "jsonwebtoken",
+ "lazy_static",
+ "log",
+ "printnanny-api-client",
+ "procfs",
+ "rand",
+ "reqwest",
+ "rustls 0.19.1",
+ "serde 1.0.137",
+ "serde_json",
+ "serde_with",
+ "sha2",
+ "sys-info",
+ "sysinfo",
+ "tempfile",
  "thiserror",
  "tokio",
  "tokio-rustls 0.22.0",

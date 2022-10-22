@@ -8,10 +8,10 @@ use log::{error, info};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use printnanny_services::config::PrintNannyConfig;
 use printnanny_services::figment;
 use printnanny_services::figment::providers::Format;
 
+use printnanny_gst_config::config::PrintNannyGstPipelineConfig;
 use printnanny_services::systemd::{systemctl_list_enabled_units, systemctl_show_payload};
 
 pub trait MessageHandler<Request, Response>
@@ -63,19 +63,19 @@ pub struct SystemctlCommandRequest {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct PiConfigRequest {
+pub struct GstPipelineConfigRequest {
     json: String, // json string, intended for use with Figment.rs JSON provider: https://docs.rs/figment/latest/figment/providers/struct.Json.html
     pre_save: Vec<SystemctlCommandRequest>, // run commands prior to applying config merge/save
     post_save: Vec<SystemctlCommandRequest>, // run commands after applying config merge/save
 }
 
-impl PiConfigRequest {
+impl GstPipelineConfigRequest {
     // merge incoming "figment" (configurationf fragment) with existing configuration, sourced from .json/.toml serializable data structure and env variables prefixed with PRINTNANNY_
     fn _handle(&self) -> Result<(Vec<SystemctlCommandResponse>, Vec<SystemctlCommandResponse>)> {
         // build a config fragment from json string
         let incoming = figment::providers::Json::string(&self.json);
-        let figment = PrintNannyConfig::figment()?.merge(incoming);
-        let config: PrintNannyConfig = figment.extract()?;
+        let figment = PrintNannyGstPipelineConfig::figment()?.merge(incoming);
+        let config: PrintNannyGstPipelineConfig = figment.extract()?;
 
         // run pre-save command hooks
         info!("Running pre-save commands: {:?}", self.pre_save);
@@ -86,7 +86,7 @@ impl PiConfigRequest {
             .collect();
         info!("Finished running pre-save commands: {:?}", pre_save);
         // save merged configuration
-        config.save();
+        config.try_save().expect("Failed to save configuration");
 
         // run post-save command hooks
         info!("Running pre-save commands: {:?}", self.pre_save);
@@ -100,22 +100,26 @@ impl PiConfigRequest {
         Ok((pre_save, post_save))
     }
 
-    pub fn handle(&self) -> PiConfigResponse {
+    pub fn handle(&self) -> GstPipelineConfigResponse {
         match self._handle() {
-            Ok((pre_save, post_save)) => PiConfigResponse {
+            Ok((pre_save, post_save)) => GstPipelineConfigResponse {
                 pre_save,
                 post_save,
                 request: Some(self.clone()),
                 detail: "Updated PrintNanny configuration".into(),
                 status: ResponseStatus::Ok,
             },
-            Err(e) => PiConfigResponse {
-                pre_save: vec![],
-                post_save: vec![],
-                request: Some(self.clone()),
-                detail: format!("Error updating PrintNanny configuration: {:?}", e),
-                status: ResponseStatus::Error,
-            },
+            Err(e) => {
+                let detail = format!("Error updating PrintNanny configuration: {:?}", e);
+                error!("{}", &detail);
+                GstPipelineConfigResponse {
+                    pre_save: vec![],
+                    post_save: vec![],
+                    request: Some(self.clone()),
+                    status: ResponseStatus::Error,
+                    detail,
+                }
+            }
         }
     }
 }
@@ -209,8 +213,8 @@ pub struct SystemctlCommandResponse {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct PiConfigResponse {
-    request: Option<PiConfigRequest>,
+pub struct GstPipelineConfigResponse {
+    request: Option<GstPipelineConfigRequest>,
     status: ResponseStatus,
     detail: String,
     pre_save: Vec<SystemctlCommandResponse>,
@@ -223,7 +227,7 @@ pub enum NatsRequest {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandRequest(SystemctlCommandRequest),
     #[serde(rename = "pi.command.config")]
-    PiConfigRequest(PiConfigRequest),
+    GstPipelineConfigRequest(GstPipelineConfigRequest),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -231,8 +235,8 @@ pub enum NatsRequest {
 pub enum NatsResponse {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandResponse(SystemctlCommandResponse),
-    #[serde(rename = "pi.command.config")]
-    PiConfigResponse(PiConfigResponse),
+    #[serde(rename = "pi.command.gst_pipeline_config")]
+    GstPipelineConfigResponse(GstPipelineConfigResponse),
 }
 
 impl NatsResponse {}
@@ -243,8 +247,8 @@ impl MessageHandler<NatsRequest, NatsResponse> for NatsRequest {
             NatsRequest::SystemctlCommandRequest(request) => {
                 Ok(NatsResponse::SystemctlCommandResponse(request.handle()))
             }
-            NatsRequest::PiConfigRequest(request) => {
-                Ok(NatsResponse::PiConfigResponse(request.handle()))
+            NatsRequest::GstPipelineConfigRequest(request) => {
+                Ok(NatsResponse::GstPipelineConfigResponse(request.handle()))
             }
         }
     }
@@ -253,56 +257,46 @@ impl MessageHandler<NatsRequest, NatsResponse> for NatsRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use printnanny_services::config::VideoSrcType;
-    use printnanny_services::paths::PRINTNANNY_CONFIG_FILENAME;
+    use printnanny_gst_config::config::VideoSrcType;
     use printnanny_services::systemd;
 
-    // #[test]
-    // fn test_pi_config_update_handler() {
-    //     figment::Jail::expect_with(|jail| {
-    //         let output = jail.directory().to_str().unwrap();
+    #[test]
+    fn test_gst_pipeline_config_update_handler() {
+        figment::Jail::expect_with(|jail| {
+            let output = jail.directory().join("test.toml");
 
-    //         jail.create_file(
-    //             PRINTNANNY_CONFIG_FILENAME,
-    //             &format!(
-    //                 r#"
-    //             profile = "default"
+            jail.create_file(
+                "test.toml",
+                &format!(
+                    r#"
 
-    //             [paths]
-    //             etc = "{output}/etc"
-    //             run = "{output}/run"
-    //             log = "{output}/log"
-    //             "#,
-    //                 output = output
-    //             ),
-    //         )?;
-    //         jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
+                [tflite_model]
+                tensor_width = 720
+                "#,
+                ),
+            )?;
+            jail.set_env("PRINTNANNY_GST_CONFIG", output.display());
 
-    //         let default_config = PrintNannyConfig::new().unwrap();
-    //         default_config.paths.try_init_dirs().unwrap();
+            let src = "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4";
 
-    //         let src = "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4";
+            let request_json = r#"{ "video_src": "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4", "video_src_type": "Uri"}"#;
 
-    //         let request_json = r#"{
-    //             "vision": { "video_src": "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4", "video_src_type": "Uri"}
-    //         }"#;
+            let request = GstPipelineConfigRequest {
+                json: request_json.into(),
+                pre_save: vec![],
+                post_save: vec![],
+            };
 
-    //         let request = PiConfigRequest {
-    //             json: request_json.into(),
-    //             pre_save: vec![],
-    //             post_save: vec![],
-    //         };
+            let res = request.handle();
 
-    //         let res = request.handle();
+            assert_eq!(res.status, ResponseStatus::Ok);
 
-    //         assert_eq!(res.status, ResponseStatus::Ok);
-
-    //         let saved_config = PrintNannyConfig::new().unwrap();
-    //         assert_eq!(saved_config.vision.video_src, src);
-    //         assert_eq!(saved_config.vision.video_src_type, VideoSrcType::Uri);
-    //         Ok(())
-    //     });
-    // }
+            let saved_config = PrintNannyGstPipelineConfig::new().unwrap();
+            assert_eq!(saved_config.video_src, src);
+            assert_eq!(saved_config.video_src_type, VideoSrcType::Uri);
+            Ok(())
+        });
+    }
 
     #[test]
     fn test_systemctl_list_units() {
