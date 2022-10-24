@@ -12,7 +12,7 @@ general: {
     loggers_folder = "/opt/janus/lib/janus/loggers"		# External loggers folder
     log_to_stdout = true # Whether the Janus output should be written # to stdout or not (default=true)
     log_to_file = false	# Whether to use a log file or not
-    debug_level = 3					# Debug/logging level, valid values are 0-7
+    debug_level = 4					# Debug/logging level, valid values are 0-7
     debug_timestamps = true				# Whether to show a timestamp for each log line
     debug_colors = true					# Whether colors should be disabled in the log
     debug_locks = false						# Whether to enable debugging of locks (very verbose!)
@@ -200,7 +200,7 @@ media: {
     #min_nack_queue = 500
     rtp_port_range = "20000-21000"
     #dtls_mtu = 1200
-    #no_media_timer = 1
+    no_media_timer = 5
     #slowlink_threshold = 4
     #twcc_period = 100
     #dtls_timeout = 500
