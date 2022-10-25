@@ -29,7 +29,7 @@ futures = "0.3"
 log = "0.4"
 printnanny-api-client = "0.107.2"
 printnanny-services = {path = "../services", version = "^0.28.0"}
-printnanny-gst-config = { version = "0.1.4"}
+printnanny-gst-config = { version = "0.1.5"}
 serde = { version = "1", features = ["derive"] }
 serde_bytes = "0.11"
 serde_json = "1"
