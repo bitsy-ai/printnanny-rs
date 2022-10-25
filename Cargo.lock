@@ -1875,9 +1875,9 @@ dependencies = [
 
 [[package]]
 name = "printnanny-gst-config"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2b28879a710fbf60f358b6a42fb130e159759b016710c69d85a12d838ebaaa1"
+checksum = "2791d56203731681d48083bb7ad8cbaaa04a0d3c1be67b3f9724911b353e2537"
 dependencies = [
  "clap",
  "file-lock",
