@@ -4,6 +4,7 @@ use std::process;
 
 use anyhow::Result;
 use async_process::Output;
+use futures::executor;
 use log::{error, info};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -79,18 +80,26 @@ impl ConnectCloudAccountRequest {
         config.try_save()?;
 
         let mut api_service = ApiService::new(config)?;
-        api_service.sync().await
+        api_service.sync().await?;
+
+        let res = ConnectCloudAccountResponse {
+            request: Some(self.clone()),
+            detail: format!(
+                "Success! Connected PrintNanny Cloud account belonging to {}",
+                self.email
+            ),
+            status: ResponseStatus::Ok,
+        };
+        Ok(res)
     }
 
-    pub async fn handle(&self) -> ConnectCloudAccountResponse {
-        match self._handle().await {
+    fn handle(&self) -> ConnectCloudAccountResponse {
+        match executor::block_on(self._handle()) {
             Ok(r) => r,
             Err(e) => {
-                let detail = format!("Error updating PrintNanny configuration: {:?}", e);
+                let detail = format!("Error linking PrintNanny Cloud account: {:?}", e);
                 error!("{}", &detail);
-                GstPipelineConfigResponse {
-                    pre_save: vec![],
-                    post_save: vec![],
+                ConnectCloudAccountResponse {
                     request: Some(self.clone()),
                     status: ResponseStatus::Error,
                     detail,
