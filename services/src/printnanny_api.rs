@@ -87,12 +87,13 @@ impl ApiService {
     }
 
     // syncs Raspberry Pi data with PrintNanny Cloud
-    // performs any necessary one-time setup tasks, like registering Cloudiot Device
+    // performs any necessary one-time setup tasks
     pub async fn sync(&mut self) -> Result<(), ServiceError> {
         // verify pi is authenticated
 
         match &self.config.cloud.pi {
             Some(pi) => {
+                info!("Pi is already registered: {:?}", self.pi);
                 // always update SystemInfo
                 info!("Calling device_system_info_update_or_create()");
                 let system_info = self.system_info_update_or_create(pi.id).await?;
@@ -109,14 +110,18 @@ impl ApiService {
 
                 let pi = self.pi_retrieve(pi.id).await?;
                 self.config.cloud.pi = Some(pi);
-                self.config.try_save()?;
                 Ok(())
             }
-            None => Err(ServiceError::SetupIncomplete {
-                field: "pi".to_string(),
-                detail: None,
-            }),
-        }
+            None => {
+                warn!("Pi is not registered, attempting to register");
+
+                let pi = 
+
+            }
+        };
+
+        self.config.try_save()?
+
     }
 
     pub async fn pi_retrieve(&self, pi_id: i32) -> Result<models::Pi, ServiceError> {

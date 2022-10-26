@@ -8,8 +8,10 @@ use log::{error, info};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+use printnanny_services::config::PrintNannyConfig;
 use printnanny_services::figment;
 use printnanny_services::figment::providers::Format;
+use printnanny_services::printnanny_api::ApiService;
 
 use printnanny_gst_config::config::PrintNannyGstPipelineConfig;
 use printnanny_services::systemd::{systemctl_list_enabled_units, systemctl_show_payload};
@@ -60,6 +62,42 @@ pub enum ResponseStatus {
 pub struct SystemctlCommandRequest {
     service: String,
     command: SystemctlCommand,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ConnectCloudAccountRequest {
+    email: String,
+    api_token: String,
+    api_uri: String,
+}
+
+impl ConnectCloudAccountRequest {
+    async fn _handle(&self) -> Result<ConnectCloudAccountResponse> {
+        let mut config = PrintNannyConfig::new()?;
+        config.cloud.api.base_path = self.api_uri.clone();
+        config.cloud.api.bearer_access_token = Some(self.api_token.clone());
+        config.try_save()?;
+
+        let mut api_service = ApiService::new(config)?;
+        api_service.sync().await
+    }
+
+    pub async fn handle(&self) -> ConnectCloudAccountResponse {
+        match self._handle().await {
+            Ok(r) => r,
+            Err(e) => {
+                let detail = format!("Error updating PrintNanny configuration: {:?}", e);
+                error!("{}", &detail);
+                GstPipelineConfigResponse {
+                    pre_save: vec![],
+                    post_save: vec![],
+                    request: Some(self.clone()),
+                    status: ResponseStatus::Error,
+                    detail,
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -221,13 +259,22 @@ pub struct GstPipelineConfigResponse {
     post_save: Vec<SystemctlCommandResponse>,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ConnectCloudAccountResponse {
+    request: Option<ConnectCloudAccountRequest>,
+    status: ResponseStatus,
+    detail: String,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "subject")]
 pub enum NatsRequest {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandRequest(SystemctlCommandRequest),
-    #[serde(rename = "pi.command.config")]
+    #[serde(rename = "pi.command.gst_pipeline_config")]
     GstPipelineConfigRequest(GstPipelineConfigRequest),
+    #[serde(rename = "pi.command.connect_cloud_account")]
+    ConnectCloudAccountRequest(ConnectCloudAccountRequest),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -237,6 +284,8 @@ pub enum NatsResponse {
     SystemctlCommandResponse(SystemctlCommandResponse),
     #[serde(rename = "pi.command.gst_pipeline_config")]
     GstPipelineConfigResponse(GstPipelineConfigResponse),
+    #[serde(rename = "pi.command.connect_cloud_account")]
+    ConnectCloudAccountResponse(ConnectCloudAccountResponse),
 }
 
 impl NatsResponse {}
@@ -249,6 +298,9 @@ impl MessageHandler<NatsRequest, NatsResponse> for NatsRequest {
             }
             NatsRequest::GstPipelineConfigRequest(request) => {
                 Ok(NatsResponse::GstPipelineConfigResponse(request.handle()))
+            }
+            NatsRequest::ConnectCloudAccountRequest(request) => {
+                Ok(NatsResponse::ConnectCloudAccountResponse(request.handle()))
             }
         }
     }
