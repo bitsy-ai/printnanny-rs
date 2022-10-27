@@ -84,20 +84,12 @@ pub enum ServiceError {
     JsonSerError(#[from] serde_json::Error),
     #[error(transparent)]
     TomlSerError(#[from] toml::ser::Error),
-    // #[error(transparent)]
-    // AlertSettingsGetOrCreateRetrieveError(
-    //     #[from] ApiError<settings_api::AlertSettingsGetOrCreateRetrieveError>,
-    // ),
-    // #[error(transparent)]
-    // AuthTokenCreateError(#[from] ApiError<accounts_api::AuthTokenCreateError>),
-    // #[error(transparent)]
-    // AuthEmailCreateError(#[from] ApiError<accounts_api::AuthEmailCreateError>),
-    // #[error(transparent)]
-    // CloudiotDeviceUpdateOrCreateError(
-    //     #[from] ApiError<devices_api::CloudiotDeviceUpdateOrCreateError>,
-    // ),
+
     #[error(transparent)]
     PisRetrieveError(#[from] ApiError<devices_api::PisRetrieveError>),
+
+    #[error(transparent)]
+    PiUpdateOrCreateError(#[from] ApiError<devices_api::PiUpdateOrCreateError>),
 
     #[error(transparent)]
     PisPartialUpdateError(#[from] ApiError<devices_api::PisPartialUpdateError>),

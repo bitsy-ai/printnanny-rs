@@ -86,37 +86,68 @@ impl ApiService {
         Ok(accounts_api::accounts2fa_auth_token_create(&self.reqwest, req).await?)
     }
 
+    async fn _sync_pi_models(&self, pi: &models::Pi) -> Result<models::Pi, ServiceError> {
+        info!("Calling device_system_info_update_or_create()");
+        let system_info = self.system_info_update_or_create(pi.id).await?;
+        info!("Success! Updated SystemInfo model: {:?}", system_info);
+        match &pi.octoprint_server {
+            Some(octoprint_server) => {
+                let octoprint_server = self.octoprint_server_update(octoprint_server).await?;
+                info!(
+                    "Success! Updated OctoPrintServer model: {:?}",
+                    octoprint_server
+                );
+            }
+            None => (),
+        }
+
+        let pi = self.pi_retrieve(pi.id).await?;
+        Ok(pi)
+    }
+
     // syncs Raspberry Pi data with PrintNanny Cloud
-    // performs any necessary one-time setup tasks, like registering Cloudiot Device
+    // performs any necessary one-time setup tasks
     pub async fn sync(&mut self) -> Result<(), ServiceError> {
         // verify pi is authenticated
 
         match &self.config.cloud.pi {
             Some(pi) => {
-                // always update SystemInfo
-                info!("Calling device_system_info_update_or_create()");
-                let system_info = self.system_info_update_or_create(pi.id).await?;
-                info!("Success! Updated SystemInfo {:?}", system_info);
+                info!(
+                    "Pi is already registered, updating related models for {:?}",
+                    pi
+                );
 
-                // detect edition from os-release
-                // let os_release = self.config.paths.load_os_release()?;
-                match &pi.octoprint_server {
-                    Some(octoprint_server) => {
-                        self.octoprint_server_update(octoprint_server).await?;
-                    }
-                    None => (),
-                }
-
-                let pi = self.pi_retrieve(pi.id).await?;
+                let pi = self._sync_pi_models(pi).await?;
                 self.config.cloud.pi = Some(pi);
-                self.config.try_save()?;
-                Ok(())
             }
-            None => Err(ServiceError::SetupIncomplete {
-                field: "pi".to_string(),
-                detail: None,
-            }),
-        }
+            None => {
+                warn!("Pi is not registered, attempting to register");
+
+                // TODO detect board, but for now only Raspberry Pi 4 is supported so
+                let sbc = Some(models::SbcEnum::Rpi4);
+                let hostname = Some("");
+                let hostname = sys_info::hostname().unwrap_or_else(|_| "printnanny".to_string());
+
+                // TODO wireguard fqdn, but .local for now
+                let fqdn = Some(format!("{}.local", hostname));
+                let favorite = Some(true);
+                let setup_finished = Some(false);
+
+                let req = models::PiRequest {
+                    sbc: Some(models::SbcEnum::Rpi4),
+                    hostname: Some(hostname),
+                    fqdn,
+                    favorite,
+                    setup_finished,
+                };
+                let pi = devices_api::pi_update_or_create(&self.reqwest, Some(req)).await?;
+                let pi = self._sync_pi_models(&pi).await?;
+                self.config.cloud.pi = Some(pi);
+            }
+        };
+
+        self.config.try_save()?;
+        Ok(())
     }
 
     pub async fn pi_retrieve(&self, pi_id: i32) -> Result<models::Pi, ServiceError> {
