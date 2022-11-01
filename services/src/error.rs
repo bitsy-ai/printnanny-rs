@@ -95,7 +95,11 @@ pub enum ServiceError {
     PisPartialUpdateError(#[from] ApiError<devices_api::PisPartialUpdateError>),
 
     #[error(transparent)]
+    PisLicenseZipRetrieveError(#[from] ApiError<devices_api::PisLicenseZipRetrieveError>),
+
+    #[error(transparent)]
     SystemInfoCreateError(#[from] ApiError<devices_api::PisSystemInfoCreateError>),
+
     #[error(transparent)]
     SystemInfoUpdateOrCreateError(#[from] ApiError<devices_api::SystemInfoUpdateOrCreateError>),
 

@@ -6,6 +6,7 @@ use anyhow::Result;
 use async_process::Output;
 use futures::executor;
 use log::{error, info};
+use printnanny_services::error::ServiceError;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -80,7 +81,20 @@ impl ConnectCloudAccountRequest {
         config.try_save()?;
 
         let mut api_service = ApiService::new(config)?;
+
+        // sync data models
         api_service.sync().await?;
+
+        let pi_id = match &api_service.config.cloud.pi {
+            Some(pi) => Ok(pi.id.clone()),
+
+            None => Err(ServiceError::SetupIncomplete {
+                detail: Some("ConnectCloudAccountRequest failed".to_string()),
+                field: "cloud.pi".to_string(),
+            }),
+        }?;
+        // download credential and device identity bundled in license.zip
+        api_service.pi_download_license(pi_id).await?;
 
         let res = ConnectCloudAccountResponse {
             request: Some(self.clone()),

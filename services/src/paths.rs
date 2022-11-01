@@ -1,16 +1,17 @@
 extern crate glob;
 use self::glob::glob;
 use super::os_release::OsRelease;
+use bytes::Bytes;
 use log::info;
 use serde;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 use zip::ZipArchive;
 
 use chrono::{DateTime, Utc}; // 0.4.15
-use std::time::SystemTime;
 
 use super::error::PrintNannyConfigError;
 
@@ -142,10 +143,7 @@ impl PrintNannyPaths {
 
     // unpack license to credentials dir (defaults to /etc/printnanny/creds)
     // returns a Vector of unzipped file PathBuf
-    pub fn unpack_license(
-        &self,
-        force: bool,
-    ) -> Result<[(String, PathBuf); 2], PrintNannyConfigError> {
+    pub fn unpack_license(&self) -> Result<[(String, PathBuf); 1], PrintNannyConfigError> {
         let license_zip = self.license_zip();
         let file = match std::fs::File::open(&license_zip) {
             Ok(f) => Ok(f),
@@ -154,22 +152,19 @@ impl PrintNannyPaths {
                 error,
             }),
         }?;
-        info!("Unpacked seed zip {:?}", file);
+        info!("Unpacking {:?}", file);
         let mut archive = ZipArchive::new(file)?;
 
         // filenames configured in creds_bundle here: https://github.com/bitsy-ai/printnanny-webapp/blob/d33b99ede33f02b0282c006d5549ae6f76866da5/print_nanny_webapp/devices/services.py#L233
-
-        let results = [
-            ("license.json".to_string(), self.license()),
-            ("nats.creds".to_string(), self.cloud_nats_creds()),
-        ];
+        let results = [(
+            "printnanny-cloud-nats.creds".to_string(),
+            self.cloud_nats_creds(),
+        )];
 
         for (filename, dest) in results.iter() {
             // if target file already fails and --force flag not passed
-            if dest.exists() && !force {
-                return Err(PrintNannyConfigError::FileExists {
-                    path: dest.to_path_buf(),
-                });
+            if dest.exists() {
+                self.backup_file(&dest)?;
             }
             // read filename from archive
             let file = archive.by_name(filename);
@@ -201,6 +196,36 @@ impl PrintNannyPaths {
             info!("Wrote seed file {:?}", dest);
         }
         Ok(results)
+    }
+
+    // copy file contents to filename.ts.bak
+    pub fn backup_file(&self, filename: &PathBuf) -> Result<PathBuf, PrintNannyConfigError> {
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let new_filename = format!("{}.{}.bak", filename.display(), ts);
+        let new_filepath = PathBuf::from(&new_filename);
+        fs::copy(&filename, &new_filepath)?;
+        info!(
+            "{} already exists, backed up to {} before overwriting",
+            filename.display(),
+            new_filepath.display()
+        );
+        Ok(new_filepath)
+    }
+
+    pub fn write_license_zip(&self, b: Bytes) -> Result<(), PrintNannyConfigError> {
+        let filename = self.license_zip();
+
+        // if license.zip already exists, back up existing file before overwriting
+        if filename.exists() {
+            self.backup_file(&filename)?;
+        }
+
+        fs::write(filename, b)?;
+
+        Ok(())
     }
 }
 
