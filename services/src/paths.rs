@@ -1,5 +1,4 @@
 extern crate glob;
-use self::glob::glob;
 use super::os_release::OsRelease;
 use bytes::Bytes;
 use log::info;
@@ -164,7 +163,7 @@ impl PrintNannyPaths {
         for (filename, dest) in results.iter() {
             // if target file already fails and --force flag not passed
             if dest.exists() {
-                self.backup_file(&dest)?;
+                self.backup_file(dest)?;
             }
             // read filename from archive
             let file = archive.by_name(filename);

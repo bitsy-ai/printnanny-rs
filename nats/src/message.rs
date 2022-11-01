@@ -89,7 +89,7 @@ impl ConnectCloudAccountRequest {
         api_service.sync().await?;
 
         let pi_id = match &api_service.config.cloud.pi {
-            Some(pi) => Ok(pi.id.clone()),
+            Some(pi) => Ok(pi.id),
 
             None => Err(ServiceError::SetupIncomplete {
                 detail: Some("ConnectCloudAccountRequest failed".to_string()),

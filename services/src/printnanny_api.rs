@@ -132,8 +132,7 @@ impl ApiService {
                 warn!("Pi is not registered, attempting to register");
 
                 // TODO detect board, but for now only Raspberry Pi 4 is supported so
-                let sbc = Some(models::SbcEnum::Rpi4);
-                let hostname = Some("");
+                let _sbc = Some(models::SbcEnum::Rpi4);
                 let hostname = sys_info::hostname().unwrap_or_else(|_| "printnanny".to_string());
 
                 // TODO wireguard fqdn, but .local for now
