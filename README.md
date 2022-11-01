@@ -25,7 +25,7 @@ This workspace contains the following tools used in PrintNanny OS:
 
 ## printnanny-cli
 
-* Documentation @ https://docs.printnanny.ai/docs/command-line-interface/
+* Documentation @ https://printnanny.ai/docs/docs/command-line-interface/
 
 
 ### printnanny-dash
