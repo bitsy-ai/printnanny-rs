@@ -238,6 +238,16 @@ impl PrintNannyConfig {
         }
     }
 
+    // load figment fragments from all *.toml and *.json files relative to base_dir
+    fn load_confd(base_dir: &PathBuf, figment: Figment) -> Result<Figment, PrintNannyConfigError> {
+        let toml_glob = format!("{}/*.toml", &base_dir.display());
+        let json_glob = format!("{}/*.json", &base_dir.display());
+
+        let result = Self::read_path_glob::<Json>(&json_glob, figment);
+        let result = Self::read_path_glob::<Toml>(&toml_glob, result);
+        Ok(result)
+    }
+
     pub fn figment() -> Result<Figment, PrintNannyConfigError> {
         // merge file in PRINTNANNY_CONFIG env var (if set)
         let result = Figment::from(Self { ..Self::default() })
@@ -249,32 +259,33 @@ impl PrintNannyConfig {
             // PRINTNANNY_KEY__SUBKEY
             .merge(Env::prefixed("PRINTNANNY_").split("__"));
 
-        // extract paths, to load conf.d fragments
-        let etc_path: String = result
-            .find_value("paths.etc")
+        // extract paths, to load application state conf.d fragments
+        let lib_config_path: String = result
+            .find_value("paths.lib_dir")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
         let paths = PrintNannyPaths {
-            etc: PathBuf::from(etc_path),
+            lib_dir: PathBuf::from(lib_config_path),
             ..PrintNannyPaths::default()
         };
 
-        let confd_path = paths.confd();
-        let license_path = paths.license();
+        // merge application state
+        let result = Self::load_confd(&paths.lib_confd(), result)?;
 
-        // if license.json exists, load config from license.json
-        let result = match license_path.exists() {
-            true => result.merge(Json::file(&license_path)),
-            false => result,
+        // extract paths, to load user-supplied conf.d fragments
+        let user_config_path: String = result
+            .find_value("paths.config_dir")
+            .unwrap()
+            .deserialize::<String>()
+            .unwrap();
+        let paths = PrintNannyPaths {
+            config_dir: PathBuf::from(user_config_path),
+            ..PrintNannyPaths::default()
         };
 
-        let toml_glob = format!("{}/*.toml", &confd_path.display());
-        let json_glob = format!("{}/*.json", &confd_path.display());
-
-        let result = Self::read_path_glob::<Json>(&json_glob, result);
-        let result = Self::read_path_glob::<Toml>(&toml_glob, result);
-
+        // merge user-provided config files
+        let result = Self::load_confd(&paths.user_confd(), result)?;
         // if PRINTNANNY_CONFIG env var is set, check file exists and is readable
         Self::check_file_from_env_var("PRINTNANNY_CONFIG")?;
 
@@ -351,7 +362,7 @@ impl PrintNannyConfig {
         // for each key/value pair in FACTORY_RESET, remove file
         for key in FACTORY_RESET.iter() {
             let filename = format!("{}.json", key);
-            let filename = self.paths.confd().join(filename);
+            let filename = self.paths.lib_confd().join(filename);
             fs::remove_file(&filename)?;
             info!("Removed {} data {:?}", key, filename);
         }
@@ -373,7 +384,7 @@ impl PrintNannyConfig {
     /// If serialization or fs write fails, prints an error message indicating the failure
     pub fn try_save_by_key(&self, key: &str) -> Result<PathBuf, PrintNannyConfigError> {
         let filename = format!("{}.json", key);
-        let filename = self.paths.confd().join(filename);
+        let filename = self.paths.lib_confd().join(filename);
         self.try_save_fragment(key, &filename)?;
         info!("Saved config fragment: {:?}", &filename);
         Ok(filename)
@@ -507,7 +518,7 @@ mod tests {
                 profile = "default"
 
                 [paths]
-                etc = "/this/etc/path/gets/overridden"
+                config_dir = "/this/etc/path/gets/overridden"
                 
                 [api]
                 base_path = "https://print-nanny.com"
@@ -515,10 +526,10 @@ mod tests {
             )?;
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
             let expected = PathBuf::from("testing");
-            jail.set_env("PRINTNANNY_PATHS__ETC", &expected.display());
+            jail.set_env("PRINTNANNY_PATHS__CONFIG_DIR", &expected.display());
             let figment = PrintNannyConfig::figment().unwrap();
             let config: PrintNannyConfig = figment.extract()?;
-            assert_eq!(config.paths.etc, expected);
+            assert_eq!(config.paths.config_dir, expected);
             Ok(())
         });
     }
@@ -532,7 +543,9 @@ mod tests {
                 profile = "default"
 
                 [paths]
-                etc = "/opt/printnanny/etc"                
+                config_dir = "/opt/printnanny/"
+                lib_dir = "/var/lib/custom"
+        
                 
                 [api]
                 base_path = "https://print-nanny.com"
@@ -541,10 +554,9 @@ mod tests {
             jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
             let figment = PrintNannyConfig::figment().unwrap();
             let config: PrintNannyConfig = figment.extract()?;
-            assert_eq!(
-                config.paths.data(),
-                PathBuf::from("/opt/printnanny/etc/data")
-            );
+            assert_eq!(config.paths.data(), PathBuf::from("/var/lib/custom/data"));
+            assert_eq!(config.paths.user_confd(), PathBuf::from("/opt/printnanny/"));
+
             Ok(())
         });
     }
@@ -596,7 +608,7 @@ mod tests {
                 profile = "local"
 
                 [paths]
-                etc = ".tmp"
+                config_dir = ".tmp/"
                 
                 [cloud.api]
                 base_path = "http://aurora:8000"
@@ -608,7 +620,7 @@ mod tests {
             let config: PrintNannyConfig = figment.extract()?;
 
             let base_path = "http://aurora:8000".into();
-            assert_eq!(config.paths.confd(), PathBuf::from(".tmp/conf.d"));
+            assert_eq!(config.paths.config_dir, PathBuf::from(".tmp/"));
             assert_eq!(config.cloud.api.base_path, base_path);
 
             assert_eq!(
@@ -635,18 +647,16 @@ mod tests {
                 base_path = "http://aurora:8000"
 
                 [paths]
-                etc = "{}/etc"
-                run = "{}/run"
-                log = "{}/log"
+                lib_dir = "{}"
                 "#,
-                    output, output, output
+                    output
                 ),
             )?;
             jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
 
             let figment = PrintNannyConfig::figment().unwrap();
             let mut config: PrintNannyConfig = figment.extract()?;
-            config.paths.try_init_dirs().unwrap();
+            fs::create_dir(config.paths.lib_confd()).unwrap();
 
             let expected = PrintNannyApiConfig {
                 base_path: config.cloud.api.base_path,
@@ -742,16 +752,18 @@ VARIANT_ID=printnanny-octoprint
                     r#"
                 profile = "local"
                 [paths]
-                etc = "{output}/etc"
-                run = "{output}/run"
-                log = "{output}/log"
+                config_dir = "{output}/printnanny.d"
+                log_dir = "{output}/log"
                 "#,
                     output = output
                 ),
             )?;
 
             let config = PrintNannyConfig::from_toml(PathBuf::from(output).join(filename)).unwrap();
-            assert_eq!(config.paths.etc, PathBuf::from(format!("{}/etc", output)));
+            assert_eq!(
+                config.paths.config_dir,
+                PathBuf::from(format!("{}/printnanny.d", output))
+            );
 
             Ok(())
         });
