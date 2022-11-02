@@ -52,13 +52,6 @@ impl Default for PrintNannyPaths {
 }
 
 impl PrintNannyPaths {
-    pub fn new_video_filename(&self) -> PathBuf {
-        let now = SystemTime::now();
-        let now: DateTime<Utc> = now.into();
-        let now = now.to_rfc3339();
-        self.video().join(format!("{}.h264", now))
-    }
-
     // lock acquired when modifying persistent application data
     pub fn state_lock(&self) -> PathBuf {
         self.run_dir.join("state.lock")
@@ -93,8 +86,12 @@ impl PrintNannyPaths {
         self.data().join("video")
     }
 
-    pub fn confd(&self) -> PathBuf {
+    pub fn lib_confd(&self) -> PathBuf {
         self.lib_dir.join("printnanny.d")
+    }
+
+    pub fn user_confd(&self) -> PathBuf {
+        self.config_dir.clone()
     }
 
     pub fn license_zip(&self) -> PathBuf {
@@ -204,37 +201,36 @@ impl serde::Serialize for PrintNannyPaths {
     {
         #[derive(Serialize)]
         struct Extended {
-            pub etc: PathBuf,
-            pub seed_file_pattern: String,
-            pub issue_txt: PathBuf,
-            pub log: PathBuf,
-            pub run: PathBuf,
-            pub os_release: PathBuf,
             // extended fields
-            pub confd_lock: PathBuf,
+            pub config_dir: PathBuf,
             pub data: PathBuf,
             pub events_socket: PathBuf,
-            pub license: PathBuf,
+            pub issue_txt: PathBuf,
+            pub lib_confd: PathBuf,
+            pub lib_dir: PathBuf,
+            pub log_dir: PathBuf,
             pub nats_creds: PathBuf,
-            pub new_video_filename: PathBuf,
+            pub os_release: PathBuf,
             pub recovery: PathBuf,
+            pub run_dir: PathBuf,
+            pub state_lock: PathBuf,
+            pub user_confd: PathBuf,
         }
 
         let ext = Extended {
-            events_socket: self.events_socket(),
-            confd_lock: self.confd_lock(),
+            config_dir: self.config_dir.clone(),
             data: self.data(),
-            recovery: self.recovery(),
-            nats_creds: self.cloud_nats_creds(),
-            license: self.license(),
-
-            etc: self.etc.clone(),
-            seed_file_pattern: self.seed_file_pattern.clone(),
+            events_socket: self.events_socket(),
             issue_txt: self.issue_txt.clone(),
-            log: self.log.clone(),
-            run: self.run.clone(),
+            lib_confd: self.lib_confd().clone(),
+            lib_dir: self.lib_dir.clone(),
+            log_dir: self.log_dir.clone(),
+            nats_creds: self.cloud_nats_creds(),
             os_release: self.os_release.clone(),
-            new_video_filename: self.new_video_filename(),
+            recovery: self.recovery(),
+            run_dir: self.run_dir.clone(),
+            state_lock: self.state_lock(),
+            user_confd: self.user_confd().clone(),
         };
 
         Ok(ext.serialize(serializer)?)
