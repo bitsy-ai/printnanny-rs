@@ -189,7 +189,6 @@ impl ApiService {
         let request = models::SystemInfoRequest {
             pi,
             os_build_id: system_info.os_release.build_id,
-            os_variant_id: system_info.os_release.variant_id,
             os_version_id: system_info.os_release.version_id,
             os_release_json: Some(os_release_json),
 
