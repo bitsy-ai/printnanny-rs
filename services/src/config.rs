@@ -635,9 +635,9 @@ mod tests {
                 base_path = "http://aurora:8000"
 
                 [paths]
-                etc = "{}/etc"
-                run = "{}/run"
-                log = "{}/log"
+                etc = "{}"
+                run = "{}"
+                log = "{}"
                 "#,
                     output, output, output
                 ),
@@ -646,7 +646,6 @@ mod tests {
 
             let figment = PrintNannyConfig::figment().unwrap();
             let mut config: PrintNannyConfig = figment.extract()?;
-            config.paths.try_init_dirs().unwrap();
 
             let expected = PrintNannyApiConfig {
                 base_path: config.cloud.api.base_path,

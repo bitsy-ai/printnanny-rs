@@ -80,9 +80,6 @@ impl ConnectCloudAccountRequest {
         config.cloud.api.bearer_access_token = Some(self.api_token.clone());
         config.try_save()?;
 
-        // ensure cloud creds directory structure exists
-        config.paths.try_init_dirs()?;
-
         let mut api_service = ApiService::new(config)?;
 
         // sync data models

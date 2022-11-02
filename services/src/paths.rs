@@ -19,30 +19,34 @@ pub const DEFAULT_PRINTNANNY_CONFIG: &str = "/etc/printnanny/default.toml";
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
 pub struct PrintNannyPaths {
-    pub etc: PathBuf,
-    pub seed_file_pattern: String,
-    pub issue_txt: PathBuf,
-    pub log: PathBuf,
-    pub run: PathBuf,
-    pub os_release: PathBuf,
+    pub config_dir: PathBuf, // user-supplied config
+    pub lib_dir: PathBuf,    // application state and default config
+    pub log_dir: PathBuf,    // application log dir
+    pub run_dir: PathBuf,    // application runtime dir
+
+    pub issue_txt: PathBuf,  // path to /etc/issue
+    pub os_release: PathBuf, // oath to /etc/os-release
 }
 
 impl Default for PrintNannyPaths {
     fn default() -> Self {
-        // /etc is mounted as an r/w overlay fs
-        let etc: PathBuf = "/etc/printnanny".into();
+        // /etc is mounted as a read-only overlay fs. User configurations are stored here, and are preserved between upgrades.
+        let config_dir: PathBuf = "/etc/printnanny.d".into();
+        // /var/run/ is a temporary runtime directory, cleared after each boot
+        let run_dir: PathBuf = "/var/run/printnanny".into();
+        // /var/lib is a persistent state directory, mounted as a r/w overlay fs. Application state is stored here and is preserved between upgrades.
+        let lib_dir: PathBuf = "/var/lib/printnanny".into();
+
         let issue_txt: PathBuf = "/etc/issue".into();
-        let run: PathBuf = "/var/run/printnanny".into();
-        let log: PathBuf = "/var/log/printnanny".into();
-        let seed_file_pattern = "/boot/printnanny*.zip".into();
+        let log_dir: PathBuf = "/var/log/printnanny".into();
         let os_release = "/etc/os-release".into();
         Self {
-            etc,
-            run,
+            config_dir,
             issue_txt,
-            log,
-            seed_file_pattern,
+            lib_dir,
+            log_dir,
             os_release,
+            run_dir,
         }
     }
 }
@@ -55,24 +59,24 @@ impl PrintNannyPaths {
         self.video().join(format!("{}.h264", now))
     }
 
-    // lock acquired when persisting config contents
-    pub fn confd_lock(&self) -> PathBuf {
-        self.run.join("confd.lock")
+    // lock acquired when modifying persistent application data
+    pub fn state_lock(&self) -> PathBuf {
+        self.run_dir.join("state.lock")
     }
 
     // secrets, keys, credentials dir
     pub fn creds(&self) -> PathBuf {
-        self.etc.join("creds")
+        self.lib_dir.join("creds")
     }
 
     // data directory
     pub fn data(&self) -> PathBuf {
-        self.etc.join("data")
+        self.lib_dir.join("data")
     }
 
     // event adaptor used to bridge any sender -> cloud NATS
     pub fn events_socket(&self) -> PathBuf {
-        self.run.join("events.socket")
+        self.run_dir.join("events.socket")
     }
     // cloud nats jwt
     pub fn cloud_nats_creds(&self) -> PathBuf {
@@ -81,7 +85,7 @@ impl PrintNannyPaths {
 
     // recovery direcotry
     pub fn recovery(&self) -> PathBuf {
-        self.etc.join("recovery")
+        self.lib_dir.join("recovery")
     }
 
     // media (videos)
@@ -90,49 +94,13 @@ impl PrintNannyPaths {
     }
 
     pub fn confd(&self) -> PathBuf {
-        self.etc.join("conf.d")
+        self.lib_dir.join("printnanny.d")
     }
 
     pub fn license_zip(&self) -> PathBuf {
         self.creds().join("license.zip")
     }
 
-    pub fn license(&self) -> PathBuf {
-        self.creds().join("license.json")
-    }
-
-    pub fn try_init_dirs(&self) -> Result<(), PrintNannyConfigError> {
-        let dirs = [
-            &self.etc,
-            &self.recovery(),
-            &self.data(),
-            &self.creds(),
-            &self.confd(),
-            &self.video(),
-            &self.run,
-            &self.log,
-        ];
-
-        for dir in dirs.iter() {
-            match dir.exists() {
-                true => {
-                    info!("Skipping mkdir, directory {:?} already exists", dir);
-                    Ok(())
-                }
-                false => match fs::create_dir(&dir) {
-                    Ok(()) => {
-                        info!("Created directory {:?}", &dir);
-                        Ok(())
-                    }
-                    Err(error) => Err(PrintNannyConfigError::WriteIOError {
-                        path: dir.to_path_buf(),
-                        error,
-                    }),
-                },
-            }?;
-        }
-        Ok(())
-    }
     pub fn try_load_nats_creds(&self) -> Result<String, std::io::Error> {
         std::fs::read_to_string(self.cloud_nats_creds())
     }
