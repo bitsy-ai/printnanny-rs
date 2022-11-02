@@ -1,16 +1,16 @@
 extern crate glob;
-use self::glob::glob;
 use super::os_release::OsRelease;
+use bytes::Bytes;
 use log::info;
 use serde;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 use zip::ZipArchive;
 
 use chrono::{DateTime, Utc}; // 0.4.15
-use std::time::SystemTime;
 
 use super::error::PrintNannyConfigError;
 
@@ -76,7 +76,7 @@ impl PrintNannyPaths {
     }
     // cloud nats jwt
     pub fn cloud_nats_creds(&self) -> PathBuf {
-        self.creds().join("nats.creds")
+        self.creds().join("printnanny-cloud-nats.creds")
     }
 
     // recovery direcotry
@@ -91,6 +91,10 @@ impl PrintNannyPaths {
 
     pub fn confd(&self) -> PathBuf {
         self.etc.join("conf.d")
+    }
+
+    pub fn license_zip(&self) -> PathBuf {
+        self.creds().join("license.zip")
     }
 
     pub fn license(&self) -> PathBuf {
@@ -136,83 +140,30 @@ impl PrintNannyPaths {
         OsRelease::new_from(&self.os_release)
     }
 
-    fn try_find_seed(&self, pattern: &str) -> Result<PathBuf, PrintNannyConfigError> {
-        // find seed file zip using glob pattern
-        // the zip file is named PrintNanny-${hostname}.zip to make it easy for users to differentiate configs for multiple Pis
-        let matched_zip = glob(pattern);
-        let mut matched_zip = match matched_zip {
-            Ok(v) => Ok(v),
-            Err(_) => Err(PrintNannyConfigError::PatternNotFound {
-                pattern: pattern.to_string(),
-            }),
-        }?;
-
-        let matched_zip = matched_zip.next();
-        match matched_zip {
-            Some(result) => match result {
-                Ok(v) => Ok(v),
-                Err(_) => Err(PrintNannyConfigError::PatternNotFound {
-                    pattern: pattern.to_string(),
-                }),
-            },
-            None => Err(PrintNannyConfigError::PatternNotFound {
-                pattern: pattern.to_string(),
-            }),
-        }
-    }
-
-    // backup PrintNanny.zip to data partition
-    pub fn try_copy_seed(&self, force: bool) -> Result<(), PrintNannyConfigError> {
-        let matched_zip = self.try_find_seed(&self.seed_file_pattern)?;
-        let filename = matched_zip.file_name().unwrap();
-        let dest = self.recovery().join(filename);
-        if !(dest).exists() || force {
-            match fs::copy(&matched_zip, &dest) {
-                Ok(_) => {
-                    info!("Copied {:?} to {:?}", &matched_zip, &dest);
-                    Ok(())
-                }
-                Err(error) => Err(PrintNannyConfigError::CopyIOError {
-                    src: matched_zip,
-                    dest,
-                    error,
-                }),
-            }
-        } else {
-            Err(PrintNannyConfigError::FileExists { path: dest })
-        }
-    }
-
-    // unpack seed file to printnanny conf.d and credentials dir (defaults to /etc/printnanny/data)
+    // unpack license to credentials dir (defaults to /etc/printnanny/creds)
     // returns a Vector of unzipped file PathBuf
-    pub fn unpack_seed(
-        &self,
-        force: bool,
-    ) -> Result<[(String, PathBuf); 2], PrintNannyConfigError> {
-        let matched_zip = self.try_find_seed(&self.seed_file_pattern)?;
-        let file = match std::fs::File::open(&matched_zip) {
+    pub fn unpack_license(&self) -> Result<[(String, PathBuf); 1], PrintNannyConfigError> {
+        let license_zip = self.license_zip();
+        let file = match std::fs::File::open(&license_zip) {
             Ok(f) => Ok(f),
             Err(error) => Err(PrintNannyConfigError::ReadIOError {
-                path: matched_zip.clone(),
+                path: license_zip.clone(),
                 error,
             }),
         }?;
-        info!("Unpacking seed zip {:?}", file);
+        info!("Unpacking {:?}", file);
         let mut archive = ZipArchive::new(file)?;
 
         // filenames configured in creds_bundle here: https://github.com/bitsy-ai/printnanny-webapp/blob/d33b99ede33f02b0282c006d5549ae6f76866da5/print_nanny_webapp/devices/services.py#L233
-
-        let results = [
-            ("license.json".to_string(), self.license()),
-            ("nats.creds".to_string(), self.creds().join("nats.creds")),
-        ];
+        let results = [(
+            "printnanny-cloud-nats.creds".to_string(),
+            self.cloud_nats_creds(),
+        )];
 
         for (filename, dest) in results.iter() {
             // if target file already fails and --force flag not passed
-            if dest.exists() && !force {
-                return Err(PrintNannyConfigError::FileExists {
-                    path: dest.to_path_buf(),
-                });
+            if dest.exists() {
+                self.backup_file(dest)?;
             }
             // read filename from archive
             let file = archive.by_name(filename);
@@ -220,7 +171,7 @@ impl PrintNannyPaths {
                 Ok(f) => Ok(f),
                 Err(_) => Err(PrintNannyConfigError::ArchiveMissingFile {
                     filename: filename.to_string(),
-                    archive: matched_zip.clone(),
+                    archive: license_zip.clone(),
                 }),
             }?;
 
@@ -244,6 +195,36 @@ impl PrintNannyPaths {
             info!("Wrote seed file {:?}", dest);
         }
         Ok(results)
+    }
+
+    // copy file contents to filename.ts.bak
+    pub fn backup_file(&self, filename: &PathBuf) -> Result<PathBuf, PrintNannyConfigError> {
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let new_filename = format!("{}.{}.bak", filename.display(), ts);
+        let new_filepath = PathBuf::from(&new_filename);
+        fs::copy(&filename, &new_filepath)?;
+        info!(
+            "{} already exists, backed up to {} before overwriting",
+            filename.display(),
+            new_filepath.display()
+        );
+        Ok(new_filepath)
+    }
+
+    pub fn write_license_zip(&self, b: Bytes) -> Result<(), PrintNannyConfigError> {
+        let filename = self.license_zip();
+
+        // if license.zip already exists, back up existing file before overwriting
+        if filename.exists() {
+            self.backup_file(&filename)?;
+        }
+
+        fs::write(filename, b)?;
+
+        Ok(())
     }
 }
 

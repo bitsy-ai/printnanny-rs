@@ -19,7 +19,7 @@ use crate::error::ServiceError;
 
 use super::error::PrintNannyConfigError;
 use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_CONFIG};
-use super::printnanny_api::ApiService;
+use super::printnanny_api::{ApiService, PrintNannyApiConfig};
 use printnanny_api_client::models;
 
 // FACTORY_RESET holds the struct field names of PrintNannyCloudConfig
@@ -143,13 +143,13 @@ pub enum VideoSrcType {
 pub struct PrintNannyCloudConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pi: Option<models::Pi>,
-    pub api: models::PrintNannyApiConfig,
+    pub api: PrintNannyApiConfig,
 }
 
 impl Default for PrintNannyCloudConfig {
     fn default() -> Self {
         // default to unauthenticated api config, until api creds are unpacked from seed archive
-        let api = models::PrintNannyApiConfig {
+        let api = PrintNannyApiConfig {
             base_path: "https://printnanny.ai".into(),
             bearer_access_token: None,
         };
@@ -568,7 +568,7 @@ mod tests {
             let config = PrintNannyConfig::new().unwrap();
             assert_eq!(
                 config.cloud.api,
-                models::PrintNannyApiConfig {
+                PrintNannyApiConfig {
                     base_path: "https://print-nanny.com".into(),
                     bearer_access_token: None,
                 }
@@ -578,7 +578,7 @@ mod tests {
             let config: PrintNannyConfig = figment.extract()?;
             assert_eq!(
                 config.cloud.api,
-                models::PrintNannyApiConfig {
+                PrintNannyApiConfig {
                     base_path: "https://print-nanny.com".into(),
                     bearer_access_token: Some("secret".into()),
                 }
@@ -613,7 +613,7 @@ mod tests {
 
             assert_eq!(
                 config.cloud.api,
-                models::PrintNannyApiConfig {
+                PrintNannyApiConfig {
                     base_path: base_path,
                     bearer_access_token: None,
                 }
@@ -648,7 +648,7 @@ mod tests {
             let mut config: PrintNannyConfig = figment.extract()?;
             config.paths.try_init_dirs().unwrap();
 
-            let expected = models::PrintNannyApiConfig {
+            let expected = PrintNannyApiConfig {
                 base_path: config.cloud.api.base_path,
                 bearer_access_token: Some("secret_token".to_string()),
             };

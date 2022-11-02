@@ -5,6 +5,8 @@ use std::future::Future;
 use std::io::BufReader;
 use std::path::Path;
 
+use serde::{Deserialize, Serialize};
+
 use printnanny_api_client::apis::accounts_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::apis::devices_api;
@@ -35,6 +37,12 @@ pub fn read_model_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T,
 pub fn save_model_json<T: serde::Serialize>(model: &T, path: &Path) -> Result<(), std::io::Error> {
     serde_json::to_writer(&File::create(path)?, model)?;
     Ok(())
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct PrintNannyApiConfig {
+    pub base_path: String,
+    pub bearer_access_token: Option<String>,
 }
 
 impl ApiService {
@@ -124,8 +132,7 @@ impl ApiService {
                 warn!("Pi is not registered, attempting to register");
 
                 // TODO detect board, but for now only Raspberry Pi 4 is supported so
-                let sbc = Some(models::SbcEnum::Rpi4);
-                let hostname = Some("");
+                let _sbc = Some(models::SbcEnum::Rpi4);
                 let hostname = sys_info::hostname().unwrap_or_else(|_| "printnanny".to_string());
 
                 // TODO wireguard fqdn, but .local for now
@@ -162,6 +169,13 @@ impl ApiService {
     ) -> Result<models::Pi, ServiceError> {
         let res = devices_api::pis_partial_update(&self.reqwest, pi_id, Some(req)).await?;
         Ok(res)
+    }
+
+    pub async fn pi_download_license(&self, pi_id: i32) -> Result<(), ServiceError> {
+        let res = devices_api::pis_license_zip_retrieve(&self.reqwest, pi_id).await?;
+        self.config.paths.write_license_zip(res)?;
+        self.config.paths.unpack_license()?;
+        Ok(())
     }
 
     async fn system_info_update_or_create(

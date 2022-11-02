@@ -11,17 +11,8 @@ async fn main() -> Result<()> {
     // ensure pi, nats_app, nats_creds are provided
     config.try_check_license()?;
 
-    // try_check_license guards the following properties set, so it's safe to unwrap here
-    let pi = config
-        .cloud
-        .pi
-        .expect("pi is not registered with PrintNanny Cloud");
-    let nats_app = pi.nats_app.unwrap();
-
-    let subject = to_nats_command_subscribe_subject(&pi.id);
-
     let app = NatsCloudWorker::clap_command(None);
-    let mut worker = NatsCloudWorker::new(&app.get_matches()).await?;
+    let worker = NatsCloudWorker::new(&app.get_matches()).await?;
     worker.run().await?;
     Ok(())
 }
