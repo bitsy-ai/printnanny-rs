@@ -75,26 +75,10 @@ pub struct ConnectCloudAccountRequest {
 
 impl ConnectCloudAccountRequest {
     async fn _handle(&self) -> Result<ConnectCloudAccountResponse> {
-        let mut config = PrintNannyConfig::new()?;
-        config.cloud.api.base_path = self.api_uri.clone();
-        config.cloud.api.bearer_access_token = Some(self.api_token.clone());
-        config.try_save()?;
-
-        let mut api_service = ApiService::new(config)?;
-
-        // sync data models
-        api_service.sync().await?;
-
-        let pi_id = match &api_service.config.cloud.pi {
-            Some(pi) => Ok(pi.id),
-
-            None => Err(ServiceError::SetupIncomplete {
-                detail: Some("ConnectCloudAccountRequest failed".to_string()),
-                field: "cloud.pi".to_string(),
-            }),
-        }?;
-        // download credential and device identity bundled in license.zip
-        api_service.pi_download_license(pi_id).await?;
+        let config = PrintNannyConfig::new()?;
+        config
+            .connect_cloud_account(self.api_uri.clone(), self.api_token.clone())
+            .await?;
 
         let res = ConnectCloudAccountResponse {
             request: Some(self.clone()),

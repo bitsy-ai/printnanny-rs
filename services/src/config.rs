@@ -196,6 +196,43 @@ impl PrintNannyConfig {
         Ok(figment.find_value(key)?)
     }
 
+    pub async fn connect_cloud_account(
+        &self,
+        base_path: String,
+        bearer_access_token: String,
+    ) -> Result<PrintNannyConfig, ServiceError> {
+        let mut config = self.clone();
+        config.cloud.api.base_path = base_path;
+        config.cloud.api.bearer_access_token = Some(bearer_access_token);
+        config.try_save()?;
+        let mut api_service = ApiService::new(config)?;
+
+        // sync data models
+        api_service.sync().await?;
+        let pi_id = match &api_service.config.cloud.pi {
+            Some(pi) => Ok(pi.id),
+
+            None => Err(ServiceError::SetupIncomplete {
+                detail: Some("connect_cloud_account failed".to_string()),
+                field: "cloud.pi".to_string(),
+            }),
+        }?;
+        // download credential and device identity bundled in license.zip
+        api_service.pi_download_license(pi_id).await?;
+        // mark setup complete
+        let req = models::PatchedPiRequest {
+            setup_finished: Some(true),
+            // None values are skipped by serde serializer
+            sbc: None,
+            hostname: None,
+            fqdn: None,
+            favorite: None,
+        };
+        api_service.pi_partial_update(pi_id, req).await?;
+        api_service.config.try_save()?;
+        Ok(api_service.config)
+    }
+
     pub async fn sync(self) -> Result<(), ServiceError> {
         let mut service = ApiService::new(self)?;
         service.sync().await
