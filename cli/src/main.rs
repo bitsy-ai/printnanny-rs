@@ -19,7 +19,7 @@ use printnanny_cli::os::{OsCommand};
 
 const GIT_VERSION: &str = git_version!();
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() -> Result<()> {
     let mut builder = Builder::new();
     let app_name = "printnanny";

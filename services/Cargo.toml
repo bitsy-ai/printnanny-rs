@@ -43,7 +43,7 @@ rand = "0.8"
 reqwest = "0.11"
 tempfile = "3.3.0"
 thiserror = "1"
-tokio = { version = "1.19" }
+tokio = { version = "1.21", features = ["full", "rt-multi-thread"] }
 tokio-util = { version="0.7", features = ["codec"] }
 tokio-serde = { version="0.8", features = ["json"] }
 sysinfo = "0.26.2"
