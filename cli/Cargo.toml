@@ -25,7 +25,7 @@ anyhow = { version = "1", features = ["backtrace"] }
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
 env_logger = "0.9"
 git-version = "0.3"
-tokio = { version = "1.21", features = ["full", "rt-multi-thread"] }
+tokio = { version = "1.21", features = ["full", "rt-multi-thread", "rt"] }
 log = "0.4"
 serde_json = "1"
 serde_bytes = "0.11"
