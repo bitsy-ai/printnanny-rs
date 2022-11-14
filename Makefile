@@ -64,3 +64,6 @@ gst-image:
 
 lint:
 	cargo clippy --workspace
+
+dev:
+	docker-compose -f docker/local.yml up
