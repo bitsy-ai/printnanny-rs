@@ -22,7 +22,7 @@ pub struct MoonrakerServerConfig {
 impl Default for MoonrakerServerConfig {
     fn default() -> Self {
         Self {
-            host: IpAddr::from("0.0.0.0".parse().unwrap()),
+            host: "0.0.0.0".parse().unwrap(),
             port: 7125,
             ssl_port: 7130,
             klippy_uds_address: PathBuf::from("/var/run/klippy/klippy.sock"),
