@@ -221,6 +221,39 @@ pub struct MoonrakerOctoPrintCompat {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MoonrakerMqttConfig {
+    pub address: String,
+    pub port: u16,
+    pub username: String,
+    pub password: String,
+    pub mqtt_protocol: String,
+    pub enable_moonraker_api: bool,
+    pub instance_name: String,
+    pub status_objects: Vec<String>,
+    pub default_qos: u8,
+    pub api_qos: u8,
+}
+
+impl Default for MoonrakerMqttConfig {
+    fn default() -> Self {
+        let hostname = sys_info::hostname().unwrap_or_else(|_| "localhost".to_string());
+
+        Self {
+            address: "mqtt.live.printnanny.ai",
+            port: 1883,
+            username: "{secrets.mqtt_credentials.username}".into(), // jinja template string, see Moonraker [secrets] documentation: https://moonraker.readthedocs.io/en/latest/configuration/#jinja2-templates
+            password: "{secrets.mqtt_credentials.password}".into(), // jinja template string, see Moonraker [secrets] documentation: https://moonraker.readthedocs.io/en/latest/configuration/#jinja2-templates
+            mqtt_protocol: "v3.1.1".into(),
+            enable_moonraker_api: true,
+            instance_name: hostname,
+            status_objects: vec![],
+            default_qos: 0,
+            api_qos: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MoonrakerConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authorization: Option<MoonrakerAuthorizationSource>,
@@ -233,6 +266,7 @@ pub struct MoonrakerConfig {
     pub file_manager: MoonrakerFileManagerConfig,
     pub machine: MoonrakerMachineConfig,
     pub server: MoonrakerServerConfig,
+    pub mqtt: MoonrakerMqttConfig,
     pub webcam: HashMap<String, MoonrakerWebcamConfig>,
 }
 
@@ -250,6 +284,7 @@ impl Default for MoonrakerConfig {
             file_manager: MoonrakerFileManagerConfig::default(),
             machine: MoonrakerMachineConfig::default(),
             server: MoonrakerServerConfig::default(),
+            mqtt: MoonrakerMqttConfig::default(),
             webcam,
         }
     }
