@@ -254,11 +254,23 @@ impl Default for MoonrakerMqttConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MoonrakerMqttCredentials {
+    username: String,
+    password: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MoonrakerSecretsConfig {
+    pub mqtt_credentials: MoonrakerMqttCredentials,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MoonrakerConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authorization: Option<MoonrakerAuthorizationSource>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ldap: Option<MoonrakerLDAP>,
+    pub secrets: Option<MoonrakerSecretsConfig>,
     pub octoprint_compat: Option<MoonrakerOctoPrintCompat>,
     pub announcements: MoonrakerAnnouncementConfig,
     pub data_store: MoonrakerDataStoreConfig,
@@ -278,6 +290,7 @@ impl Default for MoonrakerConfig {
             authorization: None,
             ldap: None,
             octoprint_compat: None,
+            secrets: None,
             announcements: MoonrakerAnnouncementConfig::default(),
             data_store: MoonrakerDataStoreConfig::default(),
             job_queue: MoonrakerJobQueueConfig::default(),
