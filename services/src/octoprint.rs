@@ -44,7 +44,7 @@ pub fn parse_pip_version(stdout: &str) -> Option<String> {
 
 impl OctoPrintHelper {
     pub fn new(octoprint_server: models::OctoPrintServer) -> Self {
-        return Self { octoprint_server };
+        Self { octoprint_server }
     }
     // return boolean indicating whether PrintNanny OS edition requires OctoPrintHelper
     pub fn required(variant_id: &str) -> bool {

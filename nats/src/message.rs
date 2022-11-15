@@ -6,14 +6,12 @@ use anyhow::Result;
 use async_process::Output;
 use futures::executor;
 use log::{error, info};
-use printnanny_services::error::ServiceError;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use printnanny_services::config::PrintNannyConfig;
 use printnanny_services::figment;
 use printnanny_services::figment::providers::Format;
-use printnanny_services::printnanny_api::ApiService;
 
 use printnanny_gst_config::config::PrintNannyGstPipelineConfig;
 use printnanny_services::systemd::{systemctl_list_enabled_units, systemctl_show_payload};
