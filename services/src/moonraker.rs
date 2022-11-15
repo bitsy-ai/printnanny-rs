@@ -22,7 +22,7 @@ pub struct MoonrakerServerConfig {
 impl Default for MoonrakerServerConfig {
     fn default() -> Self {
         Self {
-            host: IpAddr::from("0.0.0.0"),
+            host: IpAddr::from("0.0.0.0".parse().unwrap()),
             port: 7125,
             ssl_port: 7130,
             klippy_uds_address: PathBuf::from("/var/run/klippy/klippy.sock"),
@@ -169,11 +169,11 @@ pub struct MoonrakerWebcamConfig {
 impl Default for MoonrakerWebcamConfig {
     fn default() -> Self {
         Self {
-            location: "printnanny",
-            service: "printnanny-vision.service",
+            location: "printnanny".into(),
+            service: "printnanny-vision.service".into(),
             target_fps: 15,
-            stream_url: format!("/printnanny-hls/playlist.m3u8"),
-            snapshot_url: format!("/printnanny-hls/playlist.m3u8"),
+            stream_url: "/printnanny-hls/playlist.m3u8".into(),
+            snapshot_url: "/printnanny-hls/playlist.m3u8".into(),
             flip_horizontal: false,
             flip_vertical: false,
             rotation: 0,
@@ -239,7 +239,7 @@ impl Default for MoonrakerMqttConfig {
         let hostname = sys_info::hostname().unwrap_or_else(|_| "localhost".to_string());
 
         Self {
-            address: "mqtt.live.printnanny.ai",
+            address: "mqtt.live.printnanny.ai".into(),
             port: 1883,
             username: "{secrets.mqtt_credentials.username}".into(), // jinja template string, see Moonraker [secrets] documentation: https://moonraker.readthedocs.io/en/latest/configuration/#jinja2-templates
             password: "{secrets.mqtt_credentials.password}".into(), // jinja template string, see Moonraker [secrets] documentation: https://moonraker.readthedocs.io/en/latest/configuration/#jinja2-templates
@@ -285,7 +285,7 @@ pub struct MoonrakerConfig {
 impl Default for MoonrakerConfig {
     fn default() -> Self {
         let mut webcam = HashMap::new();
-        webcam.insert("printnanny", MoonrakerWebcamConfig::default());
+        webcam.insert("printnanny".into(), MoonrakerWebcamConfig::default());
         Self {
             authorization: None,
             ldap: None,
