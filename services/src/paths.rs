@@ -10,8 +10,6 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use zip::ZipArchive;
 
-use chrono::{DateTime, Utc}; // 0.4.15
-
 use super::error::PrintNannyConfigError;
 
 pub const PRINTNANNY_CONFIG_FILENAME: &str = "default.toml";
@@ -222,7 +220,7 @@ impl serde::Serialize for PrintNannyPaths {
             data: self.data(),
             events_socket: self.events_socket(),
             issue_txt: self.issue_txt.clone(),
-            lib_confd: self.lib_confd().clone(),
+            lib_confd: self.lib_confd(),
             lib_dir: self.lib_dir.clone(),
             log_dir: self.log_dir.clone(),
             nats_creds: self.cloud_nats_creds(),
@@ -230,9 +228,9 @@ impl serde::Serialize for PrintNannyPaths {
             recovery: self.recovery(),
             run_dir: self.run_dir.clone(),
             state_lock: self.state_lock(),
-            user_confd: self.user_confd().clone(),
+            user_confd: self.user_confd(),
         };
 
-        Ok(ext.serialize(serializer)?)
+        ext.serialize(serializer)
     }
 }
