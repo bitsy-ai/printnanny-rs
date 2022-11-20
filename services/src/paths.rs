@@ -17,10 +17,10 @@ pub const DEFAULT_PRINTNANNY_CONFIG: &str = "/etc/printnanny/default.toml";
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
 pub struct PrintNannyPaths {
-    pub config_dir: PathBuf, // user-supplied config
-    pub lib_dir: PathBuf,    // application state and default config
-    pub log_dir: PathBuf,    // application log dir
-    pub run_dir: PathBuf,    // application runtime dir
+    pub settings_dir: PathBuf, // user-supplied config
+    pub lib_dir: PathBuf,      // application state and default config
+    pub log_dir: PathBuf,      // application log dir
+    pub run_dir: PathBuf,      // application runtime dir
 
     pub issue_txt: PathBuf,  // path to /etc/issue
     pub os_release: PathBuf, // oath to /etc/os-release
@@ -29,7 +29,7 @@ pub struct PrintNannyPaths {
 impl Default for PrintNannyPaths {
     fn default() -> Self {
         // /etc is mounted as a read-only overlay fs. User configurations are stored here, and are preserved between upgrades.
-        let config_dir: PathBuf = "/etc/printnanny.d".into();
+        let settings_dir: PathBuf = "/etc/printnanny.d".into();
         // /var/run/ is a temporary runtime directory, cleared after each boot
         let run_dir: PathBuf = "/var/run/printnanny".into();
         // /var/lib is a persistent state directory, mounted as a r/w overlay fs. Application state is stored here and is preserved between upgrades.
@@ -39,7 +39,7 @@ impl Default for PrintNannyPaths {
         let log_dir: PathBuf = "/var/log/printnanny".into();
         let os_release = "/etc/os-release".into();
         Self {
-            config_dir,
+            settings_dir,
             issue_txt,
             lib_dir,
             log_dir,
@@ -89,7 +89,7 @@ impl PrintNannyPaths {
     }
 
     pub fn user_confd(&self) -> PathBuf {
-        self.config_dir.clone()
+        self.settings_dir.clone()
     }
 
     pub fn license_zip(&self) -> PathBuf {
@@ -200,7 +200,7 @@ impl serde::Serialize for PrintNannyPaths {
         #[derive(Serialize)]
         struct Extended {
             // extended fields
-            pub config_dir: PathBuf,
+            pub settings_dir: PathBuf,
             pub data: PathBuf,
             pub events_socket: PathBuf,
             pub issue_txt: PathBuf,
@@ -216,7 +216,7 @@ impl serde::Serialize for PrintNannyPaths {
         }
 
         let ext = Extended {
-            config_dir: self.config_dir.clone(),
+            settings_dir: self.settings_dir.clone(),
             data: self.data(),
             events_socket: self.events_socket(),
             issue_txt: self.issue_txt.clone(),

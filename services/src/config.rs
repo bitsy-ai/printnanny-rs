@@ -312,12 +312,12 @@ impl PrintNannyConfig {
 
         // extract paths, to load user-supplied conf.d fragments
         let user_config_path: String = result
-            .find_value("paths.config_dir")
+            .find_value("paths.settings_dir")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
         let paths = PrintNannyPaths {
-            config_dir: PathBuf::from(user_config_path),
+            settings_dir: PathBuf::from(user_config_path),
             ..PrintNannyPaths::default()
         };
 
@@ -555,7 +555,7 @@ mod tests {
                 profile = "default"
 
                 [paths]
-                config_dir = "/this/etc/path/gets/overridden"
+                settings_dir = "/this/etc/path/gets/overridden"
                 
                 [api]
                 base_path = "https://print-nanny.com"
@@ -566,7 +566,7 @@ mod tests {
             jail.set_env("PRINTNANNY_PATHS__CONFIG_DIR", &expected.display());
             let figment = PrintNannyConfig::figment().unwrap();
             let config: PrintNannyConfig = figment.extract()?;
-            assert_eq!(config.paths.config_dir, expected);
+            assert_eq!(config.paths.settings_dir, expected);
             Ok(())
         });
     }
@@ -580,7 +580,7 @@ mod tests {
                 profile = "default"
 
                 [paths]
-                config_dir = "/opt/printnanny/"
+                settings_dir = "/opt/printnanny/"
                 lib_dir = "/var/lib/custom"
         
                 
@@ -645,7 +645,7 @@ mod tests {
                 profile = "local"
 
                 [paths]
-                config_dir = ".tmp/"
+                settings_dir = ".tmp/"
                 
                 [cloud.api]
                 base_path = "http://aurora:8000"
@@ -657,7 +657,7 @@ mod tests {
             let config: PrintNannyConfig = figment.extract()?;
 
             let base_path = "http://aurora:8000".into();
-            assert_eq!(config.paths.config_dir, PathBuf::from(".tmp/"));
+            assert_eq!(config.paths.settings_dir, PathBuf::from(".tmp/"));
             assert_eq!(config.cloud.api.base_path, base_path);
 
             assert_eq!(
@@ -789,7 +789,7 @@ VARIANT_ID=printnanny-octoprint
                     r#"
                 profile = "local"
                 [paths]
-                config_dir = "{output}/printnanny.d"
+                settings_dir = "{output}/printnanny.d"
                 log_dir = "{output}/log"
                 "#,
                     output = output
@@ -798,7 +798,7 @@ VARIANT_ID=printnanny-octoprint
 
             let config = PrintNannyConfig::from_toml(PathBuf::from(output).join(filename)).unwrap();
             assert_eq!(
-                config.paths.config_dir,
+                config.paths.settings_dir,
                 PathBuf::from(format!("{}/printnanny.d", output))
             );
 
