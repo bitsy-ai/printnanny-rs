@@ -5,7 +5,7 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
 
-use super::config::PrintNannyConfig;
+use super::config::PrintNannySettings;
 use super::error::ServiceError;
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy, ArgEnum)]
@@ -60,7 +60,7 @@ pub struct JanusAdminService {
 }
 
 pub async fn janus_admin_api_call(endpoint: JanusAdminEndpoint) -> Result<String> {
-    let config = PrintNannyConfig::new()?;
+    let config = PrintNannySettings::new()?;
     let err = ServiceError::SetupIncomplete {
         field: "device.webrtc_edge".to_string(),
         detail: None,

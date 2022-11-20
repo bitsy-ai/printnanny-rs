@@ -42,7 +42,7 @@ $(TMPDIR)/printnanny-$(DEV_MACHINE).zip: $(TMPDIR)
 	cp $(PRINTNANNY_WEBAPP_WORKSPACE)/$(TMPDIR)/printnanny-$(DEV_MACHINE).zip $(TMPDIR)/printnanny-$(DEV_MACHINE).zip
 
 devconfig: $(TMPDIR)/printnanny-$(DEV_MACHINE).zip
-	PRINTNANNY_CONFIG=$(PWD)/env/Local.toml cargo run --bin printnanny-cli -- -v config init
+	PRINTNANNY_SETTINGS=$(PWD)/env/Local.toml cargo run --bin printnanny-cli -- -v config init
 
 
 dev-build:

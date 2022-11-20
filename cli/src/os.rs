@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use clap::ArgMatches;
 use log::error;
-use printnanny_services::config::{ConfigFormat, PrintNannyConfig};
+use printnanny_services::settings::{ConfigFormat, PrintNannySettings};
 use std::fs;
 
 use printnanny_services::metadata;
@@ -21,7 +21,7 @@ _____      _       _   _   _
 ";
 
 fn handle_issue() -> Result<()> {
-    let config = PrintNannyConfig::new()?;
+    let config = PrintNannySettings::new()?;
     let result = fs::read_to_string(&config.paths.issue_txt);
     let output = match result {
         Ok(content) => content,

@@ -1,13 +1,13 @@
 use log::debug;
+use std::path::PathBuf;
 use std::process::Command;
 
 use printnanny_api_client::models;
 use serde::{Deserialize, Serialize};
 
-use super::error::PrintNannyConfigError;
+use super::error::PrintNannySettingsError;
 
-pub const OCTOPRINT_BASE_PATH: &str = "/home/octoprint/.octoprint";
-pub const PYTHON_BIN: &str = "/usr/bin/python3";
+pub const OCTOPRINT_BASE_PATH: &str = "/var/lib/octoprint";
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PipPackage {
@@ -16,11 +16,21 @@ pub struct PipPackage {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct OctoPrintHelper {
-    pub octoprint_server: models::OctoPrintServer,
+pub struct OctoPrintSettings {
+    install_path: PathBuf,
+    venv_path: PathBuf,
 }
 
-pub fn parse_pip_list_json(stdout: &str) -> Result<Vec<PipPackage>, PrintNannyConfigError> {
+impl Default for OctoPrintSettings {
+    fn default() -> Self {
+        Self {
+            install_path: OCTOPRINT_BASE_PATH.into(),
+            venv_path: "/var/lib/octoprint/venv".into(),
+        }
+    }
+}
+
+pub fn parse_pip_list_json(stdout: &str) -> Result<Vec<PipPackage>, PrintNannySettingsError> {
     let v: Vec<PipPackage> = serde_json::from_str(stdout)?;
     Ok(v)
 }
@@ -42,23 +52,18 @@ pub fn parse_pip_version(stdout: &str) -> Option<String> {
     split.map(|v| v.to_string())
 }
 
-impl OctoPrintHelper {
-    pub fn new(octoprint_server: models::OctoPrintServer) -> Self {
-        Self { octoprint_server }
+impl OctoPrintSettings {
+    pub fn new() -> Self {
+        Self::default()
     }
-    // return boolean indicating whether PrintNanny OS edition requires OctoPrintHelper
-    pub fn required(variant_id: &str) -> bool {
-        match variant_id {
-            "octoprint" => true,
-            _ => false,
-        }
+    pub fn python_path(self) -> PathBuf {
+        return self.venv_path.join("bin/python");
     }
-    pub fn pip_version(&self) -> Result<Option<String>, PrintNannyConfigError> {
-        let msg = format!(
-            "{:?} -m pip --version failed",
-            &self.octoprint_server.python_path
-        );
-        let output = Command::new(&self.octoprint_server.python_path)
+
+    pub fn pip_version(&self) -> Result<Option<String>, PrintNannySettingsError> {
+        let python_path = self.python_path();
+        let msg = format!("{:?} -m pip --version failed", &python_path);
+        let output = Command::new(&python_path)
             .arg("-m")
             .arg("pip")
             .arg("--version")
@@ -71,7 +76,7 @@ impl OctoPrintHelper {
                 let result = parse_pip_version(&stdout);
                 debug!(
                     "Found pip_packages in venv {:?} {:?}",
-                    &self.octoprint_server.python_path, &result
+                    &python_path, &result
                 );
                 Ok(result)
             }
@@ -79,7 +84,7 @@ impl OctoPrintHelper {
                 let code = output.status.code();
                 let stderr = String::from_utf8_lossy(&output.stderr).into();
                 let stdout = stdout.into();
-                Err(PrintNannyConfigError::CommandError {
+                Err(PrintNannySettingsError::CommandError {
                     cmd: msg,
                     stdout,
                     stderr,
@@ -89,8 +94,9 @@ impl OctoPrintHelper {
         }
     }
 
-    pub fn pip_packages(&self) -> Result<Vec<PipPackage>, PrintNannyConfigError> {
-        let output = Command::new(&self.octoprint_server.python_path)
+    pub fn pip_packages(&self) -> Result<Vec<PipPackage>, PrintNannySettingsError> {
+        let python_path = self.python_path();
+        let output = Command::new(python_path)
             .arg("-m")
             .arg("pip")
             .arg("list")
@@ -105,19 +111,16 @@ impl OctoPrintHelper {
                 let result = parse_pip_list_json(&stdout)?;
                 debug!(
                     "Found pip_packages for python at {:?} {:?}",
-                    &self.octoprint_server.python_path, &result
+                    &python_path, &result
                 );
                 Ok(result)
             }
             false => {
-                let cmd = format!(
-                    "{:?} -m pip list --format json",
-                    &self.octoprint_server.python_path
-                );
+                let cmd = format!("{:?} -m pip list --format json", &python_path);
                 let code = output.status.code();
                 let stderr = String::from_utf8_lossy(&output.stderr).into();
                 let stdout = stdout.into();
-                Err(PrintNannyConfigError::CommandError {
+                Err(PrintNannySettingsError::CommandError {
                     cmd,
                     stdout,
                     stderr,
@@ -127,9 +130,10 @@ impl OctoPrintHelper {
         }
     }
 
-    pub fn python_version(&self) -> Result<Option<String>, PrintNannyConfigError> {
-        let msg = format!("{:?} --version failed", &self.octoprint_server.python_path);
-        let output = Command::new(&self.octoprint_server.python_path)
+    pub fn python_version(&self) -> Result<Option<String>, PrintNannySettingsError> {
+        let python_path = self.python_path();
+        let msg = format!("{:?} --version failed", &python_path);
+        let output = Command::new(&python_path)
             .arg("--version")
             .output()
             .expect(&msg);
@@ -138,18 +142,15 @@ impl OctoPrintHelper {
             true => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let result = parse_python_version(&stdout);
-                debug!(
-                    "Parsed python_version in {:?} {:?}",
-                    &self.octoprint_server.python_path, &result
-                );
+                debug!("Parsed python_version in {:?} {:?}", &python_path, &result);
                 Ok(result)
             }
             false => {
-                let cmd = format!("{:?} --version", &self.octoprint_server.python_path);
+                let cmd = format!("{:?} --version", &python_path);
                 let code = output.status.code();
                 let stderr = String::from_utf8_lossy(&output.stderr).into();
                 let stdout = stdout.into();
-                Err(PrintNannyConfigError::CommandError {
+                Err(PrintNannySettingsError::CommandError {
                     cmd,
                     stdout,
                     stderr,
@@ -162,18 +163,20 @@ impl OctoPrintHelper {
     pub fn octoprint_version(
         &self,
         packages: &[PipPackage],
-    ) -> Result<String, PrintNannyConfigError> {
+    ) -> Result<String, PrintNannySettingsError> {
+        let python_path = self.python_path();
+
         let v: Vec<&PipPackage> = packages.iter().filter(|p| p.name == "OctoPrint").collect();
         let result = match v.first() {
             Some(p) => Ok(p.version.clone()),
-            None => Err(PrintNannyConfigError::OctoPrintServerConfigError {
+            None => Err(PrintNannySettingsError::OctoPrintServerConfigError {
                 field: "octoprint_version".into(),
                 detail: None,
             }),
         }?;
         debug!(
             "Parsed octoprint_version {:?} in venv {:?} ",
-            &result, &self.octoprint_server.python_path
+            &result, &python_path
         );
         Ok(result)
     }
@@ -181,21 +184,23 @@ impl OctoPrintHelper {
     pub fn printnanny_plugin_version(
         &self,
         packages: &[PipPackage],
-    ) -> Result<Option<String>, PrintNannyConfigError> {
+    ) -> Result<Option<String>, PrintNannySettingsError> {
+        let python_path = self.python_path();
+
         let v: Vec<&PipPackage> = packages
             .iter()
             .filter(|p| p.name == "OctoPrint-Nanny")
             .collect();
         let result = match v.first() {
             Some(p) => Ok(p.version.clone()),
-            None => Err(PrintNannyConfigError::OctoPrintServerConfigError {
+            None => Err(PrintNannySettingsError::OctoPrintServerConfigError {
                 field: "printnanny_plugin_version".into(),
                 detail: None,
             }),
         }?;
         debug!(
             "Parsed printnnny_plugin_version {:?} in venv {:?} ",
-            &result, &self.octoprint_server.python_path
+            &result, python_path
         );
         Ok(Some(result))
     }

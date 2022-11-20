@@ -9,9 +9,9 @@ use log::{error, info};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use printnanny_services::config::PrintNannyConfig;
 use printnanny_services::figment;
 use printnanny_services::figment::providers::Format;
+use printnanny_services::settings::PrintNannySettings;
 
 use printnanny_gst_config::config::PrintNannyGstPipelineConfig;
 use printnanny_services::systemd::{systemctl_list_enabled_units, systemctl_show_payload};
@@ -73,7 +73,7 @@ pub struct ConnectCloudAccountRequest {
 
 impl ConnectCloudAccountRequest {
     async fn _handle(&self) -> Result<ConnectCloudAccountResponse> {
-        let config = PrintNannyConfig::new()?;
+        let config = PrintNannySettings::new()?;
         config
             .connect_cloud_account(self.api_uri.clone(), self.api_token.clone())
             .await?;

@@ -1,4 +1,3 @@
-pub mod config;
 pub mod cpuinfo;
 pub mod error;
 pub mod file;
@@ -9,6 +8,8 @@ pub mod octoprint;
 pub mod os_release;
 pub mod paths;
 pub mod printnanny_api;
+pub mod settings;
+pub mod state;
 pub mod swupdate;
 pub mod systemd;
 
