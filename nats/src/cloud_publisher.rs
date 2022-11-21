@@ -10,7 +10,9 @@ use log::debug;
 use printnanny_api_client::models;
 use printnanny_api_client::models::polymorphic_octo_print_event_request::PolymorphicOctoPrintEventRequest;
 use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
-use printnanny_services::{config::PrintNannyConfig, error::PrintNannyConfigError};
+use printnanny_services::{
+    error::PrintNannySettingsError, settings::PrintNannySettings, state::PrintNannyCloudData,
+};
 use tokio::net::UnixStream;
 use tokio_util::codec::{FramedWrite, LengthDelimitedCodec};
 use uuid::Uuid;
@@ -22,7 +24,8 @@ use crate::subjects;
 #[derive(Debug, Clone)]
 pub struct CloudEventPublisher {
     args: ArgMatches,
-    config: PrintNannyConfig,
+    settings: PrintNannySettings,
+    state: PrintNannyCloudData,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -34,12 +37,14 @@ pub enum PayloadFormat {
 
 impl CloudEventPublisher {
     // initialize CloudEventPublisher from clap::Command ArgMatches
-    pub fn new(args: &ArgMatches) -> Result<Self, PrintNannyConfigError> {
-        let config = PrintNannyConfig::new().unwrap();
-        config.try_check_license()?;
+    pub fn new(args: &ArgMatches) -> Result<Self, PrintNannySettingsError> {
+        let settings = PrintNannySettings::new().unwrap();
+        let state = PrintNannyCloudData::new()?;
+        settings.try_check_license()?;
         Ok(Self {
             args: args.clone(),
-            config,
+            settings,
+            state,
         })
     }
     pub fn clap_command() -> Command<'static> {
@@ -266,7 +271,7 @@ impl CloudEventPublisher {
         subject: &str,
         payload: &PolymorphicPiEventRequest,
     ) -> Result<()> {
-        let socket = &self.config.paths.events_socket();
+        let socket = &self.settings.paths.events_socket();
         // open a connection to unix socket
         let stream = UnixStream::connect(socket).await?;
         // Delimit frames using a length header
@@ -293,7 +298,7 @@ impl CloudEventPublisher {
         subject: &str,
         payload: &PolymorphicOctoPrintEventRequest,
     ) -> Result<()> {
-        let socket = &self.config.paths.events_socket();
+        let socket = &self.settings.paths.events_socket();
         // open a connection to unix socket
         let stream = UnixStream::connect(socket).await?;
         // Delimit frames using a length header
@@ -316,7 +321,7 @@ impl CloudEventPublisher {
 
     // check unix socket is available for writing
     fn socket_ok(&self) -> Result<(), error::NatsError> {
-        let socket = &self.config.paths.events_socket();
+        let socket = &self.settings.paths.events_socket();
         match socket.exists() {
             true => Ok(()),
             false => Err(error::NatsError::UnixSocketNotFound {
@@ -329,11 +334,10 @@ impl CloudEventPublisher {
         self.socket_ok()?;
 
         let pi_id = self
-            .config
-            .cloud
+            .state
             .pi
             .as_ref()
-            .expect("Failed to read PrintNannyConfig.cloud.pi.id")
+            .expect("Failed to read PrintNannyCloudData.pi")
             .id;
         let id = Some(Uuid::new_v4().to_string());
         let created_dt: DateTime<Utc> = SystemTime::now().into();
@@ -511,14 +515,13 @@ impl CloudEventPublisher {
                 let payload =
                     serde_json::from_str::<models::OctoPrintClientStatusPayloadRequest>(payload)?;
                 let octoprint_server = self
-                    .config
-                    .cloud
+                    .state
                     .pi
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.cloud.pi")
+                    .expect("Failed to read PrintNannySettings.cloud.pi")
                     .octoprint_server
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.cloud.pi.octoprint_server")
+                    .expect("Failed to read PrintNannySettings.cloud.pi.octoprint_server")
                     .id;
                 let event_type = self
                     .args
@@ -544,14 +547,13 @@ impl CloudEventPublisher {
                 let payload =
                     serde_json::from_str::<models::OctoPrintPrintJobPayloadRequest>(payload)?;
                 let octoprint_server = self
-                    .config
-                    .cloud
+                    .state
                     .pi
                     .as_ref()
-                    .expect("Failed to readPrintNannyConfig.cloud.pi")
+                    .expect("Failed to readPrintNannySettings.cloud.pi")
                     .octoprint_server
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.cloud.pi.octoprint_server")
+                    .expect("Failed to read PrintNannySettings.cloud.pi.octoprint_server")
                     .id;
                 let event_type = self
                     .args
@@ -580,14 +582,13 @@ impl CloudEventPublisher {
                     None => None,
                 };
                 let octoprint_server = self
-                    .config
-                    .cloud
+                    .state
                     .pi
                     .as_ref()
-                    .expect("Failed to readPrintNannyConfig.cloud.pi")
+                    .expect("Failed to readPrintNannySettings.cloud.pi")
                     .octoprint_server
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.cloud.pi.octoprint_server")
+                    .expect("Failed to read PrintNannySettings.cloud.pi.octoprint_server")
                     .id;
                 let event_type = self
                     .args
@@ -615,14 +616,13 @@ impl CloudEventPublisher {
                     None => None,
                 };
                 let octoprint_server = self
-                    .config
-                    .cloud
+                    .state
                     .pi
                     .as_ref()
-                    .expect("Failed to readPrintNannyConfig.cloud.pi")
+                    .expect("Failed to readPrintNannySettings.cloud.pi")
                     .octoprint_server
                     .as_ref()
-                    .expect("Failed to read PrintNannyConfig.cloud.pi.octoprint_server")
+                    .expect("Failed to read PrintNannySettings.cloud.pi.octoprint_server")
                     .id;
                 let event_type = self
                     .args

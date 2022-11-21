@@ -8,7 +8,7 @@ use super::cpuinfo::RpiCpuInfo;
 use super::error::ServiceError;
 use super::os_release::OsRelease;
 
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SystemInfo {
     /// Populated from /etc/machine-id
     #[serde(rename = "machine_id")]

@@ -13,16 +13,18 @@ use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::models;
 
-use super::config::PrintNannyConfig;
-use super::error::{PrintNannyConfigError, ServiceError};
+use crate::state::PrintNannyCloudData;
+
+use super::error::{PrintNannySettingsError, ServiceError};
 use super::file::open;
 use super::metadata;
-use super::octoprint::OctoPrintHelper;
+use super::octoprint::OctoPrintSettings;
+use super::settings::PrintNannySettings;
 
 #[derive(Debug, Clone)]
 pub struct ApiService {
     pub reqwest: ReqwestConfig,
-    pub config: PrintNannyConfig,
+    pub settings: PrintNannySettings,
     pub pi: Option<models::Pi>,
     pub user: Option<models::User>,
 }
@@ -48,28 +50,25 @@ pub struct PrintNannyApiConfig {
 impl ApiService {
     // config priority:
     // args >> api_config.json >> anonymous api usage only
-    pub fn new(config: PrintNannyConfig) -> Result<ApiService, ServiceError> {
-        debug!("Initializing ApiService from config: {:?}", config);
+    pub fn new() -> Result<ApiService, ServiceError> {
+        let settings = PrintNannySettings::new()?;
+        let state = PrintNannyCloudData::load(&settings.paths.state_file())?;
+
+        debug!("Initializing ApiService from settings: {:?}", settings);
 
         let reqwest = ReqwestConfig {
-            base_path: config.cloud.api.base_path.to_string(),
-            bearer_access_token: config.cloud.api.bearer_access_token.clone(),
+            base_path: state.api.base_path.to_string(),
+            bearer_access_token: state.api.bearer_access_token,
             ..ReqwestConfig::default()
         };
         Ok(Self {
             reqwest,
-            config,
+            settings,
             pi: None,
             user: None,
         })
     }
-    // // alert settings API
-    // pub async fn alert_settings_get_or_create(
-    //     &self,
-    // ) -> Result<models::AlertSettings, ServiceError> {
-    //     let res = alert_settings_api::alert_settings_get_or_create_retrieve(&self.reqwest).await?;
-    //     Ok(res)
-    // }
+
     pub async fn auth_user_retreive(&self) -> Result<models::User, ServiceError> {
         Ok(accounts_api::accounts_user_retrieve(&self.reqwest).await?)
     }
@@ -117,8 +116,9 @@ impl ApiService {
     // performs any necessary one-time setup tasks
     pub async fn sync(&mut self) -> Result<(), ServiceError> {
         // verify pi is authenticated
+        let mut state = PrintNannyCloudData::load(&self.settings.paths.state_file())?;
 
-        match &self.config.cloud.pi {
+        match &state.pi {
             Some(pi) => {
                 info!(
                     "Pi is already registered, updating related models for {:?}",
@@ -126,7 +126,7 @@ impl ApiService {
                 );
 
                 let pi = self._sync_pi_models(pi).await?;
-                self.config.cloud.pi = Some(pi);
+                state.pi = Some(pi);
             }
             None => {
                 warn!("Pi is not registered, attempting to register");
@@ -149,11 +149,12 @@ impl ApiService {
                 };
                 let pi = devices_api::pi_update_or_create(&self.reqwest, Some(req)).await?;
                 let pi = self._sync_pi_models(&pi).await?;
-                self.config.cloud.pi = Some(pi);
+                state.pi = Some(pi);
             }
         };
-
-        self.config.try_save()?;
+        let state_file = self.settings.paths.state_file();
+        let state_lock = self.settings.paths.state_lock();
+        state.save(&state_file, &state_lock, true)?;
         Ok(())
     }
 
@@ -173,8 +174,8 @@ impl ApiService {
 
     pub async fn pi_download_license(&self, pi_id: i32) -> Result<(), ServiceError> {
         let res = devices_api::pis_license_zip_retrieve(&self.reqwest, pi_id).await?;
-        self.config.paths.write_license_zip(res)?;
-        self.config.paths.unpack_license()?;
+        self.settings.paths.write_license_zip(res)?;
+        self.settings.paths.unpack_license()?;
         Ok(())
     }
 
@@ -215,7 +216,7 @@ impl ApiService {
         &self,
         octoprint_server: &models::OctoPrintServer,
     ) -> Result<models::OctoPrintServer, ServiceError> {
-        let helper = OctoPrintHelper::new(octoprint_server.clone());
+        let helper = OctoPrintSettings::new();
         let pip_version = helper.pip_version()?;
         let python_version = helper.python_version()?;
         let pip_packages = helper.pip_packages()?;
@@ -226,7 +227,7 @@ impl ApiService {
             pip_version,
             printnanny_plugin_version,
             python_version,
-            pi: Some(helper.octoprint_server.pi),
+            pi: Some(octoprint_server.pi),
             ..models::PatchedOctoPrintServerRequest::new()
         };
         debug!(
@@ -244,8 +245,8 @@ impl ApiService {
     pub async fn load_model<T: serde::de::DeserializeOwned + serde::Serialize + std::fmt::Debug>(
         &self,
         path: &Path,
-        f: impl Future<Output = Result<T, PrintNannyConfigError>>,
-    ) -> Result<T, PrintNannyConfigError> {
+        f: impl Future<Output = Result<T, PrintNannySettingsError>>,
+    ) -> Result<T, PrintNannySettingsError> {
         let m = read_model_json::<T>(path);
         match m {
             Ok(v) => Ok(v),
@@ -259,7 +260,7 @@ impl ApiService {
                     Ok(v) => {
                         match save_model_json::<T>(&v, path) {
                             Ok(()) => Ok(()),
-                            Err(error) => Err(PrintNannyConfigError::WriteIOError {
+                            Err(error) => Err(PrintNannySettingsError::WriteIOError {
                                 path: path.to_path_buf(),
                                 error,
                             }),

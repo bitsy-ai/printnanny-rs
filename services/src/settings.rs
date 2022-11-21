@@ -1,25 +1,25 @@
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::io::prelude::*;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use clap::{ArgEnum, PossibleValue};
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
-use file_lock::{FileLock, FileOptions};
 use glob::glob;
 use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
 use crate::error::ServiceError;
+use crate::octoprint::OctoPrintSettings;
 
-use super::error::PrintNannyConfigError;
-use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_CONFIG};
-use super::printnanny_api::{ApiService, PrintNannyApiConfig};
+use super::error::PrintNannySettingsError;
+use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS};
+use super::printnanny_api::ApiService;
+use super::state::PrintNannyCloudData;
 use printnanny_api_client::models;
 
 // FACTORY_RESET holds the struct field names of PrintNannyCloudConfig
@@ -67,7 +67,7 @@ pub enum ConfigFormat {
     Toml,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NatsConfig {
     pub uri: String,
     pub require_tls: bool,
@@ -112,7 +112,7 @@ impl std::str::FromStr for ConfigFormat {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrintNannyCloudProxy {
     pub hostname: String,
     pub base_path: String,
@@ -132,66 +132,66 @@ impl Default for PrintNannyCloudProxy {
     }
 }
 
-#[derive(Debug, Clone, clap::ValueEnum, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, clap::ValueEnum, Eq, Deserialize, Serialize, PartialEq)]
 pub enum VideoSrcType {
     File,
     Device,
     Uri,
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct PrintNannyCloudConfig {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub pi: Option<models::Pi>,
-    pub api: PrintNannyApiConfig,
-}
-
-impl Default for PrintNannyCloudConfig {
-    fn default() -> Self {
-        // default to unauthenticated api config, until api creds are unpacked from seed archive
-        let api = PrintNannyApiConfig {
-            base_path: "https://printnanny.ai".into(),
-            bearer_access_token: None,
-        };
-        PrintNannyCloudConfig { api, pi: None }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct SystemdUnit {
     unit: String,
     enabled: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct PrintNannyConfig {
-    pub cloud: PrintNannyCloudConfig,
-    pub paths: PrintNannyPaths,
-    pub systemd_units: HashMap<String, SystemdUnit>,
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct PrintNannyServiceSettings {
+    pub octoprint_enabled: bool,
+    pub mainsail_enabled: bool,
+    pub moonraker_enabled: bool,
+    pub klipper_enabled: bool,
 }
 
-impl Default for PrintNannyConfig {
+impl Default for PrintNannyServiceSettings {
     fn default() -> Self {
-        let paths = PrintNannyPaths::default();
-        PrintNannyConfig {
-            paths,
-            cloud: PrintNannyCloudConfig::default(),
-            systemd_units: DEFAULT_SYSTEMD_UNITS.clone(),
+        Self {
+            octoprint_enabled: true,
+            mainsail_enabled: false,
+            moonraker_enabled: false,
+            klipper_enabled: false,
         }
     }
 }
 
-impl PrintNannyConfig {
-    // See example: https://docs.rs/figment/latest/figment/index.html#extracting-and-profiles
-    // Note the `nested` option on both `file` providers. This makes each
-    // top-level dictionary act as a profile
-    pub fn new() -> Result<Self, PrintNannyConfigError> {
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct PrintNannySettings {
+    pub paths: PrintNannyPaths,
+    pub octoprint: OctoPrintSettings,
+}
+
+impl Default for PrintNannySettings {
+    fn default() -> Self {
+        Self {
+            paths: PrintNannyPaths::default(),
+            octoprint: OctoPrintSettings::default(),
+        }
+    }
+}
+
+impl PrintNannySettings {
+    pub fn new() -> Result<Self, PrintNannySettingsError> {
         let figment = Self::figment()?;
         let result = figment.extract()?;
         debug!("Initialized config {:?}", result);
         Ok(result)
     }
-    pub fn find_value(key: &str) -> Result<figment::value::Value, PrintNannyConfigError> {
+
+    pub fn dashboard_url(&self) -> String {
+        let hostname = sys_info::hostname().unwrap_or_else(|_| "printnanny".to_string());
+        format!("http://{}.local/", hostname)
+    }
+    pub fn find_value(key: &str) -> Result<figment::value::Value, PrintNannySettingsError> {
         let figment = Self::figment()?;
         Ok(figment.find_value(key)?)
     }
@@ -200,23 +200,22 @@ impl PrintNannyConfig {
         &self,
         base_path: String,
         bearer_access_token: String,
-    ) -> Result<PrintNannyConfig, ServiceError> {
-        let mut config = self.clone();
-        config.cloud.api.base_path = base_path;
-        config.cloud.api.bearer_access_token = Some(bearer_access_token);
-        config.try_save()?;
-        let mut api_service = ApiService::new(config)?;
+    ) -> Result<(), ServiceError> {
+        let state_file = self.paths.state_file();
+        let state_lock = self.paths.state_lock();
+
+        let mut state = PrintNannyCloudData::load(&state_file)?;
+        state.api.base_path = base_path;
+        state.api.bearer_access_token = Some(bearer_access_token);
+
+        state.save(&state_file, &state_lock, true)?;
+
+        let mut api_service = ApiService::new()?;
 
         // sync data models
         api_service.sync().await?;
-        let pi_id = match &api_service.config.cloud.pi {
-            Some(pi) => Ok(pi.id),
-
-            None => Err(ServiceError::SetupIncomplete {
-                detail: Some("connect_cloud_account failed".to_string()),
-                field: "cloud.pi".to_string(),
-            }),
-        }?;
+        let mut state = PrintNannyCloudData::load(&self.paths.state_file())?;
+        let pi_id = state.pi.unwrap().id;
         // download credential and device identity bundled in license.zip
         api_service.pi_download_license(pi_id).await?;
         // mark setup complete
@@ -229,14 +228,16 @@ impl PrintNannyConfig {
             favorite: None,
         };
         api_service.pi_partial_update(pi_id, req).await?;
-        api_service.config.try_save()?;
-        Ok(api_service.config)
+        let pi = api_service.pi_retrieve(pi_id).await?;
+        state.pi = Some(pi);
+        state.save(&self.paths.state_file(), &self.paths.state_lock(), true)?;
+        Ok(())
     }
 
-    pub async fn sync(self) -> Result<(), ServiceError> {
-        let mut service = ApiService::new(self)?;
-        service.sync().await
-    }
+    // pub async fn sync(&self) -> Result<(), ServiceError> {
+    //     let mut service = ApiService::new()?;
+    //     service.sync().await
+    // }
 
     // intended for use with Rocket's figmment
     pub fn from_figment(figment: Figment) -> Figment {
@@ -249,13 +250,13 @@ impl PrintNannyConfig {
     // Example:
     //    PRINTNANNY_NATS_APP__NATS_URI="nats://localhost:4222" will override all other nats_uri settings
     //
-    // 2) PRINTNANNY_CONFIG .toml. configuration file
+    // 2) PRINTNANNY_SETTINGS .toml. configuration file
     //
     // 3) Glob pattern of .toml and .json configuration file fragments in conf.d folder
     //
     // 4) Defaults (from implement Default)
 
-    pub fn check_file_from_env_var(var: &str) -> Result<(), PrintNannyConfigError> {
+    pub fn check_file_from_env_var(var: &str) -> Result<(), PrintNannySettingsError> {
         // try reading env var
         match env::var(var) {
             Ok(value) => {
@@ -263,12 +264,12 @@ impl PrintNannyConfig {
                 let path = PathBuf::from(value);
                 match path.exists() {
                     true => Ok(()),
-                    false => Err(PrintNannyConfigError::ConfigFileNotFound { path }),
+                    false => Err(PrintNannySettingsError::ConfigFileNotFound { path }),
                 }
             }
             Err(_) => {
                 warn!(
-                    "PRINTNANNY_CONFIG not set. Initializing from PrintNannyCloudConfig::default()"
+                    "PRINTNANNY_SETTINGS not set. Initializing from PrintNannyCloudConfig::default()"
                 );
                 Ok(())
             }
@@ -276,7 +277,7 @@ impl PrintNannyConfig {
     }
 
     // load figment fragments from all *.toml and *.json files relative to base_dir
-    fn load_confd(base_dir: &PathBuf, figment: Figment) -> Result<Figment, PrintNannyConfigError> {
+    fn load_confd(base_dir: &Path, figment: Figment) -> Result<Figment, PrintNannySettingsError> {
         let toml_glob = format!("{}/*.toml", &base_dir.display());
         let json_glob = format!("{}/*.json", &base_dir.display());
 
@@ -285,12 +286,12 @@ impl PrintNannyConfig {
         Ok(result)
     }
 
-    pub fn figment() -> Result<Figment, PrintNannyConfigError> {
-        // merge file in PRINTNANNY_CONFIG env var (if set)
+    pub fn figment() -> Result<Figment, PrintNannySettingsError> {
+        // merge file in PRINTNANNY_SETTINGS env var (if set)
         let result = Figment::from(Self { ..Self::default() })
             .merge(Toml::file(Env::var_or(
-                "PRINTNANNY_CONFIG",
-                DEFAULT_PRINTNANNY_CONFIG,
+                "PRINTNANNY_SETTINGS",
+                DEFAULT_PRINTNANNY_SETTINGS,
             )))
             // allow nested environment variables:
             // PRINTNANNY_KEY__SUBKEY
@@ -298,12 +299,12 @@ impl PrintNannyConfig {
 
         // extract paths, to load application state conf.d fragments
         let lib_config_path: String = result
-            .find_value("paths.lib_dir")
+            .find_value("paths.state_dir")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
         let paths = PrintNannyPaths {
-            lib_dir: PathBuf::from(lib_config_path),
+            state_dir: PathBuf::from(lib_config_path),
             ..PrintNannyPaths::default()
         };
 
@@ -312,25 +313,25 @@ impl PrintNannyConfig {
 
         // extract paths, to load user-supplied conf.d fragments
         let user_config_path: String = result
-            .find_value("paths.config_dir")
+            .find_value("paths.settings_dir")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
         let paths = PrintNannyPaths {
-            config_dir: PathBuf::from(user_config_path),
+            settings_dir: PathBuf::from(user_config_path),
             ..PrintNannyPaths::default()
         };
 
         // merge user-provided config files
         let result = Self::load_confd(&paths.user_confd(), result)?;
-        // if PRINTNANNY_CONFIG env var is set, check file exists and is readable
-        Self::check_file_from_env_var("PRINTNANNY_CONFIG")?;
+        // if PRINTNANNY_SETTINGS env var is set, check file exists and is readable
+        Self::check_file_from_env_var("PRINTNANNY_SETTINGS")?;
 
-        // finally, re-merge PRINTNANNY_CONFIG and PRINTNANNY_ENV so these values take highest precedence
+        // finally, re-merge PRINTNANNY_SETTINGS and PRINTNANNY_ENV so these values take highest precedence
         let result = result
             .merge(Toml::file(Env::var_or(
-                "PRINTNANNY_CONFIG",
-                DEFAULT_PRINTNANNY_CONFIG,
+                "PRINTNANNY_SETTINGS",
+                DEFAULT_PRINTNANNY_SETTINGS,
             )))
             // allow nested environment variables:
             // PRINTNANNY_KEY__SUBKEY
@@ -340,8 +341,8 @@ impl PrintNannyConfig {
         Ok(result)
     }
 
-    pub fn from_toml(f: PathBuf) -> Result<Self, PrintNannyConfigError> {
-        let figment = PrintNannyConfig::figment()?.merge(Toml::file(f));
+    pub fn from_toml(f: PathBuf) -> Result<Self, PrintNannySettingsError> {
+        let figment = PrintNannySettings::figment()?.merge(Toml::file(f));
         Ok(figment.extract()?)
     }
 
@@ -364,38 +365,39 @@ impl PrintNannyConfig {
         result
     }
 
-    pub fn try_check_license(&self) -> Result<(), PrintNannyConfigError> {
-        match &self.cloud.pi {
+    pub fn try_check_license(&self) -> Result<(), PrintNannySettingsError> {
+        let state = PrintNannyCloudData::load(&self.paths.state_file())?;
+        match &state.pi {
             Some(_) => Ok(()),
-            None => Err(PrintNannyConfigError::LicenseMissing {
+            None => Err(PrintNannySettingsError::LicenseMissing {
                 path: "pi".to_string(),
             }),
         }?;
 
-        match &self.cloud.api.bearer_access_token {
+        match &state.api.bearer_access_token {
             Some(_) => Ok(()),
-            None => Err(PrintNannyConfigError::LicenseMissing {
+            None => Err(PrintNannySettingsError::LicenseMissing {
                 path: "api.bearer_access_token".to_string(),
             }),
         }?;
 
         match self.paths.cloud_nats_creds().exists() {
             true => Ok(()),
-            false => Err(PrintNannyConfigError::LicenseMissing {
+            false => Err(PrintNannySettingsError::LicenseMissing {
                 path: self.paths.cloud_nats_creds().display().to_string(),
             }),
         }?;
 
-        match self.cloud.pi.as_ref().unwrap().nats_app {
+        match state.pi.as_ref().unwrap().nats_app {
             Some(_) => Ok(()),
-            None => Err(PrintNannyConfigError::LicenseMissing {
+            None => Err(PrintNannySettingsError::LicenseMissing {
                 path: "pi.nats_app".to_string(),
             }),
         }?;
         Ok(())
     }
 
-    pub fn try_factory_reset(&self) -> Result<(), PrintNannyConfigError> {
+    pub fn try_factory_reset(&self) -> Result<(), PrintNannySettingsError> {
         // for each key/value pair in FACTORY_RESET, remove file
         for key in FACTORY_RESET.iter() {
             let filename = format!("{}.json", key);
@@ -406,68 +408,16 @@ impl PrintNannyConfig {
         Ok(())
     }
 
-    /// Save FACTORY_RESET field as <field>.toml Figment fragments
-    ///
-    /// # Panics
-    ///
-    /// If serialization or fs write fails, prints an error message indicating the failure and
-    /// panics. For a version that doesn't panic, use [`PrintNannyCloudConfig::try_save_by_key()`].
-    pub fn save_by_key(&self) {
-        unimplemented!()
-    }
-
-    /// Save FACTORY_RESET field as <field>.toml Figment fragments
-    ///
-    /// If serialization or fs write fails, prints an error message indicating the failure
-    pub fn try_save_by_key(&self, key: &str) -> Result<PathBuf, PrintNannyConfigError> {
-        let filename = format!("{}.json", key);
-        let filename = self.paths.lib_confd().join(filename);
-        self.try_save_fragment(key, &filename)?;
-        info!("Saved config fragment: {:?}", &filename);
-        Ok(filename)
-    }
-
-    pub fn try_save_fragment(
-        &self,
-        key: &str,
-        filename: &PathBuf,
-    ) -> Result<(), PrintNannyConfigError> {
-        let content = match key {
-            "cloud" => Ok(serde_json::to_string(
-                &figment::util::map! {key => &self.cloud},
-            )?),
-            "systemd_units" => Ok(serde_json::to_string(
-                &figment::util::map! {key => &self.systemd_units},
-            )?),
-            _ => Err(PrintNannyConfigError::InvalidValue { value: key.into() }),
-        }?;
-
-        info!("Saving {}.json to {:?}", &key, &filename);
-
-        // lock fragment for writing
-        let lock_for_writing = FileOptions::new().write(true).create(true).truncate(true);
-        let mut filelock = FileLock::lock(&filename, true, lock_for_writing)?;
-        filelock.file.write_all(content.as_bytes())?;
-        // Manually unlocking is optional as we unlock on Drop
-        filelock.unlock()?;
-        info!("Wrote {} to {:?}", key, filename);
+    // Save settings to PRINTNANNY_SETTINGS (default: /var/lib/printnanny/PrintNannySettings.toml)
+    pub fn try_save(&self) -> Result<(), PrintNannySettingsError> {
+        let settings_file = self.paths.settings_file();
+        let settings_data = toml::ser::to_string_pretty(self)?;
+        fs::write(&settings_file, &settings_data)?;
         Ok(())
     }
-
-    /// Save FACTORY_RESET fields as <field>.toml Figment fragments
-    ///
-    /// If extraction fails, prints an error message indicating the failure
-    ///
-    pub fn try_save(&self) -> Result<(), PrintNannyConfigError> {
-        // for each key/value pair in FACTORY_RESET vec, write a separate .toml
-        for key in FACTORY_RESET.iter() {
-            info!("Attempting to save {}", &key);
-            match self.try_save_by_key(key) {
-                Ok(_) => (),
-                Err(e) => error!("{}", e),
-            }
-        }
-        Ok(())
+    // Save settings to PRINTNANNY_SETTINGS (default: /var/lib/printnanny/PrintNannySettings.toml)
+    pub fn save(&self) {
+        self.try_save().expect("Failed to save PrintNannySettings");
     }
 
     // Save ::Default() to output file
@@ -475,24 +425,13 @@ impl PrintNannyConfig {
         &self,
         filename: &str,
         format: &ConfigFormat,
-    ) -> Result<(), PrintNannyConfigError> {
+    ) -> Result<(), PrintNannySettingsError> {
         let content: String = match format {
             ConfigFormat::Json => serde_json::to_string_pretty(self)?,
             ConfigFormat::Toml => toml::ser::to_string_pretty(self)?,
         };
         fs::write(&filename, content)?;
         Ok(())
-    }
-
-    /// Save FACTORY_RESET fields as <field>.toml Figment fragments
-    ///
-    /// # Panics
-    ///
-    /// If extraction fails, prints an error message indicating the failure and
-    /// panics. For a version that doesn't panic, use [`PrintNannyCloudConfig::try_save()`].
-    ///
-    pub fn save(&self) {
-        self.try_save().expect("Failed to save PrintNannyConfig");
     }
 
     /// Extract a `Config` from `provider`, panicking if extraction fails.
@@ -520,9 +459,9 @@ impl PrintNannyConfig {
     }
 }
 
-impl Provider for PrintNannyConfig {
+impl Provider for PrintNannySettings {
     fn metadata(&self) -> Metadata {
-        Metadata::named("PrintNannyConfig")
+        Metadata::named("PrintNannySettings")
     }
 
     fn data(&self) -> figment::error::Result<Map<Profile, Dict>> {
@@ -534,13 +473,13 @@ impl Provider for PrintNannyConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::paths::PRINTNANNY_CONFIG_FILENAME;
+    use crate::paths::PRINTNANNY_SETTINGS_FILENAME;
 
     #[test_log::test]
     fn test_config_file_not_found() {
         figment::Jail::expect_with(|jail| {
-            jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
-            let result = PrintNannyConfig::figment();
+            jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
+            let result = PrintNannySettings::figment();
             assert!(result.is_err());
             Ok(())
         });
@@ -550,23 +489,18 @@ mod tests {
     fn test_nested_env_var() {
         figment::Jail::expect_with(|jail| {
             jail.create_file(
-                PRINTNANNY_CONFIG_FILENAME,
+                PRINTNANNY_SETTINGS_FILENAME,
                 r#"
-                profile = "default"
-
                 [paths]
-                config_dir = "/this/etc/path/gets/overridden"
-                
-                [api]
-                base_path = "https://print-nanny.com"
+                settings_dir = "/this/etc/path/gets/overridden"
                 "#,
             )?;
-            jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
+            jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
             let expected = PathBuf::from("testing");
-            jail.set_env("PRINTNANNY_PATHS__CONFIG_DIR", &expected.display());
-            let figment = PrintNannyConfig::figment().unwrap();
-            let config: PrintNannyConfig = figment.extract()?;
-            assert_eq!(config.paths.config_dir, expected);
+            jail.set_env("PRINTNANNY_PATHS__SETTINGS_DIR", &expected.display());
+            let figment = PrintNannySettings::figment().unwrap();
+            let config: PrintNannySettings = figment.extract()?;
+            assert_eq!(config.paths.settings_dir, expected);
             Ok(())
         });
     }
@@ -575,22 +509,20 @@ mod tests {
     fn test_paths() {
         figment::Jail::expect_with(|jail| {
             jail.create_file(
-                PRINTNANNY_CONFIG_FILENAME,
+                PRINTNANNY_SETTINGS_FILENAME,
                 r#"
-                profile = "default"
-
                 [paths]
-                config_dir = "/opt/printnanny/"
-                lib_dir = "/var/lib/custom"
+                settings_dir = "/opt/printnanny/"
+                state_dir = "/var/lib/custom"
         
                 
                 [api]
                 base_path = "https://print-nanny.com"
                 "#,
             )?;
-            jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
-            let figment = PrintNannyConfig::figment().unwrap();
-            let config: PrintNannyConfig = figment.extract()?;
+            jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
+            let figment = PrintNannySettings::figment().unwrap();
+            let config: PrintNannySettings = figment.extract()?;
             assert_eq!(config.paths.data(), PathBuf::from("/var/lib/custom/data"));
             assert_eq!(config.paths.user_confd(), PathBuf::from("/opt/printnanny/"));
 
@@ -601,78 +533,55 @@ mod tests {
     fn test_env_merged() {
         figment::Jail::expect_with(|jail| {
             jail.create_file(
-                PRINTNANNY_CONFIG_FILENAME,
+                PRINTNANNY_SETTINGS_FILENAME,
                 r#"
-
                 [paths]
                 install = "/opt/printnanny/default"
                 data = "/opt/printnanny/default/data"
 
-                
-                [cloud.api]
-                base_path = "https://print-nanny.com"
                 "#,
             )?;
-            jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
-            let config = PrintNannyConfig::new().unwrap();
+            jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
+            let settings = PrintNannySettings::new().unwrap();
             assert_eq!(
-                config.cloud.api,
-                PrintNannyApiConfig {
-                    base_path: "https://print-nanny.com".into(),
-                    bearer_access_token: None,
-                }
+                settings.octoprint.enabled,
+                OctoPrintSettings::default().enabled,
             );
-            jail.set_env("PRINTNANNY_CLOUD__API.BEARER_ACCESS_TOKEN", "secret");
-            let figment = PrintNannyConfig::figment().unwrap();
-            let config: PrintNannyConfig = figment.extract()?;
-            assert_eq!(
-                config.cloud.api,
-                PrintNannyApiConfig {
-                    base_path: "https://print-nanny.com".into(),
-                    bearer_access_token: Some("secret".into()),
-                }
-            );
+            jail.set_env("PRINTNANNY_OCTOPRINT__ENABLED", "false");
+            let figment = PrintNannySettings::figment().unwrap();
+            let settings: PrintNannySettings = figment.extract()?;
+            assert_eq!(settings.octoprint.enabled, false);
             Ok(())
         });
     }
 
     #[test_log::test]
-    fn test_custom_confd() {
+    fn test_custom_conf_values() {
         figment::Jail::expect_with(|jail| {
             jail.create_file(
                 "Local.toml",
                 r#"
-                profile = "local"
-
                 [paths]
-                config_dir = ".tmp/"
+                settings_dir = ".tmp/"
                 
-                [cloud.api]
-                base_path = "http://aurora:8000"
+                [octoprint]
+                enabled = false
                 "#,
             )?;
-            jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
+            jail.set_env("PRINTNANNY_SETTINGS", "Local.toml");
 
-            let figment = PrintNannyConfig::figment().unwrap();
-            let config: PrintNannyConfig = figment.extract()?;
+            let figment = PrintNannySettings::figment().unwrap();
+            let settings: PrintNannySettings = figment.extract()?;
 
-            let base_path = "http://aurora:8000".into();
-            assert_eq!(config.paths.config_dir, PathBuf::from(".tmp/"));
-            assert_eq!(config.cloud.api.base_path, base_path);
+            assert_eq!(settings.paths.settings_dir, PathBuf::from(".tmp/"));
+            assert_eq!(settings.octoprint.enabled, false);
 
-            assert_eq!(
-                config.cloud.api,
-                PrintNannyApiConfig {
-                    base_path: base_path,
-                    bearer_access_token: None,
-                }
-            );
             Ok(())
         });
     }
 
     #[test_log::test]
-    fn test_save_fragment() {
+    fn test_save() {
         figment::Jail::expect_with(|jail| {
             let output = jail.directory().to_str().unwrap();
             jail.create_file(
@@ -680,30 +589,27 @@ mod tests {
                 &format!(
                     r#"
                 profile = "local"
-                [cloud.api]
-                base_path = "http://aurora:8000"
 
                 [paths]
-                lib_dir = "{}"
+                state_dir = "{}"
+
+                [octoprint]
+                enabled = false
                 "#,
                     output
                 ),
             )?;
-            jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
+            jail.set_env("PRINTNANNY_SETTINGS", "Local.toml");
 
-            let figment = PrintNannyConfig::figment().unwrap();
-            let mut config: PrintNannyConfig = figment.extract()?;
-            fs::create_dir(config.paths.lib_confd()).unwrap();
+            let figment = PrintNannySettings::figment().unwrap();
+            let mut settings: PrintNannySettings = figment.extract()?;
+            fs::create_dir(settings.paths.lib_confd()).unwrap();
 
-            let expected = PrintNannyApiConfig {
-                base_path: config.cloud.api.base_path,
-                bearer_access_token: Some("secret_token".to_string()),
-            };
-            config.cloud.api = expected.clone();
-            config.try_save().unwrap();
-            let figment = PrintNannyConfig::figment().unwrap();
-            let new: PrintNannyConfig = figment.extract()?;
-            assert_eq!(new.cloud.api, expected);
+            settings.octoprint.enabled = true;
+            settings.save();
+            let figment = PrintNannySettings::figment().unwrap();
+            let settings: PrintNannySettings = figment.extract()?;
+            assert_eq!(settings.octoprint.enabled, true);
             Ok(())
         });
     }
@@ -711,19 +617,26 @@ mod tests {
     #[test_log::test]
     fn test_find_value() {
         figment::Jail::expect_with(|jail| {
+            let output = jail.directory().to_str().unwrap();
+            let expected: Option<String> = Some(format!("{output}/printnanny.d"));
+
             jail.create_file(
                 "Local.toml",
-                r#"
-                profile = "local"
-                [cloud.api]
-                base_path = "http://aurora:8000"
-                "#,
-            )?;
-            jail.set_env("PRINTNANNY_CONFIG", "Local.toml");
-            jail.set_env("PRINTNANNY_PATHS.confd", format!("{:?}", jail.directory()));
+                &format!(
+                    r#"
+                [paths]
+                settings_dir = "{output}/printnanny.d"
+                log_dir = "{output}/log"
 
-            let expected: Option<String> = Some("http://aurora:8000".into());
-            let value: Option<String> = PrintNannyConfig::find_value("cloud.api.base_path")
+                [octoprint]
+                enabled = false
+                "#,
+                    output = &output
+                ),
+            )?;
+            jail.set_env("PRINTNANNY_SETTINGS", "Local.toml");
+
+            let value: Option<String> = PrintNannySettings::find_value("paths.settings_dir")
                 .unwrap()
                 .into_string();
             assert_eq!(value, expected);
@@ -735,12 +648,10 @@ mod tests {
     fn test_os_release() {
         figment::Jail::expect_with(|jail| {
             jail.create_file(
-                PRINTNANNY_CONFIG_FILENAME,
+                PRINTNANNY_SETTINGS_FILENAME,
                 r#"
-                profile = "local"
-                [api]
-                base_path = "http://aurora:8000"
-                
+                [octoprint]
+                enabled = false
                 "#,
             )?;
             jail.create_file(
@@ -763,13 +674,13 @@ VARIANT="PrintNanny OctoPrint Edition"
 VARIANT_ID=printnanny-octoprint
                 "#,
             )?;
-            jail.set_env("PRINTNANNY_CONFIG", PRINTNANNY_CONFIG_FILENAME);
+            jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
             jail.set_env(
                 "PRINTNANNY_PATHS__OS_RELEASE",
                 format!("{:?}", jail.directory().join("os-release")),
             );
 
-            let config = PrintNannyConfig::new().unwrap();
+            let config = PrintNannySettings::new().unwrap();
             let os_release = config.paths.load_os_release().unwrap();
             assert_eq!("2022-06-18T18:46:49Z".to_string(), os_release.build_id);
             Ok(())
@@ -789,16 +700,17 @@ VARIANT_ID=printnanny-octoprint
                     r#"
                 profile = "local"
                 [paths]
-                config_dir = "{output}/printnanny.d"
+                settings_dir = "{output}/printnanny.d"
                 log_dir = "{output}/log"
                 "#,
                     output = output
                 ),
             )?;
 
-            let config = PrintNannyConfig::from_toml(PathBuf::from(output).join(filename)).unwrap();
+            let config =
+                PrintNannySettings::from_toml(PathBuf::from(output).join(filename)).unwrap();
             assert_eq!(
-                config.paths.config_dir,
+                config.paths.settings_dir,
                 PathBuf::from(format!("{}/printnanny.d", output))
             );
 

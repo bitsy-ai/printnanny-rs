@@ -6,20 +6,22 @@ use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::apis::Error as ApiError;
 
+use super::state::PrintNannyCloudDataError;
+
 #[derive(Error, Debug)]
-pub enum PrintNannyConfigError {
+pub enum PrintNannySettingsError {
     #[error("Failed to load license from {pattern:?}. Please download a license from https://printnanny.ai/dashboard/ and save to /boot")]
     PatternNotFound { pattern: String },
     #[error("Refusing to overwrite existing file at {path:?}.")]
     FileExists { path: PathBuf },
 
-    #[error("PRINTNANNY_CONFIG was set {path:?} but file was not found")]
+    #[error("PRINTNANNY_SETTINGS was set {path:?} but file was not found")]
     ConfigFileNotFound { path: PathBuf },
 
     #[error("Failed to unpack file {filename} from archive {archive:?}")]
     ArchiveMissingFile { filename: String, archive: PathBuf },
 
-    #[error("Failed to read {path:?}. Please download a license from https://printnanny.ai/dashboard/ and save to ")]
+    #[error("Failed to read {path}. Please connect your PrintNanny Cloud account to fix this.")]
     LicenseMissing { path: String },
 
     #[error("Command {cmd} exited with code {code:?} stdout: {stdout} stderr: {stderr}")]
@@ -76,6 +78,9 @@ pub enum PrintNannyConfigError {
         detail: Option<String>,
         field: String,
     },
+
+    #[error(transparent)]
+    PrintNannyCloudDataError(#[from] PrintNannyCloudDataError),
 }
 
 #[derive(Error, Debug)]
@@ -141,7 +146,10 @@ pub enum ServiceError {
     #[error(transparent)]
     FigmentError(#[from] figment::error::Error),
     #[error(transparent)]
-    PrintNannyConfigError(#[from] PrintNannyConfigError),
+    PrintNannySettingsError(#[from] PrintNannySettingsError),
+
+    #[error(transparent)]
+    PrintNannyCloudDataError(#[from] PrintNannyCloudDataError),
 
     #[error("Setup incomplete, failed to read {field:?} {detail:?}")]
     SetupIncomplete {

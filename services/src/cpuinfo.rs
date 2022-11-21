@@ -1,7 +1,7 @@
 use std::io::Read;
 use std::path::PathBuf;
 
-use super::error::PrintNannyConfigError;
+use super::error::PrintNannySettingsError;
 use super::error::ServiceError;
 use super::file::open;
 
@@ -62,7 +62,7 @@ impl RpiCpuInfo {
         let path = "/proc/cpuinfo";
         let file = match open(&path) {
             Ok(f) => Ok(f),
-            Err(error) => Err(PrintNannyConfigError::ReadIOError {
+            Err(error) => Err(PrintNannySettingsError::ReadIOError {
                 path: PathBuf::from(path),
                 error,
             }),

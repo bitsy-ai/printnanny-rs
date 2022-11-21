@@ -12,9 +12,10 @@ use git_version::git_version;
 use printnanny_nats::message::{NatsResponse, NatsRequest};
 use printnanny_nats::cloud_worker::DEFAULT_NATS_CLOUD_APP_NAME;
 use printnanny_nats::subscriber::{ NatsSubscriber, DEFAULT_NATS_EDGE_APP_NAME};
-use printnanny_services::config::ConfigFormat;
+use printnanny_services::settings::ConfigFormat;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
-use printnanny_cli::config::{ConfigCommand};
+use printnanny_cli::settings::{SettingsCommand};
+use printnanny_cli::cloud_data::CloudDataCommand;
 use printnanny_cli::os::{OsCommand};
 
 const GIT_VERSION: &str = git_version!();
@@ -63,13 +64,52 @@ async fn main() -> Result<()> {
                 .help("Commaseparated list of plugins used to scope token access.")
                 .default_value("janus.plugin.echotest,janus.plugin.streaming")
                     ))
-        // config get|set|init|sync|show
-        .subcommand(Command::new("config")
+        
+        // cloud-data show|sync
+        .subcommand(Command::new("cloud-data")
             .author(crate_authors!())
             .about(crate_description!())
             .version(GIT_VERSION)
             .arg_required_else_help(true)
-            .about("Interact with PrintNanny device configuration and user settings")
+            .about("Interact with PrintNanny device and user settings")
+            .subcommand(Command::new("show")
+                .author(crate_authors!())
+                .about(crate_description!())
+                .version(GIT_VERSION)
+                .about("Print PrintNannyCloudData to console")
+                .arg(Arg::new("format")
+                    .short('f')
+                    .long("format")
+                    .takes_value(true)
+                    .possible_values(ConfigFormat::possible_values())
+                    .default_value("json")
+                    .help("Output format")
+                )            
+            )
+            .subcommand(Command::new("sync")
+                .author(crate_authors!())
+                .about(crate_description!())
+                .version(GIT_VERSION)
+                .about("Print PrintNanny config to console")
+                .arg(Arg::new("format")
+                    .short('f')
+                    .long("format")
+                    .takes_value(true)
+                    .possible_values(ConfigFormat::possible_values())
+                    .default_value("json")
+                    .help("Output format")
+                )            
+            )
+        )
+        
+
+        // settings get|set|show
+        .subcommand(Command::new("settings")
+            .author(crate_authors!())
+            .about(crate_description!())
+            .version(GIT_VERSION)
+            .arg_required_else_help(true)
+            .about("Interact with PrintNanny device and user settings")
             .subcommand(Command::new("get")
                 .author(crate_authors!())
                 .about(crate_description!())
@@ -114,12 +154,6 @@ async fn main() -> Result<()> {
                     .default_value("json")
                     .help("Output format")
                 )            
-            )
-            .subcommand(Command::new("sync")
-                .author(crate_authors!())
-                .about(crate_description!())
-                .version(GIT_VERSION)
-                .about("Synchronize device with PrintNanny Cloud")
             ))
 
         // nats-edge-worker
@@ -195,9 +229,13 @@ async fn main() -> Result<()> {
             worker.run().await?;
         },
 
-        Some(("config", subm)) => {
-            ConfigCommand::handle(subm).await?;
+        Some(("settings", subm)) => {
+            SettingsCommand::handle(subm).await?;
         },
+        Some(("cloud-data", subm)) => {
+            CloudDataCommand::handle(subm).await?;
+        },
+
         Some(("os", subm)) => {
             OsCommand::handle(subm)?;
         },
