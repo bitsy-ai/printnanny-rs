@@ -3,6 +3,7 @@ use bytes::Buf;
 use clap::{crate_authors, ArgMatches, Command};
 use futures::prelude::*;
 use log::{debug, error, info, warn};
+use printnanny_services::state::PrintNannyAppData;
 use std::io::Read;
 use std::path::PathBuf;
 use tokio::net::{UnixListener, UnixStream};
@@ -237,11 +238,12 @@ impl NatsCloudWorker {
 
     pub async fn new(_args: &ArgMatches) -> Result<Self> {
         let config = PrintNannySettings::new()?;
+        let state = PrintNannyAppData::new()?;
         // ensure pi, nats_app, nats_creds are provided
         config.try_check_license()?;
 
         // try_check_license guards the following properties set, so it's safe to unwrap here
-        let pi = config.cloud.pi.unwrap();
+        let pi = state.pi.unwrap();
         let nats_app = pi.nats_app.unwrap();
 
         let subscribe_subject = to_nats_command_subscribe_subject(&pi.id);

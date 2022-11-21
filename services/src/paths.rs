@@ -1,6 +1,5 @@
-extern crate glob;
-use super::os_release::OsRelease;
 use bytes::Bytes;
+use figment::providers::Env;
 use log::info;
 use serde;
 use serde::{Deserialize, Serialize};
@@ -11,9 +10,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use zip::ZipArchive;
 
 use super::error::PrintNannySettingsError;
+use super::os_release::OsRelease;
 
 pub const PRINTNANNY_SETTINGS_FILENAME: &str = "default.toml";
-pub const DEFAULT_PRINTNANNY_SETTINGS: &str = "/etc/printnanny/default.toml";
+pub const DEFAULT_PRINTNANNY_SETTINGS: &str = "/var/lib/printnanny/PrintNannySettings.toml";
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
 pub struct PrintNannyPaths {
@@ -57,6 +57,14 @@ impl PrintNannyPaths {
     // lock acquired when modifying persistent application data
     pub fn state_lock(&self) -> PathBuf {
         self.run_dir.join("state.lock")
+    }
+
+    // user-facing settings file
+    pub fn settings_file(&self) -> PathBuf {
+        PathBuf::from(Env::var_or(
+            "PRINTNANNY_SETTINGS",
+            DEFAULT_PRINTNANNY_SETTINGS,
+        ))
     }
 
     // secrets, keys, credentials dir

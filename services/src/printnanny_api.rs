@@ -24,7 +24,7 @@ use super::settings::PrintNannySettings;
 #[derive(Debug, Clone)]
 pub struct ApiService {
     pub reqwest: ReqwestConfig,
-    pub config: PrintNannySettings,
+    pub settings: PrintNannySettings,
     pub pi: Option<models::Pi>,
     pub user: Option<models::User>,
 }
@@ -51,10 +51,10 @@ impl ApiService {
     // config priority:
     // args >> api_config.json >> anonymous api usage only
     pub fn new() -> Result<ApiService, ServiceError> {
-        let config = PrintNannySettings::new()?;
-        let state = PrintNannyAppData::load(&config.paths.state_file())?;
+        let settings = PrintNannySettings::new()?;
+        let state = PrintNannyAppData::load(&settings.paths.state_file())?;
 
-        debug!("Initializing ApiService from config: {:?}", config);
+        debug!("Initializing ApiService from settings: {:?}", settings);
 
         let reqwest = ReqwestConfig {
             base_path: state.api.base_path.to_string(),
@@ -63,7 +63,7 @@ impl ApiService {
         };
         Ok(Self {
             reqwest,
-            config,
+            settings,
             pi: None,
             user: None,
         })
@@ -116,7 +116,7 @@ impl ApiService {
     // performs any necessary one-time setup tasks
     pub async fn sync(&mut self) -> Result<(), ServiceError> {
         // verify pi is authenticated
-        let mut state = PrintNannyAppData::load(&self.config.paths.state_file())?;
+        let mut state = PrintNannyAppData::load(&self.settings.paths.state_file())?;
 
         match &state.pi {
             Some(pi) => {
@@ -152,8 +152,9 @@ impl ApiService {
                 state.pi = Some(pi);
             }
         };
-
-        state.save()?;
+        let state_file = self.settings.paths.state_file();
+        let state_lock = self.settings.paths.state_lock();
+        state.save(&state_file, &state_lock, true)?;
         Ok(())
     }
 
@@ -173,8 +174,8 @@ impl ApiService {
 
     pub async fn pi_download_license(&self, pi_id: i32) -> Result<(), ServiceError> {
         let res = devices_api::pis_license_zip_retrieve(&self.reqwest, pi_id).await?;
-        self.config.paths.write_license_zip(res)?;
-        self.config.paths.unpack_license()?;
+        self.settings.paths.write_license_zip(res)?;
+        self.settings.paths.unpack_license()?;
         Ok(())
     }
 
@@ -226,7 +227,7 @@ impl ApiService {
             pip_version,
             printnanny_plugin_version,
             python_version,
-            pi: Some(helper.octoprint_server.pi),
+            pi: Some(octoprint_server.pi),
             ..models::PatchedOctoPrintServerRequest::new()
         };
         debug!(

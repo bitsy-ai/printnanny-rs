@@ -1,6 +1,6 @@
-use printnanny_services::config::{ConfigFormat, PrintNannySettings};
 use printnanny_services::error::ServiceError;
 use printnanny_services::printnanny_api::ApiService;
+use printnanny_services::settings::{ConfigFormat, PrintNannySettings};
 use std::io::{self, Write};
 
 pub struct ConfigCommand;
@@ -46,8 +46,7 @@ impl ConfigCommand {
                 config.try_save()?;
             }
             Some(("sync", _args)) => {
-                let config = PrintNannySettings::new()?;
-                let mut service = ApiService::new(config)?;
+                let mut service = ApiService::new()?;
                 service.sync().await?;
             }
             Some(("show", args)) => {

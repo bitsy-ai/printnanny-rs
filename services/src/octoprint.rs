@@ -56,7 +56,7 @@ impl OctoPrintSettings {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn python_path(self) -> PathBuf {
+    pub fn python_path(&self) -> PathBuf {
         return self.venv_path.join("bin/python");
     }
 
@@ -96,7 +96,7 @@ impl OctoPrintSettings {
 
     pub fn pip_packages(&self) -> Result<Vec<PipPackage>, PrintNannySettingsError> {
         let python_path = self.python_path();
-        let output = Command::new(python_path)
+        let output = Command::new(&python_path)
             .arg("-m")
             .arg("pip")
             .arg("list")

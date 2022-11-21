@@ -5,6 +5,7 @@ use file_lock::{FileLock, FileOptions};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::paths::PrintNannyPaths;
 use crate::settings::PrintNannySettings;
 
 use super::printnanny_api::PrintNannyApiConfig;
@@ -29,25 +30,19 @@ impl Default for PrintNannyAppData {
 }
 
 #[derive(Error, Debug)]
-pub enum PrintNannyAppDataError<'a> {
+pub enum PrintNannyAppDataError {
     #[error(transparent)]
     TomlSerError(#[from] toml::ser::Error),
     #[error(transparent)]
     TomlDeError(#[from] toml::de::Error),
     #[error("Failed to write {path} - {error}")]
-    WriteIOError {
-        path: Box<&'a Path>,
-        error: std::io::Error,
-    },
+    WriteIOError { path: String, error: std::io::Error },
     #[error("Failed to read {path} - {error}")]
-    ReadIOError {
-        path: Box<&'a Path>,
-        error: std::io::Error,
-    },
+    ReadIOError { path: String, error: std::io::Error },
 }
 
 impl PrintNannyAppData {
-    pub fn new() -> Result<PrintNannyAppData, PrintNannyAppDataError<'static>> {
+    pub fn new<'a>() -> Result<PrintNannyAppData, PrintNannyAppDataError> {
         let settings = PrintNannySettings::new().unwrap();
         let result = Self::load(&settings.paths.state_file())?;
         Ok(result)
@@ -60,7 +55,7 @@ impl PrintNannyAppData {
         is_blocking: bool,
     ) -> Result<(), PrintNannyAppDataError> {
         let options = FileOptions::new().write(true).create(true).append(true);
-        let mut filelock = match FileLock::lock("myfile.txt", is_blocking, options) {
+        let mut filelock = match FileLock::lock(state_lock, is_blocking, options) {
             Ok(lock) => lock,
             Err(err) => panic!("Error getting write lock: {}", err),
         };
@@ -69,17 +64,17 @@ impl PrintNannyAppData {
         match filelock.file.write_all(&data) {
             Ok(()) => Ok(()),
             Err(e) => Err(PrintNannyAppDataError::WriteIOError {
-                path: Box::new(state_file),
+                path: state_file.display().to_string(),
                 error: e,
             }),
         }
     }
 
-    pub fn load(state_file: &Path) -> Result<PrintNannyAppData, PrintNannyAppDataError<'static>> {
+    pub fn load(state_file: &Path) -> Result<PrintNannyAppData, PrintNannyAppDataError> {
         let state_str = match fs::read_to_string(state_file) {
             Ok(d) => Ok(d),
             Err(e) => Err(PrintNannyAppDataError::ReadIOError {
-                path: Box::new(state_file),
+                path: state_file.display().to_string(),
                 error: e,
             }),
         }?;

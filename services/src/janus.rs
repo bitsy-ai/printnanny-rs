@@ -5,8 +5,10 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
 
-use super::config::PrintNannySettings;
+use crate::state::PrintNannyAppData;
+
 use super::error::ServiceError;
+use super::settings::PrintNannySettings;
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy, ArgEnum)]
 pub enum JanusAdminEndpoint {
@@ -60,12 +62,12 @@ pub struct JanusAdminService {
 }
 
 pub async fn janus_admin_api_call(endpoint: JanusAdminEndpoint) -> Result<String> {
-    let config = PrintNannySettings::new()?;
+    let state = PrintNannyAppData::new()?;
     let err = ServiceError::SetupIncomplete {
         field: "device.webrtc_edge".to_string(),
         detail: None,
     };
-    let janus_config = match config.cloud.pi {
+    let janus_config = match state.pi {
         Some(pi) => match pi.webrtc_edge {
             Some(webrtc_edge) => Ok(webrtc_edge),
             None => Err(err),

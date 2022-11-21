@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::ServiceError;
 use crate::octoprint::OctoPrintSettings;
+use crate::state;
 
 use super::error::PrintNannySettingsError;
 use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS};
@@ -188,6 +189,11 @@ impl PrintNannySettings {
         debug!("Initialized config {:?}", result);
         Ok(result)
     }
+
+    pub fn dashboard_url(&self) -> String {
+        let hostname = sys_info::hostname().unwrap_or_else(|_| "printnanny".to_string());
+        format!("http://{}.local/", hostname)
+    }
     pub fn find_value(key: &str) -> Result<figment::value::Value, PrintNannySettingsError> {
         let figment = Self::figment()?;
         Ok(figment.find_value(key)?)
@@ -198,10 +204,14 @@ impl PrintNannySettings {
         base_path: String,
         bearer_access_token: String,
     ) -> Result<(), ServiceError> {
-        let mut state = PrintNannyAppData::load(&self.paths.state_file())?;
+        let state_file = self.paths.state_file();
+        let state_lock = self.paths.state_lock();
+
+        let mut state = PrintNannyAppData::load(&state_file)?;
         state.api.base_path = base_path;
         state.api.bearer_access_token = Some(bearer_access_token);
-        state.save(&self.paths.state_file(), &self.paths.state_lock(), true)?;
+
+        state.save(&state_file, &state_lock, true)?;
 
         let mut api_service = ApiService::new()?;
 
@@ -404,66 +414,16 @@ impl PrintNannySettings {
         Ok(())
     }
 
-    /// Save FACTORY_RESET field as <field>.toml Figment fragments
-    ///
-    /// # Panics
-    ///
-    /// If serialization or fs write fails, prints an error message indicating the failure and
-    /// panics. For a version that doesn't panic, use [`PrintNannyCloudConfig::try_save_by_key()`].
-    pub fn save_by_key(&self) {
-        unimplemented!()
-    }
-
-    /// Save FACTORY_RESET field as <field>.toml Figment fragments
-    ///
-    /// If serialization or fs write fails, prints an error message indicating the failure
-    pub fn try_save_by_key(&self, key: &str) -> Result<PathBuf, PrintNannySettingsError> {
-        let filename = format!("{}.json", key);
-        let filename = self.paths.lib_confd().join(filename);
-        self.try_save_fragment(key, &filename)?;
-        info!("Saved config fragment: {:?}", &filename);
-        Ok(filename)
-    }
-
-    pub fn try_save_fragment(
-        &self,
-        key: &str,
-        filename: &PathBuf,
-    ) -> Result<(), PrintNannySettingsError> {
-        let content = match key {
-            "cloud" => Ok(serde_json::to_string(&figment::util::map! {key => &state})?),
-            // "systemd_units" => Ok(serde_json::to_string(
-            //     &figment::util::map! {key => &self.systemd_units},
-            // )?),
-            _ => Err(PrintNannySettingsError::InvalidValue { value: key.into() }),
-        }?;
-
-        info!("Saving {}.json to {:?}", &key, &filename);
-
-        // lock fragment for writing
-        let lock_for_writing = FileOptions::new().write(true).create(true).truncate(true);
-        let mut filelock = FileLock::lock(&filename, true, lock_for_writing)?;
-        filelock.file.write_all(content.as_bytes())?;
-        // Manually unlocking is optional as we unlock on Drop
-        filelock.unlock()?;
-        info!("Wrote {} to {:?}", key, filename);
-        Ok(())
-    }
-
-    /// Save FACTORY_RESET fields as <field>.toml Figment fragments
-    ///
-    /// If extraction fails, prints an error message indicating the failure
-    ///
+    // Save settings to PRINTNANNY_SETTINGS (default: /var/lib/printnanny/PrintNannySettings.toml)
     pub fn try_save(&self) -> Result<(), PrintNannySettingsError> {
-        // for each key/value pair in FACTORY_RESET vec, write a separate .toml
-        for key in FACTORY_RESET.iter() {
-            info!("Attempting to save {}", &key);
-            match self.try_save_by_key(key) {
-                Ok(_) => (),
-                Err(e) => error!("{}", e),
-            }
-        }
+        let settings_file = self.paths.settings_file();
+        let settings_data = toml::ser::to_string_pretty(self)?;
+        fs::write(&settings_file, &settings_data)?;
         Ok(())
+    }
+    // Save settings to PRINTNANNY_SETTINGS (default: /var/lib/printnanny/PrintNannySettings.toml)
+    pub fn save(&self) {
+        self.try_save().expect("Failed to save PrintNannySettings");
     }
 
     // Save ::Default() to output file
@@ -478,17 +438,6 @@ impl PrintNannySettings {
         };
         fs::write(&filename, content)?;
         Ok(())
-    }
-
-    /// Save FACTORY_RESET fields as <field>.toml Figment fragments
-    ///
-    /// # Panics
-    ///
-    /// If extraction fails, prints an error message indicating the failure and
-    /// panics. For a version that doesn't panic, use [`PrintNannyCloudConfig::try_save()`].
-    ///
-    pub fn save(&self) {
-        self.try_save().expect("Failed to save PrintNannySettings");
     }
 
     /// Extract a `Config` from `provider`, panicking if extraction fails.
