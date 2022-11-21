@@ -12,6 +12,9 @@ use glob::glob;
 use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
+use serde_json::Value as SerdeJsonValue;
+use treediff::diff;
+use treediff::tools::Recorder;
 
 use super::error::PrintNannySettingsError;
 use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS};
@@ -58,6 +61,21 @@ lazy_static! {
         );
         m
     };
+}
+
+trait Settings {
+    type SettingsModel: Serialize;
+    fn diff<'a>(
+        json1: &SerdeJsonValue,
+        json2: &SerdeJsonValue,
+    ) -> Recorder<'a, treediff::Key, SerdeJsonValue> {
+        let mut d = Recorder::default();
+        diff(json1, json2, &mut d);
+    }
+    fn pre_save(&self) -> Result<()>;
+    fn post_save(&self) -> Result<()>;
+    fn rollback(&self) -> Result<()>;
+    fn validate(&self) -> bool;
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
