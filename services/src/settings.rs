@@ -17,6 +17,7 @@ use crate::error::ServiceError;
 use crate::octoprint::OctoPrintSettings;
 
 use super::error::PrintNannySettingsError;
+use super::moonraker::MoonrakerSettings;
 use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS};
 use super::printnanny_api::ApiService;
 use super::state::PrintNannyCloudData;
@@ -146,28 +147,10 @@ pub struct SystemdUnit {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct PrintNannyServiceSettings {
-    pub octoprint_enabled: bool,
-    pub mainsail_enabled: bool,
-    pub moonraker_enabled: bool,
-    pub klipper_enabled: bool,
-}
-
-impl Default for PrintNannyServiceSettings {
-    fn default() -> Self {
-        Self {
-            octoprint_enabled: true,
-            mainsail_enabled: false,
-            moonraker_enabled: false,
-            klipper_enabled: false,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PrintNannySettings {
     pub paths: PrintNannyPaths,
     pub octoprint: OctoPrintSettings,
+    pub moonraker: MoonrakerSettings,
 }
 
 impl Default for PrintNannySettings {
