@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 // Moonraker server config
 // https://moonraker.readthedocs.io/en/latest/configuration/#server
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MoonrakerServerConfig {
+pub struct MoonrakerServerSettings {
     // bind host address
     pub host: IpAddr,
     // HTTP port
@@ -19,7 +19,7 @@ pub struct MoonrakerServerConfig {
     pub max_upload_size: u32,
 }
 
-impl Default for MoonrakerServerConfig {
+impl Default for MoonrakerServerSettings {
     fn default() -> Self {
         Self {
             host: "0.0.0.0".parse().unwrap(),
@@ -34,7 +34,7 @@ impl Default for MoonrakerServerConfig {
 // Moonraker file manager config
 // https://moonraker.readthedocs.io/en/latest/configuration/#file_manager
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MoonrakerFileManagerConfig {
+pub struct MoonrakerFileManagerSettings {
     // When set to True the file manager will add uploads to the job_queue when
     // the `start_print` flag has been set.  The default if False.
     pub queue_gcode_uploads: bool,
@@ -52,7 +52,7 @@ pub struct MoonrakerFileManagerConfig {
     pub enable_inotify_warnings: bool,
 }
 
-impl Default for MoonrakerFileManagerConfig {
+impl Default for MoonrakerFileManagerSettings {
     fn default() -> Self {
         Self {
             queue_gcode_uploads: false,
@@ -75,14 +75,14 @@ pub enum MoonrakerSystemServiceProvider {
 // Moonraker machine config
 // https://moonraker.readthedocs.io/en/latest/configuration/#machine
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MoonrakerMachineConfig {
+pub struct MoonrakerMachineSettings {
     pub provider: MoonrakerSystemServiceProvider,
     pub validate_service: bool,
     pub validate_config: bool,
     pub force_validation: bool,
 }
 
-impl Default for MoonrakerMachineConfig {
+impl Default for MoonrakerMachineSettings {
     fn default() -> Self {
         Self {
             provider: MoonrakerSystemServiceProvider::SystemdDbus,
@@ -96,14 +96,14 @@ impl Default for MoonrakerMachineConfig {
 // Moonraker data (memory) store config
 // https://moonraker.readthedocs.io/en/latest/configuration/#data_store
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MoonrakerDataStoreConfig {
+pub struct MoonrakerDataStoreSettings {
     // The maximum number of temperature values to store for each sensor.
     // applies to the "target", "power", and "fan_speed"
     pub temperature_store_size: u32,
     pub gcode_store_size: u32,
 }
 
-impl Default for MoonrakerDataStoreConfig {
+impl Default for MoonrakerDataStoreSettings {
     fn default() -> Self {
         Self {
             temperature_store_size: 1200, // approx 20 minutes of data @ 1 value / second
@@ -115,7 +115,7 @@ impl Default for MoonrakerDataStoreConfig {
 // Moonraker job queue
 // https://moonraker.readthedocs.io/en/latest/configuration/#job_queue
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MoonrakerJobQueueConfig {
+pub struct MoonrakerJobQueueSettings {
     pub load_on_startup: bool,
     pub automatic_transition: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -124,7 +124,7 @@ pub struct MoonrakerJobQueueConfig {
     pub job_transition_gcode: Option<String>,
 }
 
-impl Default for MoonrakerJobQueueConfig {
+impl Default for MoonrakerJobQueueSettings {
     fn default() -> Self {
         Self {
             load_on_startup: false,
@@ -138,12 +138,12 @@ impl Default for MoonrakerJobQueueConfig {
 // Moonraker announcements
 // https://moonraker.readthedocs.io/en/latest/configuration/#announcements
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MoonrakerAnnouncementConfig {
+pub struct MoonrakerAnnouncementSettings {
     pub subscriptions: Vec<String>,
     pub dev_mode: bool,
 }
 
-impl Default for MoonrakerAnnouncementConfig {
+impl Default for MoonrakerAnnouncementSettings {
     fn default() -> Self {
         Self {
             subscriptions: vec![],
@@ -155,7 +155,7 @@ impl Default for MoonrakerAnnouncementConfig {
 // Moonraker webcam
 // https://moonraker.readthedocs.io/en/latest/configuration/#webcam
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MoonrakerWebcamConfig {
+pub struct MoonrakerWebcamSettings {
     pub location: String,
     pub service: String,
     pub target_fps: u32,
@@ -166,7 +166,7 @@ pub struct MoonrakerWebcamConfig {
     pub rotation: u32,
 }
 
-impl Default for MoonrakerWebcamConfig {
+impl Default for MoonrakerWebcamSettings {
     fn default() -> Self {
         Self {
             location: "printnanny".into(),
@@ -190,7 +190,7 @@ pub enum MoonrakerAuthorizationSource {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MoonrakerAuthorizationConfig {
+pub struct MoonrakerAuthorizationSettings {
     pub login_timeout: u32,
     pub trusted_clients: Vec<String>,
     pub cors_domains: Vec<String>,
@@ -221,7 +221,7 @@ pub struct MoonrakerOctoPrintCompat {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MoonrakerMqttConfig {
+pub struct MoonrakerMqttSettings {
     pub address: String,
     pub port: u16,
     pub username: String,
@@ -234,7 +234,7 @@ pub struct MoonrakerMqttConfig {
     pub api_qos: u8,
 }
 
-impl Default for MoonrakerMqttConfig {
+impl Default for MoonrakerMqttSettings {
     fn default() -> Self {
         let hostname = sys_info::hostname().unwrap_or_else(|_| "localhost".to_string());
 
@@ -260,44 +260,45 @@ pub struct MoonrakerMqttCredentials {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MoonrakerSecretsConfig {
+pub struct MoonrakerSecretsSettings {
     pub mqtt_credentials: MoonrakerMqttCredentials,
 }
 
+// based on: https://moonraker.readthedocs.io/en/latest/configuration/
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MoonrakerConfig {
+pub struct MoonrakerSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authorization: Option<MoonrakerAuthorizationSource>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ldap: Option<MoonrakerLDAP>,
-    pub secrets: Option<MoonrakerSecretsConfig>,
+    pub secrets: Option<MoonrakerSecretsSettings>,
     pub octoprint_compat: Option<MoonrakerOctoPrintCompat>,
-    pub announcements: MoonrakerAnnouncementConfig,
-    pub data_store: MoonrakerDataStoreConfig,
-    pub job_queue: MoonrakerJobQueueConfig,
-    pub file_manager: MoonrakerFileManagerConfig,
-    pub machine: MoonrakerMachineConfig,
-    pub server: MoonrakerServerConfig,
-    pub mqtt: MoonrakerMqttConfig,
-    pub webcam: HashMap<String, MoonrakerWebcamConfig>,
+    pub announcements: MoonrakerAnnouncementSettings,
+    pub data_store: MoonrakerDataStoreSettings,
+    pub job_queue: MoonrakerJobQueueSettings,
+    pub file_manager: MoonrakerFileManagerSettings,
+    pub machine: MoonrakerMachineSettings,
+    pub server: MoonrakerServerSettings,
+    pub mqtt: MoonrakerMqttSettings,
+    pub webcam: HashMap<String, MoonrakerWebcamSettings>,
 }
 
-impl Default for MoonrakerConfig {
+impl Default for MoonrakerSettings {
     fn default() -> Self {
         let mut webcam = HashMap::new();
-        webcam.insert("printnanny".into(), MoonrakerWebcamConfig::default());
+        webcam.insert("printnanny".into(), MoonrakerWebcamSettings::default());
         Self {
             authorization: None,
             ldap: None,
             octoprint_compat: None,
             secrets: None,
-            announcements: MoonrakerAnnouncementConfig::default(),
-            data_store: MoonrakerDataStoreConfig::default(),
-            job_queue: MoonrakerJobQueueConfig::default(),
-            file_manager: MoonrakerFileManagerConfig::default(),
-            machine: MoonrakerMachineConfig::default(),
-            server: MoonrakerServerConfig::default(),
-            mqtt: MoonrakerMqttConfig::default(),
+            announcements: MoonrakerAnnouncementSettings::default(),
+            data_store: MoonrakerDataStoreSettings::default(),
+            job_queue: MoonrakerJobQueueSettings::default(),
+            file_manager: MoonrakerFileManagerSettings::default(),
+            machine: MoonrakerMachineSettings::default(),
+            server: MoonrakerServerSettings::default(),
+            mqtt: MoonrakerMqttSettings::default(),
             webcam,
         }
     }
