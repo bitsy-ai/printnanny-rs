@@ -4,6 +4,9 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+pub const MOONRAKER_BASE_PATH: &str = "/var/lib/moonraker";
+pub const MOONRAKER_VENV_PATH: &str = "/var/lib/moonraker/venv";
+
 // Moonraker server config
 // https://moonraker.readthedocs.io/en/latest/configuration/#server
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -271,7 +274,6 @@ pub struct MoonrakerSettings {
     pub authorization: Option<MoonrakerAuthorizationSource>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ldap: Option<MoonrakerLDAP>,
-    pub enabled: bool,
     pub secrets: Option<MoonrakerSecretsSettings>,
     pub octoprint_compat: Option<MoonrakerOctoPrintCompat>,
     pub announcements: MoonrakerAnnouncementSettings,
@@ -293,7 +295,6 @@ impl Default for MoonrakerSettings {
             ldap: None,
             octoprint_compat: None,
             secrets: None,
-            enabled: false,
             announcements: MoonrakerAnnouncementSettings::default(),
             data_store: MoonrakerDataStoreSettings::default(),
             job_queue: MoonrakerJobQueueSettings::default(),
@@ -302,6 +303,27 @@ impl Default for MoonrakerSettings {
             server: MoonrakerServerSettings::default(),
             mqtt: MoonrakerMqttSettings::default(),
             webcam,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PrintNannyMoonrakerSettings {
+    pub enabled: bool,
+    pub install_path: PathBuf,
+    pub config_path: PathBuf,
+    pub venv_path: PathBuf,
+}
+
+impl Default for PrintNannyMoonrakerSettings {
+    fn default() -> Self {
+        let install_path: PathBuf = MOONRAKER_BASE_PATH.into();
+        let config_path = install_path.join("moonraker.conf");
+        Self {
+            config_path,
+            install_path,
+            enabled: false,
+            venv_path: MOONRAKER_VENV_PATH.into(),
         }
     }
 }

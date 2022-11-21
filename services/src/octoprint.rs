@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use super::error::PrintNannySettingsError;
 
 pub const OCTOPRINT_BASE_PATH: &str = "/var/lib/octoprint";
+pub const OCTOPRINT_VENV_PATH: &str = "/var/lib/octoprint/venv";
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PipPackage {
@@ -30,7 +31,7 @@ impl Default for OctoPrintSettings {
             config_path,
             install_path,
             enabled: true,
-            venv_path: "/var/lib/octoprint/venv".into(),
+            venv_path: OCTOPRINT_VENV_PATH.into(),
         }
     }
 }

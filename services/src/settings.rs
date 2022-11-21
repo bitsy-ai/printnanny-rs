@@ -14,6 +14,7 @@ use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
 use crate::error::ServiceError;
+use crate::moonraker::PrintNannyMoonrakerSettings;
 use crate::octoprint::OctoPrintSettings;
 
 use super::error::PrintNannySettingsError;
@@ -150,7 +151,7 @@ pub struct SystemdUnit {
 pub struct PrintNannySettings {
     pub paths: PrintNannyPaths,
     pub octoprint: OctoPrintSettings,
-    pub moonraker: MoonrakerSettings,
+    pub moonraker: PrintNannyMoonrakerSettings,
 }
 
 impl Default for PrintNannySettings {
