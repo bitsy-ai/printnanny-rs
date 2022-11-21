@@ -14,8 +14,9 @@ pub struct PipPackage {
     version: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OctoPrintSettings {
+    enabled: bool,
     install_path: PathBuf,
     venv_path: PathBuf,
 }
@@ -23,6 +24,7 @@ pub struct OctoPrintSettings {
 impl Default for OctoPrintSettings {
     fn default() -> Self {
         Self {
+            enabled: true,
             install_path: OCTOPRINT_BASE_PATH.into(),
             venv_path: "/var/lib/octoprint/venv".into(),
         }
@@ -56,7 +58,7 @@ impl OctoPrintSettings {
         Self::default()
     }
     pub fn python_path(&self) -> PathBuf {
-        return self.venv_path.join("bin/python");
+        self.venv_path.join("bin/python")
     }
 
     pub fn pip_version(&self) -> Result<Option<String>, PrintNannySettingsError> {

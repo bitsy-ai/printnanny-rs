@@ -41,7 +41,7 @@ pub enum PrintNannyCloudDataError {
 }
 
 impl PrintNannyCloudData {
-    pub fn new<'a>() -> Result<PrintNannyCloudData, PrintNannyCloudDataError> {
+    pub fn new() -> Result<PrintNannyCloudData, PrintNannyCloudDataError> {
         let settings = PrintNannySettings::new().unwrap();
         let result = Self::load(&settings.paths.state_file())?;
         Ok(result)

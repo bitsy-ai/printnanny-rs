@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 // Moonraker server config
 // https://moonraker.readthedocs.io/en/latest/configuration/#server
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MoonrakerServerConfig {
     // bind host address
     pub host: IpAddr,
@@ -33,7 +33,7 @@ impl Default for MoonrakerServerConfig {
 
 // Moonraker file manager config
 // https://moonraker.readthedocs.io/en/latest/configuration/#file_manager
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MoonrakerFileManagerConfig {
     // When set to True the file manager will add uploads to the job_queue when
     // the `start_print` flag has been set.  The default if False.
@@ -62,7 +62,7 @@ impl Default for MoonrakerFileManagerConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MoonrakerSystemServiceProvider {
     #[serde(rename = "systemd_debus")]
     SystemdDbus,
@@ -74,7 +74,7 @@ pub enum MoonrakerSystemServiceProvider {
 
 // Moonraker machine config
 // https://moonraker.readthedocs.io/en/latest/configuration/#machine
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MoonrakerMachineConfig {
     pub provider: MoonrakerSystemServiceProvider,
     pub validate_service: bool,
@@ -95,7 +95,7 @@ impl Default for MoonrakerMachineConfig {
 
 // Moonraker data (memory) store config
 // https://moonraker.readthedocs.io/en/latest/configuration/#data_store
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MoonrakerDataStoreConfig {
     // The maximum number of temperature values to store for each sensor.
     // applies to the "target", "power", and "fan_speed"
@@ -114,7 +114,7 @@ impl Default for MoonrakerDataStoreConfig {
 
 // Moonraker job queue
 // https://moonraker.readthedocs.io/en/latest/configuration/#job_queue
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MoonrakerJobQueueConfig {
     pub load_on_startup: bool,
     pub automatic_transition: bool,
@@ -137,7 +137,7 @@ impl Default for MoonrakerJobQueueConfig {
 
 // Moonraker announcements
 // https://moonraker.readthedocs.io/en/latest/configuration/#announcements
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MoonrakerAnnouncementConfig {
     pub subscriptions: Vec<String>,
     pub dev_mode: bool,
@@ -154,7 +154,7 @@ impl Default for MoonrakerAnnouncementConfig {
 
 // Moonraker webcam
 // https://moonraker.readthedocs.io/en/latest/configuration/#webcam
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MoonrakerWebcamConfig {
     pub location: String,
     pub service: String,
@@ -181,7 +181,7 @@ impl Default for MoonrakerWebcamConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MoonrakerAuthorizationSource {
     #[serde(rename = "moonraker")]
     Moonraker,
@@ -189,7 +189,7 @@ pub enum MoonrakerAuthorizationSource {
     Ldap,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MoonrakerAuthorizationConfig {
     pub login_timeout: u32,
     pub trusted_clients: Vec<String>,
@@ -198,7 +198,7 @@ pub struct MoonrakerAuthorizationConfig {
     pub default_source: MoonrakerAuthorizationSource,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MoonrakerLDAP {
     pub ldap_host: String,
     pub ldap_port: u16,
@@ -210,7 +210,7 @@ pub struct MoonrakerLDAP {
     pub user_filter: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MoonrakerOctoPrintCompat {
     pub enable_ufp: bool,
     pub flip_h: bool,
@@ -220,7 +220,7 @@ pub struct MoonrakerOctoPrintCompat {
     pub webcam_enabled: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MoonrakerMqttConfig {
     pub address: String,
     pub port: u16,
@@ -253,7 +253,7 @@ impl Default for MoonrakerMqttConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MoonrakerMqttCredentials {
     username: String,
     password: String,

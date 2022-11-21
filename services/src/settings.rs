@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use clap::{ArgEnum, PossibleValue};
@@ -67,7 +67,7 @@ pub enum ConfigFormat {
     Toml,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NatsConfig {
     pub uri: String,
     pub require_tls: bool,
@@ -112,7 +112,7 @@ impl std::str::FromStr for ConfigFormat {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrintNannyCloudProxy {
     pub hostname: String,
     pub base_path: String,
@@ -132,20 +132,20 @@ impl Default for PrintNannyCloudProxy {
     }
 }
 
-#[derive(Debug, Clone, clap::ValueEnum, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, clap::ValueEnum, Eq, Deserialize, Serialize, PartialEq)]
 pub enum VideoSrcType {
     File,
     Device,
     Uri,
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct SystemdUnit {
     unit: String,
     enabled: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PrintNannyServiceSettings {
     pub octoprint_enabled: bool,
     pub mainsail_enabled: bool,
@@ -164,7 +164,7 @@ impl Default for PrintNannyServiceSettings {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PrintNannySettings {
     pub paths: PrintNannyPaths,
     pub octoprint: OctoPrintSettings,
@@ -277,10 +277,7 @@ impl PrintNannySettings {
     }
 
     // load figment fragments from all *.toml and *.json files relative to base_dir
-    fn load_confd(
-        base_dir: &PathBuf,
-        figment: Figment,
-    ) -> Result<Figment, PrintNannySettingsError> {
+    fn load_confd(base_dir: &Path, figment: Figment) -> Result<Figment, PrintNannySettingsError> {
         let toml_glob = format!("{}/*.toml", &base_dir.display());
         let json_glob = format!("{}/*.json", &base_dir.display());
 

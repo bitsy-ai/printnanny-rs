@@ -1,5 +1,4 @@
 use printnanny_services::error::ServiceError;
-use printnanny_services::printnanny_api::ApiService;
 use printnanny_services::settings::{ConfigFormat, PrintNannySettings};
 use std::io::{self, Write};
 

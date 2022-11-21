@@ -58,7 +58,7 @@ impl ApiService {
 
         let reqwest = ReqwestConfig {
             base_path: state.api.base_path.to_string(),
-            bearer_access_token: state.api.bearer_access_token.clone(),
+            bearer_access_token: state.api.bearer_access_token,
             ..ReqwestConfig::default()
         };
         Ok(Self {
