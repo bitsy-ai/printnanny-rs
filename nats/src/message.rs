@@ -276,7 +276,7 @@ pub struct ConnectCloudAccountResponse {
 pub enum NatsRequest {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandRequest(SystemctlCommandRequest),
-    #[serde(rename = "pi.command.gst_pipeline_config")]
+    #[serde(rename = "pi.command.settings.gst_pipeline")]
     GstPipelineConfigRequest(GstPipelineConfigRequest),
     #[serde(rename = "pi.command.connect_cloud_account")]
     ConnectCloudAccountRequest(ConnectCloudAccountRequest),
@@ -287,7 +287,7 @@ pub enum NatsRequest {
 pub enum NatsResponse {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandResponse(SystemctlCommandResponse),
-    #[serde(rename = "pi.command.gst_pipeline_config")]
+    #[serde(rename = "pi.command.settings.gst_pipeline")]
     GstPipelineConfigResponse(GstPipelineConfigResponse),
     #[serde(rename = "pi.command.connect_cloud_account")]
     ConnectCloudAccountResponse(ConnectCloudAccountResponse),
