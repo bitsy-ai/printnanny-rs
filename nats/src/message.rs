@@ -13,7 +13,7 @@ use printnanny_services::figment;
 use printnanny_services::figment::providers::Format;
 use printnanny_services::settings::PrintNannySettings;
 
-use printnanny_gst_config::config::PrintNannyGstPipelineConfig;
+use printnanny_gst_config::config::PrintNannyGstPipelineSettings;
 use printnanny_services::systemd::{systemctl_list_enabled_units, systemctl_show_payload};
 
 pub trait MessageHandler<Request, Response>
@@ -106,19 +106,19 @@ impl ConnectCloudAccountRequest {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct GstPipelineConfigRequest {
+pub struct GstPipelineSettingsRequest {
     json: String, // json string, intended for use with Figment.rs JSON provider: https://docs.rs/figment/latest/figment/providers/struct.Json.html
     pre_save: Vec<SystemctlCommandRequest>, // run commands prior to applying config merge/save
     post_save: Vec<SystemctlCommandRequest>, // run commands after applying config merge/save
 }
 
-impl GstPipelineConfigRequest {
+impl GstPipelineSettingsRequest {
     // merge incoming "figment" (configurationf fragment) with existing configuration, sourced from .json/.toml serializable data structure and env variables prefixed with PRINTNANNY_
     fn _handle(&self) -> Result<(Vec<SystemctlCommandResponse>, Vec<SystemctlCommandResponse>)> {
         // build a config fragment from json string
         let incoming = figment::providers::Json::string(&self.json);
-        let figment = PrintNannyGstPipelineConfig::figment()?.merge(incoming);
-        let config: PrintNannyGstPipelineConfig = figment.extract()?;
+        let figment = PrintNannyGstPipelineSettings::figment()?.merge(incoming);
+        let config: PrintNannyGstPipelineSettings = figment.extract()?;
 
         // run pre-save command hooks
         info!("Running pre-save commands: {:?}", self.pre_save);
@@ -143,9 +143,9 @@ impl GstPipelineConfigRequest {
         Ok((pre_save, post_save))
     }
 
-    pub fn handle(&self) -> GstPipelineConfigResponse {
+    pub fn handle(&self) -> GstPipelineSettingsResponse {
         match self._handle() {
-            Ok((pre_save, post_save)) => GstPipelineConfigResponse {
+            Ok((pre_save, post_save)) => GstPipelineSettingsResponse {
                 pre_save,
                 post_save,
                 request: Some(self.clone()),
@@ -155,7 +155,7 @@ impl GstPipelineConfigRequest {
             Err(e) => {
                 let detail = format!("Error updating PrintNanny configuration: {:?}", e);
                 error!("{}", &detail);
-                GstPipelineConfigResponse {
+                GstPipelineSettingsResponse {
                     pre_save: vec![],
                     post_save: vec![],
                     request: Some(self.clone()),
@@ -256,8 +256,8 @@ pub struct SystemctlCommandResponse {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct GstPipelineConfigResponse {
-    request: Option<GstPipelineConfigRequest>,
+pub struct GstPipelineSettingsResponse {
+    request: Option<GstPipelineSettingsRequest>,
     status: ResponseStatus,
     detail: String,
     pre_save: Vec<SystemctlCommandResponse>,
@@ -276,10 +276,12 @@ pub struct ConnectCloudAccountResponse {
 pub enum NatsRequest {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandRequest(SystemctlCommandRequest),
-    #[serde(rename = "pi.command.settings.gst_pipeline")]
-    GstPipelineConfigRequest(GstPipelineConfigRequest),
     #[serde(rename = "pi.command.connect_cloud_account")]
     ConnectCloudAccountRequest(ConnectCloudAccountRequest),
+    #[serde(rename = "pi.command.settings.gst_pipeline")]
+    GstPipelineSettingsRequest(GstPipelineSettingsRequest),
+    #[serde(rename = "pi.command.settings.gst_pipeline")]
+    GstPipelineSettingsRequest(GstPipelineSettingsRequest),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -288,7 +290,7 @@ pub enum NatsResponse {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandResponse(SystemctlCommandResponse),
     #[serde(rename = "pi.command.settings.gst_pipeline")]
-    GstPipelineConfigResponse(GstPipelineConfigResponse),
+    GstPipelineSettingsResponse(GstPipelineSettingsResponse),
     #[serde(rename = "pi.command.connect_cloud_account")]
     ConnectCloudAccountResponse(ConnectCloudAccountResponse),
 }
@@ -301,8 +303,8 @@ impl MessageHandler<NatsRequest, NatsResponse> for NatsRequest {
             NatsRequest::SystemctlCommandRequest(request) => {
                 Ok(NatsResponse::SystemctlCommandResponse(request.handle()))
             }
-            NatsRequest::GstPipelineConfigRequest(request) => {
-                Ok(NatsResponse::GstPipelineConfigResponse(request.handle()))
+            NatsRequest::GstPipelineSettingsRequest(request) => {
+                Ok(NatsResponse::GstPipelineSettingsResponse(request.handle()))
             }
             NatsRequest::ConnectCloudAccountRequest(request) => {
                 Ok(NatsResponse::ConnectCloudAccountResponse(request.handle()))
@@ -338,7 +340,7 @@ mod tests {
 
             let request_json = r#"{ "video_src": "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4", "video_src_type": "Uri"}"#;
 
-            let request = GstPipelineConfigRequest {
+            let request = GstPipelineSettingsRequest {
                 json: request_json.into(),
                 pre_save: vec![],
                 post_save: vec![],
@@ -348,7 +350,7 @@ mod tests {
 
             assert_eq!(res.status, ResponseStatus::Ok);
 
-            let saved_config = PrintNannyGstPipelineConfig::new().unwrap();
+            let saved_config = PrintNannyGstPipelineSettings::new().unwrap();
             assert_eq!(saved_config.video_src, src);
             assert_eq!(saved_config.video_src_type, VideoSrcType::Uri);
             Ok(())
