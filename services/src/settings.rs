@@ -491,8 +491,6 @@ mod tests {
             jail.create_file(
                 PRINTNANNY_SETTINGS_FILENAME,
                 r#"
-                profile = "default"
-
                 [paths]
                 settings_dir = "/this/etc/path/gets/overridden"
                 "#,
@@ -513,8 +511,6 @@ mod tests {
             jail.create_file(
                 PRINTNANNY_SETTINGS_FILENAME,
                 r#"
-                profile = "default"
-
                 [paths]
                 settings_dir = "/opt/printnanny/"
                 state_dir = "/var/lib/custom"
@@ -539,7 +535,6 @@ mod tests {
             jail.create_file(
                 PRINTNANNY_SETTINGS_FILENAME,
                 r#"
-
                 [paths]
                 install = "/opt/printnanny/default"
                 data = "/opt/printnanny/default/data"
@@ -566,8 +561,6 @@ mod tests {
             jail.create_file(
                 "Local.toml",
                 r#"
-                profile = "local"
-
                 [paths]
                 settings_dir = ".tmp/"
                 
@@ -624,19 +617,26 @@ mod tests {
     #[test_log::test]
     fn test_find_value() {
         figment::Jail::expect_with(|jail| {
+            let output = jail.directory().to_str().unwrap();
+            let expected: Option<String> = Some(format!("{output}/printnanny.d"));
+
             jail.create_file(
                 "Local.toml",
-                r#"
-                profile = "local"
+                &format!(
+                    r#"
+                [paths]
+                settings_dir = "{output}/printnanny.d"
+                log_dir = "{output}/log"
+
                 [octoprint]
                 enabled = false
                 "#,
+                    output = &output
+                ),
             )?;
             jail.set_env("PRINTNANNY_SETTINGS", "Local.toml");
-            jail.set_env("PRINTNANNY_PATHS.confd", format!("{:?}", jail.directory()));
 
-            let expected: Option<String> = Some("false".into());
-            let value: Option<String> = PrintNannySettings::find_value("octoprint.enabled")
+            let value: Option<String> = PrintNannySettings::find_value("paths.settings_dir")
                 .unwrap()
                 .into_string();
             assert_eq!(value, expected);
@@ -650,10 +650,8 @@ mod tests {
             jail.create_file(
                 PRINTNANNY_SETTINGS_FILENAME,
                 r#"
-                profile = "local"
-                [api]
-                base_path = "http://aurora:8000"
-                
+                [octoprint]
+                enabled = false
                 "#,
             )?;
             jail.create_file(
