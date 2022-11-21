@@ -16,16 +16,20 @@ pub struct PipPackage {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OctoPrintSettings {
-    enabled: bool,
-    install_path: PathBuf,
-    venv_path: PathBuf,
+    pub enabled: bool,
+    pub install_path: PathBuf,
+    pub config_path: PathBuf,
+    pub venv_path: PathBuf,
 }
 
 impl Default for OctoPrintSettings {
     fn default() -> Self {
+        let install_path: PathBuf = OCTOPRINT_BASE_PATH.into();
+        let config_path = install_path.join("config.yaml");
         Self {
+            config_path,
+            install_path,
             enabled: true,
-            install_path: OCTOPRINT_BASE_PATH.into(),
             venv_path: "/var/lib/octoprint/venv".into(),
         }
     }

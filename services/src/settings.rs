@@ -495,14 +495,11 @@ mod tests {
 
                 [paths]
                 settings_dir = "/this/etc/path/gets/overridden"
-                
-                [api]
-                base_path = "https://print-nanny.com"
                 "#,
             )?;
             jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
             let expected = PathBuf::from("testing");
-            jail.set_env("PRINTNANNY_PATHS__CONFIG_DIR", &expected.display());
+            jail.set_env("PRINTNANNY_PATHS__SETTINGS_DIR", &expected.display());
             let figment = PrintNannySettings::figment().unwrap();
             let config: PrintNannySettings = figment.extract()?;
             assert_eq!(config.paths.settings_dir, expected);
@@ -547,36 +544,24 @@ mod tests {
                 install = "/opt/printnanny/default"
                 data = "/opt/printnanny/default/data"
 
-                
-                [cloud.api]
-                base_path = "https://print-nanny.com"
                 "#,
             )?;
             jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
-            let config = PrintNannySettings::new().unwrap();
+            let settings = PrintNannySettings::new().unwrap();
             assert_eq!(
-                state.api,
-                PrintNannyApiConfig {
-                    base_path: "https://print-nanny.com".into(),
-                    bearer_access_token: None,
-                }
+                settings.octoprint.enabled,
+                OctoPrintSettings::default().enabled,
             );
-            jail.set_env("PRINTNANNY_CLOUD__API.BEARER_ACCESS_TOKEN", "secret");
+            jail.set_env("PRINTNANNY_OCTOPRINT__ENABLED", "false");
             let figment = PrintNannySettings::figment().unwrap();
-            let config: PrintNannySettings = figment.extract()?;
-            assert_eq!(
-                state.api,
-                PrintNannyApiConfig {
-                    base_path: "https://print-nanny.com".into(),
-                    bearer_access_token: Some("secret".into()),
-                }
-            );
+            let settings: PrintNannySettings = figment.extract()?;
+            assert_eq!(settings.octoprint.enabled, false);
             Ok(())
         });
     }
 
     #[test_log::test]
-    fn test_custom_confd() {
+    fn test_custom_conf_values() {
         figment::Jail::expect_with(|jail| {
             jail.create_file(
                 "Local.toml",
@@ -586,32 +571,24 @@ mod tests {
                 [paths]
                 settings_dir = ".tmp/"
                 
-                [cloud.api]
-                base_path = "http://aurora:8000"
+                [octoprint]
+                enabled = false
                 "#,
             )?;
             jail.set_env("PRINTNANNY_SETTINGS", "Local.toml");
 
             let figment = PrintNannySettings::figment().unwrap();
-            let config: PrintNannySettings = figment.extract()?;
+            let settings: PrintNannySettings = figment.extract()?;
 
-            let base_path = "http://aurora:8000".into();
-            assert_eq!(config.paths.settings_dir, PathBuf::from(".tmp/"));
-            assert_eq!(state.api.base_path, base_path);
+            assert_eq!(settings.paths.settings_dir, PathBuf::from(".tmp/"));
+            assert_eq!(settings.octoprint.enabled, false);
 
-            assert_eq!(
-                state.api,
-                PrintNannyApiConfig {
-                    base_path: base_path,
-                    bearer_access_token: None,
-                }
-            );
             Ok(())
         });
     }
 
     #[test_log::test]
-    fn test_save_fragment() {
+    fn test_save() {
         figment::Jail::expect_with(|jail| {
             let output = jail.directory().to_str().unwrap();
             jail.create_file(
@@ -619,11 +596,12 @@ mod tests {
                 &format!(
                     r#"
                 profile = "local"
-                [cloud.api]
-                base_path = "http://aurora:8000"
 
                 [paths]
                 state_dir = "{}"
+
+                [octoprint]
+                enabled = false
                 "#,
                     output
                 ),
@@ -631,18 +609,14 @@ mod tests {
             jail.set_env("PRINTNANNY_SETTINGS", "Local.toml");
 
             let figment = PrintNannySettings::figment().unwrap();
-            let mut config: PrintNannySettings = figment.extract()?;
-            fs::create_dir(config.paths.lib_confd()).unwrap();
+            let mut settings: PrintNannySettings = figment.extract()?;
+            fs::create_dir(settings.paths.lib_confd()).unwrap();
 
-            let expected = PrintNannyApiConfig {
-                base_path: state.api.base_path,
-                bearer_access_token: Some("secret_token".to_string()),
-            };
-            state.api = expected.clone();
-            config.try_save().unwrap();
+            settings.octoprint.enabled = true;
+            settings.save();
             let figment = PrintNannySettings::figment().unwrap();
-            let new: PrintNannySettings = figment.extract()?;
-            assert_eq!(new.cloud.api, expected);
+            let settings: PrintNannySettings = figment.extract()?;
+            assert_eq!(settings.octoprint.enabled, true);
             Ok(())
         });
     }
@@ -654,15 +628,15 @@ mod tests {
                 "Local.toml",
                 r#"
                 profile = "local"
-                [cloud.api]
-                base_path = "http://aurora:8000"
+                [octoprint]
+                enabled = false
                 "#,
             )?;
             jail.set_env("PRINTNANNY_SETTINGS", "Local.toml");
             jail.set_env("PRINTNANNY_PATHS.confd", format!("{:?}", jail.directory()));
 
-            let expected: Option<String> = Some("http://aurora:8000".into());
-            let value: Option<String> = PrintNannySettings::find_value("cloud.api.base_path")
+            let expected: Option<String> = Some("false".into());
+            let value: Option<String> = PrintNannySettings::find_value("octoprint.enabled")
                 .unwrap()
                 .into_string();
             assert_eq!(value, expected);
