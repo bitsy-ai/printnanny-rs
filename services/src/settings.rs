@@ -13,15 +13,12 @@ use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
-use crate::error::ServiceError;
-use crate::moonraker::PrintNannyMoonrakerSettings;
-use crate::octoprint::OctoPrintSettings;
-
 use super::error::PrintNannySettingsError;
-use super::moonraker::MoonrakerSettings;
 use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS};
 use super::printnanny_api::ApiService;
 use super::state::PrintNannyCloudData;
+use crate::error::ServiceError;
+use crate::printer_mgmt;
 use printnanny_api_client::models;
 
 // FACTORY_RESET holds the struct field names of PrintNannyCloudConfig
@@ -150,15 +147,18 @@ pub struct SystemdUnit {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PrintNannySettings {
     pub paths: PrintNannyPaths,
-    pub octoprint: OctoPrintSettings,
-    pub moonraker: PrintNannyMoonrakerSettings,
+    pub octoprint: printer_mgmt::octoprint::OctoPrintSettings,
+    pub moonraker: printer_mgmt::moonraker::MoonrakerSettings,
+    pub mainsail: printer_mgmt::mainsail::MainsailSettings,
 }
 
 impl Default for PrintNannySettings {
     fn default() -> Self {
         Self {
             paths: PrintNannyPaths::default(),
-            octoprint: OctoPrintSettings::default(),
+            octoprint: printer_mgmt::octoprint::OctoPrintSettings::default(),
+            moonraker: printer_mgmt::moonraker::MoonrakerSettings::default(),
+            mainsail: printer_mgmt::mainsail::MainsailSettings::default(),
         }
     }
 }

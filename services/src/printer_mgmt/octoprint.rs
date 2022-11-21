@@ -4,7 +4,7 @@ use std::process::Command;
 
 use serde::{Deserialize, Serialize};
 
-use super::error::PrintNannySettingsError;
+use crate::error::PrintNannySettingsError;
 
 pub const OCTOPRINT_BASE_PATH: &str = "/var/lib/octoprint";
 pub const OCTOPRINT_VENV_PATH: &str = "/var/lib/octoprint/venv";

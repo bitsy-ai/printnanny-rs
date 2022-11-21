@@ -269,7 +269,7 @@ pub struct MoonrakerSecretsSettings {
 
 // based on: https://moonraker.readthedocs.io/en/latest/configuration/
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MoonrakerSettings {
+pub struct MoonrakerCfg {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authorization: Option<MoonrakerAuthorizationSource>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -286,7 +286,7 @@ pub struct MoonrakerSettings {
     pub webcam: HashMap<String, MoonrakerWebcamSettings>,
 }
 
-impl Default for MoonrakerSettings {
+impl Default for MoonrakerCfg {
     fn default() -> Self {
         let mut webcam = HashMap::new();
         webcam.insert("printnanny".into(), MoonrakerWebcamSettings::default());
@@ -308,14 +308,14 @@ impl Default for MoonrakerSettings {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PrintNannyMoonrakerSettings {
+pub struct MoonrakerSettings {
     pub enabled: bool,
     pub install_path: PathBuf,
     pub config_path: PathBuf,
     pub venv_path: PathBuf,
 }
 
-impl Default for PrintNannyMoonrakerSettings {
+impl Default for MoonrakerSettings {
     fn default() -> Self {
         let install_path: PathBuf = MOONRAKER_BASE_PATH.into();
         let config_path = install_path.join("moonraker.conf");

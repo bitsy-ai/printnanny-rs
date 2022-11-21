@@ -15,11 +15,11 @@ use printnanny_api_client::models;
 
 use crate::state::PrintNannyCloudData;
 
-use super::error::{PrintNannySettingsError, ServiceError};
-use super::file::open;
-use super::metadata;
-use super::octoprint::OctoPrintSettings;
-use super::settings::PrintNannySettings;
+use crate::error::{PrintNannySettingsError, ServiceError};
+use crate::file::open;
+use crate::metadata;
+use crate::printer_mgmt::octoprint::OctoPrintSettings;
+use crate::settings::PrintNannySettings;
 
 #[derive(Debug, Clone)]
 pub struct ApiService {
