@@ -147,15 +147,17 @@ pub struct SystemdUnit {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PrintNannySettings {
     pub paths: PrintNannyPaths,
-    pub octoprint: printer_mgmt::octoprint::OctoPrintSettings,
-    pub moonraker: printer_mgmt::moonraker::MoonrakerSettings,
+    pub klipper: printer_mgmt::klipper::KlipperSettings,
     pub mainsail: printer_mgmt::mainsail::MainsailSettings,
+    pub moonraker: printer_mgmt::moonraker::MoonrakerSettings,
+    pub octoprint: printer_mgmt::octoprint::OctoPrintSettings,
 }
 
 impl Default for PrintNannySettings {
     fn default() -> Self {
         Self {
             paths: PrintNannyPaths::default(),
+            klipper: printer_mgmt::klipper::KlipperSettings::default(),
             octoprint: printer_mgmt::octoprint::OctoPrintSettings::default(),
             moonraker: printer_mgmt::moonraker::MoonrakerSettings::default(),
             mainsail: printer_mgmt::mainsail::MainsailSettings::default(),
