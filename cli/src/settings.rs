@@ -1,5 +1,5 @@
 use printnanny_services::error::ServiceError;
-use printnanny_services::settings::{ConfigFormat, PrintNannySettings};
+use printnanny_services::settings::{PrintNannySettings, SettingsFormat};
 use std::io::{self, Write};
 
 pub struct SettingsCommand;
@@ -10,9 +10,9 @@ impl SettingsCommand {
         match sub_m.subcommand() {
             Some(("get", args)) => {
                 let key = args.value_of("key");
-                let f: ConfigFormat = args.value_of_t("format").unwrap();
+                let f: SettingsFormat = args.value_of_t("format").unwrap();
                 let v = match f {
-                    ConfigFormat::Json => match key {
+                    SettingsFormat::Json => match key {
                         Some(k) => {
                             let data = PrintNannySettings::find_value(k)?;
                             serde_json::to_vec_pretty(&data)?
@@ -22,7 +22,7 @@ impl SettingsCommand {
                             serde_json::to_vec_pretty(&data)?
                         }
                     },
-                    ConfigFormat::Toml => match key {
+                    SettingsFormat::Toml => match key {
                         Some(k) => {
                             let data = PrintNannySettings::find_value(k)?;
                             toml::ser::to_vec(&data)?
@@ -45,10 +45,10 @@ impl SettingsCommand {
                 config.try_save()?;
             }
             Some(("show", args)) => {
-                let f: ConfigFormat = args.value_of_t("format").unwrap();
+                let f: SettingsFormat = args.value_of_t("format").unwrap();
                 let v = match f {
-                    ConfigFormat::Json => serde_json::to_vec_pretty(&config)?,
-                    ConfigFormat::Toml => toml::ser::to_vec(&config)?,
+                    SettingsFormat::Json => serde_json::to_vec_pretty(&config)?,
+                    SettingsFormat::Toml => toml::ser::to_vec(&config)?,
                 };
                 io::stdout().write_all(&v)?;
             }

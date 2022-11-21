@@ -1,6 +1,6 @@
 use printnanny_services::error::ServiceError;
 use printnanny_services::printnanny_api::ApiService;
-use printnanny_services::settings::ConfigFormat;
+use printnanny_services::settings::SettingsFormat;
 use printnanny_services::state::PrintNannyCloudData;
 use std::io::{self, Write};
 
@@ -15,10 +15,10 @@ impl CloudDataCommand {
                 service.sync().await?;
             }
             Some(("show", args)) => {
-                let f: ConfigFormat = args.value_of_t("format").unwrap();
+                let f: SettingsFormat = args.value_of_t("format").unwrap();
                 let v = match f {
-                    ConfigFormat::Json => serde_json::to_vec_pretty(&config)?,
-                    ConfigFormat::Toml => toml::ser::to_vec(&config)?,
+                    SettingsFormat::Json => serde_json::to_vec_pretty(&config)?,
+                    SettingsFormat::Toml => toml::ser::to_vec(&config)?,
                 };
                 io::stdout().write_all(&v)?;
             }
