@@ -5,32 +5,31 @@ use file_lock::{FileLock, FileOptions};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::paths::PrintNannyPaths;
 use crate::settings::PrintNannySettings;
 
 use super::printnanny_api::PrintNannyApiConfig;
 use printnanny_api_client::models;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct PrintNannyAppData {
+pub struct PrintNannyCloudData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pi: Option<models::Pi>,
     pub api: PrintNannyApiConfig,
 }
 
-impl Default for PrintNannyAppData {
+impl Default for PrintNannyCloudData {
     fn default() -> Self {
         // default to unauthenticated api config, until api creds are unpacked from seed archive
         let api = PrintNannyApiConfig {
             base_path: "https://printnanny.ai".into(),
             bearer_access_token: None,
         };
-        PrintNannyAppData { api, pi: None }
+        PrintNannyCloudData { api, pi: None }
     }
 }
 
 #[derive(Error, Debug)]
-pub enum PrintNannyAppDataError {
+pub enum PrintNannyCloudDataError {
     #[error(transparent)]
     TomlSerError(#[from] toml::ser::Error),
     #[error(transparent)]
@@ -41,8 +40,8 @@ pub enum PrintNannyAppDataError {
     ReadIOError { path: String, error: std::io::Error },
 }
 
-impl PrintNannyAppData {
-    pub fn new<'a>() -> Result<PrintNannyAppData, PrintNannyAppDataError> {
+impl PrintNannyCloudData {
+    pub fn new<'a>() -> Result<PrintNannyCloudData, PrintNannyCloudDataError> {
         let settings = PrintNannySettings::new().unwrap();
         let result = Self::load(&settings.paths.state_file())?;
         Ok(result)
@@ -53,7 +52,7 @@ impl PrintNannyAppData {
         state_file: &Path,
         state_lock: &Path,
         is_blocking: bool,
-    ) -> Result<(), PrintNannyAppDataError> {
+    ) -> Result<(), PrintNannyCloudDataError> {
         let options = FileOptions::new().write(true).create(true).append(true);
         let mut filelock = match FileLock::lock(state_lock, is_blocking, options) {
             Ok(lock) => lock,
@@ -63,22 +62,22 @@ impl PrintNannyAppData {
 
         match filelock.file.write_all(&data) {
             Ok(()) => Ok(()),
-            Err(e) => Err(PrintNannyAppDataError::WriteIOError {
+            Err(e) => Err(PrintNannyCloudDataError::WriteIOError {
                 path: state_file.display().to_string(),
                 error: e,
             }),
         }
     }
 
-    pub fn load(state_file: &Path) -> Result<PrintNannyAppData, PrintNannyAppDataError> {
+    pub fn load(state_file: &Path) -> Result<PrintNannyCloudData, PrintNannyCloudDataError> {
         let state_str = match fs::read_to_string(state_file) {
             Ok(d) => Ok(d),
-            Err(e) => Err(PrintNannyAppDataError::ReadIOError {
+            Err(e) => Err(PrintNannyCloudDataError::ReadIOError {
                 path: state_file.display().to_string(),
                 error: e,
             }),
         }?;
-        let state: PrintNannyAppData = toml::de::from_str(&state_str)?;
+        let state: PrintNannyCloudData = toml::de::from_str(&state_str)?;
         Ok(state)
     }
 }

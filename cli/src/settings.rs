@@ -3,9 +3,9 @@ use printnanny_services::printnanny_api::ApiService;
 use printnanny_services::settings::{ConfigFormat, PrintNannySettings};
 use std::io::{self, Write};
 
-pub struct ConfigCommand;
+pub struct SettingsCommand;
 
-impl ConfigCommand {
+impl SettingsCommand {
     pub async fn handle(sub_m: &clap::ArgMatches) -> Result<(), ServiceError> {
         let config: PrintNannySettings = PrintNannySettings::new()?;
         match sub_m.subcommand() {
@@ -45,10 +45,6 @@ impl ConfigCommand {
                 let config: PrintNannySettings = figment.extract()?;
                 config.try_save()?;
             }
-            Some(("sync", _args)) => {
-                let mut service = ApiService::new()?;
-                service.sync().await?;
-            }
             Some(("show", args)) => {
                 let f: ConfigFormat = args.value_of_t("format").unwrap();
                 let v = match f {
@@ -57,7 +53,7 @@ impl ConfigCommand {
                 };
                 io::stdout().write_all(&v)?;
             }
-            _ => panic!("Expected get|set|sync|show subcommand"),
+            _ => panic!("Expected get|set|show subcommand"),
         };
         Ok(())
     }

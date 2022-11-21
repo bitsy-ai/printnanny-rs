@@ -6,7 +6,7 @@ use log::{debug, warn};
 use printnanny_api_client::models::{self, PolymorphicPiEventRequest};
 use printnanny_services::printnanny_api::ApiService;
 use printnanny_services::settings::PrintNannySettings;
-use printnanny_services::state::PrintNannyAppData;
+use printnanny_services::state::PrintNannyCloudData;
 use printnanny_services::swupdate::Swupdate;
 use std::collections::HashMap;
 use std::time::SystemTime;

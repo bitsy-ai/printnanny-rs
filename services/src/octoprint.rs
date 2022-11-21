@@ -2,7 +2,6 @@ use log::debug;
 use std::path::PathBuf;
 use std::process::Command;
 
-use printnanny_api_client::models;
 use serde::{Deserialize, Serialize};
 
 use super::error::PrintNannySettingsError;

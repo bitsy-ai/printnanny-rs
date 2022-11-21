@@ -6,7 +6,7 @@ use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::apis::Error as ApiError;
 
-use super::state::PrintNannyAppDataError;
+use super::state::PrintNannyCloudDataError;
 
 #[derive(Error, Debug)]
 pub enum PrintNannySettingsError {
@@ -80,7 +80,7 @@ pub enum PrintNannySettingsError {
     },
 
     #[error(transparent)]
-    PrintNannyAppDataError(#[from] PrintNannyAppDataError),
+    PrintNannyCloudDataError(#[from] PrintNannyCloudDataError),
 }
 
 #[derive(Error, Debug)]
@@ -149,7 +149,7 @@ pub enum ServiceError {
     PrintNannySettingsError(#[from] PrintNannySettingsError),
 
     #[error(transparent)]
-    PrintNannyAppDataError(#[from] PrintNannyAppDataError),
+    PrintNannyCloudDataError(#[from] PrintNannyCloudDataError),
 
     #[error("Setup incomplete, failed to read {field:?} {detail:?}")]
     SetupIncomplete {

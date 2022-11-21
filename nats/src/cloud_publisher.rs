@@ -11,7 +11,7 @@ use printnanny_api_client::models;
 use printnanny_api_client::models::polymorphic_octo_print_event_request::PolymorphicOctoPrintEventRequest;
 use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
 use printnanny_services::{
-    error::PrintNannySettingsError, settings::PrintNannySettings, state::PrintNannyAppData,
+    error::PrintNannySettingsError, settings::PrintNannySettings, state::PrintNannyCloudData,
 };
 use tokio::net::UnixStream;
 use tokio_util::codec::{FramedWrite, LengthDelimitedCodec};
@@ -25,7 +25,7 @@ use crate::subjects;
 pub struct CloudEventPublisher {
     args: ArgMatches,
     settings: PrintNannySettings,
-    state: PrintNannyAppData,
+    state: PrintNannyCloudData,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -39,7 +39,7 @@ impl CloudEventPublisher {
     // initialize CloudEventPublisher from clap::Command ArgMatches
     pub fn new(args: &ArgMatches) -> Result<Self, PrintNannySettingsError> {
         let settings = PrintNannySettings::new().unwrap();
-        let state = PrintNannyAppData::new()?;
+        let state = PrintNannyCloudData::new()?;
         settings.try_check_license()?;
         Ok(Self {
             args: args.clone(),
@@ -337,7 +337,7 @@ impl CloudEventPublisher {
             .state
             .pi
             .as_ref()
-            .expect("Failed to read PrintNannyAppData.pi")
+            .expect("Failed to read PrintNannyCloudData.pi")
             .id;
         let id = Some(Uuid::new_v4().to_string());
         let created_dt: DateTime<Utc> = SystemTime::now().into();

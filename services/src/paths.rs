@@ -51,7 +51,7 @@ impl Default for PrintNannyPaths {
 
 impl PrintNannyPaths {
     pub fn state_file(&self) -> PathBuf {
-        self.state_dir.join("PrintNannyAppData.toml")
+        self.state_dir.join("PrintNannyCloudData.toml")
     }
 
     // lock acquired when modifying persistent application data

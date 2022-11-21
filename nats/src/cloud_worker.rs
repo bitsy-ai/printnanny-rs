@@ -3,7 +3,7 @@ use bytes::Buf;
 use clap::{crate_authors, ArgMatches, Command};
 use futures::prelude::*;
 use log::{debug, error, info, warn};
-use printnanny_services::state::PrintNannyAppData;
+use printnanny_services::state::PrintNannyCloudData;
 use std::io::Read;
 use std::path::PathBuf;
 use tokio::net::{UnixListener, UnixStream};
@@ -238,7 +238,7 @@ impl NatsCloudWorker {
 
     pub async fn new(_args: &ArgMatches) -> Result<Self> {
         let config = PrintNannySettings::new()?;
-        let state = PrintNannyAppData::new()?;
+        let state = PrintNannyCloudData::new()?;
         // ensure pi, nats_app, nats_creds are provided
         config.try_check_license()?;
 

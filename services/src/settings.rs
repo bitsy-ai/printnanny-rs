@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::io::prelude::*;
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -9,7 +8,6 @@ use clap::{ArgEnum, PossibleValue};
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
-use file_lock::{FileLock, FileOptions};
 use glob::glob;
 use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
@@ -17,12 +15,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::ServiceError;
 use crate::octoprint::OctoPrintSettings;
-use crate::state;
 
 use super::error::PrintNannySettingsError;
 use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS};
 use super::printnanny_api::ApiService;
-use super::state::PrintNannyAppData;
+use super::state::PrintNannyCloudData;
 use printnanny_api_client::models;
 
 // FACTORY_RESET holds the struct field names of PrintNannyCloudConfig
@@ -207,7 +204,7 @@ impl PrintNannySettings {
         let state_file = self.paths.state_file();
         let state_lock = self.paths.state_lock();
 
-        let mut state = PrintNannyAppData::load(&state_file)?;
+        let mut state = PrintNannyCloudData::load(&state_file)?;
         state.api.base_path = base_path;
         state.api.bearer_access_token = Some(bearer_access_token);
 
@@ -217,7 +214,7 @@ impl PrintNannySettings {
 
         // sync data models
         api_service.sync().await?;
-        let mut state = PrintNannyAppData::load(&self.paths.state_file())?;
+        let mut state = PrintNannyCloudData::load(&self.paths.state_file())?;
         let pi_id = state.pi.unwrap().id;
         // download credential and device identity bundled in license.zip
         api_service.pi_download_license(pi_id).await?;
@@ -372,7 +369,7 @@ impl PrintNannySettings {
     }
 
     pub fn try_check_license(&self) -> Result<(), PrintNannySettingsError> {
-        let state = PrintNannyAppData::load(&self.paths.state_file())?;
+        let state = PrintNannyCloudData::load(&self.paths.state_file())?;
         match &state.pi {
             Some(_) => Ok(()),
             None => Err(PrintNannySettingsError::LicenseMissing {

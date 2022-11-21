@@ -13,7 +13,7 @@ use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::models;
 
-use crate::state::PrintNannyAppData;
+use crate::state::PrintNannyCloudData;
 
 use super::error::{PrintNannySettingsError, ServiceError};
 use super::file::open;
@@ -52,7 +52,7 @@ impl ApiService {
     // args >> api_config.json >> anonymous api usage only
     pub fn new() -> Result<ApiService, ServiceError> {
         let settings = PrintNannySettings::new()?;
-        let state = PrintNannyAppData::load(&settings.paths.state_file())?;
+        let state = PrintNannyCloudData::load(&settings.paths.state_file())?;
 
         debug!("Initializing ApiService from settings: {:?}", settings);
 
@@ -116,7 +116,7 @@ impl ApiService {
     // performs any necessary one-time setup tasks
     pub async fn sync(&mut self) -> Result<(), ServiceError> {
         // verify pi is authenticated
-        let mut state = PrintNannyAppData::load(&self.settings.paths.state_file())?;
+        let mut state = PrintNannyCloudData::load(&self.settings.paths.state_file())?;
 
         match &state.pi {
             Some(pi) => {
