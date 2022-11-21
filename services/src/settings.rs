@@ -13,13 +13,12 @@ use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
-use crate::error::ServiceError;
-use crate::octoprint::OctoPrintSettings;
-
 use super::error::PrintNannySettingsError;
 use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS};
 use super::printnanny_api::ApiService;
 use super::state::PrintNannyCloudData;
+use crate::error::ServiceError;
+use crate::printer_mgmt;
 use printnanny_api_client::models;
 
 // FACTORY_RESET holds the struct field names of PrintNannyCloudConfig
@@ -146,35 +145,22 @@ pub struct SystemdUnit {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct PrintNannyServiceSettings {
-    pub octoprint_enabled: bool,
-    pub mainsail_enabled: bool,
-    pub moonraker_enabled: bool,
-    pub klipper_enabled: bool,
-}
-
-impl Default for PrintNannyServiceSettings {
-    fn default() -> Self {
-        Self {
-            octoprint_enabled: true,
-            mainsail_enabled: false,
-            moonraker_enabled: false,
-            klipper_enabled: false,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PrintNannySettings {
     pub paths: PrintNannyPaths,
-    pub octoprint: OctoPrintSettings,
+    pub klipper: printer_mgmt::klipper::KlipperSettings,
+    pub mainsail: printer_mgmt::mainsail::MainsailSettings,
+    pub moonraker: printer_mgmt::moonraker::MoonrakerSettings,
+    pub octoprint: printer_mgmt::octoprint::OctoPrintSettings,
 }
 
 impl Default for PrintNannySettings {
     fn default() -> Self {
         Self {
             paths: PrintNannyPaths::default(),
-            octoprint: OctoPrintSettings::default(),
+            klipper: printer_mgmt::klipper::KlipperSettings::default(),
+            octoprint: printer_mgmt::octoprint::OctoPrintSettings::default(),
+            moonraker: printer_mgmt::moonraker::MoonrakerSettings::default(),
+            mainsail: printer_mgmt::mainsail::MainsailSettings::default(),
         }
     }
 }
@@ -545,7 +531,7 @@ mod tests {
             let settings = PrintNannySettings::new().unwrap();
             assert_eq!(
                 settings.octoprint.enabled,
-                OctoPrintSettings::default().enabled,
+                printer_mgmt::octoprint::OctoPrintSettings::default().enabled,
             );
             jail.set_env("PRINTNANNY_OCTOPRINT__ENABLED", "false");
             let figment = PrintNannySettings::figment().unwrap();
