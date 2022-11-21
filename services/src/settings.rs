@@ -531,7 +531,7 @@ mod tests {
             let settings = PrintNannySettings::new().unwrap();
             assert_eq!(
                 settings.octoprint.enabled,
-                OctoPrintSettings::default().enabled,
+                printer_mgmt::octoprint::OctoPrintSettings::default().enabled,
             );
             jail.set_env("PRINTNANNY_OCTOPRINT__ENABLED", "false");
             let figment = PrintNannySettings::figment().unwrap();
