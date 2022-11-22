@@ -17,7 +17,7 @@ use treediff::diff;
 use treediff::tools::Recorder;
 
 use super::error::PrintNannySettingsError;
-use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS};
+use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
 use super::printnanny_api::ApiService;
 use super::state::PrintNannyCloudData;
 use crate::error::ServiceError;
@@ -63,18 +63,16 @@ lazy_static! {
     };
 }
 
-trait Settings {
+pub trait Settings {
     type SettingsModel: Serialize;
-    fn diff<'a>(
-        json1: &SerdeJsonValue,
-        json2: &SerdeJsonValue,
-    ) -> Recorder<'a, treediff::Key, SerdeJsonValue> {
-        let mut d = Recorder::default();
-        diff(json1, json2, &mut d);
-    }
+
+    fn git_diff(&self) -> Result<String>;
+    fn git_revert(&self) -> Result<String>;
+    fn git_commit(&self) -> Result<String>;
+
     fn pre_save(&self) -> Result<()>;
     fn post_save(&self) -> Result<()>;
-    fn rollback(&self) -> Result<()>;
+    fn save(&self) -> Result<()>;
     fn validate(&self) -> bool;
 }
 
@@ -301,34 +299,27 @@ impl PrintNannySettings {
         let result = Figment::from(Self { ..Self::default() })
             .merge(Toml::file(Env::var_or(
                 "PRINTNANNY_SETTINGS",
-                DEFAULT_PRINTNANNY_SETTINGS,
+                DEFAULT_PRINTNANNY_SETTINGS_FILE,
             )))
             // allow nested environment variables:
             // PRINTNANNY_KEY__SUBKEY
             .merge(Env::prefixed("PRINTNANNY_").split("__"));
 
         // extract paths, to load application state conf.d fragments
-        let lib_config_path: String = result
+        let lib_settings_file: String = result
             .find_value("paths.state_dir")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
         let paths = PrintNannyPaths {
-            state_dir: PathBuf::from(lib_config_path),
+            state_dir: PathBuf::from(lib_settings_file),
             ..PrintNannyPaths::default()
         };
 
         // merge application state
         let result = Self::load_confd(&paths.lib_confd(), result)?;
-
-        // extract paths, to load user-supplied conf.d fragments
-        let user_config_path: String = result
-            .find_value("paths.settings_dir")
-            .unwrap()
-            .deserialize::<String>()
-            .unwrap();
         let paths = PrintNannyPaths {
-            settings_dir: PathBuf::from(user_config_path),
+            settings_dir: PathBuf::from(user_settings_file),
             ..PrintNannyPaths::default()
         };
 
@@ -341,7 +332,7 @@ impl PrintNannySettings {
         let result = result
             .merge(Toml::file(Env::var_or(
                 "PRINTNANNY_SETTINGS",
-                DEFAULT_PRINTNANNY_SETTINGS,
+                DEFAULT_PRINTNANNY_SETTINGS_FILE,
             )))
             // allow nested environment variables:
             // PRINTNANNY_KEY__SUBKEY

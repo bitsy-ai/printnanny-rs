@@ -4,8 +4,9 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-pub const MOONRAKER_BASE_PATH: &str = "/var/lib/moonraker";
-pub const MOONRAKER_VENV_PATH: &str = "/var/lib/moonraker/venv";
+pub const MOONRAKER_INSTALL_DIR: &str = "/var/lib/moonraker";
+pub const MOONRAKER_VENV: &str = "/var/lib/moonraker/venv";
+pub const MOONRAKER_SETTINGS_FILE: &str = "/var/lib/printnanny/settings/moonraker/moonraker.conf";
 
 // Moonraker server config
 // https://moonraker.readthedocs.io/en/latest/configuration/#server
@@ -310,20 +311,20 @@ impl Default for MoonrakerCfg {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MoonrakerSettings {
     pub enabled: bool,
-    pub install_path: PathBuf,
-    pub config_path: PathBuf,
-    pub venv_path: PathBuf,
+    pub install_dir: PathBuf,
+    pub settings_file: PathBuf,
+    pub venv: PathBuf,
 }
 
 impl Default for MoonrakerSettings {
     fn default() -> Self {
-        let install_path: PathBuf = MOONRAKER_BASE_PATH.into();
-        let config_path = install_path.join("moonraker.conf");
+        let install_dir: PathBuf = MOONRAKER_INSTALL_DIR.into();
+        let settings_file = MOONRAKER_SETTINGS_FILE.into();
         Self {
-            config_path,
-            install_path,
+            settings_file,
+            install_dir,
             enabled: false,
-            venv_path: MOONRAKER_VENV_PATH.into(),
+            venv: MOONRAKER_VENV.into(),
         }
     }
 }

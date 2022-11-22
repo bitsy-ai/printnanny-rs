@@ -13,12 +13,14 @@ use super::error::PrintNannySettingsError;
 use super::os_release::OsRelease;
 
 pub const PRINTNANNY_SETTINGS_FILENAME: &str = "default.toml";
-pub const DEFAULT_PRINTNANNY_SETTINGS: &str = "/var/lib/printnanny/PrintNannySettings.toml";
+pub const DEFAULT_PRINTNANNY_SETTINGS_DIR: &str = "/var/lib/printnanny/settings/";
+pub const DEFAULT_PRINTNANNY_SETTINGS_FILE: &str =
+    "/var/lib/printnanny/settings/printnanny/PrintNannySettings.toml";
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
 pub struct PrintNannyPaths {
     pub state_dir: PathBuf,    // application state
-    pub settings_dir: PathBuf, // user-supplied config
+    pub settings_dir: PathBuf, // local git repo used to commit/revert changes to user-supplied config
     pub log_dir: PathBuf,      // application log dir
     pub run_dir: PathBuf,      // application runtime dir
 
@@ -28,8 +30,7 @@ pub struct PrintNannyPaths {
 
 impl Default for PrintNannyPaths {
     fn default() -> Self {
-        // /etc is mounted as a read-only overlay fs. User configurations are stored here, and are preserved between upgrades.
-        let settings_dir: PathBuf = "/etc/printnanny.d".into();
+        let settings_dir: PathBuf = DEFAULT_PRINTNANNY_SETTINGS_DIR.into();
         // /var/run/ is a temporary runtime directory, cleared after each boot
         let run_dir: PathBuf = "/var/run/printnanny".into();
         // /var/lib is a persistent state directory, mounted as a r/w overlay fs. Application state is stored here and is preserved between upgrades.

@@ -48,7 +48,6 @@ tokio = { version = "1.21", features = ["full", "rt-multi-thread", "rt"] }
 tokio-util = { version="0.7", features = ["codec"] }
 tokio-serde = { version="0.8", features = ["json"] }
 toml = "0.5"
-treediff = { version = "4.0.2", features = ["with-serde-json"] }  # Find the difference between arbitrary data structures
 warp = "0.3"
 zip = { version = "0.6.2", default-features = false }
 

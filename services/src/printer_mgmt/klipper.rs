@@ -1,27 +1,29 @@
 use std::path::PathBuf;
 
-use super::moonraker::MOONRAKER_VENV_PATH;
+use super::moonraker::MOONRAKER_VENV;
 use serde::{Deserialize, Serialize};
 
-pub const KLIPPER_BASE_PATH: &str = "/var/lib/klipper";
+pub const KLIPPER_INSTALL_DIR: &str = "/var/lib/klipper";
+// /var/lib/printnanny/settings contains a local git repo used to commit/revert changes to settings
+pub const KLIPPER_SETTINGS_FILE: &str = "/var/lib/printnanny/settings/klipper/printer.cfg";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KlipperSettings {
     pub enabled: bool,
-    pub install_path: PathBuf,
-    pub config_path: PathBuf,
-    pub venv_path: PathBuf,
+    pub install_dir: PathBuf,
+    pub settings_file: PathBuf,
+    pub venv: PathBuf,
 }
 
 impl Default for KlipperSettings {
     fn default() -> Self {
-        let install_path: PathBuf = KLIPPER_BASE_PATH.into();
-        let config_path = install_path.join("printer.cfg");
+        let install_dir: PathBuf = KLIPPER_INSTALL_DIR.into();
+        let settings_file = KLIPPER_SETTINGS_FILE.into();
         Self {
-            config_path,
-            install_path,
+            settings_file,
+            install_dir,
             enabled: false,
-            venv_path: MOONRAKER_VENV_PATH.into(), // klipper shares moonraker virtual environment
+            venv: MOONRAKER_VENV.into(), // klipper shares moonraker virtual environment
         }
     }
 }
