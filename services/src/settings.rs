@@ -13,8 +13,6 @@ use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as SerdeJsonValue;
-use treediff::diff;
-use treediff::tools::Recorder;
 
 use super::error::PrintNannySettingsError;
 use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
@@ -62,44 +60,6 @@ lazy_static! {
         );
         m
     };
-}
-
-pub trait VersionControlledSettings {
-    type SettingsModel: Serialize;
-    fn get_git_repo(&self) -> Result<Repository, git2::Error> {
-        let settings = PrintNannySettings::new().unwrap();
-        Repository::open(self.settings.paths.settings_dir)
-    }
-    fn get_git_diff_options(&self) -> DiffOptions {
-        DiffOptions::new()
-            .force_text(true)
-            .old_prefix("old")
-            .new_prefix("new")
-    }
-    fn git_diff(&self, repo: &Path) -> Result<String, git2::Error> {
-        let repo = self.get_git_repo()?;
-        let diffopts = self.get_git_diff_options();
-        let mut lines: Vec<String> = vec![];
-        repo.diff_index_to_workdir(None, diffopts)
-            .print(DiffFormat::Patch, |_delta, _hunk, line| {
-                lines.push(str::from_utf8(line.content()).unwrap())
-            });
-        Ok(lines.join("\n"))
-    }
-    fn write_settings(&self, content: &str) -> Result<(), IoError> {
-        let output = self.get_settings_file()?;
-        fs::write(output, content)
-    }
-    fn git_commit(&self) -> Result<String>;
-
-    fn get_settings_format(&self) -> SettingsFormat;
-    fn get_settings_file(&self) -> PathBuf;
-
-    fn git_revert(&self) -> Result<String>;
-
-    fn pre_save(&self) -> Result<()>;
-    fn post_save(&self) -> Result<()>;
-    fn validate(&self) -> bool;
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum, Deserialize, Serialize)]

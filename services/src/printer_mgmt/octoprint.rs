@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::PrintNannySettingsError;
 use crate::settings::{PrintNannySettings, SettingsFormat, VersionControlledSettings};
+use crate::vcs::VersionControlledSettingsError;
 
 pub const OCTOPRINT_INSTALL_DIR: &str = "/var/lib/octoprint";
 pub const OCTOPRINT_VENV: &str = "/var/lib/octoprint/venv";
@@ -33,6 +34,20 @@ impl VersionControlledSettings for OctoPrintSettings {
     }
     fn get_settings_file(&self) -> PathBuf {
         self.settings_file
+    }
+
+    fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {
+        debug!("Running OctoPrintSettings pre_save hook");
+        Ok(())
+    }
+
+    fn post_save(&self) -> Result<(), VersionControlledSettingsError> {
+        debug!("Running OctoPrintSettings post_save hook");
+        Ok(())
+    }
+    fn validate(&self) -> Result<(), VersionControlledSettingsError> {
+        debug!("Running OctoPrintSettings validate hook");
+        Ok(())
     }
 }
 
