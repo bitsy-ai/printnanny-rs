@@ -78,10 +78,16 @@ trait Settings {
     fn validate(&self) -> bool;
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
-pub enum ConfigFormat {
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum, Deserialize, Serialize)]
+pub enum SettingsFormat {
+    #[serde(rename = "ini")]
+    Ini,
+    #[serde(rename = "json")]
     Json,
+    #[serde(rename = "toml")]
     Toml,
+    #[serde(rename = "yaml")]
+    Yaml,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -99,15 +105,15 @@ impl Default for NatsConfig {
     }
 }
 
-impl ConfigFormat {
+impl SettingsFormat {
     pub fn possible_values() -> impl Iterator<Item = PossibleValue<'static>> {
-        ConfigFormat::value_variants()
+        SettingsFormat::value_variants()
             .iter()
             .filter_map(ArgEnum::to_possible_value)
     }
 }
 
-impl std::fmt::Display for ConfigFormat {
+impl std::fmt::Display for SettingsFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.to_possible_value()
             .expect("no values are skipped")
@@ -116,7 +122,7 @@ impl std::fmt::Display for ConfigFormat {
     }
 }
 
-impl std::str::FromStr for ConfigFormat {
+impl std::str::FromStr for SettingsFormat {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -428,11 +434,11 @@ impl PrintNannySettings {
     pub fn try_init(
         &self,
         filename: &str,
-        format: &ConfigFormat,
+        format: &SettingsFormat,
     ) -> Result<(), PrintNannySettingsError> {
         let content: String = match format {
-            ConfigFormat::Json => serde_json::to_string_pretty(self)?,
-            ConfigFormat::Toml => toml::ser::to_string_pretty(self)?,
+            SettingsFormat::Json => serde_json::to_string_pretty(self)?,
+            SettingsFormat::Toml => toml::ser::to_string_pretty(self)?,
         };
         fs::write(&filename, content)?;
         Ok(())
