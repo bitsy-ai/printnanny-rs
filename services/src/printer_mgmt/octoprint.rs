@@ -1,13 +1,17 @@
-use log::debug;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use git2::{DiffFormat, Repository};
+use log::debug;
 use serde::{Deserialize, Serialize};
 
 use crate::error::PrintNannySettingsError;
+use crate::settings::{PrintNannySettings, SettingsFormat};
+use crate::vcs::{VersionControlledSettings, VersionControlledSettingsError};
 
-pub const OCTOPRINT_BASE_PATH: &str = "/var/lib/octoprint";
-pub const OCTOPRINT_VENV_PATH: &str = "/var/lib/octoprint/venv";
+pub const OCTOPRINT_INSTALL_DIR: &str = "/var/lib/octoprint";
+pub const OCTOPRINT_VENV: &str = "/var/lib/octoprint/venv";
+pub const OCTOPRINT_SETTINGS_FILE: &str = "/var/lib/printnanny/settings/octoprint/config.yaml";
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PipPackage {
@@ -18,20 +22,46 @@ pub struct PipPackage {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OctoPrintSettings {
     pub enabled: bool,
-    pub install_path: PathBuf,
-    pub config_path: PathBuf,
-    pub venv_path: PathBuf,
+    pub install_dir: PathBuf,
+    pub settings_file: PathBuf,
+    pub settings_format: SettingsFormat,
+    pub venv: PathBuf,
+}
+
+impl VersionControlledSettings for OctoPrintSettings {
+    type SettingsModel = OctoPrintSettings;
+    fn get_settings_format(&self) -> SettingsFormat {
+        self.settings_format
+    }
+    fn get_settings_file(&self) -> &Path {
+        &self.settings_file
+    }
+
+    fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {
+        debug!("Running OctoPrintSettings pre_save hook");
+        Ok(())
+    }
+
+    fn post_save(&self) -> Result<(), VersionControlledSettingsError> {
+        debug!("Running OctoPrintSettings post_save hook");
+        Ok(())
+    }
+    fn validate(&self) -> Result<(), VersionControlledSettingsError> {
+        debug!("Running OctoPrintSettings validate hook");
+        Ok(())
+    }
 }
 
 impl Default for OctoPrintSettings {
     fn default() -> Self {
-        let install_path: PathBuf = OCTOPRINT_BASE_PATH.into();
-        let config_path = install_path.join("config.yaml");
+        let install_dir: PathBuf = OCTOPRINT_INSTALL_DIR.into();
+        let settings_file = OCTOPRINT_SETTINGS_FILE.into();
         Self {
-            config_path,
-            install_path,
+            settings_file,
+            install_dir,
             enabled: true,
-            venv_path: OCTOPRINT_VENV_PATH.into(),
+            venv: OCTOPRINT_VENV.into(),
+            settings_format: SettingsFormat::Yaml,
         }
     }
 }
@@ -63,7 +93,7 @@ impl OctoPrintSettings {
         Self::default()
     }
     pub fn python_path(&self) -> PathBuf {
-        self.venv_path.join("bin/python")
+        self.venv.join("bin/python")
     }
 
     pub fn pip_version(&self) -> Result<Option<String>, PrintNannySettingsError> {
@@ -122,7 +152,10 @@ impl OctoPrintSettings {
                 Ok(result)
             }
             false => {
-                let cmd = format!("{:?} -m pip list --format json", &python_path);
+                let cmd = format!(
+                    "{:?} -m pip list --include-editable --format json",
+                    &python_path
+                );
                 let code = output.status.code();
                 let stderr = String::from_utf8_lossy(&output.stderr).into();
                 let stdout = stdout.into();

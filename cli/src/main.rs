@@ -12,7 +12,7 @@ use git_version::git_version;
 use printnanny_nats::message::{NatsResponse, NatsRequest};
 use printnanny_nats::cloud_worker::DEFAULT_NATS_CLOUD_APP_NAME;
 use printnanny_nats::subscriber::{ NatsSubscriber, DEFAULT_NATS_EDGE_APP_NAME};
-use printnanny_services::settings::ConfigFormat;
+use printnanny_services::settings::SettingsFormat;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_cli::settings::{SettingsCommand};
 use printnanny_cli::cloud_data::CloudDataCommand;
@@ -81,7 +81,7 @@ async fn main() -> Result<()> {
                     .short('f')
                     .long("format")
                     .takes_value(true)
-                    .possible_values(ConfigFormat::possible_values())
+                    .possible_values(SettingsFormat::possible_values())
                     .default_value("json")
                     .help("Output format")
                 )            
@@ -95,7 +95,7 @@ async fn main() -> Result<()> {
                     .short('f')
                     .long("format")
                     .takes_value(true)
-                    .possible_values(ConfigFormat::possible_values())
+                    .possible_values(SettingsFormat::possible_values())
                     .default_value("json")
                     .help("Output format")
                 )            
@@ -120,7 +120,7 @@ async fn main() -> Result<()> {
                     .short('f')
                     .long("format")
                     .takes_value(true)
-                    .possible_values(ConfigFormat::possible_values())
+                    .possible_values(SettingsFormat::possible_values())
                     .default_value("json")
                     .help("Output format")
                 )
@@ -136,7 +136,7 @@ async fn main() -> Result<()> {
                     .short('f')
                     .long("format")
                     .takes_value(true)
-                    .possible_values(ConfigFormat::possible_values())
+                    .possible_values(SettingsFormat::possible_values())
                     .default_value("json")
                     .help("Output format")
                 )
@@ -150,7 +150,7 @@ async fn main() -> Result<()> {
                     .short('f')
                     .long("format")
                     .takes_value(true)
-                    .possible_values(ConfigFormat::possible_values())
+                    .possible_values(SettingsFormat::possible_values())
                     .default_value("json")
                     .help("Output format")
                 )            
@@ -183,7 +183,7 @@ async fn main() -> Result<()> {
                     .short('f')
                     .long("format")
                     .takes_value(true)
-                    .possible_values(ConfigFormat::possible_values())
+                    .possible_values(SettingsFormat::possible_values())
                     .default_value("json")
                     .help("Output format")
                 )

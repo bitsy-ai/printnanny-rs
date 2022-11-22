@@ -240,7 +240,7 @@ impl NatsCloudWorker {
         let config = PrintNannySettings::new()?;
         let state = PrintNannyCloudData::new()?;
         // ensure pi, nats_app, nats_creds are provided
-        config.try_check_license()?;
+        state.try_check_cloud_data()?;
 
         // try_check_license guards the following properties set, so it's safe to unwrap here
         let pi = state.pi.unwrap();

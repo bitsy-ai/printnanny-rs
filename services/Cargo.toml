@@ -22,8 +22,9 @@ config = "0.11"
 console = "0.14"
 dialoguer = "0.8"
 file-lock = "2.1.4"
-figment = { version = "0.10", features = ["env", "json", "toml"] }
+figment = { version = "0.10", features = ["env", "json", "toml", "yaml"] }
 futures = "0.3"
+git2 = "0.15.0"                 # Bindings to libgit2 for interoperating with git repositories.
 glob = "0.3.0"
 hex = "0.4"
 http = "0.2.5"
@@ -41,12 +42,12 @@ sha2 = "0.9.8"
 sys-info = "0.9"
 rand = "0.8"
 reqwest = "0.11"
+sysinfo = "0.26.2"
 tempfile = "3.3.0"
 thiserror = "1"
 tokio = { version = "1.21", features = ["full", "rt-multi-thread", "rt"] }
 tokio-util = { version="0.7", features = ["codec"] }
 tokio-serde = { version="0.8", features = ["json"] }
-sysinfo = "0.26.2"
 toml = "0.5"
 warp = "0.3"
 zip = { version = "0.6.2", default-features = false }

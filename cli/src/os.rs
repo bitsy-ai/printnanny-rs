@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use clap::ArgMatches;
 use log::error;
-use printnanny_services::settings::{ConfigFormat, PrintNannySettings};
+use printnanny_services::settings::{PrintNannySettings, SettingsFormat};
 use std::fs;
 
 use printnanny_services::metadata;
@@ -48,10 +48,11 @@ fn handle_motd() -> Result<()> {
 
 fn handle_system_info(args: &ArgMatches) -> Result<()> {
     let system_info = metadata::system_info()?;
-    let format = args.value_of_t::<ConfigFormat>("format")?;
+    let format = args.value_of_t::<SettingsFormat>("format")?;
     let output = match format {
-        ConfigFormat::Json => serde_json::to_string(&system_info)?,
-        ConfigFormat::Toml => toml::ser::to_string(&system_info)?,
+        SettingsFormat::Json => serde_json::to_string(&system_info)?,
+        SettingsFormat::Toml => toml::ser::to_string(&system_info)?,
+        SettingsFormat::Ini | SettingsFormat::Yaml => todo!(),
     };
     print!("{}", &output);
     Ok(())

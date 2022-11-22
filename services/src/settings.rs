@@ -3,20 +3,21 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
 use clap::{ArgEnum, PossibleValue};
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
+use git2::{DiffFormat, DiffOptions, Repository};
 use glob::glob;
 use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
 use super::error::PrintNannySettingsError;
-use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS};
+use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
 use super::printnanny_api::ApiService;
 use super::state::PrintNannyCloudData;
+use crate::error::IoError;
 use crate::error::ServiceError;
 use crate::printer_mgmt;
 use printnanny_api_client::models;
@@ -60,10 +61,16 @@ lazy_static! {
     };
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
-pub enum ConfigFormat {
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ArgEnum, Deserialize, Serialize)]
+pub enum SettingsFormat {
+    #[serde(rename = "ini")]
+    Ini,
+    #[serde(rename = "json")]
     Json,
+    #[serde(rename = "toml")]
     Toml,
+    #[serde(rename = "yaml")]
+    Yaml,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -81,15 +88,15 @@ impl Default for NatsConfig {
     }
 }
 
-impl ConfigFormat {
+impl SettingsFormat {
     pub fn possible_values() -> impl Iterator<Item = PossibleValue<'static>> {
-        ConfigFormat::value_variants()
+        SettingsFormat::value_variants()
             .iter()
             .filter_map(ArgEnum::to_possible_value)
     }
 }
 
-impl std::fmt::Display for ConfigFormat {
+impl std::fmt::Display for SettingsFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.to_possible_value()
             .expect("no values are skipped")
@@ -98,7 +105,7 @@ impl std::fmt::Display for ConfigFormat {
     }
 }
 
-impl std::str::FromStr for ConfigFormat {
+impl std::str::FromStr for SettingsFormat {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -277,39 +284,24 @@ impl PrintNannySettings {
         let result = Figment::from(Self { ..Self::default() })
             .merge(Toml::file(Env::var_or(
                 "PRINTNANNY_SETTINGS",
-                DEFAULT_PRINTNANNY_SETTINGS,
+                DEFAULT_PRINTNANNY_SETTINGS_FILE,
             )))
             // allow nested environment variables:
             // PRINTNANNY_KEY__SUBKEY
             .merge(Env::prefixed("PRINTNANNY_").split("__"));
 
         // extract paths, to load application state conf.d fragments
-        let lib_config_path: String = result
+        let lib_settings_file: String = result
             .find_value("paths.state_dir")
             .unwrap()
             .deserialize::<String>()
             .unwrap();
         let paths = PrintNannyPaths {
-            state_dir: PathBuf::from(lib_config_path),
+            state_dir: PathBuf::from(lib_settings_file),
             ..PrintNannyPaths::default()
         };
-
         // merge application state
         let result = Self::load_confd(&paths.lib_confd(), result)?;
-
-        // extract paths, to load user-supplied conf.d fragments
-        let user_config_path: String = result
-            .find_value("paths.settings_dir")
-            .unwrap()
-            .deserialize::<String>()
-            .unwrap();
-        let paths = PrintNannyPaths {
-            settings_dir: PathBuf::from(user_config_path),
-            ..PrintNannyPaths::default()
-        };
-
-        // merge user-provided config files
-        let result = Self::load_confd(&paths.user_confd(), result)?;
         // if PRINTNANNY_SETTINGS env var is set, check file exists and is readable
         Self::check_file_from_env_var("PRINTNANNY_SETTINGS")?;
 
@@ -317,7 +309,7 @@ impl PrintNannySettings {
         let result = result
             .merge(Toml::file(Env::var_or(
                 "PRINTNANNY_SETTINGS",
-                DEFAULT_PRINTNANNY_SETTINGS,
+                DEFAULT_PRINTNANNY_SETTINGS_FILE,
             )))
             // allow nested environment variables:
             // PRINTNANNY_KEY__SUBKEY
@@ -351,38 +343,6 @@ impl PrintNannySettings {
         result
     }
 
-    pub fn try_check_license(&self) -> Result<(), PrintNannySettingsError> {
-        let state = PrintNannyCloudData::load(&self.paths.state_file())?;
-        match &state.pi {
-            Some(_) => Ok(()),
-            None => Err(PrintNannySettingsError::LicenseMissing {
-                path: "pi".to_string(),
-            }),
-        }?;
-
-        match &state.api.bearer_access_token {
-            Some(_) => Ok(()),
-            None => Err(PrintNannySettingsError::LicenseMissing {
-                path: "api.bearer_access_token".to_string(),
-            }),
-        }?;
-
-        match self.paths.cloud_nats_creds().exists() {
-            true => Ok(()),
-            false => Err(PrintNannySettingsError::LicenseMissing {
-                path: self.paths.cloud_nats_creds().display().to_string(),
-            }),
-        }?;
-
-        match state.pi.as_ref().unwrap().nats_app {
-            Some(_) => Ok(()),
-            None => Err(PrintNannySettingsError::LicenseMissing {
-                path: "pi.nats_app".to_string(),
-            }),
-        }?;
-        Ok(())
-    }
-
     pub fn try_factory_reset(&self) -> Result<(), PrintNannySettingsError> {
         // for each key/value pair in FACTORY_RESET, remove file
         for key in FACTORY_RESET.iter() {
@@ -410,11 +370,12 @@ impl PrintNannySettings {
     pub fn try_init(
         &self,
         filename: &str,
-        format: &ConfigFormat,
+        format: &SettingsFormat,
     ) -> Result<(), PrintNannySettingsError> {
         let content: String = match format {
-            ConfigFormat::Json => serde_json::to_string_pretty(self)?,
-            ConfigFormat::Toml => toml::ser::to_string_pretty(self)?,
+            SettingsFormat::Json => serde_json::to_string_pretty(self)?,
+            SettingsFormat::Toml => toml::ser::to_string_pretty(self)?,
+            _ => unimplemented!("try_init is not implemented for format: {}", format),
         };
         fs::write(&filename, content)?;
         Ok(())
