@@ -362,10 +362,15 @@ mod tests {
 
             let src = "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4";
 
-            let request_json = r#"{ "video_src": "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4", "video_src_type": "Uri"}"#;
+            let request_toml = r#"
+                video_src = "https://cdn.printnanny.ai/gst-demo-videos/demo_video_1.mp4"
+                video_src_type = "Uri"
+            "#;
 
-            let request = GstPipelineSettingsRequest {
-                json: request_json.into(),
+            let request = SettingsRequest {
+                data: request_toml.into(),
+                format: SettingsFormat::Toml,
+                subject: SettingsSubject::GstPipeline,
                 pre_save: vec![],
                 post_save: vec![],
             };
@@ -374,7 +379,7 @@ mod tests {
 
             assert_eq!(res.status, ResponseStatus::Ok);
 
-            let saved_config = PrintNannyGstPipelineSettings::new().unwrap();
+            let saved_config = PrintNannyGstPipelineConfig::new().unwrap();
             assert_eq!(saved_config.video_src, src);
             assert_eq!(saved_config.video_src_type, VideoSrcType::Uri);
             Ok(())
