@@ -3,10 +3,10 @@ use std::{io::Write, path::Path};
 
 use file_lock::{FileLock, FileOptions};
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 use crate::settings::PrintNannySettings;
 
+use super::error::PrintNannyCloudDataError;
 use super::printnanny_api::PrintNannyApiConfig;
 use printnanny_api_client::models;
 
@@ -26,21 +26,6 @@ impl Default for PrintNannyCloudData {
         };
         PrintNannyCloudData { api, pi: None }
     }
-}
-
-#[derive(Error, Debug)]
-pub enum PrintNannyCloudDataError {
-    #[error("PrintNanny Cloud setup incomplete, failed to read {path}")]
-    SetupIncomplete { path: String },
-
-    #[error(transparent)]
-    TomlSerError(#[from] toml::ser::Error),
-    #[error(transparent)]
-    TomlDeError(#[from] toml::de::Error),
-    #[error("Failed to write {path} - {error}")]
-    WriteIOError { path: String, error: std::io::Error },
-    #[error("Failed to read {path} - {error}")]
-    ReadIOError { path: String, error: std::io::Error },
 }
 
 impl PrintNannyCloudData {
@@ -70,6 +55,39 @@ impl PrintNannyCloudData {
                 error: e,
             }),
         }
+    }
+
+    pub fn try_check_cloud_data(&self) -> Result<(), PrintNannyCloudDataError> {
+        let settings = PrintNannySettings::new().unwrap();
+        let state = PrintNannyCloudData::load(&settings.paths.state_file())?;
+        match &state.pi {
+            Some(_) => Ok(()),
+            None => Err(PrintNannyCloudDataError::SetupIncomplete {
+                path: "pi".to_string(),
+            }),
+        }?;
+
+        match &state.api.bearer_access_token {
+            Some(_) => Ok(()),
+            None => Err(PrintNannyCloudDataError::SetupIncomplete {
+                path: "api.bearer_access_token".to_string(),
+            }),
+        }?;
+
+        match settings.paths.cloud_nats_creds().exists() {
+            true => Ok(()),
+            false => Err(PrintNannyCloudDataError::SetupIncomplete {
+                path: settings.paths.cloud_nats_creds().display().to_string(),
+            }),
+        }?;
+
+        match state.pi.as_ref().unwrap().nats_app {
+            Some(_) => Ok(()),
+            None => Err(PrintNannyCloudDataError::SetupIncomplete {
+                path: "pi.nats_app".to_string(),
+            }),
+        }?;
+        Ok(())
     }
 
     pub fn load(state_file: &Path) -> Result<PrintNannyCloudData, PrintNannyCloudDataError> {

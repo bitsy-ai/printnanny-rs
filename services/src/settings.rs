@@ -12,7 +12,6 @@ use glob::glob;
 use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
-use serde_json::Value as SerdeJsonValue;
 
 use super::error::PrintNannySettingsError;
 use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
@@ -62,7 +61,7 @@ lazy_static! {
     };
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ArgEnum, Deserialize, Serialize)]
 pub enum SettingsFormat {
     #[serde(rename = "ini")]
     Ini,
@@ -301,16 +300,8 @@ impl PrintNannySettings {
             state_dir: PathBuf::from(lib_settings_file),
             ..PrintNannyPaths::default()
         };
-
         // merge application state
         let result = Self::load_confd(&paths.lib_confd(), result)?;
-        let paths = PrintNannyPaths {
-            settings_dir: PathBuf::from(user_settings_file),
-            ..PrintNannyPaths::default()
-        };
-
-        // merge user-provided config files
-        let result = Self::load_confd(&paths.user_confd(), result)?;
         // if PRINTNANNY_SETTINGS env var is set, check file exists and is readable
         Self::check_file_from_env_var("PRINTNANNY_SETTINGS")?;
 
@@ -350,38 +341,6 @@ impl PrintNannySettings {
             }
         }
         result
-    }
-
-    pub fn try_check_license(&self) -> Result<(), PrintNannySettingsError> {
-        let state = PrintNannyCloudData::load(&self.paths.state_file())?;
-        match &state.pi {
-            Some(_) => Ok(()),
-            None => Err(PrintNannySettingsError::SetupIncomplete {
-                path: "pi".to_string(),
-            }),
-        }?;
-
-        match &state.api.bearer_access_token {
-            Some(_) => Ok(()),
-            None => Err(PrintNannySettingsError::SetupIncomplete {
-                path: "api.bearer_access_token".to_string(),
-            }),
-        }?;
-
-        match self.paths.cloud_nats_creds().exists() {
-            true => Ok(()),
-            false => Err(PrintNannySettingsError::SetupIncomplete {
-                path: self.paths.cloud_nats_creds().display().to_string(),
-            }),
-        }?;
-
-        match state.pi.as_ref().unwrap().nats_app {
-            Some(_) => Ok(()),
-            None => Err(PrintNannySettingsError::LicenseMissing {
-                path: "pi.nats_app".to_string(),
-            }),
-        }?;
-        Ok(())
     }
 
     pub fn try_factory_reset(&self) -> Result<(), PrintNannySettingsError> {

@@ -64,7 +64,7 @@ impl PrintNannyPaths {
     pub fn settings_file(&self) -> PathBuf {
         PathBuf::from(Env::var_or(
             "PRINTNANNY_SETTINGS",
-            DEFAULT_PRINTNANNY_SETTINGS,
+            DEFAULT_PRINTNANNY_SETTINGS_FILE,
         ))
     }
 

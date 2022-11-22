@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use git2::{DiffFormat, Repository};
@@ -6,8 +6,8 @@ use log::debug;
 use serde::{Deserialize, Serialize};
 
 use crate::error::PrintNannySettingsError;
-use crate::settings::{PrintNannySettings, SettingsFormat, VersionControlledSettings};
-use crate::vcs::VersionControlledSettingsError;
+use crate::settings::{PrintNannySettings, SettingsFormat};
+use crate::vcs::{VersionControlledSettings, VersionControlledSettingsError};
 
 pub const OCTOPRINT_INSTALL_DIR: &str = "/var/lib/octoprint";
 pub const OCTOPRINT_VENV: &str = "/var/lib/octoprint/venv";
@@ -29,11 +29,12 @@ pub struct OctoPrintSettings {
 }
 
 impl VersionControlledSettings for OctoPrintSettings {
+    type SettingsModel = OctoPrintSettings;
     fn get_settings_format(&self) -> SettingsFormat {
         self.settings_format
     }
-    fn get_settings_file(&self) -> PathBuf {
-        self.settings_file
+    fn get_settings_file(&self) -> &Path {
+        &self.settings_file
     }
 
     fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {

@@ -6,7 +6,20 @@ use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::apis::Error as ApiError;
 
-use super::state::PrintNannyCloudDataError;
+#[derive(Error, Debug)]
+pub enum PrintNannyCloudDataError {
+    #[error("PrintNanny Cloud setup incomplete, failed to read {path}")]
+    SetupIncomplete { path: String },
+
+    #[error(transparent)]
+    TomlSerError(#[from] toml::ser::Error),
+    #[error(transparent)]
+    TomlDeError(#[from] toml::de::Error),
+    #[error("Failed to write {path} - {error}")]
+    WriteIOError { path: String, error: std::io::Error },
+    #[error("Failed to read {path} - {error}")]
+    ReadIOError { path: String, error: std::io::Error },
+}
 
 #[derive(Error, Debug)]
 pub enum IoError {
