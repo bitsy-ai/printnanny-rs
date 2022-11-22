@@ -52,6 +52,7 @@ fn handle_system_info(args: &ArgMatches) -> Result<()> {
     let output = match format {
         SettingsFormat::Json => serde_json::to_string(&system_info)?,
         SettingsFormat::Toml => toml::ser::to_string(&system_info)?,
+        SettingsFormat::Ini | SettingsFormat::Yaml => todo!(),
     };
     print!("{}", &output);
     Ok(())

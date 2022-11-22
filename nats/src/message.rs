@@ -13,7 +13,7 @@ use printnanny_services::figment;
 use printnanny_services::figment::providers::Format;
 use printnanny_services::settings::{PrintNannySettings, SettingsFormat};
 
-use printnanny_gst_config::config::PrintNannyGstPipelineSettings;
+use printnanny_gst_config::config::PrintNannyGstPipelineConfig;
 use printnanny_services::systemd::{systemctl_list_enabled_units, systemctl_show_payload};
 
 pub trait MessageHandler<Request, Response>
@@ -106,13 +106,6 @@ impl ConnectCloudAccountRequest {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct GstPipelineSettingsRequest {
-    json: String, // json string, intended for use with Figment.rs JSON provider: https://docs.rs/figment/latest/figment/providers/struct.Json.html
-    pre_save: Vec<SystemctlCommandRequest>, // run commands prior to applying config merge/save
-    post_save: Vec<SystemctlCommandRequest>, // run commands after applying config merge/save
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum SettingsSubject {
     #[serde(rename = "pi.command.settings.gst_pipeline")]
     GstPipeline,
@@ -140,14 +133,15 @@ impl SettingsRequest {
     ) -> Result<(Vec<SystemctlCommandResponse>, Vec<SystemctlCommandResponse>)> {
         // build a config fragment from json string
         let incoming = match self.format {
-            SettingsFormat::Json => figment::providers::Json::string(&self.data),
             SettingsFormat::Toml => figment::providers::Toml::string(&self.data),
-            SettingsFormat::Yaml => figment::providers::Yaml::string(&self.data),
-            _ => unimplemented!("{} SettingsFormat is not implemented for subject {}", &self.format, &self.subject)
-
-        }
-        let figment = PrintNannyGstPipelineSettings::figment()?.merge(incoming);
-        let config: PrintNannyGstPipelineSettings = figment.extract()?;
+            _ => unimplemented!(
+                "{} SettingsFormat is not implemented for subject {:?}",
+                &self.format,
+                &self.subject
+            ),
+        };
+        let figment = PrintNannyGstPipelineConfig::figment()?.merge(incoming);
+        let config: PrintNannyGstPipelineConfig = figment.extract()?;
 
         // run pre-save command hooks
         info!("Running pre-save commands: {:?}", self.pre_save);
@@ -172,10 +166,10 @@ impl SettingsRequest {
         Ok((pre_save, post_save))
     }
 
-    pub fn handle(&self) -> GstPipelineSettingsResponse {
+    pub fn handle(&self) -> SettingsResponse {
         match self.subject {
-            SettingsSubject::GstPipeline => self.handle_gst_settings() {
-                Ok((pre_save, post_save)) => GstPipelineSettingsResponse {
+            SettingsSubject::GstPipeline => match self.handle_gst_settings() {
+                Ok((pre_save, post_save)) => SettingsResponse {
                     pre_save,
                     post_save,
                     request: Some(self.clone()),
@@ -185,7 +179,7 @@ impl SettingsRequest {
                 Err(e) => {
                     let detail = format!("Error updating PrintNanny configuration: {:?}", e);
                     error!("{}", &detail);
-                    GstPipelineSettingsResponse {
+                    SettingsResponse {
                         pre_save: vec![],
                         post_save: vec![],
                         request: Some(self.clone()),
@@ -193,8 +187,8 @@ impl SettingsRequest {
                         detail,
                     }
                 }
-            }
-            _ => unimplemented!("{} is not implemented", self.subject),
+            },
+            _ => unimplemented!("{:?} handler is not implemented", self.subject),
         }
     }
 }
@@ -288,8 +282,8 @@ pub struct SystemctlCommandResponse {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct GstPipelineSettingsResponse {
-    request: Option<GstPipelineSettingsRequest>,
+pub struct SettingsResponse {
+    request: Option<SettingsRequest>,
     status: ResponseStatus,
     detail: String,
     pre_save: Vec<SystemctlCommandResponse>,
@@ -311,7 +305,7 @@ pub enum NatsRequest {
     #[serde(rename = "pi.command.connect_cloud_account")]
     ConnectCloudAccountRequest(ConnectCloudAccountRequest),
     #[serde(rename = "pi.command.settings.gst_pipeline")]
-    SettingsRequest(SettingsRequest),
+    GstPipelineSettingsRequest(SettingsRequest),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -320,7 +314,7 @@ pub enum NatsResponse {
     #[serde(rename = "pi.command.systemctl")]
     SystemctlCommandResponse(SystemctlCommandResponse),
     #[serde(rename = "pi.command.settings.gst_pipeline")]
-    GstPipelineSettingsResponse(GstPipelineSettingsResponse),
+    GstPipelineSettingsResponse(SettingsResponse),
     #[serde(rename = "pi.command.connect_cloud_account")]
     ConnectCloudAccountResponse(ConnectCloudAccountResponse),
 }

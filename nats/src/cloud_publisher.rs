@@ -40,7 +40,7 @@ impl CloudEventPublisher {
     pub fn new(args: &ArgMatches) -> Result<Self, PrintNannySettingsError> {
         let settings = PrintNannySettings::new().unwrap();
         let state = PrintNannyCloudData::new()?;
-        settings.try_check_license()?;
+        state.try_check_cloud_data()?;
         Ok(Self {
             args: args.clone(),
             settings,

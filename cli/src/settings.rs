@@ -32,6 +32,7 @@ impl SettingsCommand {
                             toml::ser::to_vec(&data)?
                         }
                     },
+                    SettingsFormat::Ini | SettingsFormat::Yaml => todo!(),
                 };
                 io::stdout().write_all(&v)?;
             }
@@ -49,6 +50,7 @@ impl SettingsCommand {
                 let v = match f {
                     SettingsFormat::Json => serde_json::to_vec_pretty(&config)?,
                     SettingsFormat::Toml => toml::ser::to_vec(&config)?,
+                    _ => unimplemented!("show command is not implemented for format: {}", f),
                 };
                 io::stdout().write_all(&v)?;
             }

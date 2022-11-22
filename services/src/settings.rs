@@ -375,6 +375,7 @@ impl PrintNannySettings {
         let content: String = match format {
             SettingsFormat::Json => serde_json::to_string_pretty(self)?,
             SettingsFormat::Toml => toml::ser::to_string_pretty(self)?,
+            _ => unimplemented!("try_init is not implemented for format: {}", format),
         };
         fs::write(&filename, content)?;
         Ok(())

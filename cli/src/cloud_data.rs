@@ -19,6 +19,7 @@ impl CloudDataCommand {
                 let v = match f {
                     SettingsFormat::Json => serde_json::to_vec_pretty(&config)?,
                     SettingsFormat::Toml => toml::ser::to_vec(&config)?,
+                    SettingsFormat::Ini | SettingsFormat::Yaml => todo!(),
                 };
                 io::stdout().write_all(&v)?;
             }
