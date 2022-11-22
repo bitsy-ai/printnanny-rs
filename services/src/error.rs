@@ -9,20 +9,26 @@ use printnanny_api_client::apis::Error as ApiError;
 use super::state::PrintNannyCloudDataError;
 
 #[derive(Error, Debug)]
-pub enum PrintNannySettingsError {
-    #[error("Failed to load license from {pattern:?}. Please download a license from https://printnanny.ai/dashboard/ and save to /boot")]
-    PatternNotFound { pattern: String },
-    #[error("Refusing to overwrite existing file at {path:?}.")]
-    FileExists { path: PathBuf },
+pub enum IoError {
+    #[error("Failed to write {path} - {error}")]
+    WriteIOError { path: String, error: std::io::Error },
+    #[error("Failed to read {path} - {error}")]
+    ReadIOError { path: String, error: std::io::Error },
+    #[error("Failed to copy {src:?} to {dest:?} - {error}")]
+    CopyIOError {
+        src: PathBuf,
+        dest: PathBuf,
+        error: std::io::Error,
+    },
+}
 
+#[derive(Error, Debug)]
+pub enum PrintNannySettingsError {
     #[error("PRINTNANNY_SETTINGS was set {path:?} but file was not found")]
     ConfigFileNotFound { path: PathBuf },
 
     #[error("Failed to unpack file {filename} from archive {archive:?}")]
     ArchiveMissingFile { filename: String, archive: PathBuf },
-
-    #[error("Failed to read {path}. Please connect your PrintNanny Cloud account to fix this.")]
-    LicenseMissing { path: String },
 
     #[error("Command {cmd} exited with code {code:?} stdout: {stdout} stderr: {stderr}")]
     CommandError {
@@ -44,13 +50,6 @@ pub enum PrintNannySettingsError {
         error: std::io::Error,
     },
 
-    #[error("Failed to copy {src:?} to {dest:?} - {error}")]
-    CopyIOError {
-        src: PathBuf,
-        dest: PathBuf,
-        error: std::io::Error,
-    },
-
     #[error("Failed to parse OctoPrintServer field: {field} {detail:?}")]
     OctoPrintServerConfigError {
         field: String,
@@ -59,8 +58,6 @@ pub enum PrintNannySettingsError {
 
     #[error("Failed to handle invalid config value {value:?}")]
     InvalidValue { value: String },
-    #[error("Refusing to overwrite existing keypair at {path:?}.")]
-    KeypairExists { path: PathBuf },
 
     #[error(transparent)]
     JsonSerError(#[from] serde_json::Error),
@@ -72,12 +69,6 @@ pub enum PrintNannySettingsError {
     ZipError(#[from] zip::result::ZipError),
     #[error(transparent)]
     IoError(#[from] std::io::Error),
-
-    #[error("Setup incomplete, failed to read {field:?} {detail:?}")]
-    SetupIncomplete {
-        detail: Option<String>,
-        field: String,
-    },
 
     #[error(transparent)]
     PrintNannyCloudDataError(#[from] PrintNannyCloudDataError),

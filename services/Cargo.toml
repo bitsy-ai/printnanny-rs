@@ -24,6 +24,7 @@ dialoguer = "0.8"
 file-lock = "2.1.4"
 figment = { version = "0.10", features = ["env", "json", "toml"] }
 futures = "0.3"
+git2 = "0.15.0"                 # Bindings to libgit2 for interoperating with git repositories.
 glob = "0.3.0"
 hex = "0.4"
 http = "0.2.5"

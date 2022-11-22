@@ -63,8 +63,7 @@ pub struct JanusAdminService {
 pub async fn janus_admin_api_call(endpoint: JanusAdminEndpoint) -> Result<String> {
     let state = PrintNannyCloudData::new()?;
     let err = ServiceError::SetupIncomplete {
-        field: "device.webrtc_edge".to_string(),
-        detail: None,
+        path: "device.webrtc_edge".to_string(),
     };
     let janus_config = match state.pi {
         Some(pi) => match pi.webrtc_edge {

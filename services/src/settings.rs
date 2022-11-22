@@ -3,11 +3,11 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
 use clap::{ArgEnum, PossibleValue};
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
+use git2::{DiffFormat, DiffOptions, Repository};
 use glob::glob;
 use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
@@ -20,6 +20,7 @@ use super::error::PrintNannySettingsError;
 use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
 use super::printnanny_api::ApiService;
 use super::state::PrintNannyCloudData;
+use crate::error::IoError;
 use crate::error::ServiceError;
 use crate::printer_mgmt;
 use printnanny_api_client::models;
@@ -63,16 +64,41 @@ lazy_static! {
     };
 }
 
-pub trait Settings {
+pub trait VersionControlledSettings {
     type SettingsModel: Serialize;
-
-    fn git_diff(&self) -> Result<String>;
-    fn git_revert(&self) -> Result<String>;
+    fn get_git_repo(&self) -> Result<Repository, git2::Error> {
+        let settings = PrintNannySettings::new().unwrap();
+        Repository::open(self.settings.paths.settings_dir)
+    }
+    fn get_git_diff_options(&self) -> DiffOptions {
+        DiffOptions::new()
+            .force_text(true)
+            .old_prefix("old")
+            .new_prefix("new")
+    }
+    fn git_diff(&self, repo: &Path) -> Result<String, git2::Error> {
+        let repo = self.get_git_repo()?;
+        let diffopts = self.get_git_diff_options();
+        let mut lines: Vec<String> = vec![];
+        repo.diff_index_to_workdir(None, diffopts)
+            .print(DiffFormat::Patch, |_delta, _hunk, line| {
+                lines.push(str::from_utf8(line.content()).unwrap())
+            });
+        Ok(lines.join("\n"))
+    }
+    fn write_settings(&self, content: &str) -> Result<(), IoError> {
+        let output = self.get_settings_file()?;
+        fs::write(output, content)
+    }
     fn git_commit(&self) -> Result<String>;
+
+    fn get_settings_format(&self) -> SettingsFormat;
+    fn get_settings_file(&self) -> PathBuf;
+
+    fn git_revert(&self) -> Result<String>;
 
     fn pre_save(&self) -> Result<()>;
     fn post_save(&self) -> Result<()>;
-    fn save(&self) -> Result<()>;
     fn validate(&self) -> bool;
 }
 
@@ -370,21 +396,21 @@ impl PrintNannySettings {
         let state = PrintNannyCloudData::load(&self.paths.state_file())?;
         match &state.pi {
             Some(_) => Ok(()),
-            None => Err(PrintNannySettingsError::LicenseMissing {
+            None => Err(PrintNannySettingsError::SetupIncomplete {
                 path: "pi".to_string(),
             }),
         }?;
 
         match &state.api.bearer_access_token {
             Some(_) => Ok(()),
-            None => Err(PrintNannySettingsError::LicenseMissing {
+            None => Err(PrintNannySettingsError::SetupIncomplete {
                 path: "api.bearer_access_token".to_string(),
             }),
         }?;
 
         match self.paths.cloud_nats_creds().exists() {
             true => Ok(()),
-            false => Err(PrintNannySettingsError::LicenseMissing {
+            false => Err(PrintNannySettingsError::SetupIncomplete {
                 path: self.paths.cloud_nats_creds().display().to_string(),
             }),
         }?;

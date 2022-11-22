@@ -30,6 +30,9 @@ impl Default for PrintNannyCloudData {
 
 #[derive(Error, Debug)]
 pub enum PrintNannyCloudDataError {
+    #[error("PrintNanny Cloud setup incomplete, failed to read {path}")]
+    SetupIncomplete { path: String },
+
     #[error(transparent)]
     TomlSerError(#[from] toml::ser::Error),
     #[error(transparent)]

@@ -1,11 +1,12 @@
-use log::debug;
 use std::path::PathBuf;
 use std::process::Command;
 
+use git2::{DiffFormat, Repository};
+use log::debug;
 use serde::{Deserialize, Serialize};
 
 use crate::error::PrintNannySettingsError;
-use crate::settings::Settings;
+use crate::settings::{PrintNannySettings, SettingsFormat, VersionControlledSettings};
 
 pub const OCTOPRINT_INSTALL_DIR: &str = "/var/lib/octoprint";
 pub const OCTOPRINT_VENV: &str = "/var/lib/octoprint/venv";
@@ -22,7 +23,17 @@ pub struct OctoPrintSettings {
     pub enabled: bool,
     pub install_dir: PathBuf,
     pub settings_file: PathBuf,
+    pub settings_format: SettingsFormat,
     pub venv: PathBuf,
+}
+
+impl VersionControlledSettings for OctoPrintSettings {
+    fn get_settings_format(&self) -> SettingsFormat {
+        self.settings_format
+    }
+    fn get_settings_file(&self) -> PathBuf {
+        self.settings_file
+    }
 }
 
 impl Default for OctoPrintSettings {
@@ -34,6 +45,7 @@ impl Default for OctoPrintSettings {
             install_dir,
             enabled: true,
             venv: OCTOPRINT_VENV.into(),
+            settings_format: SettingsFormat::Yaml,
         }
     }
 }
@@ -124,7 +136,10 @@ impl OctoPrintSettings {
                 Ok(result)
             }
             false => {
-                let cmd = format!("{:?} -m pip list --format json", &python_path);
+                let cmd = format!(
+                    "{:?} -m pip list --include-editable --format json",
+                    &python_path
+                );
                 let code = output.status.code();
                 let stderr = String::from_utf8_lossy(&output.stderr).into();
                 let stdout = stdout.into();
