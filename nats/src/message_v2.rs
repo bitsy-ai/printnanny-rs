@@ -15,6 +15,7 @@ pub trait NatsRequestReplyHandler {
     async fn handle(&self) -> Result<Self::Reply>;
 }
 
+// pi.dbus.org.freedesktop.systemd1.Manager.StartUnit
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SystemdManagerStartUnitRequest {
     name: String,
@@ -31,12 +32,100 @@ pub struct SystemdManagerStartUnitReply {
 impl NatsRequestReplyHandler for SystemdManagerStartUnitRequest {
     type Request = SystemdManagerStartUnitRequest;
     type Reply = SystemdManagerStartUnitReply;
+
     async fn handle(&self) -> Result<Self::Reply> {
         let connection = zbus::Connection::system().await?;
         let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
         let job = proxy.start_unit(&self.name, "replace").await?;
-        let reply = SystemdManagerStartUnitReply {
+        let reply = Self::Reply {
             job,
+            request: self.clone(),
+        };
+        Ok(reply)
+    }
+}
+
+//  pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SystemdManagerRestartUnitRequest {
+    name: String,
+    // mode: String, // "replace", "fail", "isolate", "ignore-dependencies", or "ignore-requirements" - but only "replace" mode is used by here, so omitting for simplicity
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SystemdManagerRestartUnitReply {
+    request: SystemdManagerRestartUnitRequest,
+    job: zbus::zvariant::OwnedObjectPath,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for SystemdManagerRestartUnitRequest {
+    type Request = SystemdManagerRestartUnitRequest;
+    type Reply = SystemdManagerRestartUnitReply;
+    async fn handle(&self) -> Result<Self::Reply> {
+        let connection = zbus::Connection::system().await?;
+        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
+        let job = proxy.restart_unit(&self.name, "replace").await?;
+        let reply = Self::Reply {
+            job,
+            request: self.clone(),
+        };
+        Ok(reply)
+    }
+}
+
+//  pi.dbus.org.freedesktop.systemd1.Manager.StopUnit
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SystemdManagerStopUnitRequest {
+    name: String,
+    // mode: String, // "replace", "fail", "isolate", "ignore-dependencies", or "ignore-requirements" - but only "replace" mode is used by here, so omitting for simplicity
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SystemdManagerStopUnitReply {
+    request: SystemdManagerStopUnitRequest,
+    job: zbus::zvariant::OwnedObjectPath,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for SystemdManagerStopUnitRequest {
+    type Request = SystemdManagerStopUnitRequest;
+    type Reply = SystemdManagerStopUnitReply;
+    async fn handle(&self) -> Result<Self::Reply> {
+        let connection = zbus::Connection::system().await?;
+        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
+        let job = proxy.stop_unit(&self.name, "replace").await?;
+        let reply = Self::Reply {
+            job,
+            request: self.clone(),
+        };
+        Ok(reply)
+    }
+}
+
+//  pi.dbus.org.freedesktop.systemd1.Manager.StopUnit
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SystemdManagerEnableUnitRequest {
+    files: Vec<String>,
+    // mode: String, // "replace", "fail", "isolate", "ignore-dependencies", or "ignore-requirements" - but only "replace" mode is used by here, so omitting for simplicity
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SystemdManagerEnableUnitReply {
+    request: SystemdManagerEnableUnitRequest,
+    changes: Vec<String>,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for SystemdManagerEnableUnitRequest {
+    type Request = SystemdManagerEnableUnitRequest;
+    type Reply = SystemdManagerEnableUnitReply;
+    async fn handle(&self) -> Result<Self::Reply> {
+        let connection = zbus::Connection::system().await?;
+        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
+        let (enablement_info, changes) = proxy.enable_unit_files(&self.files, false, false).await?;
+        let reply = Self::Reply {
+            changes,
             request: self.clone(),
         };
         Ok(reply)
@@ -46,8 +135,12 @@ impl NatsRequestReplyHandler for SystemdManagerStartUnitRequest {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "subject")]
 pub enum NatsRequest {
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
+    SystemdManagerRestartUnitRequest(SystemdManagerRestartUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
     SystemdManagerStartUnitRequest(SystemdManagerStartUnitRequest),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
+    SystemdManagerStopUnitRequest(SystemdManagerStopUnitRequest),
     // #[serde(rename = "pi.command.systemctl")]
     // SystemctlCommandRequest(SystemctlCommandRequest),
     // #[serde(rename = "pi.printnanny_cloud.connect_account")]
@@ -59,8 +152,12 @@ pub enum NatsRequest {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "subject")]
 pub enum NatsReply {
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
+    SystemdManagerRestartUnitReply(SystemdManagerRestartUnitReply),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
     SystemdManagerStartUnitReply(SystemdManagerStartUnitReply),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
+    SystemdManagerStopUnitReply(SystemdManagerStartUnitReply),
     // #[serde(rename = "pi.command.settings.gst_pipeline")]
     // GstPipelineSettingsResponse(SettingsResponse),
     // #[serde(rename = "pi.command.connect_cloud_account")]
@@ -92,7 +189,33 @@ mod tests {
         };
         let reply = request.handle().await.unwrap();
         assert_eq!(reply.request, request);
-        
+    }
+
+    #[tokio::test] // async test
+    async fn test_dbus_systemd_manager_restart_unit() {
+        let request = SystemdManagerRestartUnitRequest {
+            name: "octoprint.service".into(),
+        };
+        let reply = request.handle().await.unwrap();
+        assert_eq!(reply.request, request);
+    }
+
+    #[tokio::test] // async test
+    async fn test_dbus_systemd_manager_stop_unit() {
+        let request = SystemdManagerStopUnitRequest {
+            name: "octoprint.service".into(),
+        };
+        let reply = request.handle().await.unwrap();
+        assert_eq!(reply.request, request);
+    }
+
+    #[tokio::test] // async test
+    async fn test_dbus_systemd_manager_enable_init() {
+        let request = SystemdManagerEnableUnitRequest {
+            files: vec!["octoprint.service".into()],
+        };
+        let reply = request.handle().await.unwrap();
+        assert_eq!(reply.request, request);
     }
 
     // fn test_gst_pipeline_settings_update_handler() {
