@@ -21,8 +21,13 @@
 
 use zbus::dbus_proxy;
 
-#[dbus_proxy(interface = "org.freedesktop.systemd1.Service")]
-trait Service {
+#[dbus_proxy(
+    interface = "org.freedesktop.systemd1.Service",
+    gen_async = true,
+    default_service = "org.freedesktop.systemd1",
+    default_path = "/org/freedesktop/systemd1"
+)]
+pub trait Service {
     /// AttachProcesses method
     fn attach_processes(&self, subcgroup: &str, pids: &[u32]) -> zbus::Result<()>;
 

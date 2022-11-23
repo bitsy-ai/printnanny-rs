@@ -21,7 +21,12 @@
 
 use zbus::dbus_proxy;
 
-#[dbus_proxy(interface = "org.freedesktop.systemd1.Manager", gen_async = true)]
+#[dbus_proxy(
+    interface = "org.freedesktop.systemd1.Manager",
+    gen_async = true,
+    default_service = "org.freedesktop.systemd1",
+    default_path = "/org/freedesktop/systemd1"
+)]
 pub trait Manager {
     /// AbandonScope method
     fn abandon_scope(&self, name: &str) -> zbus::Result<()>;

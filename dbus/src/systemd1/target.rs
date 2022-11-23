@@ -21,11 +21,21 @@
 
 use zbus::dbus_proxy;
 
-#[dbus_proxy(interface = "org.freedesktop.systemd1.Target")]
-trait Target {}
+#[dbus_proxy(
+    interface = "org.freedesktop.systemd1.Target",
+    gen_async = true,
+    default_service = "org.freedesktop.systemd1",
+    default_path = "/org/freedesktop/systemd1"
+)]
+pub trait Target {}
 
-#[dbus_proxy(interface = "org.freedesktop.systemd1.Unit")]
-trait Unit {
+#[dbus_proxy(
+    interface = "org.freedesktop.systemd1.Unit",
+    gen_async = true,
+    default_service = "org.freedesktop.systemd1",
+    default_path = "/org/freedesktop/systemd1"
+)]
+pub trait Unit {
     /// Clean method
     fn clean(&self, mask: &[&str]) -> zbus::Result<()>;
 
