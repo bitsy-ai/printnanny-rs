@@ -6,6 +6,7 @@ use anyhow::Result;
 use async_process::Output;
 use futures::executor;
 use log::{error, info};
+use printnanny_services::vcs::VersionControlledSettings;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +15,7 @@ use printnanny_services::figment::providers::Format;
 use printnanny_services::settings::{PrintNannySettings, SettingsFormat};
 
 use printnanny_gst_config::config::PrintNannyGstPipelineConfig;
+use printnanny_services::printer_mgmt::octoprint::OctoPrintSettings;
 use printnanny_services::systemd::{systemctl_list_enabled_units, systemctl_show_payload};
 
 pub trait MessageHandler<Request, Response>
@@ -40,14 +42,6 @@ pub enum SystemctlCommand {
     Disable,
     #[serde(rename = "list_enabled")]
     ListEnabled,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub enum MediaCommand {
-    #[serde(rename = "start")]
-    Start,
-    #[serde(rename = "stop")]
-    Stop,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -107,26 +101,50 @@ impl ConnectCloudAccountRequest {
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum SettingsSubject {
-    #[serde(rename = "pi.command.settings.gst_pipeline")]
+
+    #[serde(rename = "pi.settings.gst_pipeline")]
     GstPipeline,
-    #[serde(rename = "pi.command.settings.klipper")]
+    #[serde(rename = "pi.settings.klipper")]
     Klipper,
-    #[serde(rename = "pi.command.settings.moonraker")]
+    #[serde(rename = "pi.settings.moonraker")]
     Moonraker,
-    #[serde(rename = "pi.command.settings.octoprint")]
+    #[serde(rename = "pi.settings.octoprint")]
     OctoPrint,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SettingsRequest {
     subject: SettingsSubject,
-    data: String, // yaml, json, or ini string
+    data: String, // yaml, json, toml or ini string
     format: SettingsFormat,
     pre_save: Vec<SystemctlCommandRequest>, // run commands prior to applying config merge/save
     post_save: Vec<SystemctlCommandRequest>, // run commands after applying config merge/save
 }
 
 impl SettingsRequest {
+    // run pre-save command hooks
+    fn handle_pre_save(&self) -> Result<Vec<SystemctlCommandResponse>> {
+        info!("Running pre-save commands: {:?}", self.pre_save);
+        let pre_save: Vec<SystemctlCommandResponse> = self
+            .pre_save
+            .iter()
+            .map(|request| request.handle())
+            .collect();
+        info!("Finished running pre-save commands: {:?}", pre_save);
+        Ok(pre_save)
+    }
+    // run post-save command hooks
+    fn handle_post_save(&self) -> Result<Vec<SystemctlCommandResponse>> {
+        info!("Running post-save commands: {:?}", self.pre_save);
+        let post_save: Vec<SystemctlCommandResponse> = self
+            .post_save
+            .iter()
+            .map(|request| request.handle())
+            .collect();
+        info!("Finished running post-save commands {:?}", post_save);
+        Ok(post_save)
+    }
+
     // merge incoming "figment" (configurationf fragment) with existing configuration, sourced from .json/.toml serializable data structure and env variables prefixed with PRINTNANNY_
     fn handle_gst_settings(
         &self,
@@ -144,15 +162,13 @@ impl SettingsRequest {
         let config: PrintNannyGstPipelineConfig = figment.extract()?;
 
         // run pre-save command hooks
-        info!("Running pre-save commands: {:?}", self.pre_save);
-        let pre_save: Vec<SystemctlCommandResponse> = self
-            .pre_save
-            .iter()
-            .map(|request| request.handle())
-            .collect();
-        info!("Finished running pre-save commands: {:?}", pre_save);
+        let post_save = self.handle_pre_save()?;
+
         // save merged configuration
         config.try_save().expect("Failed to save configuration");
+
+        // run post-save command hooks
+        let pre_save = self.handle_post_save()?;
 
         // run post-save command hooks
         info!("Running pre-save commands: {:?}", self.pre_save);
@@ -162,6 +178,25 @@ impl SettingsRequest {
             .map(|request| request.handle())
             .collect();
         info!("Finished running post-save commands {:?}", post_save);
+
+        Ok((pre_save, post_save))
+    }
+
+    // pub fn handle_octoprint_settings(
+    //     &self,
+    // ) -> Result<(Vec<SystemctlCommandResponse>, Vec<SystemctlCommandResponse>)> {
+    //     let settings = OctoPrintSettings::new()?;
+
+    //     Ok(())
+    // }
+
+    pub fn _handle_version_controlled_settings<T: VersionControlledSettings>(
+        &self,
+    ) -> Result<(Vec<SystemctlCommandResponse>, Vec<SystemctlCommandResponse>)> {
+        let settings = T::new();
+        let pre_save = self.handle_pre_save()?;
+        settings.save()?;
+        let post_save = self.handle_post_save()?;
 
         Ok((pre_save, post_save))
     }
@@ -188,7 +223,36 @@ impl SettingsRequest {
                     }
                 }
             },
-            _ => unimplemented!("{:?} handler is not implemented", self.subject),
+            SettingsSubject::OctoPrint => match self._handle<OctoPrintSettings>(){
+                Ok(()) => SettingsResponse {
+                    request: Some(self.clone()),
+                    detail: "Updated OctoPrint configuration".into(),
+                    status: ResponseStatus::Ok,
+                    pre_save: vec![],
+                    post_save: vec![],
+                },
+            }
+            // SettingsSubject::OctoPrint => match self.handle_octoprint_settings() {
+            //     Ok(()) => SettingsResponse {
+            //         request: Some(self.clone()),
+            //         detail: "Updated PrintNanny configuration".into(),
+            //         status: ResponseStatus::Ok,
+            //         pre_save: vec![],
+            //         post_save: vec![],
+            //     },
+            //     Err(e) => {
+            //         let detail = format!("Error updating OctoPrint configuration: {:?}", e);
+            //         error!("{}", &detail);
+            //         SettingsResponse {
+            //             pre_save: vec![],
+            //             post_save: vec![],
+            //             request: Some(self.clone()),
+            //             status: ResponseStatus::Error,
+            //             detail,
+            //         }
+            //     }
+            // },
+            _ => todo!("{:?} handler is not implemented", self.subject),
         }
     }
 }
@@ -297,26 +361,38 @@ pub struct ConnectCloudAccountResponse {
     detail: String,
 }
 
+pub trait NatsRequestReply {
+    type Request: Serialize + Clone + Debug;
+    type Reply: Serialize + Clone + Debug;
+
+
+    fn handle(&self, request: Self::Request) -> Result<Self::Reply>;
+}
+
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "subject")]
 pub enum NatsRequest {
-    #[serde(rename = "pi.command.systemctl")]
-    SystemctlCommandRequest(SystemctlCommandRequest),
-    #[serde(rename = "pi.command.connect_cloud_account")]
-    ConnectCloudAccountRequest(ConnectCloudAccountRequest),
-    #[serde(rename = "pi.command.settings.gst_pipeline")]
-    GstPipelineSettingsRequest(SettingsRequest),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager")]
+    SystemdManagerRequest(SystemdManagerRequest),
+    // #[serde(rename = "pi.command.systemctl")]
+    // SystemctlCommandRequest(SystemctlCommandRequest),
+    // #[serde(rename = "pi.printnanny_cloud.connect_account")]
+    // ConnectCloudAccountRequest(ConnectCloudAccountRequest),
+    // #[serde(rename = "pi.command.settings.gst_pipeline")]
+    // GstPipelineSettingsRequest(SettingsRequest),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "subject")]
 pub enum NatsResponse {
-    #[serde(rename = "pi.command.systemctl")]
-    SystemctlCommandResponse(SystemctlCommandResponse),
-    #[serde(rename = "pi.command.settings.gst_pipeline")]
-    GstPipelineSettingsResponse(SettingsResponse),
-    #[serde(rename = "pi.command.connect_cloud_account")]
-    ConnectCloudAccountResponse(ConnectCloudAccountResponse),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager")]
+    SystemdManagerResponse(SystemdManagerResponse),
+
+    // #[serde(rename = "pi.command.settings.gst_pipeline")]
+    // GstPipelineSettingsResponse(SettingsResponse),
+    // #[serde(rename = "pi.command.connect_cloud_account")]
+    // ConnectCloudAccountResponse(ConnectCloudAccountResponse),
 }
 
 impl NatsResponse {}
@@ -341,10 +417,12 @@ impl MessageHandler<NatsRequest, NatsResponse> for NatsRequest {
 mod tests {
     use super::*;
     use printnanny_gst_config::config::VideoSrcType;
-    use printnanny_services::systemd;
+    use printnanny_services::{
+        printer_mgmt::octoprint::OctoPrintSettings, systemd, vcs::VersionControlledSettings,
+    };
 
     #[test]
-    fn test_gst_pipeline_config_update_handler() {
+    fn test_gst_pipeline_settings_update_handler() {
         figment::Jail::expect_with(|jail| {
             let output = jail.directory().join("test.toml");
 
@@ -382,6 +460,48 @@ mod tests {
             let saved_config = PrintNannyGstPipelineConfig::new().unwrap();
             assert_eq!(saved_config.video_src, src);
             assert_eq!(saved_config.video_src_type, VideoSrcType::Uri);
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn test_gst_octoprint_settings_update_handler() {
+        figment::Jail::expect_with(|jail| {
+            let output = jail.directory().join("test.toml");
+
+            // configuration reference: https://docs.octoprint.org/en/master/configuration/config_yaml.html
+            jail.create_file(
+                "config.yaml",
+                &format!(
+                    r#"
+                feature:
+                    # Whether to enable the gcode viewer in the UI or not
+                    gCodeVisualizer: true
+                "#,
+                ),
+            )?;
+            jail.set_env("OCTOPRINT_SETTINGS_FILE", output.display());
+
+            let content = r#"
+            feature:
+                # Whether to enable the gcode viewer in the UI or not
+                gCodeVisualizer: false
+            "#;
+
+            let request = SettingsRequest {
+                data: content.into(),
+                format: SettingsFormat::Yaml,
+                subject: SettingsSubject::OctoPrint,
+                pre_save: vec![],
+                post_save: vec![],
+            };
+
+            let res = request.handle();
+
+            assert_eq!(res.status, ResponseStatus::Ok);
+
+            let saved_config = OctoPrintSettings::default().read_settings().unwrap();
+            assert_eq!(saved_config, content);
             Ok(())
         });
     }
