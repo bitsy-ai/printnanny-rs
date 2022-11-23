@@ -1,4 +1,5 @@
 
+.PHONY: install-fake-services uninstall-fake-services
 VERSION ?= latest
 TMPDIR ?= .tmp
 DEV_MACHINE ?= pn-debug
@@ -67,3 +68,23 @@ lint:
 
 dev:
 	docker-compose -f docker/local.yml up
+
+install-polkit-rules:
+	mkdir -p /etc/polkit-1/rules.d/
+	install -m 0644 tools/polkit/printnanny.rules /etc/polkit-1/rules.d/printnanny.rules
+
+
+install-fake-services:
+	cp tools/systemd/mainsail.service /etc/systemd/system/mainsail.service
+	cp tools/systemd/octoprint.service /etc/systemd/system/octoprint.service
+	cp tools/systemd/printnanny-vision.service /etc/systemd/system/printnanny-vision.service
+	cp tools/systemd/syncthing.service /etc/systemd/system/syncthing.service
+	systemctl daemon-reload
+	systemctl enable octoprint.service
+
+uninstall-fake-services:
+	rm /etc/systemd/system/mainsail.service
+	rm /etc/systemd/system/octoprint.service
+	rm /etc/systemd/system/printnanny-vision.service
+	rm /etc/systemd/system/syncthing.service
+	systemctl daemon-reload
