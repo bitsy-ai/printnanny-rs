@@ -14,12 +14,12 @@ use tokio::time::{sleep, Duration};
 
 use printnanny_services::error::{CommandError, NatsError};
 
-use super::message::MessageHandler;
+use super::message_v2::NatsRequestReplyHandler;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NatsSubscriber<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Debug + MessageHandler<Request, Response>,
+    Request: Serialize + DeserializeOwned + Debug + NatsRequestReplyHandler,
     Response: Serialize + DeserializeOwned + Debug,
 {
     subject: String,
@@ -38,7 +38,7 @@ pub const DEFAULT_NATS_EDGE_APP_NAME: &str = "nats-edge-worker";
 
 impl<Request, Response> NatsSubscriber<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Debug + MessageHandler<Request, Response>,
+    Request: Serialize + DeserializeOwned + Debug + NatsRequestReplyHandler,
     Response: Serialize + DeserializeOwned + Debug,
 {
     pub fn clap_command(app_name: Option<String>) -> Command<'static> {
@@ -126,7 +126,7 @@ where
             message.payload.reader().read_to_string(&mut s)?;
             debug!("read message.payload {}", &s);
             let request = serde_json::from_str::<Request>(&s)?;
-            let res = request.handle(&request)?;
+            let res = request.handle().await?;
 
             match message.reply {
                 Some(reply_inbox) => {

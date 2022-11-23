@@ -21,8 +21,8 @@
 
 use zbus::dbus_proxy;
 
-#[dbus_proxy(interface = "org.freedesktop.systemd1.Manager")]
-trait Manager {
+#[dbus_proxy(interface = "org.freedesktop.systemd1.Manager", gen_async = true)]
+pub trait Manager {
     /// AbandonScope method
     fn abandon_scope(&self, name: &str) -> zbus::Result<()>;
 
