@@ -103,7 +103,7 @@ impl NatsRequestReplyHandler for SystemdManagerStopUnitRequest {
     }
 }
 
-//  pi.dbus.org.freedesktop.systemd1.Manager.StopUnit
+//  pi.dbus.org.freedesktop.systemd1.Manager.EnableUnit
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SystemdManagerEnableUnitRequest {
     files: Vec<String>,
@@ -113,7 +113,7 @@ pub struct SystemdManagerEnableUnitRequest {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SystemdManagerEnableUnitReply {
     request: SystemdManagerEnableUnitRequest,
-    changes: Vec<String>,
+    changes: Vec<(String, String, String)>,
 }
 
 #[async_trait]
@@ -123,7 +123,38 @@ impl NatsRequestReplyHandler for SystemdManagerEnableUnitRequest {
     async fn handle(&self) -> Result<Self::Reply> {
         let connection = zbus::Connection::system().await?;
         let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
-        let (enablement_info, changes) = proxy.enable_unit_files(&self.files, false, false).await?;
+        let files: Vec<&str> = self.files.iter().map(|s| s.as_str()).collect();
+        let (enablement_info, changes) = proxy.enable_unit_files(&files, false, false).await?;
+        let reply = Self::Reply {
+            changes,
+            request: self.clone(),
+        };
+        Ok(reply)
+    }
+}
+
+//  pi.dbus.org.freedesktop.systemd1.Manager.DisableUnit
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SystemdManagerDisableUnitRequest {
+    files: Vec<String>,
+    // mode: String, // "replace", "fail", "isolate", "ignore-dependencies", or "ignore-requirements" - but only "replace" mode is used by here, so omitting for simplicity
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SystemdManagerDisableUnitReply {
+    request: SystemdManagerDisableUnitRequest,
+    changes: Vec<(String, String, String)>,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for SystemdManagerDisableUnitRequest {
+    type Request = SystemdManagerDisableUnitRequest;
+    type Reply = SystemdManagerDisableUnitReply;
+    async fn handle(&self) -> Result<Self::Reply> {
+        let connection = zbus::Connection::system().await?;
+        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
+        let files: Vec<&str> = self.files.iter().map(|s| s.as_str()).collect();
+        let (enablement_info, changes) = proxy.enable_unit_files(&files, false, false).await?;
         let reply = Self::Reply {
             changes,
             request: self.clone(),
@@ -135,6 +166,10 @@ impl NatsRequestReplyHandler for SystemdManagerEnableUnitRequest {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "subject")]
 pub enum NatsRequest {
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
+    SystemdManagerDisableUnitRequest(SystemdManagerDisableUnitRequest),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
+    SystemdManagerEnableUnitRequest(SystemdManagerEnableUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
     SystemdManagerRestartUnitRequest(SystemdManagerRestartUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
@@ -152,6 +187,10 @@ pub enum NatsRequest {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "subject")]
 pub enum NatsReply {
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
+    SystemdManagerDisableUnitRequest(SystemdManagerDisableUnitRequest),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
+    SystemdManagerEnableUnitRequest(SystemdManagerEnableUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
     SystemdManagerRestartUnitReply(SystemdManagerRestartUnitReply),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
