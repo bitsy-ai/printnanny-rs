@@ -5,6 +5,9 @@ TMPDIR ?= .tmp
 DEV_MACHINE ?= pn-debug
 DEV_USER ?= root
 
+PRINTNANNY_ADMIN_GROUP ?= printnanny-admin
+USER ?= $(shell whoami)
+
 PRINTNANNY_WEBAPP_WORKSPACE ?= $(HOME)/projects/octoprint-nanny-webapp
 
 $(TMPDIR):
@@ -69,22 +72,26 @@ lint:
 dev:
 	docker-compose -f docker/local.yml up
 
+install-group:
+	sudo groupadd $(PRINTNANNY_ADMIN_GROUP) || echo $1
+	sudo usermod -a -G $(PRINTNANNY_ADMIN_GROUP) $(USER)
+
 install-polkit-rules:
-	mkdir -p /etc/polkit-1/rules.d/
-	install -m 0644 tools/polkit/printnanny.rules /etc/polkit-1/rules.d/printnanny.rules
+	sudo mkdir -p /etc/polkit-1/rules.d/
+	sudo install -m 0644 tools/polkit/printnanny.rules /etc/polkit-1/rules.d/printnanny.rules
 
 
 install-fake-services:
-	cp tools/systemd/mainsail.service /etc/systemd/system/mainsail.service
-	cp tools/systemd/octoprint.service /etc/systemd/system/octoprint.service
-	cp tools/systemd/printnanny-vision.service /etc/systemd/system/printnanny-vision.service
-	cp tools/systemd/syncthing.service /etc/systemd/system/syncthing.service
-	systemctl daemon-reload
-	systemctl enable octoprint.service
+	sudo cp tools/systemd/mainsail.service /etc/systemd/system/mainsail.service
+	sudo cp tools/systemd/octoprint.service /etc/systemd/system/octoprint.service
+	sudo cp tools/systemd/printnanny-vision.service /etc/systemd/system/printnanny-vision.service
+	sudo cp tools/systemd/syncthing.service /etc/systemd/system/syncthing.service
+	sudo systemctl daemon-reload
+	sudo systemctl enable octoprint.service
 
 uninstall-fake-services:
-	rm /etc/systemd/system/mainsail.service
-	rm /etc/systemd/system/octoprint.service
-	rm /etc/systemd/system/printnanny-vision.service
-	rm /etc/systemd/system/syncthing.service
-	systemctl daemon-reload
+	sudo rm /etc/systemd/system/mainsail.service
+	sudo rm /etc/systemd/system/octoprint.service
+	sudo rm /etc/systemd/system/printnanny-vision.service
+	sudo rm /etc/systemd/system/syncthing.service
+	sudo systemctl daemon-reload
