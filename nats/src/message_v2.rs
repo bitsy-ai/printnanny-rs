@@ -85,11 +85,14 @@ impl NatsRequestReplyHandler for NatsRequest {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_dbus_systemd_manager_start_unit() {
+    #[tokio::test] // async test
+    async fn test_dbus_systemd_manager_start_unit() {
         let request = SystemdManagerStartUnitRequest {
             name: "octoprint.service".into(),
         };
+        let reply = request.handle().await.unwrap();
+        assert_eq!(reply.request, request);
+        
     }
 
     // fn test_gst_pipeline_settings_update_handler() {
