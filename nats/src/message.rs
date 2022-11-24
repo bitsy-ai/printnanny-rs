@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use log::info;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -678,7 +679,7 @@ impl NatsRequestReplyHandler for NatsRequest {
     type Reply = NatsReply;
 
     async fn handle(&self) -> Result<NatsReply> {
-        match self {
+        let reply = match self {
             NatsRequest::SystemdManagerDisableUnitRequest(request) => {
                 match request.handle().await {
                     Ok(r) => Ok(NatsReply::SystemdManagerDisableUnitReply(r)),
@@ -762,7 +763,10 @@ impl NatsRequestReplyHandler for NatsRequest {
             NatsRequest::OctoPrintSettingsLoadRequest(_) => todo!(),
             NatsRequest::OctoPrintSettingsApplyRequest(_) => todo!(),
             NatsRequest::OctoPrintSettingsRevertRequest(_) => todo!(),
-        }
+        };
+
+        info!("Sending NatsReply: {:?}", reply);
+        Ok(reply)
     }
 }
 

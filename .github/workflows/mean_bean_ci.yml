@@ -74,6 +74,8 @@ jobs:
 
   linux:
     runs-on: ubuntu-22.04
+    env:
+      RUST_LOG: debug
     steps:
       - name: Install cross
         run: |
