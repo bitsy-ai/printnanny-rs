@@ -57,5 +57,4 @@ RUN apt-get update && apt-get install --assume-yes --upgrade \
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs build-essential gcc g++ make
 
 ADD systemd/* /etc/systemd/system/
-RUN systemctl daemon-reload
-RUN systemctl enable octoprint.service
+CMD ["/usr/sbin/init"]
