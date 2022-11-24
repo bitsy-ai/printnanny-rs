@@ -9,7 +9,7 @@ use clap::{
 use git_version::git_version;
 
 
-use printnanny_nats::message::{NatsResponse, NatsRequest};
+use printnanny_nats::message_v2::{NatsReply, NatsRequest};
 use printnanny_nats::cloud_worker::DEFAULT_NATS_CLOUD_APP_NAME;
 use printnanny_nats::subscriber::{ NatsSubscriber, DEFAULT_NATS_EDGE_APP_NAME};
 use printnanny_services::settings::SettingsFormat;
@@ -157,7 +157,7 @@ async fn main() -> Result<()> {
             ))
 
         // nats-edge-worker
-        .subcommand(printnanny_nats::subscriber::NatsSubscriber::<NatsRequest, NatsResponse>::clap_command(None))
+        .subcommand(printnanny_nats::subscriber::NatsSubscriber::<NatsRequest, NatsReply>::clap_command(None))
         // nats-cloud-worker
         .subcommand(printnanny_nats::cloud_worker::NatsCloudWorker::clap_command(None))
         // nats-cloud-publisher
@@ -225,7 +225,7 @@ async fn main() -> Result<()> {
         },
 
         Some((DEFAULT_NATS_EDGE_APP_NAME, sub_m)) => {
-            let worker = NatsSubscriber::<NatsRequest, NatsResponse>::new(sub_m);
+            let worker = NatsSubscriber::<NatsRequest, NatsReply>::new(sub_m);
             worker.run().await?;
         },
 

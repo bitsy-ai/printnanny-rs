@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use printnanny_dbus;
 use printnanny_dbus::zbus;
 
-use printnanny_services::settings::PrintNannySettings;
+use printnanny_services::settings::{PrintNannySettings, SettingsFormat};
 
 #[async_trait]
 pub trait NatsRequestReplyHandler {
@@ -274,9 +274,309 @@ impl NatsRequestReplyHandler for ConnectCloudAccountRequest {
     }
 }
 
+//  pi.settings.gst_pipeline.load
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct GstPipelineSettingsLoadRequest {
+    format: SettingsFormat,
+}
+
+//  pi.settings.gst_pipeline.load
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct GstPipelineSettingsLoadReply {
+    data: String,
+    format: SettingsFormat,
+    parent_commit: String,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for GstPipelineSettingsLoadRequest {
+    type Request = GstPipelineSettingsLoadRequest;
+    type Reply = GstPipelineSettingsLoadReply;
+
+    async fn handle(&self) -> Result<Self::Reply> {
+        todo!()
+    }
+}
+
+//  pi.settings.gst_pipeline.apply
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct GstPipelineSettingsApplyRequest {
+    parent_commit: String,
+    format: SettingsFormat,
+}
+
+//  pi.settings.gst_pipeline.apply
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct GstPipelineSettingsApplyReply {
+    data: String,
+    format: SettingsFormat,
+    parent_commit: String,
+    commit: String,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for GstPipelineSettingsApplyRequest {
+    type Request = GstPipelineSettingsLoadRequest;
+    type Reply = GstPipelineSettingsLoadReply;
+
+    async fn handle(&self) -> Result<Self::Reply> {
+        todo!()
+    }
+}
+
+//  pi.settings.gst_pipeline.revert
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct GstPipelineSettingsRevertRequest {
+    commit: String,
+}
+
+//  pi.settings.gst_pipeline.revert
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct GstPipelineSettingsRevertReply {
+    data: String,
+    format: SettingsFormat,
+    parent_commit: String,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for GstPipelineSettingsRevertRequest {
+    type Request = GstPipelineSettingsLoadRequest;
+    type Reply = GstPipelineSettingsLoadReply;
+
+    async fn handle(&self) -> Result<Self::Reply> {
+        todo!()
+    }
+}
+
+//  pi.settings.moonraker.load
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct MoonrakerSettingsLoadRequest {
+    format: SettingsFormat,
+}
+
+//  pi.settings.moonraker.load
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct MoonrakerSettingsLoadReply {
+    data: String,
+    format: SettingsFormat,
+    parent_commit: String,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for MoonrakerSettingsLoadRequest {
+    type Request = MoonrakerSettingsLoadRequest;
+    type Reply = MoonrakerSettingsLoadReply;
+
+    async fn handle(&self) -> Result<Self::Reply> {
+        todo!()
+    }
+}
+
+//  pi.settings.moonraker.apply
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct MoonrakerSettingsApplyRequest {
+    parent_commit: String,
+    format: SettingsFormat,
+}
+
+//  pi.settings.moonraker.apply
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct MoonrakerSettingsApplyReply {
+    data: String,
+    format: SettingsFormat,
+    parent_commit: String,
+    commit: String,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for MoonrakerSettingsApplyRequest {
+    type Request = MoonrakerSettingsLoadRequest;
+    type Reply = MoonrakerSettingsLoadReply;
+
+    async fn handle(&self) -> Result<Self::Reply> {
+        todo!()
+    }
+}
+
+//  pi.settings.moonraker.revert
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct MoonrakerSettingsRevertRequest {
+    commit: String,
+}
+
+//  pi.settings.moonraker.revert
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct MoonrakerSettingsRevertReply {
+    data: String,
+    format: SettingsFormat,
+    parent_commit: String,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for MoonrakerSettingsRevertRequest {
+    type Request = MoonrakerSettingsLoadRequest;
+    type Reply = MoonrakerSettingsLoadReply;
+
+    async fn handle(&self) -> Result<Self::Reply> {
+        todo!()
+    }
+}
+
+//  pi.settings.klipper.load
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct KlipperSettingsLoadRequest {
+    format: SettingsFormat,
+}
+
+//  pi.settings.klipper.load
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct KlipperSettingsLoadReply {
+    data: String,
+    format: SettingsFormat,
+    parent_commit: String,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for KlipperSettingsLoadRequest {
+    type Request = KlipperSettingsLoadRequest;
+    type Reply = KlipperSettingsLoadReply;
+
+    async fn handle(&self) -> Result<Self::Reply> {
+        todo!()
+    }
+}
+
+//  pi.settings.klipper.apply
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct KlipperSettingsApplyRequest {
+    parent_commit: String,
+    format: SettingsFormat,
+}
+
+//  pi.settings.klipper.apply
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct KlipperSettingsApplyReply {
+    data: String,
+    format: SettingsFormat,
+    parent_commit: String,
+    commit: String,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for KlipperSettingsApplyRequest {
+    type Request = KlipperSettingsLoadRequest;
+    type Reply = KlipperSettingsLoadReply;
+
+    async fn handle(&self) -> Result<Self::Reply> {
+        todo!()
+    }
+}
+
+//  pi.settings.klipper.revert
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct KlipperSettingsRevertRequest {
+    commit: String,
+}
+
+//  pi.settings.klipper.revert
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct KlipperSettingsRevertReply {
+    data: String,
+    format: SettingsFormat,
+    parent_commit: String,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for KlipperSettingsRevertRequest {
+    type Request = KlipperSettingsLoadRequest;
+    type Reply = KlipperSettingsLoadReply;
+
+    async fn handle(&self) -> Result<Self::Reply> {
+        todo!()
+    }
+}
+
+//  pi.settings.gst_pipeline.load
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct OctoPrintSettingsLoadRequest {
+    format: SettingsFormat,
+}
+
+//  pi.settings.octoprint.load
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct OctoPrintSettingsLoadReply {
+    data: String,
+    format: SettingsFormat,
+    parent_commit: String,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for OctoPrintSettingsLoadRequest {
+    type Request = OctoPrintSettingsLoadRequest;
+    type Reply = OctoPrintSettingsLoadReply;
+
+    async fn handle(&self) -> Result<Self::Reply> {
+        todo!()
+    }
+}
+
+//  pi.settings.octoprint.apply
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct OctoPrintSettingsApplyRequest {
+    parent_commit: String,
+    format: SettingsFormat,
+}
+
+//  pi.settings.octoprint.apply
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct OctoPrintSettingsApplyReply {
+    data: String,
+    format: SettingsFormat,
+    parent_commit: String,
+    commit: String,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for OctoPrintSettingsApplyRequest {
+    type Request = OctoPrintSettingsLoadRequest;
+    type Reply = OctoPrintSettingsLoadReply;
+
+    async fn handle(&self) -> Result<Self::Reply> {
+        todo!()
+    }
+}
+
+//  pi.settings.octoprint.revert
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct OctoPrintSettingsRevertRequest {
+    commit: String,
+}
+
+//  pi.settings.octoprint.revert
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct OctoPrintSettingsRevertReply {
+    data: String,
+    format: SettingsFormat,
+    parent_commit: String,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for OctoPrintSettingsRevertRequest {
+    type Request = OctoPrintSettingsLoadRequest;
+    type Reply = OctoPrintSettingsLoadReply;
+
+    async fn handle(&self) -> Result<Self::Reply> {
+        todo!()
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "subject")]
 pub enum NatsRequest {
+    // pi.command.*
+    #[serde(rename = "pi.command.connect_printnanny_cloud_account")]
+    ConnectPrintNannyCloudRequest(SystemdManagerStopUnitRequest),
+
     // pi.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
     SystemdManagerDisableUnitRequest(SystemdManagerDisableUnitRequest),
@@ -291,20 +591,44 @@ pub enum NatsRequest {
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
     SystemdManagerStopUnitRequest(SystemdManagerStopUnitRequest),
 
-    // pi.command.*
-    #[serde(rename = "pi.command.connect_printnanny_cloud_account")]
-    ConnectPrintNannyCloudRequest(SystemdManagerStopUnitRequest),
-    // #[serde(rename = "pi.command.systemctl")]
-    // SystemctlCommandRequest(SystemctlCommandRequest),
-    // #[serde(rename = "pi.printnanny_cloud.connect_account")]
-    // ConnectCloudAccountRequest(ConnectCloudAccountRequest),
-    // #[serde(rename = "pi.command.settings.gst_pipeline")]
-    // GstPipelineSettingsRequest(SettingsRequest),
+    // pi.settings.*
+    #[serde(rename = "pi.settings.gst_pipeline.load")]
+    GstPipelineSettingsLoadRequest(GstPipelineSettingsLoadRequest),
+    #[serde(rename = "pi.settings.gst_pipeline.apply")]
+    GstPipelineSettingsApplyRequest(GstPipelineSettingsApplyRequest),
+    #[serde(rename = "pi.settings.gst_pipeline.revert")]
+    GstPipelineSettingsRevertRequest(GstPipelineSettingsRevertRequest),
+
+    #[serde(rename = "pi.settings.klipper.load")]
+    KlipperSettingsLoadRequest(KlipperSettingsLoadRequest),
+    #[serde(rename = "pi.settings.klipper.apply")]
+    KlipperSettingsApplyRequest(KlipperSettingsApplyRequest),
+    #[serde(rename = "pi.settings.klipper.revert")]
+    KlipperSettingsRevertRequest(KlipperSettingsRevertRequest),
+
+    #[serde(rename = "pi.settings.moonraker.load")]
+    MoonrakerSettingsLoadRequest(MoonrakerSettingsLoadRequest),
+    #[serde(rename = "pi.settings.moonraker.apply")]
+    MoonrakerSettingsApplyRequest(MoonrakerSettingsApplyRequest),
+    #[serde(rename = "pi.settings.moonraker.revert")]
+    MoonrakerSettingsRevertRequest(MoonrakerSettingsRevertRequest),
+
+    #[serde(rename = "pi.settings.octoprint.load")]
+    OctoPrintSettingsLoadRequest(OctoPrintSettingsLoadRequest),
+    #[serde(rename = "pi.settings.octoprint.apply")]
+    OctoPrintSettingsApplyRequest(OctoPrintSettingsApplyRequest),
+    #[serde(rename = "pi.settings.octoprint.revert")]
+    OctoPrintSettingsRevertRequest(OctoPrintSettingsRevertRequest),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "subject")]
 pub enum NatsReply {
+    // pi.command.*
+    #[serde(rename = "pi.command.connect_printnanny_cloud_account")]
+    ConnectPrintNannyCloudReply(SystemdManagerStopUnitReply),
+
+    // pi.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
     SystemdManagerDisableUnitReply(SystemdManagerDisableUnitReply),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
@@ -318,12 +642,34 @@ pub enum NatsReply {
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
     SystemdManagerStopUnitReply(SystemdManagerStopUnitReply),
 
-    #[serde(rename = "pi.command.connect_printnanny_cloud_account")]
-    ConnectPrintNannyCloudReply(SystemdManagerStopUnitReply),
-    // #[serde(rename = "pi.command.settings.gst_pipeline")]
-    // GstPipelineSettingsResponse(SettingsResponse),
-    // #[serde(rename = "pi.command.connect_cloud_account")]
-    // ConnectCloudAccountResponse(ConnectCloudAccountResponse),
+    // pi.settings.*
+    #[serde(rename = "pi.settings.gst_pipeline.load")]
+    GstPipelineSettingsLoadReply(GstPipelineSettingsLoadReply),
+    #[serde(rename = "pi.settings.gst_pipeline.apply")]
+    GstPipelineSettingsApplyReply(GstPipelineSettingsApplyReply),
+    #[serde(rename = "pi.settings.gst_pipeline.revert")]
+    GstPipelineSettingsRevertReply(GstPipelineSettingsRevertReply),
+
+    #[serde(rename = "pi.settings.klipper.load")]
+    KlipperSettingsLoadReply(KlipperSettingsLoadReply),
+    #[serde(rename = "pi.settings.klipper.apply")]
+    KlipperSettingsApplyReply(KlipperSettingsApplyReply),
+    #[serde(rename = "pi.settings.klipper.revert")]
+    KlipperSettingsRevertReply(KlipperSettingsRevertReply),
+
+    #[serde(rename = "pi.settings.moonraker.load")]
+    MoonrakerSettingsLoadReply(MoonrakerSettingsLoadReply),
+    #[serde(rename = "pi.settings.moonraker.apply")]
+    MoonrakerSettingsApplyReply(MoonrakerSettingsApplyReply),
+    #[serde(rename = "pi.settings.moonraker.revert")]
+    MoonrakerSettingsRevertReply(MoonrakerSettingsRevertReply),
+
+    #[serde(rename = "pi.settings.octoprint.load")]
+    OctoPrintSettingsLoadReply(OctoPrintSettingsLoadReply),
+    #[serde(rename = "pi.settings.octoprint.apply")]
+    OctoPrintSettingsApplyReply(OctoPrintSettingsApplyReply),
+    #[serde(rename = "pi.settings.octoprint.revert")]
+    OctoPrintSettingsRevertReply(OctoPrintSettingsRevertReply),
 }
 
 #[async_trait]
@@ -404,6 +750,18 @@ impl NatsRequestReplyHandler for NatsRequest {
                 )),
             },
             NatsRequest::ConnectPrintNannyCloudRequest(_) => todo!(),
+            NatsRequest::GstPipelineSettingsLoadRequest(_) => todo!(),
+            NatsRequest::GstPipelineSettingsApplyRequest(_) => todo!(),
+            NatsRequest::GstPipelineSettingsRevertRequest(_) => todo!(),
+            NatsRequest::KlipperSettingsLoadRequest(_) => todo!(),
+            NatsRequest::KlipperSettingsApplyRequest(_) => todo!(),
+            NatsRequest::KlipperSettingsRevertRequest(_) => todo!(),
+            NatsRequest::MoonrakerSettingsLoadRequest(_) => todo!(),
+            NatsRequest::MoonrakerSettingsApplyRequest(_) => todo!(),
+            NatsRequest::MoonrakerSettingsRevertRequest(_) => todo!(),
+            NatsRequest::OctoPrintSettingsLoadRequest(_) => todo!(),
+            NatsRequest::OctoPrintSettingsApplyRequest(_) => todo!(),
+            NatsRequest::OctoPrintSettingsRevertRequest(_) => todo!(),
         }
     }
 }
