@@ -21,15 +21,15 @@ clean:
 images:
 	docker build \
 		-f tools/docker/aarch64-unknown-linux-gnu.Dockerfile \
-		-t bitsyai/cross:aarch64-unknown-linux-gnu tools/docker
+		-t bitsyai/cross:aarch64-unknown-linux-gnu tools
 	docker push bitsyai/cross:aarch64-unknown-linux-gnu
 	docker build \
 		-f tools/docker/armv7-unknown-linux-gnueabihf.Dockerfile \
-		-t bitsyai/cross:armv7-unknown-linux-gnueabihf tools/docker
+		-t bitsyai/cross:armv7-unknown-linux-gnueabihf tools
 	docker push bitsyai/cross:armv7-unknown-linux-gnueabihf
 	docker build \
 		-f tools/docker/x86_64-unknown-linux-gnu.Dockerfile \
-		-t bitsyai/cross:x86_64-unknown-linux-gnu tools/docker
+		-t bitsyai/cross:x86_64-unknown-linux-gnu tools
 	docker push bitsyai/cross:x86_64-unknown-linux-gnu
 
 patch:
