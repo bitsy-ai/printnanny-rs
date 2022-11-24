@@ -830,15 +830,6 @@ mod tests {
     }
 
     #[tokio::test] // async test
-    async fn test_dbus_systemd_manager_start_unit() {
-        let request = SystemdManagerStartUnitRequest {
-            name: "octoprint.service".into(),
-        };
-        let reply = request.handle().await.unwrap();
-        assert_eq!(reply.request, request);
-    }
-
-    #[tokio::test] // async test
     async fn test_dbus_systemd_manager_start_unit_ok() {
         let request = SystemdManagerStartUnitRequest {
             name: "octoprint.service".into(),

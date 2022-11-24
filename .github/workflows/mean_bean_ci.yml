@@ -88,8 +88,13 @@ jobs:
             gstreamer1.0-tools gstreamer1.0-x \
             libglib2.0-dev
       - uses: actions/checkout@v2
-      - run: tools/ci/set_rust_version.bash ${{ matrix.channel }} ${{ matrix.target }}
-      - run: tools/ci/build.bash $(which cross) ${{ matrix.target }}
+      - run: |
+          tools/ci/set_rust_version.bash ${{ matrix.channel }} ${{ matrix.target }}
+          tools/ci/build.bash $(which cross) ${{ matrix.target }}
+          sudo make install-group
+          sudo make install-polkit-pkla
+          sudo make install-fake-services
+
         # These targets have issues with being tested so they are disabled
         # by default. You can try disabling to see if they work for
         # your project.
