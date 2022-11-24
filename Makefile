@@ -80,6 +80,10 @@ install-polkit-rules:
 	sudo mkdir -p /etc/polkit-1/rules.d/
 	sudo install -m 0644 tools/polkit/printnanny.rules /etc/polkit-1/rules.d/printnanny.rules
 
+# Debian-derived distros are still stuck on Polkit 105, which requires the older pkla syntax
+install-polkit-pkla:
+	sudo install -m 0644 tools/polkit/printnanny.pkla /etc/polkit-1/localauthority/50-local.d/printnanny.pkla
+
 
 install-fake-services:
 	sudo cp tools/systemd/mainsail.service /etc/systemd/system/mainsail.service
