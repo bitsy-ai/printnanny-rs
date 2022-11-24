@@ -12,5 +12,5 @@ TARGET_TRIPLE=$2
 required_arg $CROSS 'CROSS'
 required_arg $TARGET_TRIPLE '<Target Triple>'
 
-$CROSS test --workspace --target $TARGET_TRIPLE
-$CROSS test --workspace --target $TARGET_TRIPLE --all-features
+$CROSS test --workspace --target $TARGET_TRIPLE -- --no-capture
+$CROSS test --workspace --target $TARGET_TRIPLE --all-features -- --no-capture
