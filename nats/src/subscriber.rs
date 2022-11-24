@@ -14,7 +14,7 @@ use tokio::time::{sleep, Duration};
 
 use printnanny_services::error::{CommandError, NatsError};
 
-use super::message_v2::NatsRequestReplyHandler;
+use super::message::NatsRequestReplyHandler;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NatsSubscriber<Request, Response>
