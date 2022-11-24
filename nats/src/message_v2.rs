@@ -154,9 +154,38 @@ impl NatsRequestReplyHandler for SystemdManagerDisableUnitRequest {
         let connection = zbus::Connection::system().await?;
         let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
         let files: Vec<&str> = self.files.iter().map(|s| s.as_str()).collect();
-        let (enablement_info, changes) = proxy.enable_unit_files(&files, false, false).await?;
+        let changes = proxy.disable_unit_files(&files, false).await?;
         let reply = Self::Reply {
             changes,
+            request: self.clone(),
+        };
+        Ok(reply)
+    }
+}
+
+//  pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SystemdManagerReloadUnitRequest {
+    name: String, // mode: String, // "replace", "fail", "isolate", "ignore-dependencies", or "ignore-requirements" - but only "replace" mode is used by here, so omitting for simplicity
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SystemdManagerReloadUnitReply {
+    request: SystemdManagerReloadUnitRequest,
+    job: zbus::zvariant::OwnedObjectPath,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for SystemdManagerReloadUnitRequest {
+    type Request = SystemdManagerReloadUnitRequest;
+    type Reply = SystemdManagerReloadUnitReply;
+
+    async fn handle(&self) -> Result<Self::Reply> {
+        let connection = zbus::Connection::system().await?;
+        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
+        let job = proxy.restart_unit(&self.name, "replace").await?;
+        let reply = Self::Reply {
+            job,
             request: self.clone(),
         };
         Ok(reply)
@@ -170,6 +199,8 @@ pub enum NatsRequest {
     SystemdManagerDisableUnitRequest(SystemdManagerDisableUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
     SystemdManagerEnableUnitRequest(SystemdManagerEnableUnitRequest),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
+    SystemdManagerReloadUnitRequest(SystemdManagerReloadUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
     SystemdManagerRestartUnitRequest(SystemdManagerRestartUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
@@ -188,15 +219,17 @@ pub enum NatsRequest {
 #[serde(tag = "subject")]
 pub enum NatsReply {
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
-    SystemdManagerDisableUnitRequest(SystemdManagerDisableUnitRequest),
+    SystemdManagerDisableUnitReply(SystemdManagerDisableUnitReply),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
-    SystemdManagerEnableUnitRequest(SystemdManagerEnableUnitRequest),
+    SystemdManagerEnableUnitReply(SystemdManagerEnableUnitReply),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
+    SystemdManagerReloadUnitReply(SystemdManagerReloadUnitReply),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
     SystemdManagerRestartUnitReply(SystemdManagerRestartUnitReply),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
     SystemdManagerStartUnitReply(SystemdManagerStartUnitReply),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
-    SystemdManagerStopUnitReply(SystemdManagerStartUnitReply),
+    SystemdManagerStopUnitReply(SystemdManagerStopUnitReply),
     // #[serde(rename = "pi.command.settings.gst_pipeline")]
     // GstPipelineSettingsResponse(SettingsResponse),
     // #[serde(rename = "pi.command.connect_cloud_account")]
@@ -210,8 +243,23 @@ impl NatsRequestReplyHandler for NatsRequest {
 
     async fn handle(&self) -> Result<NatsReply> {
         match self {
+            NatsRequest::SystemdManagerDisableUnitRequest(request) => Ok(
+                NatsReply::SystemdManagerDisableUnitReply(request.handle().await?),
+            ),
+            NatsRequest::SystemdManagerEnableUnitRequest(request) => Ok(
+                NatsReply::SystemdManagerEnableUnitReply(request.handle().await?),
+            ),
+            NatsRequest::SystemdManagerReloadUnitRequest(request) => Ok(
+                NatsReply::SystemdManagerReloadUnitReply(request.handle().await?),
+            ),
+            NatsRequest::SystemdManagerRestartUnitRequest(request) => Ok(
+                NatsReply::SystemdManagerRestartUnitReply(request.handle().await?),
+            ),
             NatsRequest::SystemdManagerStartUnitRequest(request) => Ok(
                 NatsReply::SystemdManagerStartUnitReply(request.handle().await?),
+            ),
+            NatsRequest::SystemdManagerStopUnitRequest(request) => Ok(
+                NatsReply::SystemdManagerStopUnitReply(request.handle().await?),
             ),
         }
     }
@@ -220,6 +268,24 @@ impl NatsRequestReplyHandler for NatsRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test] // async test
+    async fn test_dbus_systemd_manager_disable_unit() {
+        let request = SystemdManagerEnableUnitRequest {
+            files: vec!["octoprint.service".into()],
+        };
+        let reply = request.handle().await.unwrap();
+        assert_eq!(reply.request, request);
+    }
+
+    #[tokio::test] // async test
+    async fn test_dbus_systemd_manager_enable_unit() {
+        let request = SystemdManagerEnableUnitRequest {
+            files: vec!["octoprint.service".into()],
+        };
+        let reply = request.handle().await.unwrap();
+        assert_eq!(reply.request, request);
+    }
 
     #[tokio::test] // async test
     async fn test_dbus_systemd_manager_start_unit() {
@@ -249,9 +315,9 @@ mod tests {
     }
 
     #[tokio::test] // async test
-    async fn test_dbus_systemd_manager_enable_init() {
-        let request = SystemdManagerEnableUnitRequest {
-            files: vec!["octoprint.service".into()],
+    async fn test_dbus_systemd_manager_reload_unit() {
+        let request = SystemdManagerReloadUnitRequest {
+            name: "octoprint.service".into(),
         };
         let reply = request.handle().await.unwrap();
         assert_eq!(reply.request, request);
