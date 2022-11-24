@@ -286,7 +286,7 @@ impl PrintNannySettings {
             )))
             // allow nested environment variables:
             // PRINTNANNY_SETTINGS_KEY__SUBKEY
-            .merge(Env::prefixed("PRINTNANNY_SETTINGS").split("__"));
+            .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"));
 
         // extract paths, to load application state conf.d fragments
         let lib_settings_file: String = result
@@ -311,7 +311,7 @@ impl PrintNannySettings {
             )))
             // allow nested environment variables:
             // PRINTNANNY_KEY__SUBKEY
-            .merge(Env::prefixed("PRINTNANNY_SETTINGS").split("__"));
+            .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"));
 
         info!("Finalized PrintNannyCloudConfig: \n {:?}", result);
         Ok(result)
