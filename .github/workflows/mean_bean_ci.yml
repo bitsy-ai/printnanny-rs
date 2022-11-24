@@ -86,7 +86,8 @@ jobs:
             gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
             gstreamer1.0-libav libgstrtspserver-1.0-dev libges-1.0-dev \
             gstreamer1.0-tools gstreamer1.0-x \
-            libglib2.0-dev
+            libglib2.0-dev \
+            policykit-1
       - uses: actions/checkout@v2
       - run: |
           tools/ci/set_rust_version.bash ${{ matrix.channel }} ${{ matrix.target }}
@@ -94,6 +95,7 @@ jobs:
           sudo make install-group
           sudo make install-polkit-pkla
           sudo make install-fake-services
+          sudo systemctl restart policykit.service
 
         # These targets have issues with being tested so they are disabled
         # by default. You can try disabling to see if they work for
