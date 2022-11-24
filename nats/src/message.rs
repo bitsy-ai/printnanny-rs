@@ -766,7 +766,7 @@ impl NatsRequestReplyHandler for NatsRequest {
         };
 
         info!("Sending NatsReply: {:?}", reply);
-        Ok(reply)
+        reply
     }
 }
 
