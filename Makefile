@@ -13,7 +13,8 @@ PRINTNANNY_WEBAPP_WORKSPACE ?= $(HOME)/projects/octoprint-nanny-webapp
 $(TMPDIR):
 	mkdir -p $(TMPDIR)
 
-test-license: $(TMPDIR)/printnanny_license.zip
+test:
+	cargo test --workspace --all-features  
 
 clean:
 	rm -rf $(TMPDIR)
