@@ -98,7 +98,7 @@ jobs:
             gstreamer1.0-tools gstreamer1.0-x \
             libglib2.0-dev
 
-          make intall-fake-services
+          make install-fake-services
           make install-group
           make install-polkit-pkla
       - name: Test all features (native)
