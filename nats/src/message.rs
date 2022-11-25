@@ -9,7 +9,9 @@ use serde::{Deserialize, Serialize};
 use printnanny_dbus;
 use printnanny_dbus::zbus;
 
+use printnanny_services::printer_mgmt::octoprint::OctoPrintSettings;
 use printnanny_services::settings::{PrintNannySettings, SettingsFormat};
+use printnanny_services::vcs::VersionControlledSettings;
 
 #[async_trait]
 pub trait NatsRequestReplyHandler {
@@ -506,6 +508,8 @@ pub struct OctoPrintSettingsLoadRequest {
 //  pi.settings.octoprint.load
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OctoPrintSettingsLoadReply {
+    request: OctoPrintSettingsLoadRequest,
+    status: ReplyStatus,
     data: String,
     format: SettingsFormat,
     parent_commit: String,
@@ -517,7 +521,9 @@ impl NatsRequestReplyHandler for OctoPrintSettingsLoadRequest {
     type Reply = OctoPrintSettingsLoadReply;
 
     async fn handle(&self) -> Result<Self::Reply> {
-        todo!()
+        let settings = OctoPrintSettings::new();
+
+        let parent_commit = settings.get_git_parent_commit()?.to_string();
     }
 }
 
@@ -774,6 +780,21 @@ impl NatsRequestReplyHandler for NatsRequest {
 mod tests {
     use super::*;
     use test_log::test;
+
+    #[test(tokio::test)] // async test
+    async fn test_load_octoprint_settings() {
+        let request = OctoPrintSettingsLoadRequest {
+            format: SettingsFormat::Yaml,
+        };
+        let natsrequest = NatsRequest::OctoPrintSettingsLoadRequest(request.clone());
+        let natsreply = natsrequest.handle().await.unwrap();
+        if let NatsReply::OctoPrintSettingsLoadReply(reply) = natsreply {
+            assert_eq!(reply.request, request);
+            assert_eq!(reply.status, ReplyStatus::Ok)
+        } else {
+            panic!("Expected NatsReply::OctoPrintSettingsLoadReply")
+        }
+    }
 
     #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
