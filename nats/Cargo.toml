@@ -17,6 +17,10 @@ name = "nats-cloud-worker"
 [[bin]]
 name = "nats-edge-worker"
 
+[features]
+default = []
+systemd = []
+
 [dependencies]
 anyhow = "1"
 async-nats = "0.18.0"

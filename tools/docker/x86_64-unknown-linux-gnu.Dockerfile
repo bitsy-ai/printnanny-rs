@@ -27,7 +27,6 @@ RUN apt-get install -y software-properties-common
 
 RUN apt-add-repository ppa:nnstreamer
 RUN apt-get update -y && apt-get install -y --upgrade \
-    systemd policykit-1 \
     libssl-dev \
     libgstreamer1.0-dev  libgstreamer-plugins-base1.0-dev  \
     gstreamer1.0-plugins-base  gstreamer1.0-plugins-good  \
@@ -40,8 +39,3 @@ RUN apt-get update -y && apt-get install -y --upgrade \
 
 # nodejs is required to build printnanny-dash package
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs build-essential gcc g++ make
-
-
-ADD systemd/* /etc/systemd/system/
-CMD ["/usr/sbin/init"]
-

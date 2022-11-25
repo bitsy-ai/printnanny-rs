@@ -43,7 +43,6 @@ RUN dpkg --add-architecture arm64
 RUN apt-get install -y software-properties-common
 RUN apt-add-repository ppa:nnstreamer
 RUN apt-get update && apt-get install --assume-yes --upgrade \
-    systemd:arm64 policykit-1:arm64 \
     libssl-dev:arm64 \
     libgstreamer1.0-dev:arm64 libgstreamer-plugins-base1.0-dev:arm64 \
     gstreamer1.0-plugins-base:arm64 gstreamer1.0-plugins-good:arm64 \
@@ -55,6 +54,3 @@ RUN apt-get update && apt-get install --assume-yes --upgrade \
     nnstreamer-dev:arm64
 
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs build-essential gcc g++ make
-
-ADD systemd/* /etc/systemd/system/
-CMD ["/usr/sbin/init"]

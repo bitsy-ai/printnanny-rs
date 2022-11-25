@@ -775,6 +775,7 @@ mod tests {
     use super::*;
     use test_log::test;
 
+    #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_disable_unit_ok() {
         let request = SystemdManagerDisableUnitRequest {
@@ -790,6 +791,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_disable_unit_error() {
         let request = SystemdManagerDisableUnitRequest {
@@ -805,6 +807,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_enable_unit_ok() {
         let request = SystemdManagerEnableUnitRequest {
@@ -819,6 +822,8 @@ mod tests {
             panic!("Expected NatsReply::SystemdManagerEnableUnitReply")
         }
     }
+
+    #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_enable_unit_error() {
         let request = SystemdManagerEnableUnitRequest {
@@ -834,6 +839,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_start_unit_ok() {
         let request = SystemdManagerStartUnitRequest {
@@ -849,6 +855,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_start_unit_error() {
         let request = SystemdManagerStartUnitRequest {
@@ -864,6 +871,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_restart_unit_ok() {
         let request = SystemdManagerRestartUnitRequest {
@@ -879,6 +887,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_restart_unit_error() {
         let request = SystemdManagerRestartUnitRequest {
@@ -894,6 +903,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_stop_unit_ok() {
         let request = SystemdManagerStopUnitRequest {
@@ -909,6 +919,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_stop_unit_error() {
         let request = SystemdManagerStopUnitRequest {
@@ -924,6 +935,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_reload_unit_ok() {
         let request = SystemdManagerReloadUnitRequest {
@@ -939,6 +951,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_reload_unit_error() {
         let request = SystemdManagerReloadUnitRequest {
