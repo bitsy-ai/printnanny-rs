@@ -150,7 +150,7 @@ pub trait VersionControlledSettings {
         Ok(())
     }
 
-    fn new() -> Self::SettingsModel;
+    fn from_dir(settings_dir: &Path) -> Self::SettingsModel;
 
     fn get_settings_format(&self) -> SettingsFormat;
     fn get_settings_file(&self) -> &Path;

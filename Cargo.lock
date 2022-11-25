@@ -2223,6 +2223,7 @@ dependencies = [
  "lazy_static",
  "log",
  "mockall",
+ "parking_lot 0.12.1",
  "predicates 2.1.1",
  "printnanny-api-client 0.113.0",
  "printnanny-dbus",

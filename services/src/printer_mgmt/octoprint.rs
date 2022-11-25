@@ -15,7 +15,7 @@ use crate::vcs::{VersionControlledSettings, VersionControlledSettingsError};
 pub const OCTOPRINT_INSTALL_DIR: &str = "/var/lib/octoprint";
 pub const OCTOPRINT_VENV: &str = "/var/lib/octoprint/venv";
 pub const DEFAULT_OCTOPRINT_SETTINGS_FILE: &str =
-    "/var/lib/printnanny/settings/octoprint/config.yaml";
+    "/var/lib/printnanny/settings/octoprint/octoprint.yaml";
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PipPackage {
@@ -35,8 +35,12 @@ pub struct OctoPrintSettings {
 #[async_trait]
 impl VersionControlledSettings for OctoPrintSettings {
     type SettingsModel = OctoPrintSettings;
-    fn new() -> Self {
-        Self::default()
+    fn from_dir(settings_dir: &Path) -> Self {
+        let settings_file = settings_dir.join("octoprint/octoprint.yaml");
+        Self {
+            settings_file,
+            ..Self::default()
+        }
     }
     fn get_settings_format(&self) -> SettingsFormat {
         self.settings_format

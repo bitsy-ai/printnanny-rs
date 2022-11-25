@@ -510,9 +510,10 @@ pub struct OctoPrintSettingsLoadRequest {
 pub struct OctoPrintSettingsLoadReply {
     request: OctoPrintSettingsLoadRequest,
     status: ReplyStatus,
-    data: String,
+    data: Option<String>,
     format: SettingsFormat,
-    parent_commit: String,
+    parent_commit: Option<String>,
+    error: Option<String>,
 }
 
 #[async_trait]
@@ -521,9 +522,19 @@ impl NatsRequestReplyHandler for OctoPrintSettingsLoadRequest {
     type Reply = OctoPrintSettingsLoadReply;
 
     async fn handle(&self) -> Result<Self::Reply> {
-        let settings = OctoPrintSettings::new();
+        let settings = PrintNannySettings::new()?;
 
-        let parent_commit = settings.get_git_parent_commit()?.to_string();
+        let parent_commit = settings.octoprint.get_git_parent_commit()?.to_string();
+        let data = settings.octoprint.read_settings()?;
+
+        Ok(Self::Reply {
+            request: self.clone(),
+            parent_commit: Some(parent_commit),
+            data: Some(data),
+            status: ReplyStatus::Ok,
+            format: SettingsFormat::Yaml,
+            error: None,
+        })
     }
 }
 
@@ -766,7 +777,19 @@ impl NatsRequestReplyHandler for NatsRequest {
             NatsRequest::MoonrakerSettingsLoadRequest(_) => todo!(),
             NatsRequest::MoonrakerSettingsApplyRequest(_) => todo!(),
             NatsRequest::MoonrakerSettingsRevertRequest(_) => todo!(),
-            NatsRequest::OctoPrintSettingsLoadRequest(_) => todo!(),
+            NatsRequest::OctoPrintSettingsLoadRequest(request) => match request.handle().await {
+                Ok(r) => Ok(NatsReply::OctoPrintSettingsLoadReply(r)),
+                Err(e) => Ok(NatsReply::OctoPrintSettingsLoadReply(
+                    OctoPrintSettingsLoadReply {
+                        status: ReplyStatus::Error,
+                        error: Some(format!("{}", e)),
+                        format: SettingsFormat::Yaml,
+                        parent_commit: None,
+                        data: None,
+                        request: request.clone(),
+                    },
+                )),
+            },
             NatsRequest::OctoPrintSettingsApplyRequest(_) => todo!(),
             NatsRequest::OctoPrintSettingsRevertRequest(_) => todo!(),
         };
@@ -779,21 +802,63 @@ impl NatsRequestReplyHandler for NatsRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use test_log::test;
+
+    use printnanny_services::settings::jail::Jail;
+
+    fn make_settings_repo() -> Jail {
+        let mut jail = Jail::new().unwrap();
+        let output = jail.directory().to_str().unwrap();
+
+        jail.create_file(
+            "PrintNannySettingsTest.toml",
+            &format!(
+                r#"
+            [paths]
+            settings_dir = "{output}/settings"
+            log_dir = "{output}/log"
+            "#,
+                output = &output
+            ),
+        )
+        .unwrap();
+        jail.set_env("PRINTNANNY_SETTINGS", "PrintNannySettingsTest.toml");
+        let settings = PrintNannySettings::new().unwrap();
+        settings.git_clone().unwrap();
+
+        let dirs: Vec<String> = fs::read_dir(settings.paths.settings_dir)
+            .unwrap()
+            .into_iter()
+            .map(|p| p.unwrap().path().display().to_string())
+            .collect();
+        jail
+    }
 
     #[test(tokio::test)] // async test
     async fn test_load_octoprint_settings() {
+        let jail = make_settings_repo();
+
+        let settings = PrintNannySettings::new().unwrap();
+
+        let expected =
+            fs::read_to_string(settings.paths.settings_dir.join("octoprint/octoprint.yaml"))
+                .unwrap();
+
         let request = OctoPrintSettingsLoadRequest {
             format: SettingsFormat::Yaml,
         };
+
         let natsrequest = NatsRequest::OctoPrintSettingsLoadRequest(request.clone());
         let natsreply = natsrequest.handle().await.unwrap();
         if let NatsReply::OctoPrintSettingsLoadReply(reply) = natsreply {
             assert_eq!(reply.request, request);
-            assert_eq!(reply.status, ReplyStatus::Ok)
+            assert_eq!(reply.status, ReplyStatus::Ok);
+            assert_eq!(reply.data, Some(expected));
         } else {
             panic!("Expected NatsReply::OctoPrintSettingsLoadReply")
         }
+        drop(jail)
     }
 
     #[cfg(feature = "systemd")]
