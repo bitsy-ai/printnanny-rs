@@ -773,8 +773,9 @@ impl NatsRequestReplyHandler for NatsRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use test_log::test;
 
-    #[tokio::test] // async test
+    #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_disable_unit_ok() {
         let request = SystemdManagerDisableUnitRequest {
             files: vec!["octoprint.service".into()],
@@ -789,7 +790,7 @@ mod tests {
         }
     }
 
-    #[tokio::test] // async test
+    #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_disable_unit_error() {
         let request = SystemdManagerDisableUnitRequest {
             files: vec!["doesnotexist.service".into()],
@@ -804,7 +805,7 @@ mod tests {
         }
     }
 
-    #[tokio::test] // async test
+    #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_enable_unit_ok() {
         let request = SystemdManagerEnableUnitRequest {
             files: vec!["octoprint.service".into()],
@@ -818,7 +819,7 @@ mod tests {
             panic!("Expected NatsReply::SystemdManagerEnableUnitReply")
         }
     }
-    #[tokio::test] // async test
+    #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_enable_unit_error() {
         let request = SystemdManagerEnableUnitRequest {
             files: vec!["doesnotexist.service".into()],
@@ -833,7 +834,7 @@ mod tests {
         }
     }
 
-    #[tokio::test] // async test
+    #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_start_unit_ok() {
         let request = SystemdManagerStartUnitRequest {
             name: "octoprint.service".into(),
@@ -848,7 +849,7 @@ mod tests {
         }
     }
 
-    #[tokio::test] // async test
+    #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_start_unit_error() {
         let request = SystemdManagerStartUnitRequest {
             name: "doesnotexist.service".into(),
@@ -863,7 +864,7 @@ mod tests {
         }
     }
 
-    #[tokio::test] // async test
+    #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_restart_unit_ok() {
         let request = SystemdManagerRestartUnitRequest {
             name: "octoprint.service".into(),
@@ -878,7 +879,7 @@ mod tests {
         }
     }
 
-    #[tokio::test] // async test
+    #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_restart_unit_error() {
         let request = SystemdManagerRestartUnitRequest {
             name: "doesnotexist.service".into(),
@@ -893,7 +894,7 @@ mod tests {
         }
     }
 
-    #[tokio::test] // async test
+    #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_stop_unit_ok() {
         let request = SystemdManagerStopUnitRequest {
             name: "octoprint.service".into(),
@@ -908,7 +909,7 @@ mod tests {
         }
     }
 
-    #[tokio::test] // async test
+    #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_stop_unit_error() {
         let request = SystemdManagerStopUnitRequest {
             name: "doesnotexist.service".into(),
@@ -923,7 +924,7 @@ mod tests {
         }
     }
 
-    #[tokio::test] // async test
+    #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_reload_unit_ok() {
         let request = SystemdManagerReloadUnitRequest {
             name: "octoprint.service".into(),
@@ -938,7 +939,7 @@ mod tests {
         }
     }
 
-    #[tokio::test] // async test
+    #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_reload_unit_error() {
         let request = SystemdManagerReloadUnitRequest {
             name: "doesnotexist.service".into(),

@@ -74,8 +74,6 @@ jobs:
 
   linux:
     runs-on: ubuntu-22.04
-    env:
-      RUST_LOG: debug
     steps:
       - name: Install cross
         run: |
@@ -98,6 +96,9 @@ jobs:
         # your project.
       - run: |
           tools/ci/test.bash $(which cross) ${{ matrix.target }}
+        env:
+          RUST_LOG: debug
+          RUST_BACKTRACE: full
         if: |
           !contains(matrix.target, 'android') &&
           !contains(matrix.target, 'bsd') &&
