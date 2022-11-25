@@ -72,7 +72,40 @@ jobs:
   #       - aarch64-apple-ios
   #       - x86_64-apple-ios
 
-  linux:
+  linux-native:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: true
+      matrix:
+        channel: [stable, beta]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install rust-toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          components: rustfmt, clippy
+      - name: Setup test environment
+        run: |
+          sudo apt-get remove libunwind-14-dev
+          sudo apt-get -y update
+          sudo apt-get install -y pkg-config libssl-dev \
+            systemd policykit-1 \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
+            gstreamer1.0-libav libgstrtspserver-1.0-dev libges-1.0-dev \
+            gstreamer1.0-tools gstreamer1.0-x \
+            libglib2.0-dev
+
+          make intall-fake-services
+          make install-group
+          make install-polkit-pkla
+      - name: Test all features (native)
+        run: |
+          make test
+
+  linux-cross:
     runs-on: ubuntu-22.04
     steps:
       - name: Install cross

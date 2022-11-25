@@ -19,6 +19,10 @@ test:
 clean:
 	rm -rf $(TMPDIR)
 
+settings:
+	git clone git@github.com:bitsy-ai/printnanny-settings.git $(TMPDIR)/settings
+	
+
 images:
 	docker build \
 		-f tools/docker/aarch64-unknown-linux-gnu.Dockerfile \
