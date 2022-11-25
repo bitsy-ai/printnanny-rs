@@ -6,3 +6,9 @@ image = "bitsyai/cross-rs:armv7-unknown-linux-gnueabihf-22.04"
 
 [target.x86_64-unknown-linux-gnu]
 image = "bitsyai/cross-rs:x86_64-unknown-linux-gnu-22.04"
+
+[build.env]
+passthrough = [
+    "RUST_BACKTRACE",
+    "RUST_LOG",
+]
