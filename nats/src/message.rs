@@ -826,12 +826,6 @@ mod tests {
         jail.set_env("PRINTNANNY_SETTINGS", "PrintNannySettingsTest.toml");
         let settings = PrintNannySettings::new().unwrap();
         settings.git_clone().unwrap();
-
-        let dirs: Vec<String> = fs::read_dir(settings.paths.settings_dir)
-            .unwrap()
-            .into_iter()
-            .map(|p| p.unwrap().path().display().to_string())
-            .collect();
         jail
     }
 
