@@ -660,7 +660,7 @@ pub mod jail {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::paths::PRINTNANNY_SETTINGS_FILENAME;
 
