@@ -7,7 +7,6 @@ use clap::{ArgEnum, PossibleValue};
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
-use git2::{DiffFormat, DiffOptions, Repository};
 use glob::glob;
 use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
@@ -17,7 +16,6 @@ use super::error::PrintNannySettingsError;
 use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
 use super::printnanny_api::ApiService;
 use super::state::PrintNannyCloudData;
-use crate::error::IoError;
 use crate::error::ServiceError;
 use crate::printer_mgmt;
 use printnanny_api_client::models;
@@ -287,8 +285,8 @@ impl PrintNannySettings {
                 DEFAULT_PRINTNANNY_SETTINGS_FILE,
             )))
             // allow nested environment variables:
-            // PRINTNANNY_KEY__SUBKEY
-            .merge(Env::prefixed("PRINTNANNY_").split("__"));
+            // PRINTNANNY_SETTINGS_KEY__SUBKEY
+            .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"));
 
         // extract paths, to load application state conf.d fragments
         let lib_settings_file: String = result
@@ -313,7 +311,7 @@ impl PrintNannySettings {
             )))
             // allow nested environment variables:
             // PRINTNANNY_KEY__SUBKEY
-            .merge(Env::prefixed("PRINTNANNY_").split("__"));
+            .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"));
 
         info!("Finalized PrintNannyCloudConfig: \n {:?}", result);
         Ok(result)
@@ -444,7 +442,10 @@ mod tests {
             )?;
             jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
             let expected = PathBuf::from("testing");
-            jail.set_env("PRINTNANNY_PATHS__SETTINGS_DIR", &expected.display());
+            jail.set_env(
+                "PRINTNANNY_SETTINGS_PATHS__SETTINGS_DIR",
+                &expected.display(),
+            );
             let figment = PrintNannySettings::figment().unwrap();
             let config: PrintNannySettings = figment.extract()?;
             assert_eq!(config.paths.settings_dir, expected);
@@ -494,7 +495,7 @@ mod tests {
                 settings.octoprint.enabled,
                 printer_mgmt::octoprint::OctoPrintSettings::default().enabled,
             );
-            jail.set_env("PRINTNANNY_OCTOPRINT__ENABLED", "false");
+            jail.set_env("PRINTNANNY_SETTINGS_OCTOPRINT__ENABLED", "false");
             let figment = PrintNannySettings::figment().unwrap();
             let settings: PrintNannySettings = figment.extract()?;
             assert_eq!(settings.octoprint.enabled, false);
@@ -623,7 +624,7 @@ VARIANT_ID=printnanny-octoprint
             )?;
             jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
             jail.set_env(
-                "PRINTNANNY_PATHS__OS_RELEASE",
+                "PRINTNANNY_SETTINGS_PATHS__OS_RELEASE",
                 format!("{:?}", jail.directory().join("os-release")),
             );
 

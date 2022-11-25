@@ -1,0 +1,18 @@
+[Unit]
+Description=Fake PrintNanny Vision
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+SyslogIdentifier=printnanny-vision
+RuntimeDirectory=printnanny
+Environment=RUST_LOG=info
+Environment=GST_PLUGIN_PATH=/home/leigh/projects/printnanny-gst-plugin/target/debug
+ExecStart=/home/leigh/.cargo/bin/cargo run --manifest-path=/home/leigh/projects/printnanny-gst-plugin/Cargo.toml --bin=printnanny-gst-pipeline -- -vv --config=/home/leigh/projects/printnanny-cli/env/Local.toml
+Restart=on-failure
+RestartSec=30
+User=leigh
+
+[Install]
+WantedBy=multi-user.target

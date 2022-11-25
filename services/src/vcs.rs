@@ -30,7 +30,7 @@ pub trait VersionControlledSettings {
         let settings = PrintNannySettings::new().unwrap();
         Repository::open(settings.paths.settings_dir)
     }
-    fn git_diff(&self, repo: &Path) -> Result<String, git2::Error> {
+    fn git_diff(&self) -> Result<String, git2::Error> {
         let repo = self.get_git_repo()?;
         let mut diffopts = DiffOptions::new();
 
@@ -45,8 +45,19 @@ pub trait VersionControlledSettings {
                 lines.push(std::str::from_utf8(line.content()).unwrap().to_string());
                 true
             },
-        );
+        )?;
         Ok(lines.join("\n"))
+    }
+    fn read_settings(&self) -> Result<String, VersionControlledSettingsError> {
+        let settings_file = self.get_settings_file();
+        let result = match fs::read_to_string(settings_file) {
+            Ok(d) => Ok(d),
+            Err(e) => Err(VersionControlledSettingsError::ReadIOError {
+                path: settings_file.display().to_string(),
+                error: e,
+            }),
+        }?;
+        Ok(result)
     }
     fn write_settings(&self, content: &str) -> Result<(), VersionControlledSettingsError> {
         let output = self.get_settings_file();
@@ -85,7 +96,7 @@ pub trait VersionControlledSettings {
     }
 
     fn git_commit(&self, commit_msg: Option<String>) -> Result<git2::Oid, git2::Error> {
-        &self.git_add_all()?;
+        self.git_add_all()?;
         let repo = self.get_git_repo()?;
         let mut index = repo.index()?;
         let oid = index.write_tree()?;
@@ -116,13 +127,13 @@ pub trait VersionControlledSettings {
         content: &str,
         commit_msg: Option<String>,
     ) -> Result<(), VersionControlledSettingsError> {
-        self.pre_save()?;
         self.write_settings(content)?;
         self.git_add_all()?;
         self.git_commit(commit_msg)?;
-        self.post_save()?;
         Ok(())
     }
+
+    fn new() -> Self::SettingsModel;
 
     fn get_settings_format(&self) -> SettingsFormat;
     fn get_settings_file(&self) -> &Path;

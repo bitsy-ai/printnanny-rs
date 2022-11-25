@@ -1,0 +1,15 @@
+[Unit]
+Description=Fake OctoPrint
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+SyslogIdentifier=octoprint
+RuntimeDirectory=octoprint
+ExecStart=/bin/bash -c "echo 'Starting fake octoprint.service'; while true; do echo 'fake octoprint.service running' && sleep 30; done"
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

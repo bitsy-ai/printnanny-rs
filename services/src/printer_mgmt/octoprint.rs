@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use git2::{DiffFormat, Repository};
+use figment::providers::Env;
 use log::debug;
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +11,8 @@ use crate::vcs::{VersionControlledSettings, VersionControlledSettingsError};
 
 pub const OCTOPRINT_INSTALL_DIR: &str = "/var/lib/octoprint";
 pub const OCTOPRINT_VENV: &str = "/var/lib/octoprint/venv";
-pub const OCTOPRINT_SETTINGS_FILE: &str = "/var/lib/printnanny/settings/octoprint/config.yaml";
+pub const DEFAULT_OCTOPRINT_SETTINGS_FILE: &str =
+    "/var/lib/printnanny/settings/octoprint/config.yaml";
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PipPackage {
@@ -30,6 +31,9 @@ pub struct OctoPrintSettings {
 
 impl VersionControlledSettings for OctoPrintSettings {
     type SettingsModel = OctoPrintSettings;
+    fn new() -> Self {
+        Self::default()
+    }
     fn get_settings_format(&self) -> SettingsFormat {
         self.settings_format
     }
@@ -55,7 +59,10 @@ impl VersionControlledSettings for OctoPrintSettings {
 impl Default for OctoPrintSettings {
     fn default() -> Self {
         let install_dir: PathBuf = OCTOPRINT_INSTALL_DIR.into();
-        let settings_file = OCTOPRINT_SETTINGS_FILE.into();
+        let settings_file = PathBuf::from(Env::var_or(
+            "OCTOPRINT_SETTINGS_FILE",
+            DEFAULT_OCTOPRINT_SETTINGS_FILE,
+        ));
         Self {
             settings_file,
             install_dir,
@@ -89,9 +96,6 @@ pub fn parse_pip_version(stdout: &str) -> Option<String> {
 }
 
 impl OctoPrintSettings {
-    pub fn new() -> Self {
-        Self::default()
-    }
     pub fn python_path(&self) -> PathBuf {
         self.venv.join("bin/python")
     }

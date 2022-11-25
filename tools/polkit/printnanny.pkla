@@ -1,0 +1,6 @@
+[PrintNanny Admin Permissions]
+Identity=unix-group:printnanny-admin
+Action=org.freedesktop.systemd1.*
+ResultAny=yes
+ResultInactive=yes
+ResultActive=yes

@@ -1,15 +1,20 @@
 
+.PHONY: install-fake-services uninstall-fake-services
 VERSION ?= latest
 TMPDIR ?= .tmp
 DEV_MACHINE ?= pn-debug
 DEV_USER ?= root
+
+PRINTNANNY_ADMIN_GROUP ?= printnanny-admin
+USER ?= $(shell whoami)
 
 PRINTNANNY_WEBAPP_WORKSPACE ?= $(HOME)/projects/octoprint-nanny-webapp
 
 $(TMPDIR):
 	mkdir -p $(TMPDIR)
 
-test-license: $(TMPDIR)/printnanny_license.zip
+test:
+	cargo test --workspace --all-features  
 
 clean:
 	rm -rf $(TMPDIR)
@@ -17,15 +22,15 @@ clean:
 images:
 	docker build \
 		-f tools/docker/aarch64-unknown-linux-gnu.Dockerfile \
-		-t bitsyai/cross:aarch64-unknown-linux-gnu tools/docker
+		-t bitsyai/cross:aarch64-unknown-linux-gnu tools
 	docker push bitsyai/cross:aarch64-unknown-linux-gnu
 	docker build \
 		-f tools/docker/armv7-unknown-linux-gnueabihf.Dockerfile \
-		-t bitsyai/cross:armv7-unknown-linux-gnueabihf tools/docker
+		-t bitsyai/cross:armv7-unknown-linux-gnueabihf tools
 	docker push bitsyai/cross:armv7-unknown-linux-gnueabihf
 	docker build \
 		-f tools/docker/x86_64-unknown-linux-gnu.Dockerfile \
-		-t bitsyai/cross:x86_64-unknown-linux-gnu tools/docker
+		-t bitsyai/cross:x86_64-unknown-linux-gnu tools
 	docker push bitsyai/cross:x86_64-unknown-linux-gnu
 
 patch:
@@ -67,3 +72,31 @@ lint:
 
 dev:
 	docker-compose -f docker/local.yml up
+
+install-group:
+	sudo groupadd $(PRINTNANNY_ADMIN_GROUP) || echo $1
+	sudo usermod -a -G $(PRINTNANNY_ADMIN_GROUP) $(USER)
+
+install-polkit-rules:
+	sudo mkdir -p /etc/polkit-1/rules.d/
+	sudo install -m 0644 tools/polkit/printnanny.rules /etc/polkit-1/rules.d/printnanny.rules
+
+# Debian-derived distros are still stuck on Polkit 105, which requires the older pkla syntax
+install-polkit-pkla:
+	sudo install -m 0644 tools/polkit/printnanny.pkla /etc/polkit-1/localauthority/50-local.d/printnanny.pkla
+
+
+install-fake-services:
+	sudo cp tools/systemd/mainsail.service /etc/systemd/system/mainsail.service
+	sudo cp tools/systemd/octoprint.service /etc/systemd/system/octoprint.service
+	sudo cp tools/systemd/printnanny-vision.service /etc/systemd/system/printnanny-vision.service
+	sudo cp tools/systemd/syncthing.service /etc/systemd/system/syncthing.service
+	sudo systemctl daemon-reload
+	sudo systemctl enable octoprint.service
+
+uninstall-fake-services:
+	sudo rm /etc/systemd/system/mainsail.service
+	sudo rm /etc/systemd/system/octoprint.service
+	sudo rm /etc/systemd/system/printnanny-vision.service
+	sudo rm /etc/systemd/system/syncthing.service
+	sudo systemctl daemon-reload
