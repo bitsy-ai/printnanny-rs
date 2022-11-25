@@ -1,11 +1,15 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use async_trait::async_trait;
 use git2::{DiffFormat, DiffOptions, Repository};
 use log::info;
 use serde::Serialize;
 use thiserror::Error;
 
+use printnanny_dbus::zbus;
+
+use super::error::PrintNannyCloudDataError;
 use super::settings::{PrintNannySettings, SettingsFormat};
 
 #[derive(Error, Debug)]
@@ -21,9 +25,14 @@ pub enum VersionControlledSettingsError {
         error: std::io::Error,
     },
     #[error(transparent)]
-    PrintNannyCloudDataError(#[from] git2::Error),
+    GitError(#[from] git2::Error),
+    #[error(transparent)]
+    ZbusError(#[from] zbus::Error),
+    #[error(transparent)]
+    PrintNannyCloudDataError(#[from] PrintNannyCloudDataError),
 }
 
+#[async_trait]
 pub trait VersionControlledSettings {
     type SettingsModel: Serialize;
     fn get_git_repo(&self) -> Result<Repository, git2::Error> {
@@ -95,6 +104,12 @@ pub trait VersionControlledSettings {
         ))
     }
 
+    fn get_git_parent_commit(&self) -> Result<git2::Oid, git2::Error> {
+        let repo = self.get_git_repo()?;
+        let parent_commit = &repo.head()?.peel_to_commit()?;
+        Ok(parent_commit.id())
+    }
+
     fn git_commit(&self, commit_msg: Option<String>) -> Result<git2::Oid, git2::Error> {
         self.git_add_all()?;
         let repo = self.get_git_repo()?;
@@ -122,23 +137,25 @@ pub trait VersionControlledSettings {
         repo.revert(&commit, None)
     }
 
-    fn save(
+    async fn save(
         &self,
         content: &str,
         commit_msg: Option<String>,
     ) -> Result<(), VersionControlledSettingsError> {
+        self.pre_save().await?;
         self.write_settings(content)?;
         self.git_add_all()?;
         self.git_commit(commit_msg)?;
+        self.post_save().await?;
         Ok(())
     }
 
-    fn new() -> Self::SettingsModel;
+    fn from_dir(settings_dir: &Path) -> Self::SettingsModel;
 
     fn get_settings_format(&self) -> SettingsFormat;
     fn get_settings_file(&self) -> &Path;
 
-    fn pre_save(&self) -> Result<(), VersionControlledSettingsError>;
-    fn post_save(&self) -> Result<(), VersionControlledSettingsError>;
+    async fn pre_save(&self) -> Result<(), VersionControlledSettingsError>;
+    async fn post_save(&self) -> Result<(), VersionControlledSettingsError>;
     fn validate(&self) -> Result<(), VersionControlledSettingsError>;
 }

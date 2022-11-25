@@ -217,7 +217,7 @@ impl ApiService {
         &self,
         octoprint_server: &models::OctoPrintServer,
     ) -> Result<models::OctoPrintServer, ServiceError> {
-        let helper = OctoPrintSettings::new();
+        let helper = &self.settings.octoprint;
         let pip_version = helper.pip_version()?;
         let python_version = helper.python_version()?;
         let pip_packages = helper.pip_packages()?;

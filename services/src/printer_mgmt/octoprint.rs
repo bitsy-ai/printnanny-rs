@@ -1,9 +1,12 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use async_trait::async_trait;
 use figment::providers::Env;
-use log::debug;
+use log::{debug, info};
 use serde::{Deserialize, Serialize};
+
+use printnanny_dbus::zbus;
 
 use crate::error::PrintNannySettingsError;
 use crate::settings::{PrintNannySettings, SettingsFormat};
@@ -12,7 +15,7 @@ use crate::vcs::{VersionControlledSettings, VersionControlledSettingsError};
 pub const OCTOPRINT_INSTALL_DIR: &str = "/var/lib/octoprint";
 pub const OCTOPRINT_VENV: &str = "/var/lib/octoprint/venv";
 pub const DEFAULT_OCTOPRINT_SETTINGS_FILE: &str =
-    "/var/lib/printnanny/settings/octoprint/config.yaml";
+    "/var/lib/printnanny/settings/octoprint/octoprint.yaml";
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PipPackage {
@@ -29,10 +32,15 @@ pub struct OctoPrintSettings {
     pub venv: PathBuf,
 }
 
+#[async_trait]
 impl VersionControlledSettings for OctoPrintSettings {
     type SettingsModel = OctoPrintSettings;
-    fn new() -> Self {
-        Self::default()
+    fn from_dir(settings_dir: &Path) -> Self {
+        let settings_file = settings_dir.join("octoprint/octoprint.yaml");
+        Self {
+            settings_file,
+            ..Self::default()
+        }
     }
     fn get_settings_format(&self) -> SettingsFormat {
         self.settings_format
@@ -41,18 +49,28 @@ impl VersionControlledSettings for OctoPrintSettings {
         &self.settings_file
     }
 
-    fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {
+    async fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {
         debug!("Running OctoPrintSettings pre_save hook");
+        // stop OctoPrint serviice
+        let connection = zbus::Connection::system().await?;
+        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
+        let job = proxy.stop_unit("octoprint.service", "replace").await?;
+        info!("Stopped octoprint.service, job: {:?}", job);
         Ok(())
     }
 
-    fn post_save(&self) -> Result<(), VersionControlledSettingsError> {
+    async fn post_save(&self) -> Result<(), VersionControlledSettingsError> {
         debug!("Running OctoPrintSettings post_save hook");
+        // start OctoPrint service
+        let connection = zbus::Connection::system().await?;
+        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
+        let job = proxy.start_unit("octoprint.service", "replace").await?;
+        info!("Started octoprint.service, job: {:?}", job);
+
         Ok(())
     }
     fn validate(&self) -> Result<(), VersionControlledSettingsError> {
-        debug!("Running OctoPrintSettings validate hook");
-        Ok(())
+        todo!("OctoPrintSettings validate hook is not yet implemented");
     }
 }
 
