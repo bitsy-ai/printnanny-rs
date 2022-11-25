@@ -157,12 +157,12 @@ pub struct SystemdUnit {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PrintNannySettings {
+    pub git_remote: String,
     pub paths: PrintNannyPaths,
     pub klipper: printer_mgmt::klipper::KlipperSettings,
     pub mainsail: printer_mgmt::mainsail::MainsailSettings,
     pub moonraker: printer_mgmt::moonraker::MoonrakerSettings,
     pub octoprint: printer_mgmt::octoprint::OctoPrintSettings,
-    pub git_remote: String,
 }
 
 impl Default for PrintNannySettings {
