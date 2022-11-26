@@ -1016,6 +1016,24 @@ mod tests {
 
     #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_manager_get_unit() {
+        use printnanny_dbus::systemd1::models::SystemdUnitFileState;
+
+        let request = SystemdManagerGetUnitRequest {
+            name: "octoprint.service".into(),
+        };
+        let natsrequest = NatsRequest::SystemdManagerGetUnitRequest(request.clone());
+        let natsreply = natsrequest.handle().await.unwrap();
+        if let NatsReply::SystemdManagerGetUnitReply(reply) = natsreply {
+            assert_eq!(reply.request, request);
+            assert_eq!(reply.unit.unit_file_state, SystemdUnitFileState::Enabled);
+        } else {
+            panic!("Expected NatsReply::SystemdManagerGetUnitReply")
+        }
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_start_unit_ok() {
         let request = SystemdManagerStartUnitRequest {
             name: "octoprint.service".into(),
