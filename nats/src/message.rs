@@ -850,6 +850,7 @@ mod tests {
             let settings = PrintNannySettings::new().unwrap();
 
             let head = settings.octoprint.get_git_head_commit().unwrap();
+            let git_history = settings.octoprint.get_rev_list().unwrap();
 
             let request = OctoPrintSettingsApplyRequest {
                 format: SettingsFormat::Yaml,
@@ -869,7 +870,7 @@ mod tests {
 
                 let settings = PrintNannySettings::new().unwrap();
                 assert_eq!(reply.contents, settings.octoprint.read_settings().unwrap());
-                assert_eq!(reply.git_history.len(), 2);
+                assert_eq!(reply.git_history.len(), git_history.len() + 1);
             }
             Ok(())
         })
