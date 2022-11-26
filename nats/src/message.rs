@@ -11,7 +11,7 @@ use printnanny_dbus::zbus;
 
 use printnanny_services::git2;
 use printnanny_services::settings::{PrintNannySettings, SettingsFormat};
-use printnanny_services::vcs::VersionControlledSettings;
+use printnanny_services::vcs::{GitCommit, VersionControlledSettings};
 
 #[async_trait]
 pub trait NatsRequestReplyHandler {
@@ -464,9 +464,10 @@ pub struct OctoPrintSettingsLoadRequest {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OctoPrintSettingsLoadReply {
     request: OctoPrintSettingsLoadRequest,
-    data: String,
+    filename: String,
+    contents: String,
+    commit: GitCommit,
     format: SettingsFormat,
-    head: String,
 }
 
 #[async_trait]
@@ -477,13 +478,15 @@ impl NatsRequestReplyHandler for OctoPrintSettingsLoadRequest {
     async fn handle(&self) -> Result<Self::Reply> {
         let settings = PrintNannySettings::new()?;
 
-        let head = settings.octoprint.get_git_head_commit()?.to_string();
-        let data = settings.octoprint.read_settings()?;
+        let commit = settings.octoprint.get_git_head_commit()?;
+        let contents = settings.octoprint.read_settings()?;
+        let filename = settings.octoprint.settings_file.display().to_string();
 
         Ok(Self::Reply {
             request: self.clone(),
-            head,
-            data,
+            commit,
+            contents,
+            filename,
             format: SettingsFormat::Yaml,
         })
     }
@@ -492,8 +495,9 @@ impl NatsRequestReplyHandler for OctoPrintSettingsLoadRequest {
 //  pi.settings.octoprint.apply
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OctoPrintSettingsApplyRequest {
-    data: String,
-    head: String,
+    filename: String,
+    contents: String,
+    parent: String,
     format: SettingsFormat,
 }
 
@@ -501,9 +505,10 @@ pub struct OctoPrintSettingsApplyRequest {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OctoPrintSettingsApplyReply {
     request: OctoPrintSettingsApplyRequest,
-    data: String,
     format: SettingsFormat,
-    commit: String,
+    filename: String,
+    contents: String,
+    commit: GitCommit,
 }
 
 #[async_trait]
@@ -513,14 +518,16 @@ impl NatsRequestReplyHandler for OctoPrintSettingsApplyRequest {
 
     async fn handle(&self) -> Result<Self::Reply> {
         let settings = PrintNannySettings::new()?;
-        settings.octoprint.save(&self.data, None).await?;
-        let commit = settings.octoprint.get_git_head_commit()?.to_string();
-        let data = settings.octoprint.read_settings()?;
+        settings.octoprint.save(&self.contents, None).await?;
+        let commit = settings.octoprint.get_git_head_commit()?;
+        let contents = settings.octoprint.read_settings()?;
+        let filename = settings.octoprint.settings_file.display().to_string();
 
         Ok(Self::Reply {
             request: self.clone(),
             commit,
-            data,
+            contents,
+            filename,
             format: SettingsFormat::Yaml,
         })
     }
@@ -536,9 +543,10 @@ pub struct OctoPrintSettingsRevertRequest {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OctoPrintSettingsRevertReply {
     request: OctoPrintSettingsRevertRequest,
-    data: String,
+    filename: String,
+    contents: String,
+    commit: GitCommit,
     format: SettingsFormat,
-    head: String,
 }
 
 #[async_trait]
@@ -550,13 +558,15 @@ impl NatsRequestReplyHandler for OctoPrintSettingsRevertRequest {
         let settings = PrintNannySettings::new()?;
         let oid = git2::Oid::from_str(&self.commit)?;
         settings.octoprint.git_revert(Some(oid))?;
-        let data = settings.octoprint.read_settings()?;
-        let head = settings.octoprint.get_git_head_commit()?;
+        let commit = settings.octoprint.get_git_head_commit()?;
+        let contents = settings.octoprint.read_settings()?;
+        let filename = settings.octoprint.settings_file.display().to_string();
 
         Ok(Self::Reply {
-            data,
+            commit,
+            contents,
+            filename,
             request: self.clone(),
-            head: head.to_string(),
             format: SettingsFormat::Yaml,
         })
     }
@@ -819,7 +829,7 @@ mod tests {
                 .unwrap();
             if let NatsReply::OctoPrintSettingsLoadReply(reply) = natsreply {
                 assert_eq!(reply.request, request);
-                assert_eq!(reply.data, expected);
+                assert_eq!(reply.contents, expected);
             }
             Ok(())
         })
@@ -837,8 +847,9 @@ mod tests {
 
             let request = OctoPrintSettingsApplyRequest {
                 format: SettingsFormat::Yaml,
-                data: OCTOPRINT_MODIFIED_SETTINGS.to_string(),
-                head: head.to_string(),
+                filename: settings.octoprint.get_settings_file().display().to_string(),
+                contents: OCTOPRINT_MODIFIED_SETTINGS.to_string(),
+                parent: head.oid,
             };
 
             let natsrequest = NatsRequest::OctoPrintSettingsApplyRequest(request.clone());
@@ -848,9 +859,9 @@ mod tests {
                 .unwrap();
             if let NatsReply::OctoPrintSettingsApplyReply(reply) = natsreply {
                 assert_eq!(reply.request, request);
-                assert_eq!(&reply.data, OCTOPRINT_MODIFIED_SETTINGS);
+                assert_eq!(&reply.contents, OCTOPRINT_MODIFIED_SETTINGS);
                 let settings = PrintNannySettings::new().unwrap();
-                assert_eq!(reply.data, settings.octoprint.read_settings().unwrap());
+                assert_eq!(reply.contents, settings.octoprint.read_settings().unwrap());
             }
             Ok(())
         })
@@ -875,9 +886,7 @@ mod tests {
                 .unwrap();
             let commit = settings.octoprint.get_git_head_commit().unwrap();
 
-            let request = OctoPrintSettingsRevertRequest {
-                commit: commit.to_string(),
-            };
+            let request = OctoPrintSettingsRevertRequest { commit: commit.oid };
 
             let natsrequest = NatsRequest::OctoPrintSettingsRevertRequest(request.clone());
             let natsreply = Runtime::new()
@@ -886,9 +895,9 @@ mod tests {
                 .unwrap();
             if let NatsReply::OctoPrintSettingsRevertReply(reply) = natsreply {
                 assert_eq!(reply.request, request);
-                assert_eq!(reply.data, before);
+                assert_eq!(reply.contents, before);
                 let settings = PrintNannySettings::new().unwrap();
-                assert_eq!(reply.data, settings.octoprint.read_settings().unwrap());
+                assert_eq!(reply.contents, settings.octoprint.read_settings().unwrap());
             }
             Ok(())
         })

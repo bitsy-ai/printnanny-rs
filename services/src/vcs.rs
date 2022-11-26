@@ -4,14 +4,14 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use git2::{DiffFormat, DiffOptions, Repository};
 use log::info;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use printnanny_dbus::zbus;
 
 use super::error::PrintNannyCloudDataError;
 use super::error::PrintNannySettingsError;
-use super::settings::{GitSettings, PrintNannySettings, SettingsFormat};
+use super::settings::{PrintNannySettings, SettingsFormat};
 
 #[derive(Error, Debug)]
 pub enum VersionControlledSettingsError {
@@ -31,6 +31,14 @@ pub enum VersionControlledSettingsError {
     ZbusError(#[from] zbus::Error),
     #[error(transparent)]
     PrintNannyCloudDataError(#[from] PrintNannyCloudDataError),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct GitCommit {
+    pub oid: String,
+    pub header: String,
+    pub message: String,
+    pub ts: i64,
 }
 
 #[async_trait]
@@ -121,10 +129,30 @@ pub trait VersionControlledSettings {
         ))
     }
 
-    fn get_git_head_commit(&self) -> Result<git2::Oid, git2::Error> {
+    fn get_git_head_commit(&self) -> Result<GitCommit, git2::Error> {
         let repo = self.get_git_repo()?;
-        let parent_commit = &repo.head()?.peel_to_commit()?;
-        Ok(parent_commit.id())
+        let commit = &repo.head()?.peel_to_commit()?;
+        Ok(commit.into())
+    }
+
+    fn get_rev_list(&self) -> Result<Vec<GitCommit>, git2::Error> {
+        let repo = self.get_git_repo()?;
+        let mut revwalk = repo.revwalk()?;
+        revwalk.set_sorting(git2::Sort::TIME)?;
+        revwalk.push(git2::Oid::from_str("HEAD")?)?;
+
+        let settings_file_hashed =
+            git2::Oid::hash_file(git2::ObjectType::Blob, self.get_settings_file())?;
+        revwalk.push(settings_file_hashed)?;
+        let mut result: Vec<GitCommit> = vec![];
+        for r in revwalk {
+            let commit = match r {
+                Ok(oid) => repo.find_commit(oid),
+                Err(e) => Err(e),
+            }?;
+            result.push(commit.into())
+        }
+        Ok(result)
     }
 
     fn git_commit(&self, commit_msg: Option<String>) -> Result<git2::Oid, git2::Error> {
@@ -178,4 +206,25 @@ pub trait VersionControlledSettings {
     async fn pre_save(&self) -> Result<(), VersionControlledSettingsError>;
     async fn post_save(&self) -> Result<(), VersionControlledSettingsError>;
     fn validate(&self) -> Result<(), VersionControlledSettingsError>;
+}
+
+impl<'repo> From<&git2::Commit<'repo>> for GitCommit {
+    fn from(commit: &git2::Commit<'repo>) -> GitCommit {
+        GitCommit {
+            oid: commit.id().to_string(),
+            header: commit.raw_header().unwrap().to_string(),
+            message: commit.message().unwrap().to_string(),
+            ts: commit.time().seconds(),
+        }
+    }
+}
+impl<'repo> From<git2::Commit<'repo>> for GitCommit {
+    fn from(commit: git2::Commit<'repo>) -> GitCommit {
+        GitCommit {
+            oid: commit.id().to_string(),
+            header: commit.raw_header().unwrap().to_string(),
+            message: commit.message().unwrap().to_string(),
+            ts: commit.time().seconds(),
+        }
+    }
 }

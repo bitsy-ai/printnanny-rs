@@ -18,7 +18,6 @@ use crate::state::PrintNannyCloudData;
 use crate::error::{PrintNannySettingsError, ServiceError};
 use crate::file::open;
 use crate::metadata;
-use crate::printer_mgmt::octoprint::OctoPrintSettings;
 use crate::settings::PrintNannySettings;
 use crate::vcs::VersionControlledSettings;
 
