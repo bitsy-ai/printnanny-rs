@@ -503,7 +503,6 @@ pub struct OctoPrintSettingsApplyReply {
     request: OctoPrintSettingsApplyRequest,
     data: String,
     format: SettingsFormat,
-    parent_commit: String,
     commit: String,
 }
 
@@ -513,7 +512,17 @@ impl NatsRequestReplyHandler for OctoPrintSettingsApplyRequest {
     type Reply = OctoPrintSettingsApplyReply;
 
     async fn handle(&self) -> Result<Self::Reply> {
-        todo!()
+        let settings = PrintNannySettings::new()?;
+        settings.octoprint.save(&self.data, None).await?;
+        let commit = settings.octoprint.get_git_parent_commit()?.to_string();
+        let data = settings.octoprint.read_settings()?;
+
+        Ok(Self::Reply {
+            request: self.clone(),
+            commit,
+            data,
+            format: SettingsFormat::Yaml,
+        })
     }
 }
 
@@ -766,17 +775,13 @@ mod tests {
         drop(jail)
     }
 
-    // #[test(tokio::test)] // async test
+    #[test(tokio::test)] // async test
     async fn test_apply_octoprint_settings() {
         let jail = make_settings_repo();
 
         let settings = PrintNannySettings::new().unwrap();
 
         let parent_commit = settings.octoprint.get_git_parent_commit().unwrap();
-
-        let before =
-            fs::read_to_string(settings.paths.settings_dir.join("octoprint/octoprint.yaml"))
-                .unwrap();
         let expected = r#"
         ---
         server:
@@ -824,6 +829,8 @@ mod tests {
         if let NatsReply::OctoPrintSettingsApplyReply(reply) = natsreply {
             assert_eq!(reply.request, request);
             assert_eq!(reply.data, expected);
+            let settings = PrintNannySettings::new().unwrap();
+            assert_eq!(reply.data, settings.octoprint.read_settings().unwrap());
         } else {
             panic!("Expected NatsReply::OctoPrintSettingsLoadReply")
         }
