@@ -740,8 +740,7 @@ mod tests {
     use super::*;
     use std::fs;
     use test_log::test;
-
-    use printnanny_services::settings::jail::Jail;
+    use tokio::runtime::Runtime;
 
     const OCTOPRINT_MODIFIED_SETTINGS: &str = r#"
     ---
@@ -779,8 +778,7 @@ mod tests {
       stream: /printnanny-hls/playlist.m3u8
     "#;
 
-    fn make_settings_repo() -> Jail {
-        let mut jail = Jail::new().unwrap();
+    fn make_settings_repo(jail: &mut figment::Jail) -> () {
         let output = jail.directory().to_str().unwrap();
 
         jail.create_file(
@@ -799,94 +797,99 @@ mod tests {
         let settings = PrintNannySettings::new().unwrap();
         settings.octoprint.git_clone().unwrap();
         settings.octoprint.init_local_git_config().unwrap();
-        jail
     }
 
-    #[test(tokio::test)] // async test
-    async fn test_load_octoprint_settings() {
-        let jail = make_settings_repo();
-
-        let settings = PrintNannySettings::new().unwrap();
-
-        let expected =
-            fs::read_to_string(settings.paths.settings_dir.join("octoprint/octoprint.yaml"))
-                .unwrap();
-
-        let request = OctoPrintSettingsLoadRequest {
-            format: SettingsFormat::Yaml,
-        };
-
-        let natsrequest = NatsRequest::OctoPrintSettingsLoadRequest(request.clone());
-        let natsreply = natsrequest.handle().await.unwrap();
-        if let NatsReply::OctoPrintSettingsLoadReply(reply) = natsreply {
-            assert_eq!(reply.request, request);
-            assert_eq!(reply.data, expected);
-        } else {
-            panic!("Expected NatsReply::OctoPrintSettingsLoadReply")
-        }
-        drop(jail)
-    }
-
-    #[test(tokio::test)] // async tests
-    async fn test_apply_octoprint_settings() {
-        let jail = make_settings_repo();
-
-        let settings = PrintNannySettings::new().unwrap();
-
-        let head = settings.octoprint.get_git_head_commit().unwrap();
-
-        let request = OctoPrintSettingsApplyRequest {
-            format: SettingsFormat::Yaml,
-            data: OCTOPRINT_MODIFIED_SETTINGS.to_string(),
-            head: head.to_string(),
-        };
-
-        let natsrequest = NatsRequest::OctoPrintSettingsApplyRequest(request.clone());
-        let natsreply = natsrequest.handle().await.unwrap();
-        if let NatsReply::OctoPrintSettingsApplyReply(reply) = natsreply {
-            assert_eq!(reply.request, request);
-            assert_eq!(&reply.data, OCTOPRINT_MODIFIED_SETTINGS);
+    #[test]
+    fn test_load_octoprint_settings() {
+        figment::Jail::expect_with(|jail| {
+            make_settings_repo(jail);
             let settings = PrintNannySettings::new().unwrap();
-            assert_eq!(reply.data, settings.octoprint.read_settings().unwrap());
-        } else {
-            panic!("Expected NatsReply::OctoPrintSettingsApplyReply")
-        }
-        drop(jail)
+            let expected =
+                fs::read_to_string(settings.paths.settings_dir.join("octoprint/octoprint.yaml"))
+                    .unwrap();
+
+            let request = OctoPrintSettingsLoadRequest {
+                format: SettingsFormat::Yaml,
+            };
+
+            let natsrequest = NatsRequest::OctoPrintSettingsLoadRequest(request.clone());
+            let natsreply = Runtime::new()
+                .unwrap()
+                .block_on(natsrequest.handle())
+                .unwrap();
+            if let NatsReply::OctoPrintSettingsLoadReply(reply) = natsreply {
+                assert_eq!(reply.request, request);
+                assert_eq!(reply.data, expected);
+            }
+            Ok(())
+        })
     }
 
-    #[test(tokio::test)] // async test
-    async fn test_revert_octoprint_settings() {
-        let jail = make_settings_repo();
+    #[test]
+    fn test_apply_octoprint_settings() {
+        figment::Jail::expect_with(|jail| {
+            make_settings_repo(jail);
 
-        let settings = PrintNannySettings::new().unwrap();
-        let before =
-            fs::read_to_string(settings.paths.settings_dir.join("octoprint/octoprint.yaml"))
-                .unwrap();
-        settings
-            .octoprint
-            .save(
-                &OCTOPRINT_MODIFIED_SETTINGS.to_string(),
-                Some("Test modify octoprint.yaml".to_string()),
-            )
-            .await
-            .unwrap();
-        let commit = settings.octoprint.get_git_head_commit().unwrap();
-
-        let request = OctoPrintSettingsRevertRequest {
-            commit: commit.to_string(),
-        };
-
-        let natsrequest = NatsRequest::OctoPrintSettingsRevertRequest(request.clone());
-        let natsreply = natsrequest.handle().await.unwrap();
-        if let NatsReply::OctoPrintSettingsRevertReply(reply) = natsreply {
-            assert_eq!(reply.request, request);
-            assert_eq!(reply.data, before);
             let settings = PrintNannySettings::new().unwrap();
-            assert_eq!(reply.data, settings.octoprint.read_settings().unwrap());
-        } else {
-            panic!("Expected NatsReply::OctoPrintSettingsRevertReply")
-        }
-        drop(jail)
+
+            let head = settings.octoprint.get_git_head_commit().unwrap();
+
+            let request = OctoPrintSettingsApplyRequest {
+                format: SettingsFormat::Yaml,
+                data: OCTOPRINT_MODIFIED_SETTINGS.to_string(),
+                head: head.to_string(),
+            };
+
+            let natsrequest = NatsRequest::OctoPrintSettingsApplyRequest(request.clone());
+            let natsreply = Runtime::new()
+                .unwrap()
+                .block_on(natsrequest.handle())
+                .unwrap();
+            if let NatsReply::OctoPrintSettingsApplyReply(reply) = natsreply {
+                assert_eq!(reply.request, request);
+                assert_eq!(&reply.data, OCTOPRINT_MODIFIED_SETTINGS);
+                let settings = PrintNannySettings::new().unwrap();
+                assert_eq!(reply.data, settings.octoprint.read_settings().unwrap());
+            }
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn test_revert_octoprint_settings() {
+        figment::Jail::expect_with(|jail| {
+            make_settings_repo(jail);
+
+            let settings = PrintNannySettings::new().unwrap();
+            let before =
+                fs::read_to_string(settings.paths.settings_dir.join("octoprint/octoprint.yaml"))
+                    .unwrap();
+            Runtime::new()
+                .unwrap()
+                .block_on(settings.octoprint.save(
+                    &OCTOPRINT_MODIFIED_SETTINGS.to_string(),
+                    Some("Test modify octoprint.yaml".to_string()),
+                ))
+                .unwrap();
+            let commit = settings.octoprint.get_git_head_commit().unwrap();
+
+            let request = OctoPrintSettingsRevertRequest {
+                commit: commit.to_string(),
+            };
+
+            let natsrequest = NatsRequest::OctoPrintSettingsRevertRequest(request.clone());
+            let natsreply = Runtime::new()
+                .unwrap()
+                .block_on(natsrequest.handle())
+                .unwrap();
+            if let NatsReply::OctoPrintSettingsRevertReply(reply) = natsreply {
+                assert_eq!(reply.request, request);
+                assert_eq!(reply.data, before);
+                let settings = PrintNannySettings::new().unwrap();
+                assert_eq!(reply.data, settings.octoprint.read_settings().unwrap());
+            }
+            Ok(())
+        })
     }
 
     #[cfg(feature = "systemd")]
