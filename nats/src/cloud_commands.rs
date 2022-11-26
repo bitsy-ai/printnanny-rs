@@ -10,8 +10,6 @@ use std::collections::HashMap;
 use std::time::SystemTime;
 use uuid::Uuid;
 
-use printnanny_services::systemd::systemctl_show_payload;
-
 pub fn build_status_payload(request: &PolymorphicPiEventRequest) -> Result<Bytes> {
     Ok(serde_json::ser::to_vec(request)?.into())
 }
@@ -127,30 +125,6 @@ pub async fn handle_pi_boot_command(
             );
         }
 
-        models::PiBootCommandType::SystemctlShow => {
-            let result = Command::new("systemctl").arg("show").output().await?;
-
-            let payload = systemctl_show_payload(&result.stdout)?;
-            let (subject, req) = build_boot_status_payload(
-                &cmd,
-                models::PiBootStatusType::SystemctlShow,
-                Some(payload),
-            )?;
-
-            // publish to reply topic if present
-            if reply.is_some() {
-                nats_client
-                    .publish(reply.as_ref().unwrap().to_string(), req.clone())
-                    .await?;
-            }
-            // also publish to status topic
-            nats_client.publish(subject.clone(), req).await?;
-
-            debug!(
-                "nats.publish event_type={:?}",
-                models::PiBootStatusType::RebootStarted
-            );
-        }
         models::PiBootCommandType::SyncSettings => {
             // publish SyncSettings event
             let (subject, req) = build_boot_status_payload(
@@ -207,6 +181,7 @@ pub async fn handle_pi_boot_command(
                 }
             }
         }
+        _ => todo!(),
     };
     Ok(())
 }

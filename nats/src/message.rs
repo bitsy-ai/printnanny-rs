@@ -7,8 +7,8 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use printnanny_dbus;
+use printnanny_dbus::systemd1::models::SystemdUnit;
 use printnanny_dbus::zbus;
-
 use printnanny_services::git2;
 use printnanny_services::settings::{PrintNannySettings, SettingsFormat};
 use printnanny_services::vcs::{GitCommit, VersionControlledSettings};
@@ -18,6 +18,37 @@ pub trait NatsRequestReplyHandler {
     type Request: Serialize + DeserializeOwned + Clone + Debug;
     type Reply: Serialize + DeserializeOwned + Clone + Debug;
     async fn handle(&self) -> Result<Self::Reply>;
+}
+
+// pi.dbus.org.freedesktop.systemd1.Manager.GetUnit
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SystemdManagerGetUnitRequest {
+    name: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SystemdManagerGetUnitReply {
+    request: SystemdManagerGetUnitRequest,
+    unit: printnanny_dbus::systemd1::models::SystemdUnit,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for SystemdManagerGetUnitRequest {
+    type Request = SystemdManagerGetUnitRequest;
+    type Reply = SystemdManagerGetUnitReply;
+
+    async fn handle(&self) -> Result<Self::Reply> {
+        let connection = zbus::Connection::system().await?;
+        let proxy = printnanny_dbus::zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let unit_path = proxy.get_unit(self.name.clone()).await?;
+
+        let unit = SystemdUnit::from_owned_object_path(unit_path).await?;
+        let reply = Self::Reply {
+            unit,
+            request: self.clone(),
+        };
+        Ok(reply)
+    }
 }
 
 // pi.dbus.org.freedesktop.systemd1.Manager.StartUnit
@@ -590,6 +621,8 @@ pub enum NatsRequest {
     SystemdManagerDisableUnitRequest(SystemdManagerDisableUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
     SystemdManagerEnableUnitRequest(SystemdManagerEnableUnitRequest),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
+    SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
     SystemdManagerReloadUnitRequest(SystemdManagerReloadUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
@@ -641,6 +674,8 @@ pub enum NatsReply {
     SystemdManagerDisableUnitReply(SystemdManagerDisableUnitReply),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
     SystemdManagerEnableUnitReply(SystemdManagerEnableUnitReply),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
+    SystemdManagerGetUnitReply(SystemdManagerGetUnitReply),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
     SystemdManagerReloadUnitReply(SystemdManagerReloadUnitReply),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
@@ -694,6 +729,10 @@ impl NatsRequestReplyHandler for NatsRequest {
 
     async fn handle(&self) -> Result<NatsReply> {
         let reply = match self {
+            NatsRequest::SystemdManagerGetUnitRequest(request) => match request.handle().await {
+                Ok(r) => Ok(NatsReply::SystemdManagerGetUnitReply(r)),
+                Err(e) => Err(e),
+            },
             NatsRequest::SystemdManagerDisableUnitRequest(request) => {
                 match request.handle().await {
                     Ok(r) => Ok(NatsReply::SystemdManagerDisableUnitReply(r)),

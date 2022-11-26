@@ -11,4 +11,7 @@ rust-version = "1.63"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = "0.1"
 zbus = { version = "3.5.0", features = ["tokio"] } # API for D-Bus communication
+serde = { version = "1", features = ["derive"] }
+zbus_systemd = { version = "0.0.8", features = ["systemd1"] }  # A pure-Rust library to interact with systemd DBus services
