@@ -854,12 +854,8 @@ mod tests {
             files: vec!["doesnotexist.service".into()],
         };
         let natsrequest = NatsRequest::SystemdManagerDisableUnitRequest(request.clone());
-        let natsreply = natsrequest.handle().await.unwrap();
-        if let NatsReply::SystemdManagerDisableUnitReply(reply) = natsreply {
-            assert_eq!(reply.request, request);
-        } else {
-            panic!("Expected NatsReply::SystemdManagerDisableUnitReply")
-        }
+        let natsreply = natsrequest.handle().await;
+        assert!(natsreply.is_err());
     }
 
     #[cfg(feature = "systemd")]

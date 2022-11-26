@@ -14,6 +14,8 @@ use tokio::time::{sleep, Duration};
 
 use printnanny_services::error::{CommandError, NatsError};
 
+use crate::error::ErrorMsg;
+
 use super::message::NatsRequestReplyHandler;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -126,18 +128,24 @@ where
             message.payload.reader().read_to_string(&mut s)?;
             debug!("read message.payload {}", &s);
             let request = serde_json::from_str::<Request>(&s)?;
-            let res = request.handle().await?;
+            let payload = match request.handle().await {
+                Ok(r) => serde_json::to_vec(&r),
+                Err(e) => {
+                    let r = ErrorMsg::<Request> {
+                        request: request,
+                        msg: e.to_string(),
+                    };
+                    serde_json::to_vec(&r)
+                }
+            }?;
 
             match message.reply {
-                Some(reply_inbox) => {
-                    let payload = serde_json::to_vec(&res).unwrap();
-                    match nats_client.publish(reply_inbox, payload.into()).await {
-                        Ok(_) => Ok(()),
-                        Err(e) => Err(CommandError::NatsError(NatsError::PublishError {
-                            error: e.to_string(),
-                        })),
-                    }
-                }
+                Some(reply_inbox) => match nats_client.publish(reply_inbox, payload.into()).await {
+                    Ok(_) => Ok(()),
+                    Err(e) => Err(CommandError::NatsError(NatsError::PublishError {
+                        error: e.to_string(),
+                    })),
+                },
                 None => Ok(()),
             }?;
         }
