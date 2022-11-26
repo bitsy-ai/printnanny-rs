@@ -7,7 +7,6 @@ use clap::{ArgEnum, PossibleValue};
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
-use git2::Repository;
 use glob::glob;
 use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
