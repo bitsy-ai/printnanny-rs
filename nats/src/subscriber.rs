@@ -14,20 +14,22 @@ use tokio::time::{sleep, Duration};
 
 use printnanny_services::error::{CommandError, NatsError};
 
+use crate::error::{ReplyResult, RequestErrorMsg};
+
 use super::message::NatsRequestReplyHandler;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NatsSubscriber<Request, Response>
+pub struct NatsSubscriber<Request, Reply>
 where
     Request: Serialize + DeserializeOwned + Debug + NatsRequestReplyHandler,
-    Response: Serialize + DeserializeOwned + Debug,
+    Reply: Serialize + DeserializeOwned + Debug,
 {
     subject: String,
     nats_server_uri: String,
     require_tls: bool,
     nats_creds: Option<PathBuf>,
     _request: PhantomData<Request>,
-    _response: PhantomData<Response>,
+    _response: PhantomData<Reply>,
 }
 
 const DEFAULT_NATS_SOCKET_PATH: &str = "/var/run/printnanny/nats-worker.sock";
@@ -36,10 +38,14 @@ const DEFAULT_NATS_SUBJECT: &str = "pi.command.>";
 
 pub const DEFAULT_NATS_EDGE_APP_NAME: &str = "nats-edge-worker";
 
-impl<Request, Response> NatsSubscriber<Request, Response>
+impl<Request, Reply> NatsSubscriber<Request, Reply>
 where
-    Request: Serialize + DeserializeOwned + Debug + NatsRequestReplyHandler,
-    Response: Serialize + DeserializeOwned + Debug,
+    Request: Serialize
+        + DeserializeOwned
+        + Debug
+        + NatsRequestReplyHandler
+        + NatsRequestReplyHandler<Reply = Reply>,
+    Reply: Serialize + DeserializeOwned + Debug,
 {
     pub fn clap_command(app_name: Option<String>) -> Command<'static> {
         let app_name = app_name.unwrap_or_else(|| DEFAULT_NATS_EDGE_APP_NAME.to_string());
@@ -126,7 +132,16 @@ where
             message.payload.reader().read_to_string(&mut s)?;
             debug!("read message.payload {}", &s);
             let request = serde_json::from_str::<Request>(&s)?;
-            let res = request.handle().await?;
+            let res = match request.handle().await {
+                Ok(r) => ReplyResult::<Request, Reply>::Ok(r),
+                Err(e) => {
+                    let r = RequestErrorMsg::<Request> {
+                        request: request,
+                        msg: e.to_string(),
+                    };
+                    ReplyResult::Err(r)
+                }
+            };
 
             match message.reply {
                 Some(reply_inbox) => {
