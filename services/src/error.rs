@@ -84,6 +84,9 @@ pub enum PrintNannySettingsError {
     IoError(#[from] std::io::Error),
 
     #[error(transparent)]
+    GitError(#[from] git2::Error),
+
+    #[error(transparent)]
     PrintNannyCloudDataError(#[from] PrintNannyCloudDataError),
 }
 

@@ -10,7 +10,8 @@ use thiserror::Error;
 use printnanny_dbus::zbus;
 
 use super::error::PrintNannyCloudDataError;
-use super::settings::{PrintNannySettings, SettingsFormat};
+use super::error::PrintNannySettingsError;
+use super::settings::{GitSettings, PrintNannySettings, SettingsFormat};
 
 #[derive(Error, Debug)]
 pub enum VersionControlledSettingsError {
@@ -35,6 +36,22 @@ pub enum VersionControlledSettingsError {
 #[async_trait]
 pub trait VersionControlledSettings {
     type SettingsModel: Serialize;
+    fn init_local_git_config(&self) -> Result<(), PrintNannySettingsError> {
+        let settings = PrintNannySettings::new()?;
+        let repo = self.get_git_repo()?;
+        let config = repo.config()?;
+        let mut localconfig = config.open_level(git2::ConfigLevel::Local)?;
+        localconfig.set_str("user.email", &settings.git.email)?;
+        localconfig.set_str("user.name", &settings.git.name)?;
+        localconfig.set_str("init.defaultBranch", &settings.git.default_branch)?;
+        Ok(())
+    }
+    fn git_clone(&self) -> Result<Repository, PrintNannySettingsError> {
+        let settings = PrintNannySettings::new()?;
+        let repo = Repository::clone(&settings.git.remote, settings.paths.settings_dir)?;
+        Ok(repo)
+    }
+
     fn get_git_repo(&self) -> Result<Repository, git2::Error> {
         let settings = PrintNannySettings::new().unwrap();
         Repository::open(settings.paths.settings_dir)
@@ -104,7 +121,7 @@ pub trait VersionControlledSettings {
         ))
     }
 
-    fn get_git_parent_commit(&self) -> Result<git2::Oid, git2::Error> {
+    fn get_git_head_commit(&self) -> Result<git2::Oid, git2::Error> {
         let repo = self.get_git_repo()?;
         let parent_commit = &repo.head()?.peel_to_commit()?;
         Ok(parent_commit.id())
@@ -131,9 +148,12 @@ pub trait VersionControlledSettings {
         Ok(result)
     }
 
-    fn git_revert(&self, commit: Option<git2::Commit>) -> Result<(), git2::Error> {
+    fn git_revert(&self, oid: Option<git2::Oid>) -> Result<(), git2::Error> {
         let repo = self.get_git_repo()?;
-        let commit = commit.unwrap_or_else(|| repo.head().unwrap().peel_to_commit().unwrap());
+        let commit = match oid {
+            Some(sha) => repo.find_commit(sha)?,
+            None => repo.head().unwrap().peel_to_commit()?,
+        };
         repo.revert(&commit, None)
     }
 

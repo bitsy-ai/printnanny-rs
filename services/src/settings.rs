@@ -30,6 +30,8 @@ const FACTORY_RESET: [&str; 2] = ["cloud", "systemd_units"];
 
 const DEFAULT_PRINTNANNY_SETTINGS_GIT_REMOTE: &str =
     "https://github.com/bitsy-ai/printnanny-settings.git";
+const DEFAULT_PRINTNANNY_SETTINGS_GIT_EMAIL: &str = "robots@printnanny.ai";
+const DEFAULT_PRINTNANNY_SETTINGS_GIT_NAME: &str = "PrintNanny";
 
 lazy_static! {
     static ref DEFAULT_SYSTEMD_UNITS: HashMap<String, SystemdUnit> = {
@@ -156,8 +158,27 @@ pub struct SystemdUnit {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct GitSettings {
+    pub remote: String,
+    pub email: String,
+    pub name: String,
+    pub default_branch: String,
+}
+
+impl Default for GitSettings {
+    fn default() -> Self {
+        Self {
+            remote: DEFAULT_PRINTNANNY_SETTINGS_GIT_REMOTE.into(),
+            email: DEFAULT_PRINTNANNY_SETTINGS_GIT_EMAIL.into(),
+            name: DEFAULT_PRINTNANNY_SETTINGS_GIT_NAME.into(),
+            default_branch: "main".into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PrintNannySettings {
-    pub git_remote: String,
+    pub git: GitSettings,
     pub paths: PrintNannyPaths,
     pub klipper: printer_mgmt::klipper::KlipperSettings,
     pub mainsail: printer_mgmt::mainsail::MainsailSettings,
@@ -167,13 +188,14 @@ pub struct PrintNannySettings {
 
 impl Default for PrintNannySettings {
     fn default() -> Self {
+        let git = GitSettings::default();
         Self {
             paths: PrintNannyPaths::default(),
             klipper: printer_mgmt::klipper::KlipperSettings::default(),
             octoprint: printer_mgmt::octoprint::OctoPrintSettings::default(),
             moonraker: printer_mgmt::moonraker::MoonrakerSettings::default(),
             mainsail: printer_mgmt::mainsail::MainsailSettings::default(),
-            git_remote: DEFAULT_PRINTNANNY_SETTINGS_GIT_REMOTE.into(),
+            git,
         }
     }
 }
@@ -189,12 +211,6 @@ impl PrintNannySettings {
 
         Ok(result)
     }
-
-    pub fn git_clone(&self) -> Result<Repository, git2::Error> {
-        let repo = Repository::clone(&self.git_remote, &self.paths.settings_dir)?;
-        Ok(repo)
-    }
-
     pub fn dashboard_url(&self) -> String {
         let hostname = sys_info::hostname().unwrap_or_else(|_| "printnanny".to_string());
         format!("http://{}.local/", hostname)
@@ -429,233 +445,6 @@ impl Provider for PrintNannySettings {
     fn data(&self) -> figment::error::Result<Map<Profile, Dict>> {
         let map: Map<Profile, Dict> = Serialized::defaults(self).data()?;
         Ok(map)
-    }
-}
-
-pub mod jail {
-    use std::collections::HashMap;
-    use std::ffi::{OsStr, OsString};
-    use std::fmt::Display;
-    use std::fs::File;
-    use std::io::{BufWriter, Write};
-    use std::path::{Path, PathBuf};
-
-    use parking_lot::Mutex;
-    use tempfile::TempDir;
-
-    use figment::error::Result;
-
-    /// Based on: https://github.com/SergioBenitez/Figment/blob/master/src/jail.rs
-    /// with Clone implementation
-    /// environment variables before entering this? Will they mess with
-    // anything else?
-    /// A "sandboxed" environment with isolated env and file system namespace.
-    ///
-    /// `Jail` creates a pseudo-sandboxed (not _actually_ sandboxed) environment for
-    /// testing configurations. Specifically, `Jail`:
-    ///
-    ///   * Synchronizes all calls to [`Jail::expect_with()`] and
-    ///     [`Jail::try_with()`] to prevent environment variables races.
-    ///   * Switches into a fresh temporary directory ([`Jail::directory()`]) where
-    ///     files can be created with [`Jail::create_file()`].
-    ///   * Keeps track of environment variables created with [`Jail::set_env()`]
-    ///     and clears them when the `Jail` exits.
-    ///   * Deletes the temporary directory and all of its contents when exiting.
-    ///
-    /// Additionally, because `Jail` expects functions that return a [`Result`],
-    /// the `?` operator can be used liberally in a jail:
-    ///
-    /// ```rust
-    /// use figment::{Figment, Jail, providers::{Format, Toml, Env}};
-    /// # #[derive(serde::Deserialize)]
-    /// # struct Config {
-    /// #     name: String,
-    /// #     authors: Vec<String>,
-    /// #     publish: bool
-    /// # }
-    ///
-    /// figment::Jail::expect_with(|jail| {
-    ///     jail.create_file("Cargo.toml", r#"
-    ///       name = "test"
-    ///       authors = ["bob"]
-    ///       publish = false
-    ///     "#)?;
-    ///
-    ///     jail.set_env("CARGO_NAME", "env-test");
-    ///
-    ///     let config: Config = Figment::new()
-    ///         .merge(Toml::file("Cargo.toml"))
-    ///         .merge(Env::prefixed("CARGO_"))
-    ///         .extract()?;
-    ///
-    ///     Ok(())
-    /// });
-    /// ```
-    #[cfg_attr(nightly, doc(cfg(feature = "test")))]
-    #[derive(Debug)]
-    pub struct Jail {
-        _directory: TempDir,
-        canonical_dir: PathBuf,
-        saved_env_vars: HashMap<OsString, Option<OsString>>,
-        saved_cwd: PathBuf,
-    }
-
-    fn as_string<S: Display>(s: S) -> String {
-        s.to_string()
-    }
-
-    static LOCK: Mutex<()> = parking_lot::const_mutex(());
-
-    impl Jail {
-        /// Creates a new jail that calls `f`, passing itself to `f`.
-        ///
-        /// # Panics
-        ///
-        /// Panics if `f` panics or if [`Jail::try_with(f)`](Jail::try_with) returns
-        /// an `Err`; prints the error message.
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// figment::Jail::expect_with(|jail| {
-        ///     /* in the jail */
-        ///
-        ///     Ok(())
-        /// });
-        /// ```
-        #[track_caller]
-        pub fn expect_with<F: FnOnce(&mut Jail) -> Result<()>>(f: F) {
-            if let Err(e) = Jail::try_with(f) {
-                panic!("jail failed: {}", e)
-            }
-        }
-
-        /// Creates a new jail that calls `f`, passing itself to `f`. Returns the
-        /// result from `f` if `f` does not panic.
-        ///
-        /// # Panics
-        ///
-        /// Panics if `f` panics.
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// let result = figment::Jail::try_with(|jail| {
-        ///     /* in the jail */
-        ///
-        ///     Ok(())
-        /// });
-        /// ```
-        #[track_caller]
-        pub fn try_with<F: FnOnce(&mut Jail) -> Result<()>>(f: F) -> Result<()> {
-            let _lock = LOCK.lock();
-            let directory = TempDir::new().map_err(as_string)?;
-            let mut jail = Jail {
-                canonical_dir: directory.path().canonicalize().map_err(as_string)?,
-                _directory: directory,
-                saved_cwd: std::env::current_dir().map_err(as_string)?,
-                saved_env_vars: HashMap::new(),
-            };
-
-            std::env::set_current_dir(jail.directory()).map_err(as_string)?;
-            f(&mut jail)
-        }
-
-        pub fn new() -> Result<Jail> {
-            let _lock = LOCK.lock();
-            let directory = TempDir::new().map_err(as_string)?;
-            let mut jail = Jail {
-                canonical_dir: directory.path().canonicalize().map_err(as_string)?,
-                _directory: directory,
-                saved_cwd: std::env::current_dir().map_err(as_string)?,
-                saved_env_vars: HashMap::new(),
-            };
-
-            std::env::set_current_dir(jail.directory()).map_err(as_string)?;
-            Ok(jail)
-        }
-
-        /// Returns the directory the jail has switched into. The contents of this
-        /// directory will be cleared when `Jail` is dropped.
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// figment::Jail::expect_with(|jail| {
-        ///     let tmp_directory = jail.directory();
-        ///
-        ///     Ok(())
-        /// });
-        /// ```
-        pub fn directory(&self) -> &Path {
-            &self.canonical_dir
-        }
-
-        /// Creates a file with contents `contents` in the jail's directory. The
-        /// file will be deleted with the jail is dropped.
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// figment::Jail::expect_with(|jail| {
-        ///     jail.create_file("MyConfig.json", "contents...");
-        ///     Ok(())
-        /// });
-        /// ```
-        pub fn create_file<P: AsRef<Path>>(&self, path: P, contents: &str) -> Result<File> {
-            let path = path.as_ref();
-            if !path.is_relative() {
-                return Err("Jail::create_file(): file path is absolute"
-                    .to_string()
-                    .into());
-            }
-
-            let file = File::create(self.directory().join(path)).map_err(as_string)?;
-            let mut writer = BufWriter::new(file);
-            writer.write_all(contents.as_bytes()).map_err(as_string)?;
-            Ok(writer.into_inner().map_err(as_string)?)
-        }
-
-        /// Set the environment variable `k` to value `v`. The variable will be
-        /// removed when the jail is dropped.
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// const VAR_NAME: &str = "my-very-special-figment-var";
-        ///
-        /// assert!(std::env::var(VAR_NAME).is_err());
-        ///
-        /// figment::Jail::expect_with(|jail| {
-        ///     jail.set_env(VAR_NAME, "value");
-        ///     assert!(std::env::var(VAR_NAME).is_ok());
-        ///     Ok(())
-        /// });
-        ///
-        /// assert!(std::env::var(VAR_NAME).is_err());
-        /// ```
-        pub fn set_env<K: AsRef<str>, V: Display>(&mut self, k: K, v: V) {
-            let key = k.as_ref();
-            if !self.saved_env_vars.contains_key(OsStr::new(key)) {
-                self.saved_env_vars
-                    .insert(key.into(), std::env::var_os(key));
-            }
-
-            std::env::set_var(key, v.to_string());
-        }
-    }
-
-    impl Drop for Jail {
-        fn drop(&mut self) {
-            for (key, value) in self.saved_env_vars.iter() {
-                match value {
-                    Some(val) => std::env::set_var(key, val),
-                    None => std::env::remove_var(key),
-                }
-            }
-
-            let _ = std::env::set_current_dir(&self.saved_cwd);
-        }
     }
 }
 
