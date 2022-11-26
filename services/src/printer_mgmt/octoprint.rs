@@ -7,6 +7,7 @@ use log::{debug, info};
 use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::zbus;
+use printnanny_dbus::zbus_systemd;
 
 use crate::error::PrintNannySettingsError;
 use crate::settings::{PrintNannySettings, SettingsFormat};
@@ -53,8 +54,11 @@ impl VersionControlledSettings for OctoPrintSettings {
         debug!("Running OctoPrintSettings pre_save hook");
         // stop OctoPrint serviice
         let connection = zbus::Connection::system().await?;
-        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
-        let job = proxy.stop_unit("octoprint.service", "replace").await?;
+
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let job = proxy
+            .stop_unit("octoprint.service".to_string(), "replace".to_string())
+            .await?;
         info!("Stopped octoprint.service, job: {:?}", job);
         Ok(())
     }
@@ -63,8 +67,10 @@ impl VersionControlledSettings for OctoPrintSettings {
         debug!("Running OctoPrintSettings post_save hook");
         // start OctoPrint service
         let connection = zbus::Connection::system().await?;
-        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
-        let job = proxy.start_unit("octoprint.service", "replace").await?;
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let job = proxy
+            .start_unit("octoprint.service".into(), "replace".into())
+            .await?;
         info!("Started octoprint.service, job: {:?}", job);
 
         Ok(())

@@ -2102,7 +2102,10 @@ dependencies = [
 name = "printnanny-dbus"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
+ "serde 1.0.137",
  "zbus",
+ "zbus_systemd",
 ]
 
 [[package]]
@@ -3810,6 +3813,17 @@ dependencies = [
  "serde 1.0.137",
  "static_assertions",
  "zvariant",
+]
+
+[[package]]
+name = "zbus_systemd"
+version = "0.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7681e3440cbd50a17f2979785619b487e197b5e7e375a851702d4d20f3965f0"
+dependencies = [
+ "futures",
+ "serde 1.0.137",
+ "zbus",
 ]
 
 [[package]]

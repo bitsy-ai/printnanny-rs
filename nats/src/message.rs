@@ -6,8 +6,9 @@ use log::info;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use printnanny_dbus;
+use printnanny_dbus::systemd1::models::SystemdUnit;
 use printnanny_dbus::zbus;
+use printnanny_dbus::zbus_systemd;
 
 use printnanny_services::git2;
 use printnanny_services::settings::{PrintNannySettings, SettingsFormat};
@@ -18,6 +19,37 @@ pub trait NatsRequestReplyHandler {
     type Request: Serialize + DeserializeOwned + Clone + Debug;
     type Reply: Serialize + DeserializeOwned + Clone + Debug;
     async fn handle(&self) -> Result<Self::Reply>;
+}
+
+// pi.dbus.org.freedesktop.systemd1.Manager.GetUnit
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SystemdManagerGetUnitRequest {
+    name: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SystemdManagerGetUnitReply {
+    request: SystemdManagerGetUnitRequest,
+    unit: printnanny_dbus::systemd1::models::SystemdUnit,
+}
+
+#[async_trait]
+impl NatsRequestReplyHandler for SystemdManagerGetUnitRequest {
+    type Request = SystemdManagerGetUnitRequest;
+    type Reply = SystemdManagerGetUnitReply;
+
+    async fn handle(&self) -> Result<Self::Reply> {
+        let connection = zbus::Connection::system().await?;
+        let proxy = printnanny_dbus::zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let unit_path = proxy.get_unit(self.name.clone()).await?;
+
+        let unit = SystemdUnit::from_owned_object_path(unit_path).await?;
+        let reply = Self::Reply {
+            unit,
+            request: self.clone(),
+        };
+        Ok(reply)
+    }
 }
 
 // pi.dbus.org.freedesktop.systemd1.Manager.StartUnit
@@ -40,8 +72,10 @@ impl NatsRequestReplyHandler for SystemdManagerStartUnitRequest {
 
     async fn handle(&self) -> Result<Self::Reply> {
         let connection = zbus::Connection::system().await?;
-        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
-        let job = proxy.start_unit(&self.name, "replace").await?;
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let job = proxy
+            .start_unit(self.name.clone(), "replace".into())
+            .await?;
         let reply = Self::Reply {
             job,
             request: self.clone(),
@@ -69,8 +103,10 @@ impl NatsRequestReplyHandler for SystemdManagerRestartUnitRequest {
     type Reply = SystemdManagerRestartUnitReply;
     async fn handle(&self) -> Result<Self::Reply> {
         let connection = zbus::Connection::system().await?;
-        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
-        let job = proxy.restart_unit(&self.name, "replace").await?;
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let job = proxy
+            .restart_unit(self.name.clone(), "replace".into())
+            .await?;
         let reply = Self::Reply {
             job,
             request: self.clone(),
@@ -98,10 +134,10 @@ impl NatsRequestReplyHandler for SystemdManagerStopUnitRequest {
     type Reply = SystemdManagerStopUnitReply;
     async fn handle(&self) -> Result<Self::Reply> {
         let connection = zbus::Connection::system().await?;
-        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
-        let job = proxy.stop_unit(&self.name, "replace").await?;
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let job = proxy.stop_unit(self.name.clone(), "replace".into()).await?;
         let reply = Self::Reply {
-            job: job,
+            job,
             request: self.clone(),
         };
         Ok(reply)
@@ -127,9 +163,11 @@ impl NatsRequestReplyHandler for SystemdManagerEnableUnitRequest {
     type Reply = SystemdManagerEnableUnitReply;
     async fn handle(&self) -> Result<Self::Reply> {
         let connection = zbus::Connection::system().await?;
-        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
-        let files: Vec<&str> = self.files.iter().map(|s| s.as_str()).collect();
-        let (_enablement_info, changes) = proxy.enable_unit_files(&files, false, false).await?;
+
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let (_enablement_info, changes) = proxy
+            .enable_unit_files(self.files.clone(), false, false)
+            .await?;
         let reply = Self::Reply {
             changes,
             request: self.clone(),
@@ -157,9 +195,8 @@ impl NatsRequestReplyHandler for SystemdManagerDisableUnitRequest {
     type Reply = SystemdManagerDisableUnitReply;
     async fn handle(&self) -> Result<Self::Reply> {
         let connection = zbus::Connection::system().await?;
-        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
-        let files: Vec<&str> = self.files.iter().map(|s| s.as_str()).collect();
-        let changes = proxy.disable_unit_files(&files, false).await?;
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let changes = proxy.disable_unit_files(self.files.clone(), false).await?;
         let reply = Self::Reply {
             changes,
             request: self.clone(),
@@ -187,8 +224,11 @@ impl NatsRequestReplyHandler for SystemdManagerReloadUnitRequest {
 
     async fn handle(&self) -> Result<Self::Reply> {
         let connection = zbus::Connection::system().await?;
-        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
-        let job = proxy.restart_unit(&self.name, "replace").await?;
+
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let job = proxy
+            .restart_unit(self.name.clone(), "replace".into())
+            .await?;
         let reply = Self::Reply {
             job,
             request: self.clone(),
@@ -590,6 +630,8 @@ pub enum NatsRequest {
     SystemdManagerDisableUnitRequest(SystemdManagerDisableUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
     SystemdManagerEnableUnitRequest(SystemdManagerEnableUnitRequest),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
+    SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
     SystemdManagerReloadUnitRequest(SystemdManagerReloadUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
@@ -641,6 +683,8 @@ pub enum NatsReply {
     SystemdManagerDisableUnitReply(SystemdManagerDisableUnitReply),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
     SystemdManagerEnableUnitReply(SystemdManagerEnableUnitReply),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
+    SystemdManagerGetUnitReply(SystemdManagerGetUnitReply),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
     SystemdManagerReloadUnitReply(SystemdManagerReloadUnitReply),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
@@ -694,6 +738,10 @@ impl NatsRequestReplyHandler for NatsRequest {
 
     async fn handle(&self) -> Result<NatsReply> {
         let reply = match self {
+            NatsRequest::SystemdManagerGetUnitRequest(request) => match request.handle().await {
+                Ok(r) => Ok(NatsReply::SystemdManagerGetUnitReply(r)),
+                Err(e) => Err(e),
+            },
             NatsRequest::SystemdManagerDisableUnitRequest(request) => {
                 match request.handle().await {
                     Ok(r) => Ok(NatsReply::SystemdManagerDisableUnitReply(r)),
@@ -964,6 +1012,24 @@ mod tests {
         let natsrequest = NatsRequest::SystemdManagerEnableUnitRequest(request.clone());
         let natsreply = natsrequest.handle().await;
         assert!(natsreply.is_err());
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_manager_get_unit() {
+        use printnanny_dbus::systemd1::models::SystemdUnitFileState;
+
+        let request = SystemdManagerGetUnitRequest {
+            name: "octoprint.service".into(),
+        };
+        let natsrequest = NatsRequest::SystemdManagerGetUnitRequest(request.clone());
+        let natsreply = natsrequest.handle().await.unwrap();
+        if let NatsReply::SystemdManagerGetUnitReply(reply) = natsreply {
+            assert_eq!(reply.request, request);
+            assert_eq!(reply.unit.unit_file_state, SystemdUnitFileState::Enabled);
+        } else {
+            panic!("Expected NatsReply::SystemdManagerGetUnitReply")
+        }
     }
 
     #[cfg(feature = "systemd")]
