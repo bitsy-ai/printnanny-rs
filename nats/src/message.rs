@@ -508,7 +508,8 @@ pub struct OctoPrintSettingsApplyReply {
     format: SettingsFormat,
     filename: String,
     contents: String,
-    commit: GitCommit,
+    git_commit: GitCommit,
+    git_history: Vec<GitCommit>,
 }
 
 #[async_trait]
@@ -519,13 +520,15 @@ impl NatsRequestReplyHandler for OctoPrintSettingsApplyRequest {
     async fn handle(&self) -> Result<Self::Reply> {
         let settings = PrintNannySettings::new()?;
         settings.octoprint.save(&self.contents, None).await?;
-        let commit = settings.octoprint.get_git_head_commit()?;
+        let git_commit = settings.octoprint.get_git_head_commit()?;
         let contents = settings.octoprint.read_settings()?;
         let filename = settings.octoprint.settings_file.display().to_string();
+        let git_history = settings.octoprint.get_rev_list()?;
 
         Ok(Self::Reply {
             request: self.clone(),
-            commit,
+            git_history,
+            git_commit,
             contents,
             filename,
             format: SettingsFormat::Yaml,
@@ -536,7 +539,7 @@ impl NatsRequestReplyHandler for OctoPrintSettingsApplyRequest {
 //  pi.settings.octoprint.revert
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OctoPrintSettingsRevertRequest {
-    commit: String,
+    git_commit: String,
 }
 
 //  pi.settings.octoprint.revert
@@ -545,7 +548,8 @@ pub struct OctoPrintSettingsRevertReply {
     request: OctoPrintSettingsRevertRequest,
     filename: String,
     contents: String,
-    commit: GitCommit,
+    git_commit: GitCommit,
+    git_history: Vec<GitCommit>,
     format: SettingsFormat,
 }
 
@@ -556,14 +560,16 @@ impl NatsRequestReplyHandler for OctoPrintSettingsRevertRequest {
 
     async fn handle(&self) -> Result<Self::Reply> {
         let settings = PrintNannySettings::new()?;
-        let oid = git2::Oid::from_str(&self.commit)?;
+        let oid = git2::Oid::from_str(&self.git_commit)?;
         settings.octoprint.git_revert(Some(oid))?;
-        let commit = settings.octoprint.get_git_head_commit()?;
+        let git_commit = settings.octoprint.get_git_head_commit()?;
         let contents = settings.octoprint.read_settings()?;
         let filename = settings.octoprint.settings_file.display().to_string();
+        let git_history = settings.octoprint.get_rev_list()?;
 
         Ok(Self::Reply {
-            commit,
+            git_commit,
+            git_history,
             contents,
             filename,
             request: self.clone(),
@@ -860,8 +866,10 @@ mod tests {
             if let NatsReply::OctoPrintSettingsApplyReply(reply) = natsreply {
                 assert_eq!(reply.request, request);
                 assert_eq!(&reply.contents, OCTOPRINT_MODIFIED_SETTINGS);
+
                 let settings = PrintNannySettings::new().unwrap();
                 assert_eq!(reply.contents, settings.octoprint.read_settings().unwrap());
+                assert_eq!(reply.git_history.len(), 2);
             }
             Ok(())
         })
@@ -886,7 +894,9 @@ mod tests {
                 .unwrap();
             let commit = settings.octoprint.get_git_head_commit().unwrap();
 
-            let request = OctoPrintSettingsRevertRequest { commit: commit.oid };
+            let request = OctoPrintSettingsRevertRequest {
+                git_commit: commit.oid,
+            };
 
             let natsrequest = NatsRequest::OctoPrintSettingsRevertRequest(request.clone());
             let natsreply = Runtime::new()

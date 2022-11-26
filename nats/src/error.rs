@@ -1,11 +1,8 @@
 use std::fmt;
 use std::fmt::Debug;
 
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use thiserror::Error;
-
-use super::message::{NatsReply, NatsRequest, NatsRequestReplyHandler};
 
 #[derive(Error, Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct RequestErrorMsg<Request: Serialize + Debug> {

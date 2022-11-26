@@ -139,11 +139,9 @@ pub trait VersionControlledSettings {
         let repo = self.get_git_repo()?;
         let mut revwalk = repo.revwalk()?;
         revwalk.set_sorting(git2::Sort::TIME)?;
-        revwalk.push(git2::Oid::from_str("HEAD")?)?;
+        revwalk.push_head()?;
 
-        let settings_file_hashed =
-            git2::Oid::hash_file(git2::ObjectType::Blob, self.get_settings_file())?;
-        revwalk.push(settings_file_hashed)?;
+        revwalk.push_glob(&self.get_settings_file().display().to_string())?;
         let mut result: Vec<GitCommit> = vec![];
         for r in revwalk {
             let commit = match r {
