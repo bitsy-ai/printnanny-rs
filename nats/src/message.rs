@@ -797,7 +797,8 @@ mod tests {
         .unwrap();
         jail.set_env("PRINTNANNY_SETTINGS", "PrintNannySettingsTest.toml");
         let settings = PrintNannySettings::new().unwrap();
-        settings.git_clone().unwrap();
+        settings.octoprint.git_clone().unwrap();
+        settings.octoprint.init_local_git_config().unwrap();
         jail
     }
 
@@ -826,7 +827,7 @@ mod tests {
         drop(jail)
     }
 
-    #[test(tokio::test)] // async test
+    #[test(tokio::test)] // async tests
     async fn test_apply_octoprint_settings() {
         let jail = make_settings_repo();
 

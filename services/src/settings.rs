@@ -30,6 +30,8 @@ const FACTORY_RESET: [&str; 2] = ["cloud", "systemd_units"];
 
 const DEFAULT_PRINTNANNY_SETTINGS_GIT_REMOTE: &str =
     "https://github.com/bitsy-ai/printnanny-settings.git";
+const DEFAULT_PRINTNANNY_SETTINGS_GIT_EMAIL: &str = "robots@printnanny.ai";
+const DEFAULT_PRINTNANNY_SETTINGS_GIT_NAME: &str = "PrintNanny";
 
 lazy_static! {
     static ref DEFAULT_SYSTEMD_UNITS: HashMap<String, SystemdUnit> = {
@@ -156,8 +158,27 @@ pub struct SystemdUnit {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct GitSettings {
+    pub remote: String,
+    pub email: String,
+    pub name: String,
+    pub default_branch: String,
+}
+
+impl Default for GitSettings {
+    fn default() -> Self {
+        Self {
+            remote: DEFAULT_PRINTNANNY_SETTINGS_GIT_REMOTE.into(),
+            email: DEFAULT_PRINTNANNY_SETTINGS_GIT_EMAIL.into(),
+            name: DEFAULT_PRINTNANNY_SETTINGS_GIT_NAME.into(),
+            default_branch: "main".into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PrintNannySettings {
-    pub git_remote: String,
+    pub git: GitSettings,
     pub paths: PrintNannyPaths,
     pub klipper: printer_mgmt::klipper::KlipperSettings,
     pub mainsail: printer_mgmt::mainsail::MainsailSettings,
@@ -167,13 +188,14 @@ pub struct PrintNannySettings {
 
 impl Default for PrintNannySettings {
     fn default() -> Self {
+        let git = GitSettings::default();
         Self {
             paths: PrintNannyPaths::default(),
             klipper: printer_mgmt::klipper::KlipperSettings::default(),
             octoprint: printer_mgmt::octoprint::OctoPrintSettings::default(),
             moonraker: printer_mgmt::moonraker::MoonrakerSettings::default(),
             mainsail: printer_mgmt::mainsail::MainsailSettings::default(),
-            git_remote: DEFAULT_PRINTNANNY_SETTINGS_GIT_REMOTE.into(),
+            git,
         }
     }
 }
@@ -189,12 +211,6 @@ impl PrintNannySettings {
 
         Ok(result)
     }
-
-    pub fn git_clone(&self) -> Result<Repository, git2::Error> {
-        let repo = Repository::clone(&self.git_remote, &self.paths.settings_dir)?;
-        Ok(repo)
-    }
-
     pub fn dashboard_url(&self) -> String {
         let hostname = sys_info::hostname().unwrap_or_else(|_| "printnanny".to_string());
         format!("http://{}.local/", hostname)
