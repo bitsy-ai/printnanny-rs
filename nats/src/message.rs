@@ -13,8 +13,6 @@ use printnanny_services::printer_mgmt::octoprint::OctoPrintSettings;
 use printnanny_services::settings::{PrintNannySettings, SettingsFormat};
 use printnanny_services::vcs::VersionControlledSettings;
 
-use crate::error::{ErrorMsg, ResultMsg};
-
 #[async_trait]
 pub trait NatsRequestReplyHandler {
     type Request: Serialize + DeserializeOwned + Clone + Debug;
