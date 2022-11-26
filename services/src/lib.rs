@@ -17,3 +17,4 @@ pub mod vcs;
 // pub exports
 pub use clap;
 pub use figment;
+pub use git2;

@@ -104,7 +104,7 @@ pub trait VersionControlledSettings {
         ))
     }
 
-    fn get_git_parent_commit(&self) -> Result<git2::Oid, git2::Error> {
+    fn get_git_head_commit(&self) -> Result<git2::Oid, git2::Error> {
         let repo = self.get_git_repo()?;
         let parent_commit = &repo.head()?.peel_to_commit()?;
         Ok(parent_commit.id())
@@ -131,9 +131,12 @@ pub trait VersionControlledSettings {
         Ok(result)
     }
 
-    fn git_revert(&self, commit: Option<git2::Commit>) -> Result<(), git2::Error> {
+    fn git_revert(&self, oid: Option<git2::Oid>) -> Result<(), git2::Error> {
         let repo = self.get_git_repo()?;
-        let commit = commit.unwrap_or_else(|| repo.head().unwrap().peel_to_commit().unwrap());
+        let commit = match oid {
+            Some(sha) => repo.find_commit(sha)?,
+            None => repo.head().unwrap().peel_to_commit()?,
+        };
         repo.revert(&commit, None)
     }
 
