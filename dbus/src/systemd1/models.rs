@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use zbus_systemd::systemd1::UnitProxy;
 

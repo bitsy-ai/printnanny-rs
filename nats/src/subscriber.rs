@@ -136,7 +136,7 @@ where
                 Ok(r) => ReplyResult::<Request, Reply>::Ok(r),
                 Err(e) => {
                     let r = RequestErrorMsg::<Request> {
-                        request: request,
+                        request,
                         msg: e.to_string(),
                     };
                     ReplyResult::Err(r)

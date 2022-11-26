@@ -6,9 +6,10 @@ use log::info;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use printnanny_dbus;
 use printnanny_dbus::systemd1::models::SystemdUnit;
 use printnanny_dbus::zbus;
+use printnanny_dbus::zbus_systemd;
+
 use printnanny_services::git2;
 use printnanny_services::settings::{PrintNannySettings, SettingsFormat};
 use printnanny_services::vcs::{GitCommit, VersionControlledSettings};
@@ -71,8 +72,10 @@ impl NatsRequestReplyHandler for SystemdManagerStartUnitRequest {
 
     async fn handle(&self) -> Result<Self::Reply> {
         let connection = zbus::Connection::system().await?;
-        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
-        let job = proxy.start_unit(&self.name, "replace").await?;
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let job = proxy
+            .start_unit(self.name.clone(), "replace".into())
+            .await?;
         let reply = Self::Reply {
             job,
             request: self.clone(),
@@ -100,8 +103,10 @@ impl NatsRequestReplyHandler for SystemdManagerRestartUnitRequest {
     type Reply = SystemdManagerRestartUnitReply;
     async fn handle(&self) -> Result<Self::Reply> {
         let connection = zbus::Connection::system().await?;
-        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
-        let job = proxy.restart_unit(&self.name, "replace").await?;
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let job = proxy
+            .restart_unit(self.name.clone(), "replace".into())
+            .await?;
         let reply = Self::Reply {
             job,
             request: self.clone(),
@@ -129,10 +134,10 @@ impl NatsRequestReplyHandler for SystemdManagerStopUnitRequest {
     type Reply = SystemdManagerStopUnitReply;
     async fn handle(&self) -> Result<Self::Reply> {
         let connection = zbus::Connection::system().await?;
-        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
-        let job = proxy.stop_unit(&self.name, "replace").await?;
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let job = proxy.stop_unit(self.name.clone(), "replace".into()).await?;
         let reply = Self::Reply {
-            job: job,
+            job,
             request: self.clone(),
         };
         Ok(reply)
@@ -158,9 +163,11 @@ impl NatsRequestReplyHandler for SystemdManagerEnableUnitRequest {
     type Reply = SystemdManagerEnableUnitReply;
     async fn handle(&self) -> Result<Self::Reply> {
         let connection = zbus::Connection::system().await?;
-        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
-        let files: Vec<&str> = self.files.iter().map(|s| s.as_str()).collect();
-        let (_enablement_info, changes) = proxy.enable_unit_files(&files, false, false).await?;
+
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let (_enablement_info, changes) = proxy
+            .enable_unit_files(self.files.clone(), false, false)
+            .await?;
         let reply = Self::Reply {
             changes,
             request: self.clone(),
@@ -188,9 +195,8 @@ impl NatsRequestReplyHandler for SystemdManagerDisableUnitRequest {
     type Reply = SystemdManagerDisableUnitReply;
     async fn handle(&self) -> Result<Self::Reply> {
         let connection = zbus::Connection::system().await?;
-        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
-        let files: Vec<&str> = self.files.iter().map(|s| s.as_str()).collect();
-        let changes = proxy.disable_unit_files(&files, false).await?;
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let changes = proxy.disable_unit_files(self.files.clone(), false).await?;
         let reply = Self::Reply {
             changes,
             request: self.clone(),
@@ -218,8 +224,11 @@ impl NatsRequestReplyHandler for SystemdManagerReloadUnitRequest {
 
     async fn handle(&self) -> Result<Self::Reply> {
         let connection = zbus::Connection::system().await?;
-        let proxy = printnanny_dbus::systemd1::manager::ManagerProxy::new(&connection).await?;
-        let job = proxy.restart_unit(&self.name, "replace").await?;
+
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let job = proxy
+            .restart_unit(self.name.clone(), "replace".into())
+            .await?;
         let reply = Self::Reply {
             job,
             request: self.clone(),
