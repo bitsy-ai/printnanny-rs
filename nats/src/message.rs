@@ -826,6 +826,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "systemd")]
     fn test_apply_octoprint_settings() {
         figment::Jail::expect_with(|jail| {
             make_settings_repo(jail);
@@ -856,6 +857,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "systemd")]
     fn test_revert_octoprint_settings() {
         figment::Jail::expect_with(|jail| {
             make_settings_repo(jail);
