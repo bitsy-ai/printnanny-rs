@@ -238,22 +238,22 @@ impl NatsRequestReplyHandler for SystemdManagerReloadUnitRequest {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ConnectCloudAccountRequest {
+pub struct ConnectPrintNannyCloudRequest {
     email: String,
     api_token: String,
     api_uri: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ConnectCloudAccountReply {
-    request: ConnectCloudAccountRequest,
+pub struct ConnectPrintNannyCloudReply {
+    request: ConnectPrintNannyCloudRequest,
     detail: String,
 }
 
 #[async_trait]
-impl NatsRequestReplyHandler for ConnectCloudAccountRequest {
-    type Request = ConnectCloudAccountRequest;
-    type Reply = ConnectCloudAccountReply;
+impl NatsRequestReplyHandler for ConnectPrintNannyCloudRequest {
+    type Request = ConnectPrintNannyCloudRequest;
+    type Reply = ConnectPrintNannyCloudReply;
 
     async fn handle(&self) -> Result<Self::Reply> {
         let settings = PrintNannySettings::new()?;
@@ -623,7 +623,7 @@ impl NatsRequestReplyHandler for OctoPrintSettingsRevertRequest {
 pub enum NatsRequest {
     // pi.command.*
     #[serde(rename = "pi.command.connect_printnanny_cloud_account")]
-    ConnectPrintNannyCloudRequest(SystemdManagerStopUnitRequest),
+    ConnectPrintNannyCloudRequest(ConnectPrintNannyCloudRequest),
 
     // pi.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
