@@ -6,6 +6,8 @@ use log::info;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+use printnanny_asyncapi_models::{PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest};
+
 use printnanny_dbus::systemd1::models::SystemdUnit;
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
@@ -237,33 +239,21 @@ impl NatsRequestReplyHandler for SystemdManagerReloadUnitRequest {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ConnectPrintNannyCloudRequest {
-    email: String,
-    api_token: String,
-    api_uri: String,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ConnectPrintNannyCloudReply {
-    request: ConnectPrintNannyCloudRequest,
-    detail: String,
-}
-
 #[async_trait]
-impl NatsRequestReplyHandler for ConnectPrintNannyCloudRequest {
-    type Request = ConnectPrintNannyCloudRequest;
-    type Reply = ConnectPrintNannyCloudReply;
+impl NatsRequestReplyHandler for PrintNannyCloudAuthRequest {
+    type Request = PrintNannyCloudAuthRequest;
+    type Reply = PrintNannyCloudAuthReply;
 
     async fn handle(&self) -> Result<Self::Reply> {
         let settings = PrintNannySettings::new()?;
         settings
-            .connect_cloud_account(self.api_uri.clone(), self.api_token.clone())
+            .connect_cloud_account(self.api_url.clone(), self.api_token.clone())
             .await?;
 
         let res = Self::Reply {
-            request: self.clone(),
-            detail: format!(
+            request: Box::new(self.clone()),
+            status_code: 200,
+            msg: format!(
                 "Success! Connected PrintNanny Cloud account belonging to {}",
                 self.email
             ),
@@ -621,9 +611,9 @@ impl NatsRequestReplyHandler for OctoPrintSettingsRevertRequest {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "subject")]
 pub enum NatsRequest {
-    // pi.command.*
-    #[serde(rename = "pi.command.connect_printnanny_cloud_account")]
-    ConnectPrintNannyCloudRequest(ConnectPrintNannyCloudRequest),
+    // pi.settings.*
+    #[serde(rename = "pi.{pi_id}.settings.printnanny.cloud.auth")]
+    PrintNannyCloudAuthRequest(PrintNannyCloudAuthRequest),
 
     // pi.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
@@ -674,9 +664,9 @@ pub enum NatsRequest {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "subject")]
 pub enum NatsReply {
-    // pi.command.*
-    #[serde(rename = "pi.command.connect_printnanny_cloud_account")]
-    ConnectPrintNannyCloudReply(SystemdManagerStopUnitReply),
+    // pi.settings.*
+    #[serde(rename = "pi.{pi_id}.settings.printnanny.cloud.auth")]
+    PrintNannyCloudAuthReply(PrintNannyCloudAuthReply),
 
     // pi.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
@@ -770,7 +760,10 @@ impl NatsRequestReplyHandler for NatsRequest {
                 Ok(r) => Ok(NatsReply::SystemdManagerStopUnitReply(r)),
                 Err(e) => Err(e),
             },
-            NatsRequest::ConnectPrintNannyCloudRequest(_) => todo!(),
+            NatsRequest::PrintNannyCloudAuthRequest(request) => match request.handle().await {
+                Ok(r) => Ok(NatsReply::PrintNannyCloudAuthReply(r)),
+                Err(e) => Err(e),
+            },
             NatsRequest::GstPipelineSettingsLoadRequest(_) => todo!(),
             NatsRequest::GstPipelineSettingsApplyRequest(_) => todo!(),
             NatsRequest::GstPipelineSettingsRevertRequest(_) => todo!(),
