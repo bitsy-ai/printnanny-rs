@@ -16,13 +16,15 @@ use printnanny_services::error::{CommandError, NatsError};
 
 use crate::error::{ReplyResult, RequestErrorMsg};
 
-use super::message::NatsRequestReplyHandler;
+// use super::message::NatsRequestReplyHandler;
+use super::message_v2::NatsReplyBuilder;
+use super::message_v2::NatsRequestHandler;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NatsSubscriber<Request, Reply>
 where
-    Request: Serialize + DeserializeOwned + Debug + NatsRequestReplyHandler,
-    Reply: Serialize + DeserializeOwned + Debug,
+    Request: Serialize + DeserializeOwned + Debug + NatsRequestHandler,
+    Reply: Serialize + DeserializeOwned + Debug + NatsReplyBuilder,
 {
     subject: String,
     nats_server_uri: String,
@@ -40,12 +42,8 @@ pub const DEFAULT_NATS_EDGE_APP_NAME: &str = "nats-edge-worker";
 
 impl<Request, Reply> NatsSubscriber<Request, Reply>
 where
-    Request: Serialize
-        + DeserializeOwned
-        + Debug
-        + NatsRequestReplyHandler
-        + NatsRequestReplyHandler<Reply = Reply>,
-    Reply: Serialize + DeserializeOwned + Debug,
+    Request: Serialize + DeserializeOwned + Debug + NatsRequestHandler,
+    Reply: Serialize + DeserializeOwned + Debug + NatsReplyBuilder,
 {
     pub fn clap_command(app_name: Option<String>) -> Command<'static> {
         let app_name = app_name.unwrap_or_else(|| DEFAULT_NATS_EDGE_APP_NAME.to_string());

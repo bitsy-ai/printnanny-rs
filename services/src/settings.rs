@@ -3,6 +3,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use async_trait::async_trait;
 use clap::{ArgEnum, PossibleValue};
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
@@ -19,7 +20,7 @@ use super::printnanny_api::ApiService;
 use super::state::PrintNannyCloudData;
 use crate::error::ServiceError;
 use crate::printer_mgmt;
-use crate::vcs::VersionControlledSettings;
+use crate::vcs::{VersionControlledSettings, VersionControlledSettingsError};
 use printnanny_api_client::models;
 
 // FACTORY_RESET holds the struct field names of PrintNannyCloudConfig
@@ -354,6 +355,11 @@ impl PrintNannySettings {
         Ok(figment.extract()?)
     }
 
+    pub fn to_toml_string(&self) -> Result<String, PrintNannySettingsError> {
+        let result = toml::ser::to_string_pretty(self)?;
+        Ok(result)
+    }
+
     fn read_path_glob<T: 'static + figment::providers::Format>(
         pattern: &str,
         figment: Figment,
@@ -444,6 +450,38 @@ impl Provider for PrintNannySettings {
     fn data(&self) -> figment::error::Result<Map<Profile, Dict>> {
         let map: Map<Profile, Dict> = Serialized::defaults(self).data()?;
         Ok(map)
+    }
+}
+
+#[async_trait]
+impl VersionControlledSettings for PrintNannySettings {
+    type SettingsModel = PrintNannySettings;
+    fn from_dir(settings_dir: &Path) -> Self {
+        let settings_file = settings_dir.join("printnanny/printnanny.toml");
+        let result = PrintNannySettings::from_toml(settings_file).unwrap();
+        result
+    }
+    fn get_settings_format(&self) -> SettingsFormat {
+        SettingsFormat::Toml
+    }
+    fn get_settings_file(&self) -> PathBuf {
+        self.paths
+            .settings_dir
+            .join("printnanny/printnanny.toml")
+            .into()
+    }
+
+    async fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {
+        debug!("Running PrintNannySettings pre_save hook");
+        Ok(())
+    }
+
+    async fn post_save(&self) -> Result<(), VersionControlledSettingsError> {
+        debug!("Running PrintNannySettings post_save hook");
+        Ok(())
+    }
+    fn validate(&self) -> Result<(), VersionControlledSettingsError> {
+        todo!("OctoPrintSettings validate hook is not yet implemented");
     }
 }
 

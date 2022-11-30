@@ -7,6 +7,7 @@ use log::info;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use printnanny_asyncapi_models::GitCommit;
 use printnanny_dbus::zbus;
 
 use super::error::PrintNannyCloudDataError;
@@ -84,10 +85,10 @@ pub trait VersionControlledSettings {
     }
     fn read_settings(&self) -> Result<String, VersionControlledSettingsError> {
         let settings_file = self.get_settings_file();
-        let result = match fs::read_to_string(settings_file) {
+        let result = match fs::read_to_string(&settings_file) {
             Ok(d) => Ok(d),
             Err(e) => Err(VersionControlledSettingsError::ReadIOError {
-                path: settings_file.display().to_string(),
+                path: (&settings_file.display()).to_string(),
                 error: e,
             }),
         }?;
@@ -95,7 +96,7 @@ pub trait VersionControlledSettings {
     }
     fn write_settings(&self, content: &str) -> Result<(), VersionControlledSettingsError> {
         let output = self.get_settings_file();
-        match fs::write(output, content) {
+        match fs::write(&output, content) {
             Ok(_) => Ok(()),
             Err(e) => Err(VersionControlledSettingsError::WriteIOError {
                 path: output.display().to_string(),
@@ -121,11 +122,12 @@ pub trait VersionControlledSettings {
     }
 
     fn get_git_commit_message(&self) -> Result<String, git2::Error> {
-        let settings_filename = self.get_settings_file().file_name().unwrap();
+        let settings_file = self.get_settings_file();
+        let settings_filename = settings_file.file_name().unwrap();
         let commit_parent_count = self.git_head_commit_parent_count()? + 1; // add 1 to git count of parent commits
         Ok(format!(
             "PrintNanny updated {:?} - revision #{}",
-            settings_filename, commit_parent_count
+            &settings_filename, &commit_parent_count
         ))
     }
 
@@ -199,7 +201,7 @@ pub trait VersionControlledSettings {
     fn from_dir(settings_dir: &Path) -> Self::SettingsModel;
 
     fn get_settings_format(&self) -> SettingsFormat;
-    fn get_settings_file(&self) -> &Path;
+    fn get_settings_file(&self) -> PathBuf;
 
     async fn pre_save(&self) -> Result<(), VersionControlledSettingsError>;
     async fn post_save(&self) -> Result<(), VersionControlledSettingsError>;

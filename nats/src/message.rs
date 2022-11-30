@@ -6,7 +6,10 @@ use log::info;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use printnanny_asyncapi_models::{PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest};
+use printnanny_asyncapi_models::{
+    PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SystemdManagerGetUnitReply,
+    SystemdManagerGetUnitRequest,
+};
 
 use printnanny_dbus::systemd1::models::SystemdUnit;
 use printnanny_dbus::zbus;
@@ -24,17 +27,6 @@ pub trait NatsRequestReplyHandler {
 }
 
 // pi.dbus.org.freedesktop.systemd1.Manager.GetUnit
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct SystemdManagerGetUnitRequest {
-    name: String,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct SystemdManagerGetUnitReply {
-    request: SystemdManagerGetUnitRequest,
-    unit: printnanny_dbus::systemd1::models::SystemdUnit,
-}
-
 #[async_trait]
 impl NatsRequestReplyHandler for SystemdManagerGetUnitRequest {
     type Request = SystemdManagerGetUnitRequest;
@@ -47,8 +39,7 @@ impl NatsRequestReplyHandler for SystemdManagerGetUnitRequest {
 
         let unit = SystemdUnit::from_owned_object_path(unit_path).await?;
         let reply = Self::Reply {
-            unit,
-            request: self.clone(),
+            unit: Box::new(unit),
         };
         Ok(reply)
     }
@@ -251,7 +242,6 @@ impl NatsRequestReplyHandler for PrintNannyCloudAuthRequest {
             .await?;
 
         let res = Self::Reply {
-            request: Box::new(self.clone()),
             status_code: 200,
             msg: format!(
                 "Success! Connected PrintNanny Cloud account belonging to {}",
@@ -608,28 +598,28 @@ impl NatsRequestReplyHandler for OctoPrintSettingsRevertRequest {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "subject")]
-pub enum NatsRequest {
+pub enum RequestDispatcher {
     // pi.settings.*
-    #[serde(rename = "pi.{pi_id}.settings.printnanny.cloud.auth")]
-    PrintNannyCloudAuthRequest(PrintNannyCloudAuthRequest),
+    #[serde(rename = "pi.{pi}.settings.printnanny.cloud.auth")]
+    PrintNannyCloudAuthRequest,
 
     // pi.dbus.org.freedesktop.systemd1.*
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
+    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
     SystemdManagerDisableUnitRequest(SystemdManagerDisableUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
     SystemdManagerEnableUnitRequest(SystemdManagerEnableUnitRequest),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
-    SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
-    SystemdManagerReloadUnitRequest(SystemdManagerReloadUnitRequest),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
-    SystemdManagerRestartUnitRequest(SystemdManagerRestartUnitRequest),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
-    SystemdManagerStartUnitRequest(SystemdManagerStartUnitRequest),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
-    SystemdManagerStopUnitRequest(SystemdManagerStopUnitRequest),
+    // #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
+    // SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest),
+    // #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
+    // SystemdManagerReloadUnitRequest(SystemdManagerReloadUnitRequest),
+    // #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
+    // SystemdManagerRestartUnitRequest(SystemdManagerRestartUnitRequest),
+    // #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
+    // SystemdManagerStartUnitRequest(SystemdManagerStartUnitRequest),
+    // #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
+    // SystemdManagerStopUnitRequest(SystemdManagerStopUnitRequest),
 
     // pi.settings.*
     #[serde(rename = "pi.settings.gst_pipeline.load")]
@@ -661,7 +651,7 @@ pub enum NatsRequest {
     OctoPrintSettingsRevertRequest(OctoPrintSettingsRevertRequest),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "subject")]
 pub enum NatsReply {
     // pi.settings.*
@@ -785,6 +775,7 @@ impl NatsRequestReplyHandler for NatsRequest {
                 Ok(r) => Ok(NatsReply::OctoPrintSettingsRevertReply(r)),
                 Err(e) => Err(e),
             },
+            _ => todo!(),
         };
 
         info!("Sending NatsReply: {:?}", reply);

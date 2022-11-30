@@ -46,8 +46,8 @@ impl VersionControlledSettings for OctoPrintSettings {
     fn get_settings_format(&self) -> SettingsFormat {
         self.settings_format
     }
-    fn get_settings_file(&self) -> &Path {
-        &self.settings_file
+    fn get_settings_file(&self) -> PathBuf {
+        self.settings_file.clone()
     }
 
     async fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {
