@@ -7,8 +7,8 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use printnanny_asyncapi_models::{
-    PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApplyReply, SettingsApplyRequest,
-    SettingsFile, SettingsFormat, SettingsLoadReply, SettingsLoadRequest, SettingsRevertReply,
+    PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp, SettingsApplyReply,
+    SettingsApplyRequest, SettingsLoadReply, SettingsLoadRequest, SettingsRevertReply,
     SettingsRevertRequest, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
 };
 
@@ -64,8 +64,7 @@ impl NatsReplyBuilder for NatsReply {
 }
 
 impl NatsRequest {
-
-    // handle messages sent to: "pi.{pi}.settings.printnanny.cloud.auth"    
+    // handle messages sent to: "pi.{pi}.settings.printnanny.cloud.auth"
     pub async fn handle_printnanny_cloud_auth(
         &self,
         request: &PrintNannyCloudAuthRequest,
@@ -87,18 +86,16 @@ impl NatsRequest {
         Ok(result)
     }
 
-    pub async fn handle_klipper_settings_load(&self, request: SettingsLoadRequest) -> Result<NatsReply> {
-        let settings = PrintNannySettings::new()?;
+    // pub async fn handle_klipper_settings_load(&self, request: SettingsLoadRequest) -> Result<NatsReply> {
+    //     let settings = PrintNannySettings::new()?;
 
-        let git_head_commit = settings.get_git_head_commit()?.oid;
-        let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
-            settings.get_rev_list()?.iter().map(|r| r.into()).collect();
-        
-        let content =
+    //     let git_head_commit = settings.get_git_head_commit()?.oid;
+    //     let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
+    //         settings.get_rev_list()?.iter().map(|r| r.into()).collect();
 
+    //     let content =
 
-    }
-
+    // }
 
     // handle messages sent to: "pi.settings.printnanny.revert"
     pub async fn handle_printnanny_settings_revert(
@@ -116,7 +113,7 @@ impl NatsRequest {
             settings.get_rev_list()?.iter().map(|r| r.into()).collect();
         Ok(NatsReply::PrintNannySettingsRevertReply(
             SettingsRevertReply {
-                format: Box::new(SettingsFormat::Toml),
+                app: request.app.clone(),
                 filename: Box::new(SettingsFile::PrintnannyDotToml),
                 git_head_commit,
                 git_history,
@@ -169,27 +166,31 @@ impl NatsRequest {
         Ok(NatsReply::PrintNannySettingsLoadReply(reply))
     }
 
-    pub fn handle_settings_load(&self, request: &SettingsLoadRequest) -> Result<NatsReply>{
-        match *request.filename {
+    pub fn handle_settings_load(&self, request: &SettingsLoadRequest) -> Result<NatsReply> {
+        match *request.app {
             SettingsFile::PrintnannyDotToml => self.handle_printnanny_settings_load(request),
-             _ => todo!()
+            _ => todo!(),
         }
     }
 
     pub async fn handle_settings_apply(&self, request: &SettingsApplyRequest) -> Result<NatsReply> {
         match *request.filename {
             SettingsFile::PrintnannyDotToml => self.handle_printnanny_settings_apply(request).await,
-            _ => todo!()
+            _ => todo!(),
         }
     }
 
-    pub async fn handle_settings_revert(&self, request: &SettingsRevertRequest) -> Result<NatsReply> {
+    pub async fn handle_settings_revert(
+        &self,
+        request: &SettingsRevertRequest,
+    ) -> Result<NatsReply> {
         match *request.filename {
-            SettingsFile::PrintnannyDotToml => self.handle_printnanny_settings_revert(request).await,
-            _ => todo!()
+            SettingsFile::PrintnannyDotToml => {
+                self.handle_printnanny_settings_revert(request).await
+            }
+            _ => todo!(),
         }
     }
-    
 }
 
 #[async_trait]
@@ -223,7 +224,6 @@ mod tests {
     use super::*;
     use test_log::test;
     use tokio::runtime::Runtime;
-     
 
     #[cfg(test)]
     fn make_settings_repo(jail: &mut figment::Jail) -> () {
@@ -286,7 +286,6 @@ mod tests {
             Ok(())
         })
     }
-
 
     #[test]
     fn test_load_printnanny_settings() {
@@ -365,6 +364,4 @@ mod tests {
     //         Ok(())
     //     });
     // }
-
-
 }
