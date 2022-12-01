@@ -1,5 +1,5 @@
 use printnanny_services::error::ServiceError;
-use printnanny_services::settings::{PrintNannySettings, SettingsFormat};
+use printnanny_services::settings::printnanny::{PrintNannySettings, SettingsFormat};
 use std::io::{self, Write};
 
 pub struct SettingsCommand;

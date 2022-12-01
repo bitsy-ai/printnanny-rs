@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use clap::ArgMatches;
 use log::error;
-use printnanny_services::settings::{PrintNannySettings, SettingsFormat};
+use printnanny_services::settings::printnanny::{PrintNannySettings, SettingsFormat};
 use std::fs;
 
 use printnanny_services::metadata;

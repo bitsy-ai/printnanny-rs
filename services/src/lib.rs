@@ -6,7 +6,6 @@ pub mod metadata;
 
 pub mod os_release;
 pub mod paths;
-pub mod printer_mgmt;
 pub mod printnanny_api;
 pub mod settings;
 pub mod state;

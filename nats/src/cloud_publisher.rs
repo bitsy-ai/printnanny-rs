@@ -11,7 +11,8 @@ use printnanny_api_client::models;
 use printnanny_api_client::models::polymorphic_octo_print_event_request::PolymorphicOctoPrintEventRequest;
 use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
 use printnanny_services::{
-    error::PrintNannySettingsError, settings::PrintNannySettings, state::PrintNannyCloudData,
+    error::PrintNannySettingsError, settings::printnanny::PrintNannySettings,
+    state::PrintNannyCloudData,
 };
 use tokio::net::UnixStream;
 use tokio_util::codec::{FramedWrite, LengthDelimitedCodec};

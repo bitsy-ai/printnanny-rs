@@ -11,7 +11,7 @@ use printnanny_dbus::zbus;
 
 use super::error::PrintNannyCloudDataError;
 use super::error::PrintNannySettingsError;
-use super::settings::{PrintNannySettings, SettingsFormat};
+use super::settings::printnanny::{PrintNannySettings, SettingsFormat};
 
 #[derive(Error, Debug)]
 pub enum VersionControlledSettingsError {
@@ -95,6 +95,19 @@ pub trait VersionControlledSettings {
     }
     fn write_settings(&self, content: &str) -> Result<(), VersionControlledSettingsError> {
         let output = self.get_settings_file();
+        let parent_dir = output.parent().unwrap();
+        if !parent_dir.exists() {
+            match fs::create_dir_all(parent_dir) {
+                Ok(_) => {
+                    info!("Created directory {}", parent_dir.display());
+                    Ok(())
+                }
+                Err(e) => Err(VersionControlledSettingsError::WriteIOError {
+                    path: parent_dir.display().to_string(),
+                    error: e,
+                }),
+            }?;
+        }
         match fs::write(&output, content) {
             Ok(_) => Ok(()),
             Err(e) => Err(VersionControlledSettingsError::WriteIOError {
@@ -184,7 +197,7 @@ pub trait VersionControlledSettings {
         repo.revert(&commit, None)
     }
 
-    async fn save(
+    async fn save_and_commit(
         &self,
         content: &str,
         commit_msg: Option<String>,

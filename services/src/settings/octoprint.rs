@@ -10,7 +10,7 @@ use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
 use crate::error::PrintNannySettingsError;
-use crate::settings::{PrintNannySettings, SettingsFormat};
+use crate::settings::printnanny::{PrintNannySettings, SettingsFormat};
 use crate::vcs::{VersionControlledSettings, VersionControlledSettingsError};
 
 pub const OCTOPRINT_INSTALL_DIR: &str = "/var/lib/octoprint";

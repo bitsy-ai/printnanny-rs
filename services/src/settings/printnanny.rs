@@ -13,13 +13,16 @@ use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
-use super::error::PrintNannySettingsError;
-
-use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
-use super::printnanny_api::ApiService;
-use super::state::PrintNannyCloudData;
+use crate::error::PrintNannySettingsError;
 use crate::error::ServiceError;
-use crate::printer_mgmt;
+use crate::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
+use crate::printnanny_api::ApiService;
+use crate::settings::cam::PrintNannyCamSettings;
+use crate::settings::klipper::KlipperSettings;
+use crate::settings::mainsail::MainsailSettings;
+use crate::settings::moonraker::MoonrakerSettings;
+use crate::settings::octoprint::OctoPrintSettings;
+use crate::state::PrintNannyCloudData;
 use crate::vcs::{VersionControlledSettings, VersionControlledSettingsError};
 use printnanny_api_client::models;
 
@@ -178,23 +181,25 @@ impl Default for GitSettings {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PrintNannySettings {
+    pub cam: PrintNannyCamSettings,
     pub git: GitSettings,
     pub paths: PrintNannyPaths,
-    pub klipper: printer_mgmt::klipper::KlipperSettings,
-    pub mainsail: printer_mgmt::mainsail::MainsailSettings,
-    pub moonraker: printer_mgmt::moonraker::MoonrakerSettings,
-    pub octoprint: printer_mgmt::octoprint::OctoPrintSettings,
+    pub klipper: KlipperSettings,
+    pub mainsail: MainsailSettings,
+    pub moonraker: MoonrakerSettings,
+    pub octoprint: OctoPrintSettings,
 }
 
 impl Default for PrintNannySettings {
     fn default() -> Self {
         let git = GitSettings::default();
         Self {
+            cam: PrintNannyCamSettings::default(),
             paths: PrintNannyPaths::default(),
-            klipper: printer_mgmt::klipper::KlipperSettings::default(),
-            octoprint: printer_mgmt::octoprint::OctoPrintSettings::default(),
-            moonraker: printer_mgmt::moonraker::MoonrakerSettings::default(),
-            mainsail: printer_mgmt::mainsail::MainsailSettings::default(),
+            klipper: KlipperSettings::default(),
+            octoprint: OctoPrintSettings::default(),
+            moonraker: MoonrakerSettings::default(),
+            mainsail: MainsailSettings::default(),
             git,
         }
     }
@@ -205,8 +210,7 @@ impl PrintNannySettings {
         let figment = Self::figment()?;
         let mut result: PrintNannySettings = figment.extract()?;
 
-        result.octoprint =
-            printer_mgmt::octoprint::OctoPrintSettings::from_dir(&result.paths.settings_dir);
+        result.octoprint = OctoPrintSettings::from_dir(&result.paths.settings_dir);
         debug!("Initialized config {:?}", result);
 
         Ok(result)
@@ -563,7 +567,7 @@ mod tests {
             let settings = PrintNannySettings::new().unwrap();
             assert_eq!(
                 settings.octoprint.enabled,
-                printer_mgmt::octoprint::OctoPrintSettings::default().enabled,
+                OctoPrintSettings::default().enabled,
             );
             jail.set_env("PRINTNANNY_SETTINGS_OCTOPRINT__ENABLED", "false");
             let figment = PrintNannySettings::figment().unwrap();

@@ -4,7 +4,7 @@ use std::{io::Write, path::Path};
 use file_lock::{FileLock, FileOptions};
 use serde::{Deserialize, Serialize};
 
-use crate::settings::PrintNannySettings;
+use crate::settings::printnanny::PrintNannySettings;
 
 use super::error::PrintNannyCloudDataError;
 use super::printnanny_api::PrintNannyApiConfig;

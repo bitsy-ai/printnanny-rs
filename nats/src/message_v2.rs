@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use printnanny_services::settings::PrintNannySettings;
+use printnanny_services::settings::printnanny::PrintNannySettings;
 use printnanny_services::state::PrintNannyCloudData;
 use printnanny_services::vcs::VersionControlledSettings;
 use serde::de::DeserializeOwned;
@@ -36,8 +36,8 @@ pub enum NatsRequest {
     PrintNannyCloudAuthRequest(PrintNannyCloudAuthRequest),
     #[serde(rename = "pi.settings.printnanny.load")]
     PrintNannySettingsLoadRequest(SettingsLoadRequest),
-    // #[serde(rename = "pi.settings.printnanny.apply")]
-    // PrintNannySettingsApplyRequest(SettingsApplyRequest),
+    #[serde(rename = "pi.settings.printnanny.apply")]
+    PrintNannySettingsApplyRequest(SettingsApplyRequest),
     // #[serde(rename = "pi.settings.printnanny.revert")]
     // PrintNannySettingsRevertRequest(SettingsRevertRequest),
     // #[serde(rename = "pi.settings.klipper.load")]
@@ -68,8 +68,8 @@ pub enum NatsReply {
     PrintNannyCloudAuthReply(PrintNannyCloudAuthReply),
     #[serde(rename = "pi.settings.printnanny.load")]
     PrintNannySettingsLoadReply(SettingsLoadReply),
-    // #[serde(rename = "pi.settings.gst_pipeline.apply")]
-    // PrintNannySettingsApplyReply(SettingsApplyReply),
+    #[serde(rename = "pi.settings.gst_pipeline.apply")]
+    PrintNannySettingsApplyReply(SettingsApplyReply),
     // #[serde(rename = "pi.settings.gst_pipeline.revert")]
     // PrintNannySettingsRevertReply(SettingsRevertReply),
     // #[serde(rename = "pi.settings.klipper.load")]
@@ -123,19 +123,45 @@ impl NatsRequest {
         };
         Ok(result)
     }
+
+    pub async fn handle_printnanny_settings_apply(
+        &self,
+        request: &SettingsApplyRequest,
+    ) -> Result<NatsReply> {
+        let settings = PrintNannySettings::new()?;
+        settings
+            .save_and_commit(&request.content, Some(request.git_commit_msg.clone()))
+            .await?;
+        let settings = PrintNannySettings::new()?;
+        let content = settings.to_toml_string()?;
+        let git_head_commit = settings.get_git_head_commit()?.oid;
+
+        let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
+            settings.get_rev_list()?.iter().map(|r| r.into()).collect();
+        Ok(NatsReply::PrintNannySettingsApplyReply(
+            SettingsApplyReply {
+                format: request.format.clone(),
+                filename: request.filename.clone(),
+                git_head_commit,
+                git_history,
+                content,
+            },
+        ))
+    }
+
     pub fn handle_printnanny_settings_load(
         &self,
         request: &SettingsLoadRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
-        let head_git_commit = settings.get_git_head_commit()?.oid;
+        let git_head_commit = settings.get_git_head_commit()?.oid;
         let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
             settings.get_rev_list()?.iter().map(|r| r.into()).collect();
         let reply = SettingsLoadReply {
             format: Box::new(SettingsFormat::Toml),
             filename: Box::new(SettingsFile::PrintnannyDotToml),
             content: settings.to_toml_string()?,
-            head_git_commit,
+            git_head_commit,
             git_history,
         };
         Ok(NatsReply::PrintNannySettingsLoadReply(reply))
@@ -155,6 +181,9 @@ impl NatsRequestHandler for NatsRequest {
             NatsRequest::PrintNannySettingsLoadRequest(request) => {
                 self.handle_printnanny_settings_load(request)?
             }
+            NatsRequest::PrintNannySettingsApplyRequest(request) => {
+                self.handle_printnanny_settings_apply(request).await?
+            }
             _ => todo!(),
         };
 
@@ -165,7 +194,6 @@ impl NatsRequestHandler for NatsRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
     use test_log::test;
     use tokio::runtime::Runtime;
 
@@ -225,6 +253,35 @@ mod tests {
             let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
             if let NatsReply::PrintNannyCloudAuthReply(reply) = reply {
                 assert_eq!(reply.status_code, 403);
+            } else {
+                panic!("Expected NatsReply::PrintNannyCloudAuthReply")
+            }
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn test_printnanny_settings_apply() {
+        figment::Jail::expect_with(|jail| {
+            make_settings_repo(jail);
+            let mut settings = PrintNannySettings::new().unwrap();
+            settings.paths.log_dir = "/path/to/testing".into();
+
+            let content = settings.to_toml_string().unwrap();
+            let git_head_commit = settings.get_git_head_commit().unwrap().oid;
+            let git_commit_msg = "testing".to_string();
+
+            let request = NatsRequest::PrintNannySettingsApplyRequest(SettingsApplyRequest {
+                format: Box::new(SettingsFormat::Toml),
+                filename: Box::new(SettingsFile::PrintnannyDotToml),
+                content,
+                git_head_commit,
+                git_commit_msg: git_commit_msg.clone(),
+            });
+
+            let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
+            if let NatsReply::PrintNannySettingsApplyReply(reply) = reply {
+                assert_eq!(reply.git_history[0].message, git_commit_msg);
             } else {
                 panic!("Expected NatsReply::PrintNannyCloudAuthReply")
             }

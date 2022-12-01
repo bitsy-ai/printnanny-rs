@@ -18,7 +18,7 @@ use crate::state::PrintNannyCloudData;
 use crate::error::{PrintNannySettingsError, ServiceError};
 use crate::file::open;
 use crate::metadata;
-use crate::settings::PrintNannySettings;
+use crate::settings::printnanny::PrintNannySettings;
 
 #[derive(Debug, Clone)]
 pub struct ApiService {
