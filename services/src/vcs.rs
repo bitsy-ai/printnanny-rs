@@ -7,7 +7,6 @@ use log::info;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use printnanny_asyncapi_models::GitCommit;
 use printnanny_dbus::zbus;
 
 use super::error::PrintNannyCloudDataError;
@@ -225,6 +224,28 @@ impl<'repo> From<git2::Commit<'repo>> for GitCommit {
             header: commit.raw_header().unwrap().to_string(),
             message: commit.message().unwrap().to_string(),
             ts: commit.time().seconds(),
+        }
+    }
+}
+
+impl From<&printnanny_asyncapi_models::GitCommit> for GitCommit {
+    fn from(commit: &printnanny_asyncapi_models::GitCommit) -> GitCommit {
+        GitCommit {
+            oid: commit.oid.clone(),
+            header: commit.header.clone(),
+            message: commit.message.clone(),
+            ts: commit.ts.clone(),
+        }
+    }
+}
+
+impl From<&GitCommit> for printnanny_asyncapi_models::GitCommit {
+    fn from(commit: &GitCommit) -> printnanny_asyncapi_models::GitCommit {
+        GitCommit {
+            oid: commit.oid.clone(),
+            header: commit.header.clone(),
+            message: commit.message.clone(),
+            ts: commit.ts.clone(),
         }
     }
 }
