@@ -13,18 +13,19 @@ use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
-use crate::error::PrintNannySettingsError;
-use crate::error::ServiceError;
-use crate::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
 use crate::printnanny_api::ApiService;
+use printnanny_api_client::models;
+
+use crate::error::{PrintNannySettingsError, ServiceError};
+use crate::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
 use crate::settings::cam::PrintNannyCamSettings;
 use crate::settings::klipper::KlipperSettings;
 use crate::settings::mainsail::MainsailSettings;
 use crate::settings::moonraker::MoonrakerSettings;
 use crate::settings::octoprint::OctoPrintSettings;
 use crate::settings::vcs::{VersionControlledSettings, VersionControlledSettingsError};
+use crate::settings::SettingsFormat;
 use crate::state::PrintNannyCloudData;
-use printnanny_api_client::models;
 
 // FACTORY_RESET holds the struct field names of PrintNannyCloudConfig
 // each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
@@ -70,18 +71,6 @@ lazy_static! {
     };
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ArgEnum, Deserialize, Serialize)]
-pub enum SettingsFormat {
-    #[serde(rename = "ini")]
-    Ini,
-    #[serde(rename = "json")]
-    Json,
-    #[serde(rename = "toml")]
-    Toml,
-    #[serde(rename = "yaml")]
-    Yaml,
-}
-
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NatsConfig {
     pub uri: String,
@@ -94,36 +83,6 @@ impl Default for NatsConfig {
             uri: "nats://localhost:4222".to_string(),
             require_tls: false,
         }
-    }
-}
-
-impl SettingsFormat {
-    pub fn possible_values() -> impl Iterator<Item = PossibleValue<'static>> {
-        SettingsFormat::value_variants()
-            .iter()
-            .filter_map(ArgEnum::to_possible_value)
-    }
-}
-
-impl std::fmt::Display for SettingsFormat {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.to_possible_value()
-            .expect("no values are skipped")
-            .get_name()
-            .fmt(f)
-    }
-}
-
-impl std::str::FromStr for SettingsFormat {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        for variant in Self::value_variants() {
-            if variant.to_possible_value().unwrap().matches(s, false) {
-                return Ok(*variant);
-            }
-        }
-        Err(format!("Invalid variant: {}", s))
     }
 }
 

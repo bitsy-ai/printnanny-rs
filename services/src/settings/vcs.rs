@@ -11,7 +11,8 @@ use printnanny_dbus::zbus;
 
 use crate::error::PrintNannyCloudDataError;
 use crate::error::PrintNannySettingsError;
-use crate::settings::printnanny::{PrintNannySettings, SettingsFormat};
+use crate::settings::printnanny::PrintNannySettings;
+use crate::settings::SettingsFormat;
 
 #[derive(Error, Debug)]
 pub enum VersionControlledSettingsError {
