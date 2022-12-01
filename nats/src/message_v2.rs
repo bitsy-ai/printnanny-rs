@@ -35,64 +35,24 @@ pub trait NatsReplyBuilder {
 pub enum NatsRequest {
     #[serde(rename = "pi.{pi}.settings.printnanny.cloud.auth")]
     PrintNannyCloudAuthRequest(PrintNannyCloudAuthRequest),
-    #[serde(rename = "pi.settings.printnanny.load")]
+    #[serde(rename = "pi.{pi}.settings.vcs.load")]
     PrintNannySettingsLoadRequest(SettingsLoadRequest),
-    #[serde(rename = "pi.settings.printnanny.apply")]
+    #[serde(rename = "pi.{pi}.settings.vcs.apply")]
     PrintNannySettingsApplyRequest(SettingsApplyRequest),
-    #[serde(rename = "pi.settings.printnanny.revert")]
+    #[serde(rename = "pi.{pi}.settings.vcs.revert")]
     PrintNannySettingsRevertRequest(SettingsRevertRequest),
-    // #[serde(rename = "pi.settings.klipper.load")]
-    // KlipperSettingsLoadRequest(SettingsLoadRequest),
-    // #[serde(rename = "pi.settings.klipper.apply")]
-    // KlipperSettingsApplyRequest(SettingsApplyRequest),
-    // #[serde(rename = "pi.settings.klipper.revert")]
-    // KlipperSettingsRevertRequest(SettingsRevertRequest),
-
-    // #[serde(rename = "pi.settings.moonraker.load")]
-    // MoonrakerSettingsLoadRequest(SettingsLoadRequest),
-    // #[serde(rename = "pi.settings.moonraker.apply")]
-    // MoonrakerSettingsApplyRequest(SettingsApplyRequest),
-    // #[serde(rename = "pi.settings.moonraker.revert")]
-    // MoonrakerSettingsRevertRequest(SettingsRevertRequest),
-
-    // #[serde(rename = "pi.settings.octoprint.load")]
-    // OctoPrintSettingsLoadRequest(SettingsLoadRequest),
-    // #[serde(rename = "pi.settings.octoprint.apply")]
-    // OctoPrintSettingsApplyRequest(SettingsApplyRequest),
-    // #[serde(rename = "pi.settings.octoprint.revert")]
-    // OctoPrintSettingsRevertRequest(SettingsRevertRequest),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum NatsReply {
-    #[serde(rename = "pi.{pi_id}.settings.printnanny.cloud.auth")]
+    #[serde(rename = "pi.{pi}.settings.printnanny.cloud.auth")]
     PrintNannyCloudAuthReply(PrintNannyCloudAuthReply),
-    #[serde(rename = "pi.settings.printnanny.load")]
+    #[serde(rename = "pi.{pi}.settings.printnanny.load")]
     PrintNannySettingsLoadReply(SettingsLoadReply),
-    #[serde(rename = "pi.settings.printnanny.apply")]
+    #[serde(rename = "pi.{pi}.settings.printnanny.apply")]
     PrintNannySettingsApplyReply(SettingsApplyReply),
-    #[serde(rename = "pi.settings.printnanny.revert")]
+    #[serde(rename = "pi.{pi}.settings.printnanny.revert")]
     PrintNannySettingsRevertReply(SettingsRevertReply),
-    // #[serde(rename = "pi.settings.klipper.load")]
-    // KlipperSettingsLoadReply(SettingsLoadReply),
-    // #[serde(rename = "pi.settings.klipper.apply")]
-    // KlipperSettingsApplyReply(SettingsApplyReply),
-    // #[serde(rename = "pi.settings.klipper.revert")]
-    // KlipperSettingsRevertReply(SettingsRevertReply),
-
-    // #[serde(rename = "pi.settings.moonraker.load")]
-    // MoonrakerSettingsLoadReply(SettingsLoadReply),
-    // #[serde(rename = "pi.settings.moonraker.apply")]
-    // MoonrakerSettingsApplyReply(SettingsApplyReply),
-    // #[serde(rename = "pi.settings.moonraker.revert")]
-    // MoonrakerSettingsRevertReply(SettingsRevertReply),
-
-    // #[serde(rename = "pi.settings.octoprint.load")]
-    // OctoPrintSettingsLoadReply(SettingsLoadReply),
-    // #[serde(rename = "pi.settings.octoprint.apply")]
-    // OctoPrintSettingsApplyReply(SettingsApplyReply),
-    // #[serde(rename = "pi.settings.octoprint.revert")]
-    // OctoPrintSettingsRevertReply(SettingsRevertReply),
 }
 
 #[async_trait]
@@ -104,6 +64,8 @@ impl NatsReplyBuilder for NatsReply {
 }
 
 impl NatsRequest {
+
+    // handle messages sent to: "pi.{pi}.settings.printnanny.cloud.auth"    
     pub async fn handle_printnanny_cloud_auth(
         &self,
         request: &PrintNannyCloudAuthRequest,
@@ -125,6 +87,20 @@ impl NatsRequest {
         Ok(result)
     }
 
+    pub async fn handle_klipper_settings_load(&self, request: SettingsLoadRequest) -> Result<NatsReply> {
+        let settings = PrintNannySettings::new()?;
+
+        let git_head_commit = settings.get_git_head_commit()?.oid;
+        let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
+            settings.get_rev_list()?.iter().map(|r| r.into()).collect();
+        
+        let content =
+
+
+    }
+
+
+    // handle messages sent to: "pi.settings.printnanny.revert"
     pub async fn handle_printnanny_settings_revert(
         &self,
         request: &SettingsRevertRequest,
@@ -149,6 +125,7 @@ impl NatsRequest {
         ))
     }
 
+    // handle messages sent to "pi.settings.printnanny.apply")
     pub async fn handle_printnanny_settings_apply(
         &self,
         request: &SettingsApplyRequest,
@@ -191,6 +168,28 @@ impl NatsRequest {
         };
         Ok(NatsReply::PrintNannySettingsLoadReply(reply))
     }
+
+    pub fn handle_settings_load(&self, request: &SettingsLoadRequest) -> Result<NatsReply>{
+        match *request.filename {
+            SettingsFile::PrintnannyDotToml => self.handle_printnanny_settings_load(request),
+             _ => todo!()
+        }
+    }
+
+    pub async fn handle_settings_apply(&self, request: &SettingsApplyRequest) -> Result<NatsReply> {
+        match *request.filename {
+            SettingsFile::PrintnannyDotToml => self.handle_printnanny_settings_apply(request).await,
+            _ => todo!()
+        }
+    }
+
+    pub async fn handle_settings_revert(&self, request: &SettingsRevertRequest) -> Result<NatsReply> {
+        match *request.filename {
+            SettingsFile::PrintnannyDotToml => self.handle_printnanny_settings_revert(request).await,
+            _ => todo!()
+        }
+    }
+    
 }
 
 #[async_trait]
@@ -204,13 +203,13 @@ impl NatsRequestHandler for NatsRequest {
                 self.handle_printnanny_cloud_auth(request).await?
             }
             NatsRequest::PrintNannySettingsLoadRequest(request) => {
-                self.handle_printnanny_settings_load(request)?
+                self.handle_settings_load(request)?
             }
             NatsRequest::PrintNannySettingsApplyRequest(request) => {
-                self.handle_printnanny_settings_apply(request).await?
+                self.handle_settings_apply(request).await?
             }
             NatsRequest::PrintNannySettingsRevertRequest(request) => {
-                self.handle_printnanny_settings_revert(request).await?
+                self.handle_settings_revert(request).await?
             }
             _ => todo!(),
         };
@@ -224,7 +223,9 @@ mod tests {
     use super::*;
     use test_log::test;
     use tokio::runtime::Runtime;
+     
 
+    #[cfg(test)]
     fn make_settings_repo(jail: &mut figment::Jail) -> () {
         let output = jail.directory().to_str().unwrap();
 
@@ -265,26 +266,6 @@ mod tests {
     }
 
     #[test]
-    fn test_load_printnanny_settings() {
-        let request = NatsRequest::PrintNannySettingsLoadRequest(SettingsLoadRequest {
-            format: Box::new(printnanny_asyncapi_models::SettingsFormat::Toml),
-            filename: Box::new(printnanny_asyncapi_models::SettingsFile::PrintnannyDotToml),
-        });
-        figment::Jail::expect_with(|jail| {
-            make_settings_repo(jail);
-            let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
-            if let NatsReply::PrintNannySettingsLoadReply(reply) = reply {
-                let settings = PrintNannySettings::new().unwrap();
-                let expected = settings.to_toml_string().unwrap();
-                assert_eq!(reply.content, expected);
-            } else {
-                panic!("Expected NatsReply::PrintNannySettingsLoadReply")
-            }
-            Ok(())
-        });
-    }
-
-    #[test]
     fn test_printnanny_cloud_auth_failed() {
         let email = "testing@test.com".to_string();
         let api_url = "http://localhost:8080/".to_string();
@@ -304,6 +285,27 @@ mod tests {
             }
             Ok(())
         })
+    }
+
+
+    #[test]
+    fn test_load_printnanny_settings() {
+        let request = NatsRequest::PrintNannySettingsLoadRequest(SettingsLoadRequest {
+            format: Box::new(printnanny_asyncapi_models::SettingsFormat::Toml),
+            filename: Box::new(printnanny_asyncapi_models::SettingsFile::PrintnannyDotToml),
+        });
+        figment::Jail::expect_with(|jail| {
+            make_settings_repo(jail);
+            let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
+            if let NatsReply::PrintNannySettingsLoadReply(reply) = reply {
+                let settings = PrintNannySettings::new().unwrap();
+                let expected = settings.to_toml_string().unwrap();
+                assert_eq!(reply.content, expected);
+            } else {
+                panic!("Expected NatsReply::PrintNannySettingsLoadReply")
+            }
+            Ok(())
+        });
     }
 
     #[test]
@@ -343,4 +345,26 @@ mod tests {
             Ok(())
         })
     }
+
+    // #[test]
+    // fn test_load_klipper_settings() {
+    //     let request = NatsRequest::KlipperSettingsLoadRequest(SettingsLoadRequest {
+    //         format: Box::new(printnanny_asyncapi_models::SettingsFormat::Toml),
+    //         filename: Box::new(printnanny_asyncapi_models::SettingsFile::PrintnannyDotToml),
+    //     });
+    //     figment::Jail::expect_with(|jail| {
+    //         make_settings_repo(jail);
+    //         let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
+    //         if let NatsReply::PrintNannySettingsLoadReply(reply) = reply {
+    //             let settings = PrintNannySettings::new().unwrap();
+    //             let expected = settings.to_toml_string().unwrap();
+    //             assert_eq!(reply.content, expected);
+    //         } else {
+    //             panic!("Expected NatsReply::PrintNannySettingsLoadReply")
+    //         }
+    //         Ok(())
+    //     });
+    // }
+
+
 }

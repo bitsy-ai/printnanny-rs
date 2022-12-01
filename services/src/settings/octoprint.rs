@@ -10,7 +10,6 @@ use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
 use crate::error::PrintNannySettingsError;
-use crate::settings::printnanny::PrintNannySettings;
 use crate::settings::vcs::{VersionControlledSettings, VersionControlledSettingsError};
 use crate::settings::SettingsFormat;
 
@@ -65,7 +64,7 @@ impl VersionControlledSettings for OctoPrintSettings {
     }
 
     async fn post_save(&self) -> Result<(), VersionControlledSettingsError> {
-        debug!("Running OctoPrintSettings post_save hook");
+        debug!("Running KlipperSettings post_save hook");
         // start OctoPrint service
         let connection = zbus::Connection::system().await?;
         let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;

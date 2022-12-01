@@ -12,6 +12,7 @@ use zip::ZipArchive;
 use super::error::PrintNannySettingsError;
 use super::os_release::OsRelease;
 
+pub const DEFAULT_PRINTNANNY_USER: &str = "printnanny";
 pub const PRINTNANNY_SETTINGS_FILENAME: &str = "default.toml";
 pub const DEFAULT_PRINTNANNY_SETTINGS_DIR: &str = "/var/lib/printnanny/settings/";
 pub const DEFAULT_PRINTNANNY_SETTINGS_FILE: &str =
