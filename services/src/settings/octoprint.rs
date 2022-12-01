@@ -11,7 +11,7 @@ use printnanny_dbus::zbus_systemd;
 
 use crate::error::PrintNannySettingsError;
 use crate::settings::printnanny::{PrintNannySettings, SettingsFormat};
-use crate::vcs::{VersionControlledSettings, VersionControlledSettingsError};
+use crate::settings::vcs::{VersionControlledSettings, VersionControlledSettingsError};
 
 pub const OCTOPRINT_INSTALL_DIR: &str = "/var/lib/octoprint";
 pub const OCTOPRINT_VENV: &str = "/var/lib/octoprint/venv";

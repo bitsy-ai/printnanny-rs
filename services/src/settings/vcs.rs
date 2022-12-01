@@ -9,9 +9,9 @@ use thiserror::Error;
 
 use printnanny_dbus::zbus;
 
-use super::error::PrintNannyCloudDataError;
-use super::error::PrintNannySettingsError;
-use super::settings::printnanny::{PrintNannySettings, SettingsFormat};
+use crate::error::PrintNannyCloudDataError;
+use crate::error::PrintNannySettingsError;
+use crate::settings::printnanny::{PrintNannySettings, SettingsFormat};
 
 #[derive(Error, Debug)]
 pub enum VersionControlledSettingsError {

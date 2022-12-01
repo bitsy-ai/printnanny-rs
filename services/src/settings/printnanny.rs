@@ -22,8 +22,8 @@ use crate::settings::klipper::KlipperSettings;
 use crate::settings::mainsail::MainsailSettings;
 use crate::settings::moonraker::MoonrakerSettings;
 use crate::settings::octoprint::OctoPrintSettings;
+use crate::settings::vcs::{VersionControlledSettings, VersionControlledSettingsError};
 use crate::state::PrintNannyCloudData;
-use crate::vcs::{VersionControlledSettings, VersionControlledSettingsError};
 use printnanny_api_client::models;
 
 // FACTORY_RESET holds the struct field names of PrintNannyCloudConfig

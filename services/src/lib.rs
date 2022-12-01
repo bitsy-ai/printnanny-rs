@@ -10,7 +10,6 @@ pub mod printnanny_api;
 pub mod settings;
 pub mod state;
 pub mod swupdate;
-pub mod vcs;
 
 // pub exports
 pub use clap;

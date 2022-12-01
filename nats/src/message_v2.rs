@@ -3,8 +3,6 @@ use std::fmt::Debug;
 use anyhow::Result;
 use async_trait::async_trait;
 use printnanny_services::settings::printnanny::PrintNannySettings;
-use printnanny_services::state::PrintNannyCloudData;
-use printnanny_services::vcs::VersionControlledSettings;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -13,6 +11,8 @@ use printnanny_asyncapi_models::{
     SettingsFile, SettingsFormat, SettingsLoadReply, SettingsLoadRequest, SettingsRevertReply,
     SettingsRevertRequest, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
 };
+
+use printnanny_services::settings::vcs::VersionControlledSettings;
 
 #[async_trait]
 pub trait NatsRequestHandler {
