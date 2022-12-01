@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use anyhow::Result;
 use async_trait::async_trait;
 use printnanny_services::settings::PrintNannySettings;
+use printnanny_services::state::PrintNannyCloudData;
 use printnanny_services::vcs::VersionControlledSettings;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -102,6 +103,26 @@ impl NatsReplyBuilder for NatsReply {
 }
 
 impl NatsRequest {
+    pub async fn handle_printnanny_cloud_auth(
+        &self,
+        request: &PrintNannyCloudAuthRequest,
+    ) -> Result<NatsReply> {
+        let settings = PrintNannySettings::new()?;
+        let result = settings
+            .connect_cloud_account(request.api_url.clone(), request.api_token.clone())
+            .await;
+        let result = match result {
+            Ok(_) => NatsReply::PrintNannyCloudAuthReply(PrintNannyCloudAuthReply {
+                status_code: 200,
+                msg: format!("Success! Connected account: {}", request.email),
+            }),
+            Err(e) => NatsReply::PrintNannyCloudAuthReply(PrintNannyCloudAuthReply {
+                status_code: 403,
+                msg: format!("Error connecting account: {}", e.to_string()),
+            }),
+        };
+        Ok(result)
+    }
     pub fn handle_printnanny_settings_load(
         &self,
         request: &SettingsLoadRequest,
@@ -128,6 +149,9 @@ impl NatsRequestHandler for NatsRequest {
 
     async fn handle(&self) -> Result<Self::Reply> {
         let reply = match self {
+            NatsRequest::PrintNannyCloudAuthRequest(request) => {
+                self.handle_printnanny_cloud_auth(request).await?
+            }
             NatsRequest::PrintNannySettingsLoadRequest(request) => {
                 self.handle_printnanny_settings_load(request)?
             }
@@ -184,5 +208,27 @@ mod tests {
             }
             Ok(())
         });
+    }
+
+    #[test]
+    fn test_printnanny_cloud_auth_failed() {
+        let email = "testing@test.com".to_string();
+        let api_url = "http://localhost:8080/".to_string();
+        let api_token = "test_token".to_string();
+        let request = NatsRequest::PrintNannyCloudAuthRequest(PrintNannyCloudAuthRequest {
+            email,
+            api_url,
+            api_token,
+        });
+        figment::Jail::expect_with(|jail| {
+            make_settings_repo(jail);
+            let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
+            if let NatsReply::PrintNannyCloudAuthReply(reply) = reply {
+                assert_eq!(reply.status_code, 403);
+            } else {
+                panic!("Expected NatsReply::PrintNannyCloudAuthReply")
+            }
+            Ok(())
+        })
     }
 }
