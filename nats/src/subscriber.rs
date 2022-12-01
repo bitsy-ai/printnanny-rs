@@ -42,7 +42,7 @@ pub const DEFAULT_NATS_EDGE_APP_NAME: &str = "nats-edge-worker";
 
 impl<Request, Reply> NatsSubscriber<Request, Reply>
 where
-    Request: Serialize + DeserializeOwned + Debug + NatsRequestHandler,
+    Request: Serialize + DeserializeOwned + Debug + NatsRequestHandler<Reply = Reply>,
     Reply: Serialize + DeserializeOwned + Debug + NatsReplyBuilder,
 {
     pub fn clap_command(app_name: Option<String>) -> Command<'static> {

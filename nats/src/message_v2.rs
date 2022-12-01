@@ -102,10 +102,14 @@ impl NatsReplyBuilder for SettingsReply {
 }
 
 impl SettingsRequest {
-    pub fn handle_printnanny_settings_load(&self) -> Result<SettingsReply> {
+    pub fn handle_printnanny_settings_load(
+        &self,
+        request: &SettingsLoadRequest,
+    ) -> Result<SettingsReply> {
         let settings = PrintNannySettings::new()?;
         let head_git_commit = settings.get_git_head_commit()?.oid;
-        let git_history = settings.get_rev_list()?;
+        let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
+            settings.get_rev_list()?.iter().map(|r| r.into()).collect();
         let reply = SettingsLoadReply {
             format: Box::new(SettingsFormat::Toml),
             filename: Box::new(SettingsFile::PrintnannyDotToml),
@@ -113,7 +117,7 @@ impl SettingsRequest {
             head_git_commit,
             git_history,
         };
-        Ok(reply)
+        Ok(SettingsReply::PrintNannySettingsLoadReply(reply))
     }
 }
 

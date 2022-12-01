@@ -4,6 +4,9 @@ use std::fmt::Debug;
 use serde::Serialize;
 use thiserror::Error;
 
+use super::message_v2::NatsReplyBuilder;
+use super::message_v2::NatsRequestHandler;
+
 #[derive(Error, Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct RequestErrorMsg<Request: Serialize + Debug> {
     pub request: Request,

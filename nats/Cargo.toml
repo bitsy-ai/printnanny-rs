@@ -15,7 +15,7 @@ name = "nats-cloud-publisher"
 name = "nats-cloud-worker"
 
 [[bin]]
-name = "nats-edge-worker"
+name = "nats-settings-worker"
 
 [features]
 default = []

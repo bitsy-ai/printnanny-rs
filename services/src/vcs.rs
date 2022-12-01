@@ -241,7 +241,7 @@ impl From<&printnanny_asyncapi_models::GitCommit> for GitCommit {
 
 impl From<&GitCommit> for printnanny_asyncapi_models::GitCommit {
     fn from(commit: &GitCommit) -> printnanny_asyncapi_models::GitCommit {
-        GitCommit {
+        printnanny_asyncapi_models::GitCommit {
             oid: commit.oid.clone(),
             header: commit.header.clone(),
             message: commit.message.clone(),
