@@ -293,6 +293,7 @@ mod tests {
         })
     }
     #[test]
+
     fn test_printnanny_settings_apply_load_revert() {
         figment::Jail::expect_with(|jail| {
             // init git repo in jail tmp dir
@@ -300,8 +301,8 @@ mod tests {
 
             // apply a settings change
             let mut settings = PrintNannySettings::new().unwrap();
+            let original = settings.to_payload().unwrap();
             settings.paths.log_dir = "/path/to/testing".into();
-            let original_commit = settings.get_git_head_commit().unwrap().oid;
             let git_commit_msg = "testing".to_string();
 
             let request_apply = make_printnanny_settings_apply_request(&settings);
@@ -335,21 +336,21 @@ mod tests {
             };
 
             // revert the settings
-            // let request_revert =
-            //     NatsRequest::PrintNannySettingsRevertRequest(SettingsRevertRequest {
-            //         git_commit: revert_commit,
-            //         app: Box::new(SettingsApp::Printnanny),
-            //         files: reply.files,
-            //     });
-            // let reply = Runtime::new()
-            //     .unwrap()
-            //     .block_on(request_revert.handle())
-            //     .unwrap();
-            // if let NatsReply::PrintNannySettingsRevertReply(reply) = reply {
-            //     assert_eq!(reply.git_head_commit, original_commit);
-            // } else {
-            //     panic!("Expected NatsReply::PrintNannySettingsRevertReply")
-            // }
+            let request_revert =
+                NatsRequest::PrintNannySettingsRevertRequest(SettingsRevertRequest {
+                    git_commit: revert_commit,
+                    app: Box::new(SettingsApp::Printnanny),
+                    files: reply.files,
+                });
+            let reply = Runtime::new()
+                .unwrap()
+                .block_on(request_revert.handle())
+                .unwrap();
+            if let NatsReply::PrintNannySettingsRevertReply(reply) = reply {
+                assert_eq!(reply.files[0].content, original.content);
+            } else {
+                panic!("Expected NatsReply::PrintNannySettingsRevertReply")
+            }
 
             Ok(())
         })
