@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::net::IpAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
+use figment::providers::Env;
 use log::{debug, info};
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +15,8 @@ use crate::settings::SettingsFormat;
 
 pub const MOONRAKER_INSTALL_DIR: &str = "/var/lib/moonraker";
 pub const MOONRAKER_VENV: &str = "/var/lib/moonraker/venv";
-pub const MOONRAKER_SETTINGS_FILE: &str = "/var/lib/printnanny/settings/moonraker/moonraker.conf";
+pub const DEFAULT_MOONRAKER_SETTINGS_FILE: &str =
+    "/var/lib/printnanny/settings/moonraker/moonraker.conf";
 
 // Moonraker server config
 // https://moonraker.readthedocs.io/en/latest/configuration/#server
@@ -328,7 +330,10 @@ pub struct MoonrakerSettings {
 impl Default for MoonrakerSettings {
     fn default() -> Self {
         let install_dir: PathBuf = MOONRAKER_INSTALL_DIR.into();
-        let settings_file = MOONRAKER_SETTINGS_FILE.into();
+        let settings_file = PathBuf::from(Env::var_or(
+            "MOONRAKER_SETTINGS_FILE",
+            DEFAULT_MOONRAKER_SETTINGS_FILE,
+        ));
         Self {
             settings_file,
             install_dir,

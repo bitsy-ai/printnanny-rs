@@ -169,6 +169,9 @@ impl PrintNannySettings {
         let mut result: PrintNannySettings = figment.extract()?;
 
         result.octoprint = OctoPrintSettings::from_dir(&result.paths.settings_dir);
+        result.moonraker = MoonrakerSettings::from_dir(&result.paths.settings_dir);
+        result.klipper = KlipperSettings::from_dir(&result.paths.settings_dir);
+
         debug!("Initialized config {:?}", result);
 
         Ok(result)

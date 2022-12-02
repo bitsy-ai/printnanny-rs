@@ -46,10 +46,17 @@ pub struct GitCommit {
 #[async_trait]
 pub trait VersionControlledSettings {
     type SettingsModel: Serialize;
-    fn to_payload(&self) -> Result<SettingsFile, PrintNannySettingsError> {
+    fn to_payload(&self) -> Result<SettingsFile, VersionControlledSettingsError> {
         let file_name = self.get_settings_file().display().to_string();
         let file_format = self.get_settings_format();
-        let content = fs::read_to_string(&file_name)?;
+        let content = match fs::read_to_string(&file_name) {
+            Ok(data) => Ok(data),
+            Err(e) => Err(VersionControlledSettingsError::ReadIOError {
+                path: file_name.clone(),
+                error: e,
+            }),
+        }?;
+        info!("Loaded settings from: {}", &file_name);
         Ok(SettingsFile {
             file_name,
             file_format: Box::new(file_format.into()),
@@ -192,6 +199,16 @@ pub trait VersionControlledSettings {
             None => repo.head().unwrap().peel_to_commit()?,
         };
         repo.revert(&commit, None)
+    }
+
+    async fn git_revert_hooks(
+        &self,
+        oid: Option<git2::Oid>,
+    ) -> Result<(), VersionControlledSettingsError> {
+        self.pre_save().await?;
+        self.git_revert(oid)?;
+        self.pre_save().await?;
+        Ok(())
     }
 
     async fn save_and_commit(

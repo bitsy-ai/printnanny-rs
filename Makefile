@@ -95,12 +95,21 @@ install-fake-services:
 	sudo cp tools/systemd/octoprint.service /etc/systemd/system/octoprint.service
 	sudo cp tools/systemd/printnanny-vision.service /etc/systemd/system/printnanny-vision.service
 	sudo cp tools/systemd/syncthing.service /etc/systemd/system/syncthing.service
+	sudo cp tools/systemd/moonraker.service /etc/systemd/system/moonraker.service
+	sudo cp tools/systemd/klipper.service /etc/systemd/system/klipper.service
+
 	sudo systemctl daemon-reload
 	sudo systemctl enable octoprint.service
+	sudo systemctl enable moonraker.service
+	sudo systemctl enable klipper.service
+
+
 
 uninstall-fake-services:
 	sudo rm /etc/systemd/system/mainsail.service
 	sudo rm /etc/systemd/system/octoprint.service
 	sudo rm /etc/systemd/system/printnanny-vision.service
 	sudo rm /etc/systemd/system/syncthing.service
+	sudo rm /etc/systemd/system/moonraker.service
+	sudo rm /etc/systemd/system/klipper.service
 	sudo systemctl daemon-reload
