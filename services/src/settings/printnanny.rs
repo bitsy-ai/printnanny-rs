@@ -4,7 +4,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
-use clap::{ArgEnum, PossibleValue};
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};

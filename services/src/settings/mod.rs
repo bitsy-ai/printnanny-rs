@@ -9,6 +9,8 @@ pub mod vcs;
 use clap::{ArgEnum, PossibleValue};
 use serde::{Deserialize, Serialize};
 
+use printnanny_asyncapi_models::SettingsFormat as SettingsFormatPayload;
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ArgEnum, Deserialize, Serialize)]
 pub enum SettingsFormat {
     #[serde(rename = "ini")]
@@ -48,5 +50,16 @@ impl std::str::FromStr for SettingsFormat {
             }
         }
         Err(format!("Invalid variant: {}", s))
+    }
+}
+
+impl From<SettingsFormat> for SettingsFormatPayload {
+    fn from(f: SettingsFormat) -> SettingsFormatPayload {
+        match f {
+            SettingsFormat::Ini => SettingsFormatPayload::Ini,
+            SettingsFormat::Json => SettingsFormatPayload::Json,
+            SettingsFormat::Toml => SettingsFormatPayload::Toml,
+            SettingsFormat::Yaml => SettingsFormatPayload::Yaml,
+        }
     }
 }

@@ -7,9 +7,9 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use printnanny_asyncapi_models::{
-    PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp, SettingsApplyReply,
+    PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp, SettingsApplyReply, Settings
     SettingsApplyRequest, SettingsLoadReply, SettingsLoadRequest, SettingsRevertReply,
-    SettingsRevertRequest, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
+    SettingsRevertRequest, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SettingsFile,
 };
 
 use printnanny_services::git2;
@@ -111,13 +111,14 @@ impl NatsRequest {
 
         let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
             settings.get_rev_list()?.iter().map(|r| r.into()).collect();
+        
+        let files = vec![settings.to_payload()?];
         Ok(NatsReply::PrintNannySettingsRevertReply(
             SettingsRevertReply {
                 app: request.app.clone(),
-                filename: Box::new(SettingsFile::PrintnannyDotToml),
+                files,
                 git_head_commit,
                 git_history,
-                content,
             },
         ))
     }

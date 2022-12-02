@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use git2::{DiffFormat, DiffOptions, Repository};
 use log::info;
+use printnanny_asyncapi_models::SettingsFile;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -45,6 +46,16 @@ pub struct GitCommit {
 #[async_trait]
 pub trait VersionControlledSettings {
     type SettingsModel: Serialize;
+    fn to_payload(&self) -> Result<SettingsFile, PrintNannySettingsError> {
+        let file_name = self.get_settings_file().display().to_string();
+        let file_format = self.get_settings_format();
+        let content = fs::read_to_string(&file_name)?;
+        Ok(SettingsFile {
+            file_name,
+            file_format: Box::new(file_format.into()),
+            content,
+        })
+    }
     fn init_local_git_config(&self) -> Result<(), PrintNannySettingsError> {
         let settings = PrintNannySettings::new()?;
         let repo = self.get_git_repo()?;
