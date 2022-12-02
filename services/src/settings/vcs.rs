@@ -56,21 +56,6 @@ pub trait VersionControlledSettings {
             content,
         })
     }
-    fn init_local_git_config(&self) -> Result<(), PrintNannySettingsError> {
-        let settings = PrintNannySettings::new()?;
-        let repo = self.get_git_repo()?;
-        let config = repo.config()?;
-        let mut localconfig = config.open_level(git2::ConfigLevel::Local)?;
-        localconfig.set_str("user.email", &settings.git.email)?;
-        localconfig.set_str("user.name", &settings.git.name)?;
-        localconfig.set_str("init.defaultBranch", &settings.git.default_branch)?;
-        Ok(())
-    }
-    fn git_clone(&self) -> Result<Repository, PrintNannySettingsError> {
-        let settings = PrintNannySettings::new()?;
-        let repo = Repository::clone(&settings.git.remote, settings.paths.settings_dir)?;
-        Ok(repo)
-    }
 
     fn get_git_repo(&self) -> Result<Repository, git2::Error> {
         let settings = PrintNannySettings::new().unwrap();
