@@ -788,13 +788,26 @@ mod tests {
 
     #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
-    async fn test_dbus_systemd_manager_disable_unit_ok() {
+    async fn test_dbus_systemd_manager_enable_disable_unit_ok() {
+        let request =
+            NatsRequest::SystemdManagerEnableUnitsRequest(SystemdManagerEnableUnitsRequest {
+                files: vec!["octoprint.service".into()],
+            });
+        let natsreply = request.handle().await.unwrap();
+        if let NatsReply::SystemdManagerEnableUnitsReply(reply) = natsreply {
+            // unit may already be in an enabled state
+            assert!(reply.changes.len() == 1 || reply.changes.len() == 0);
+        } else {
+            panic!("Expected NatsReply::SystemdManagerEnableUnitReply")
+        }
+
         let request =
             NatsRequest::SystemdManagerDisableUnitsRequest(SystemdManagerDisableUnitsRequest {
                 files: vec!["octoprint.service".into()],
             });
         let natsreply = request.handle().await.unwrap();
         if let NatsReply::SystemdManagerDisableUnitsReply(reply) = natsreply {
+            // unit is guaranteed to be in enabled state from prior request
             assert_eq!(reply.changes.len(), 1);
         } else {
             panic!("Expected NatsReply::SystemdManagerDisableUnitReply")
@@ -810,21 +823,6 @@ mod tests {
         let natsrequest = NatsRequest::SystemdManagerDisableUnitsRequest(request.clone());
         let natsreply = natsrequest.handle().await;
         assert!(natsreply.is_err());
-    }
-
-    #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
-    async fn test_dbus_systemd_manager_enable_unit_ok() {
-        let request =
-            NatsRequest::SystemdManagerEnableUnitsRequest(SystemdManagerEnableUnitsRequest {
-                files: vec!["octoprint.service".into()],
-            });
-        let natsreply = request.handle().await.unwrap();
-        if let NatsReply::SystemdManagerEnableUnitsReply(reply) = natsreply {
-            assert_eq!(reply.changes.len(), 1);
-        } else {
-            panic!("Expected NatsReply::SystemdManagerEnableUnitReply")
-        }
     }
 
     #[cfg(feature = "systemd")]
