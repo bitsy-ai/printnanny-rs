@@ -10,13 +10,16 @@ use printnanny_asyncapi_models::{
     PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp, SettingsApplyReply,
     SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsLoadRequest,
     SettingsRevertReply, SettingsRevertRequest, SystemdManagerDisableUnitsReply,
-    SystemdManagerDisableUnitsReply, SystemdManagerDisableUnitsRequest,
-    SystemdManagerDisableUnitsRequest, SystemdManagerEnableUnitRequest,
-    SystemdManagerEnableUnitsReply, SystemdManagerEnableUnitsRequest, SystemdManagerGetUnitReply,
-    SystemdManagerGetUnitRequest, SystemdManagerReloadUnitReply, SystemdManagerReloadUnitRequest,
-    SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply,
-    SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest,
+    SystemdManagerDisableUnitsRequest, SystemdManagerEnableUnitsReply,
+    SystemdManagerEnableUnitsRequest, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
+    SystemdManagerReloadUnitReply, SystemdManagerReloadUnitRequest, SystemdManagerRestartUnitReply,
+    SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
+    SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdUnitChange,
+    SystemdUnitChangeState,
 };
+
+use printnanny_dbus::zbus;
+use printnanny_dbus::zbus_systemd;
 
 use printnanny_services::git2;
 use printnanny_services::settings::vcs::VersionControlledSettings;
@@ -51,9 +54,9 @@ pub enum NatsRequest {
 
     // pi.{pi}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
-    SystemdManagerDisableUnitRequest(SystemdManagerDisableUnitRequest),
+    SystemdManagerDisableUnitsRequest(SystemdManagerDisableUnitsRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
-    SystemdManagerEnableUnitRequest(SystemdManagerEnableUnitRequest),
+    SystemdManagerEnableUnitsRequest(SystemdManagerEnableUnitsRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
     SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
@@ -343,6 +346,76 @@ impl NatsRequest {
             _ => todo!(),
         }
     }
+
+    pub async fn handle_disable_units_request(
+        &self,
+        request: &SystemdManagerDisableUnitsRequest,
+    ) -> Result<NatsReply> {
+        let connection = zbus::Connection::system().await?;
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let changes = proxy
+            .disable_unit_files(request.files.clone(), false)
+            .await?;
+        let changes = changes
+            .iter()
+            .map(
+                |(change_type, file, destination)| match change_type.as_str() {
+                    "symlink" => SystemdUnitChange {
+                        change: Box::new(SystemdUnitChangeState::Symlink),
+                        file: file.to_string(),
+                        destination: destination.to_string(),
+                    },
+                    "unlink" => SystemdUnitChange {
+                        change: Box::new(SystemdUnitChangeState::Symlink),
+                        file: file.to_string(),
+                        destination: destination.to_string(),
+                    },
+                    _ => {
+                        unimplemented!("No implementation for systemd change type {}", change_type)
+                    }
+                },
+            )
+            .collect();
+        Ok(NatsReply::SystemdManagerDisableUnitsReply(
+            SystemdManagerDisableUnitsReply { changes },
+        ))
+    }
+
+    pub async fn handle_enable_units_request(
+        &self,
+        request: &SystemdManagerEnableUnitsRequest,
+    ) -> Result<NatsReply> {
+        let connection = zbus::Connection::system().await?;
+
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let (_enablement_info, changes) = proxy
+            .enable_unit_files(request.files.clone(), false, false)
+            .await?;
+
+        let changes = changes
+            .iter()
+            .map(
+                |(change_type, file, destination)| match change_type.as_str() {
+                    "symlink" => SystemdUnitChange {
+                        change: Box::new(SystemdUnitChangeState::Symlink),
+                        file: file.to_string(),
+                        destination: destination.to_string(),
+                    },
+                    "unlink" => SystemdUnitChange {
+                        change: Box::new(SystemdUnitChangeState::Symlink),
+                        file: file.to_string(),
+                        destination: destination.to_string(),
+                    },
+                    _ => {
+                        unimplemented!("No implementation for systemd change type {}", change_type)
+                    }
+                },
+            )
+            .collect();
+        Ok(NatsReply::SystemdManagerEnableUnitsReply(
+            SystemdManagerEnableUnitsReply { changes },
+        ))
+    }
 }
 
 #[async_trait]
@@ -352,6 +425,7 @@ impl NatsRequestHandler for NatsRequest {
 
     async fn handle(&self) -> Result<Self::Reply> {
         let reply = match self {
+            // pi.{pi}.settings.*
             NatsRequest::PrintNannyCloudAuthRequest(request) => {
                 self.handle_printnanny_cloud_auth(request).await?
             }
@@ -361,6 +435,13 @@ impl NatsRequestHandler for NatsRequest {
             }
             NatsRequest::SettingsRevertRequest(request) => {
                 self.handle_settings_revert(request).await?
+            }
+            // pi.{pi}.dbus.org.freedesktop.systemd1.*
+            NatsRequest::SystemdManagerDisableUnitsRequest(request) => {
+                self.handle_disable_units_request(request).await?
+            }
+            NatsRequest::SystemdManagerEnableUnitsRequest(request) => {
+                self.handle_enable_units_request(request).await?
             }
             _ => todo!(),
         };
@@ -421,6 +502,7 @@ mod tests {
         })
     }
 
+    #[cfg(feature = "systemd")]
     #[test]
     fn test_printnanny_settings_apply_load_revert() {
         figment::Jail::expect_with(|jail| {
@@ -528,6 +610,7 @@ mod tests {
       stream: /printnanny-hls/playlist.m3u8
     "#;
 
+    #[cfg(feature = "systemd")]
     #[test]
     fn test_octoprint_settings_apply_load_revert() {
         figment::Jail::expect_with(|jail| {
@@ -632,6 +715,7 @@ mod tests {
     [history]
     "#;
 
+    #[cfg(feature = "systemd")]
     #[test]
     fn test_moonraker_settings_apply_load_revert() {
         figment::Jail::expect_with(|jail| {
@@ -700,5 +784,57 @@ mod tests {
 
             Ok(())
         });
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_manager_disable_unit_ok() {
+        let request =
+            NatsRequest::SystemdManagerDisableUnitsRequest(SystemdManagerDisableUnitsRequest {
+                files: vec!["octoprint.service".into()],
+            });
+        let natsreply = request.handle().await.unwrap();
+        if let NatsReply::SystemdManagerDisableUnitsReply(reply) = natsreply {
+            assert_eq!(reply.changes.len(), 1);
+        } else {
+            panic!("Expected NatsReply::SystemdManagerDisableUnitReply")
+        }
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_manager_disable_unit_error() {
+        let request = SystemdManagerDisableUnitsRequest {
+            files: vec!["doesnotexist.service".into()],
+        };
+        let natsrequest = NatsRequest::SystemdManagerDisableUnitsRequest(request.clone());
+        let natsreply = natsrequest.handle().await;
+        assert!(natsreply.is_err());
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_manager_enable_unit_ok() {
+        let request =
+            NatsRequest::SystemdManagerEnableUnitsRequest(SystemdManagerEnableUnitsRequest {
+                files: vec!["octoprint.service".into()],
+            });
+        let natsreply = request.handle().await.unwrap();
+        if let NatsReply::SystemdManagerEnableUnitsReply(reply) = natsreply {
+            assert_eq!(reply.changes.len(), 1);
+        } else {
+            panic!("Expected NatsReply::SystemdManagerEnableUnitReply")
+        }
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_manager_enable_unit_error() {
+        let request = SystemdManagerEnableUnitsRequest {
+            files: vec!["doesnotexist.service".into()],
+        };
+        let natsrequest = NatsRequest::SystemdManagerEnableUnitsRequest(request.clone());
+        let natsreply = natsrequest.handle().await;
+        assert!(natsreply.is_err());
     }
 }
