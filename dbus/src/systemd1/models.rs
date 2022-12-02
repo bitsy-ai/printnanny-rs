@@ -3,6 +3,8 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 use zbus_systemd::systemd1::UnitProxy;
 
+use printnanny_asyncapi_models;
+
 /// State value that reflects whether the configuration file of this unit has been loaded
 /// https://www.freedesktop.org/wiki/Software/systemd/dbus/ LoadState property
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -140,5 +142,40 @@ impl SystemdUnit {
         };
 
         Ok(result)
+    }
+}
+
+impl From<SystemdUnit> for printnanny_asyncapi_models::SystemdUnit {
+    fn from(unit: SystemdUnit) -> printnanny_asyncapi_models::SystemdUnit {
+        let active_state = match unit.active_state {
+            SystemdActiveState::Active => {
+                printnanny_asyncapi_models::SystemdUnitActiveState::Active
+            }
+            SystemdActiveState::Loaded => {
+                printnanny_asyncapi_models::SystemdUnitActiveState::Loaded
+            }
+            SystemdActiveState::Activating => {
+                printnanny_asyncapi_models::SystemdUnitActiveState::Activating
+            }
+            SystemdActiveState::Inactive => {
+                printnanny_asyncapi_models::SystemdUnitActiveState::Inactive
+            }
+            SystemdActiveState::Reloading => {
+                printnanny_asyncapi_models::SystemdUnitActiveState::Reloading
+            }
+            SystemdActiveState::Loaded => {
+                printnanny_asyncapi_models::SystemdUnitActiveState::Loaded
+            }
+            SystemdActiveState::Deactivating => {
+                printnanny_asyncapi_models::SystemdUnitActiveState::Deactivating
+            }
+        };
+        printnanny_asyncapi_models::SystemdUnit {
+            id: unit.id,
+            fragment_path: unit.fragment_path,
+            active_state: Box::new(unit.active_state),
+            load_state: Box::new(unit.load_state),
+            unit_file_state: Box::new(unit.unit_file_state),
+        }
     }
 }

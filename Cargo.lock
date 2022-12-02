@@ -2113,6 +2113,7 @@ name = "printnanny-dbus"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "printnanny-asyncapi-models",
  "serde 1.0.137",
  "zbus",
  "zbus_systemd",
@@ -2149,7 +2150,6 @@ dependencies = [
  "futures",
  "log",
  "printnanny-api-client 0.113.0",
- "printnanny-asyncapi-models",
  "printnanny-dbus",
  "printnanny-gst-config",
  "printnanny-services 0.29.4",
