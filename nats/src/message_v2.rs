@@ -253,24 +253,6 @@ mod tests {
             .unwrap();
     }
 
-    fn make_printnanny_settings_apply_request(settings: &PrintNannySettings) -> NatsRequest {
-        let content = settings.to_toml_string().unwrap();
-        let git_head_commit = settings.get_git_head_commit().unwrap().oid;
-        let git_commit_msg = "testing".to_string();
-
-        NatsRequest::PrintNannySettingsApplyRequest(SettingsApplyRequest {
-            files: vec![SettingsFile {
-                content,
-                file_name: "printnanny.toml".into(),
-                file_format: Box::new(SettingsFormat::Toml),
-            }],
-            app: Box::new(SettingsApp::Printnanny),
-
-            git_head_commit,
-            git_commit_msg: git_commit_msg.clone(),
-        })
-    }
-
     #[test]
     fn test_printnanny_cloud_auth_failed() {
         let email = "testing@test.com".to_string();
@@ -302,10 +284,16 @@ mod tests {
             // apply a settings change
             let mut settings = PrintNannySettings::new().unwrap();
             let original = settings.to_payload().unwrap();
+            let git_head_commit = settings.get_git_head_commit().unwrap().oid;
             settings.paths.log_dir = "/path/to/testing".into();
             let git_commit_msg = "testing".to_string();
 
-            let request_apply = make_printnanny_settings_apply_request(&settings);
+            let request_apply = NatsRequest::PrintNannySettingsApplyRequest(SettingsApplyRequest {
+                files: vec![original.clone()],
+                app: Box::new(SettingsApp::Printnanny),
+                git_head_commit,
+                git_commit_msg: git_commit_msg.clone(),
+            });
             let reply = Runtime::new()
                 .unwrap()
                 .block_on(request_apply.handle())
