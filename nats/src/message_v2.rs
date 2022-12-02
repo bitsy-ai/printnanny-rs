@@ -416,6 +416,23 @@ impl NatsRequest {
             SystemdManagerEnableUnitsReply { changes },
         ))
     }
+
+    async fn handle_get_unit_request(
+        &self,
+        request: &SystemdManagerGetUnitRequest,
+    ) -> Result<NatsReply> {
+        let connection = zbus::Connection::system().await?;
+        let proxy = printnanny_dbus::zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let unit_path = proxy.get_unit(&request.unit_name).await?;
+
+        let unit =
+            printnanny_dbus::systemd1::models::SystemdUnit::from_owned_object_path(unit_path)
+                .await?
+                .into();
+        Ok(NatsReply::SystemdManagerGetUnitReply(
+            SystemdManagerGetUnitReply { unit },
+        ))
+    }
 }
 
 #[async_trait]
@@ -442,6 +459,9 @@ impl NatsRequestHandler for NatsRequest {
             }
             NatsRequest::SystemdManagerEnableUnitsRequest(request) => {
                 self.handle_enable_units_request(request).await?
+            }
+            NatsRequest::SystemdManagerGetUnitRequest(request) => {
+                self.handle_get_unit_request(request).await?
             }
             _ => todo!(),
         };
