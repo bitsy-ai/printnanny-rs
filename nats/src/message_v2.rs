@@ -247,8 +247,10 @@ mod tests {
         .unwrap();
         jail.set_env("PRINTNANNY_SETTINGS", "PrintNannySettingsTest.toml");
         let settings = PrintNannySettings::new().unwrap();
-        settings.octoprint.git_clone().unwrap();
-        settings.init_local_git_config().unwrap();
+        Runtime::new()
+            .unwrap()
+            .block_on(settings.init_local_git_repo())
+            .unwrap();
     }
 
     fn make_printnanny_settings_apply_request(settings: &PrintNannySettings) -> NatsRequest {
