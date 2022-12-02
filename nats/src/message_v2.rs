@@ -9,8 +9,13 @@ use serde::{Deserialize, Serialize};
 use printnanny_asyncapi_models::{
     PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp, SettingsApplyReply,
     SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsLoadRequest,
-    SettingsRevertReply, SettingsRevertRequest, SystemdManagerGetUnitReply,
-    SystemdManagerGetUnitRequest,
+    SettingsRevertReply, SettingsRevertRequest, SystemdManagerDisableUnitsReply,
+    SystemdManagerDisableUnitsReply, SystemdManagerDisableUnitsRequest,
+    SystemdManagerDisableUnitsRequest, SystemdManagerEnableUnitRequest,
+    SystemdManagerEnableUnitsReply, SystemdManagerEnableUnitsRequest, SystemdManagerGetUnitReply,
+    SystemdManagerGetUnitRequest, SystemdManagerReloadUnitReply, SystemdManagerReloadUnitRequest,
+    SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply,
+    SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest,
 };
 
 use printnanny_services::git2;
@@ -34,6 +39,7 @@ pub trait NatsReplyBuilder {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum NatsRequest {
+    // pi.{pi}.settings.*
     #[serde(rename = "pi.{pi}.settings.printnanny.cloud.auth")]
     PrintNannyCloudAuthRequest(PrintNannyCloudAuthRequest),
     #[serde(rename = "pi.{pi}.settings.vcs.load")]
@@ -42,10 +48,27 @@ pub enum NatsRequest {
     SettingsApplyRequest(SettingsApplyRequest),
     #[serde(rename = "pi.{pi}.settings.vcs.revert")]
     SettingsRevertRequest(SettingsRevertRequest),
+
+    // pi.{pi}.dbus.org.freedesktop.systemd1.*
+    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
+    SystemdManagerDisableUnitRequest(SystemdManagerDisableUnitRequest),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
+    SystemdManagerEnableUnitRequest(SystemdManagerEnableUnitRequest),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
+    SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
+    SystemdManagerReloadUnitRequest(SystemdManagerReloadUnitRequest),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
+    SystemdManagerRestartUnitRequest(SystemdManagerRestartUnitRequest),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
+    SystemdManagerStartUnitRequest(SystemdManagerStartUnitRequest),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
+    SystemdManagerStopUnitRequest(SystemdManagerStopUnitRequest),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum NatsReply {
+    // pi.{pi}.settings.*
     #[serde(rename = "pi.{pi}.settings.printnanny.cloud.auth")]
     PrintNannyCloudAuthReply(PrintNannyCloudAuthReply),
     #[serde(rename = "pi.{pi}.settings.printnanny.load")]
@@ -54,6 +77,22 @@ pub enum NatsReply {
     SettingsApplyReply(SettingsApplyReply),
     #[serde(rename = "pi.{pi}.settings.printnanny.revert")]
     SettingsRevertReply(SettingsRevertReply),
+
+    // pi.{pi}.dbus.org.freedesktop.systemd1.*
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
+    SystemdManagerDisableUnitsReply(SystemdManagerDisableUnitsReply),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
+    SystemdManagerEnableUnitsReply(SystemdManagerEnableUnitsReply),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
+    SystemdManagerGetUnitReply(SystemdManagerGetUnitReply),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
+    SystemdManagerReloadUnitReply(SystemdManagerReloadUnitReply),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
+    SystemdManagerRestartUnitReply(SystemdManagerRestartUnitReply),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
+    SystemdManagerStartUnitReply(SystemdManagerStartUnitReply),
+    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
+    SystemdManagerStopUnitReply(SystemdManagerStopUnitReply),
 }
 
 #[async_trait]
