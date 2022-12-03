@@ -1,23 +1,8 @@
-use std::fs;
-use std::io::prelude::*;
-use std::path::PathBuf;
-
 use clap::ArgMatches;
-use log::{debug, info};
 
 use serde::{Deserialize, Serialize};
 
-use figment::providers::{Env, Format, Serialized, Toml};
-use figment::value::{Dict, Map};
-use figment::{Figment, Metadata, Profile, Provider};
-
 use printnanny_dbus::zbus;
-
-use crate::error::PrintNannyCamSettingsError;
-
-pub const DEFAULT_CONFIG_FILENAME: &str = "printnanny-gst.toml";
-pub const DEFAULT_CONFIG_PATH: &str = "/var/run/printnanny/printnanny-gst.toml";
-pub const CONFIG_ENV_VAR: &str = "PRINTNANNY_GST_CONFIG";
 
 #[derive(Debug, Clone, clap::ValueEnum, Deserialize, Serialize, PartialEq, Eq)]
 pub enum VideoSrcType {
@@ -253,118 +238,5 @@ impl From<&ArgMatches> for PrintNannyCamSettings {
             hls_playlist_root,
             nats_server_uri,
         }
-    }
-}
-
-impl PrintNannyCamSettings {
-    // See example: https://docs.rs/figment/latest/figment/index.html#extracting-and-profiles
-    // Note the `nested` option on both `file` providers. This makes each
-    // top-level dictionary act as a profile
-    pub fn new() -> Result<Self, PrintNannyCamSettingsError> {
-        let figment = Self::figment()?;
-        let result = figment.extract()?;
-        debug!("Initialized config {:?}", result);
-        Ok(result)
-    }
-
-    pub fn config_file() -> String {
-        Env::var_or(CONFIG_ENV_VAR, DEFAULT_CONFIG_PATH)
-    }
-
-    pub fn from_toml(f: PathBuf) -> Result<Self, PrintNannyCamSettingsError> {
-        let figment = PrintNannyCamSettings::figment()?.merge(Toml::file(f));
-        Ok(figment.extract()?)
-    }
-
-    pub fn figment() -> Result<Figment, PrintNannyCamSettingsError> {
-        // merge file in PRINTNANNY_CONFIG env var (if set)
-        let result = Figment::from(Self { ..Self::default() })
-            .merge(Toml::file(Self::config_file()))
-            // allow nested environment variables:
-            // PRINTNANNY_GST_KEY__SUBKEY
-            .merge(Env::prefixed("PRINTNANNY_GST_").split("__"));
-
-        info!("Finalized PrintNannyGstSettings: \n {:?}", result);
-        Ok(result)
-    }
-
-    pub fn try_save(&self) -> Result<(), PrintNannyCamSettingsError> {
-        let filename = Self::config_file();
-        // lock file for writing
-        let content = toml::ser::to_string_pretty(self)?;
-        info!("Attempting to write config: {}", &filename);
-        fs::write(&filename, content)?;
-        info!("Wrote {:?}", filename);
-        Ok(())
-    }
-}
-
-impl Provider for PrintNannyCamSettings {
-    fn metadata(&self) -> Metadata {
-        Metadata::named("PrintNannySettings")
-    }
-
-    fn data(&self) -> figment::error::Result<Map<Profile, Dict>> {
-        let map: Map<Profile, Dict> = Serialized::defaults(self).data()?;
-        Ok(map)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_nested_env_var() {
-        figment::Jail::expect_with(|jail| {
-            let config_file = jail.directory().join("test.toml");
-
-            jail.create_file(
-                "test.toml",
-                r#"
-                profile = "default"
-                [tflite_model]
-                tensor_width = 720
-                "#,
-            )?;
-
-            let expected = 720;
-            jail.set_env("PRINTNANNY_GST_CONFIG", config_file.display());
-            jail.set_env("PRINTNANNY_GST_TFLITE_MODEL__TENSOR_HEIGHT", expected);
-
-            let config: PrintNannyCamSettings = PrintNannyCamSettings::new().unwrap();
-            assert_eq!(config.tflite_model.tensor_width, expected);
-            assert_eq!(config.tflite_model.tensor_height, expected);
-
-            Ok(())
-        });
-    }
-
-    #[test]
-    fn test_save() {
-        figment::Jail::expect_with(|jail| {
-            let config_file = jail.directory().join("test.toml");
-
-            jail.create_file(
-                "test.toml",
-                r#"
-                profile = "default"
-                [tflite_model]
-                tensor_width = 720
-                "#,
-            )?;
-
-            let expected = 720;
-            jail.set_env("PRINTNANNY_GST_CONFIG", config_file.display());
-
-            let mut config: PrintNannyCamSettings = PrintNannyCamSettings::new().unwrap();
-            config.tflite_model.tensor_height = expected;
-            config.try_save().unwrap();
-            let config: PrintNannyCamSettings = PrintNannyCamSettings::new().unwrap();
-            assert_eq!(config.tflite_model.tensor_width, expected);
-            assert_eq!(config.tflite_model.tensor_height, expected);
-
-            Ok(())
-        });
     }
 }

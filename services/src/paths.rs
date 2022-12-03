@@ -13,10 +13,11 @@ use super::error::PrintNannySettingsError;
 use super::os_release::OsRelease;
 
 pub const DEFAULT_PRINTNANNY_USER: &str = "printnanny";
-pub const PRINTNANNY_SETTINGS_FILENAME: &str = "default.toml";
-pub const DEFAULT_PRINTNANNY_SETTINGS_DIR: &str = "/var/lib/printnanny/settings/";
+pub const PRINTNANNY_SETTINGS_FILENAME: &str = "printnanny.toml";
+pub const DEFAULT_PRINTNANNY_SETTINGS_DIR: &str = "/home/printnanny/.config/printnanny";
 pub const DEFAULT_PRINTNANNY_SETTINGS_FILE: &str =
-    "/var/lib/printnanny/settings/printnanny/PrintNannySettings.toml";
+    "/home/printnanny/.config/printnanny/settings/printnanny/printnanny.toml";
+pub const DEFAULT_PRINTNANNY_DATA_DIR: &str = "/home/printnanny/.local/share";
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
 pub struct PrintNannyPaths {
@@ -35,7 +36,7 @@ impl Default for PrintNannyPaths {
         // /var/run/ is a temporary runtime directory, cleared after each boot
         let run_dir: PathBuf = "/var/run/printnanny".into();
         // /var/lib is a persistent state directory, mounted as a r/w overlay fs. Application state is stored here and is preserved between upgrades.
-        let state_dir: PathBuf = "/var/lib/printnanny".into();
+        let state_dir: PathBuf = DEFAULT_PRINTNANNY_DATA_DIR.into();
 
         let issue_txt: PathBuf = "/etc/issue".into();
         let log_dir: PathBuf = "/var/log/printnanny".into();
