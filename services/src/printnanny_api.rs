@@ -49,7 +49,15 @@ impl ApiService {
     // args >> api_config.json >> anonymous api usage only
     pub fn new() -> Result<ApiService, ServiceError> {
         let settings = PrintNannySettings::new()?;
-        let state = PrintNannyCloudData::load(&settings.paths.state_file())?;
+        let state_file = settings.paths.state_file();
+        let state = match PrintNannyCloudData::load(&state_file) {
+            Ok(data) => data,
+            Err(e) => {
+                let defaults = PrintNannyCloudData::default();
+                warn!("Failed to load {} with error {}, using PrintNannyCloudData::default() {:?}", state_file.display(),e, &defaults );
+                defaults
+            }
+        };
 
         debug!("Initializing ApiService from settings: {:?}", settings);
 

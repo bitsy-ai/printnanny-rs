@@ -1,6 +1,7 @@
 use anyhow::Result;
 use printnanny_nats::cloud_worker::NatsCloudWorker;
-use printnanny_services::state::PrintNannyCloudData;
+
+use printnanny_settings::state::PrintNannyCloudData;
 
 #[tokio::main]
 async fn main() -> Result<()> {
