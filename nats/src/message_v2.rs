@@ -60,8 +60,9 @@ pub enum NatsRequest {
     SystemdManagerEnableUnitsRequest(SystemdManagerEnableUnitsRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
     SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
-    SystemdManagerReloadUnitRequest(SystemdManagerReloadUnitRequest),
+    // TODO: : Job type reload is not applicable for unit octoprint.service.
+    // #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
+    // SystemdManagerReloadUnitRequest(SystemdManagerReloadUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
     SystemdManagerRestartUnitRequest(SystemdManagerRestartUnitRequest),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
@@ -89,8 +90,9 @@ pub enum NatsReply {
     SystemdManagerEnableUnitsReply(SystemdManagerEnableUnitsReply),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
     SystemdManagerGetUnitReply(SystemdManagerGetUnitReply),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
-    SystemdManagerReloadUnitReply(SystemdManagerReloadUnitReply),
+    // TODO: : Job type reload is not applicable for unit octoprint.service.
+    // #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
+    // SystemdManagerReloadUnitReply(SystemdManagerReloadUnitReply),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
     SystemdManagerRestartUnitReply(SystemdManagerRestartUnitReply),
     #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
@@ -418,44 +420,104 @@ impl NatsRequest {
         ))
     }
 
+    async fn get_systemd_unit(
+        &self,
+        unit_name: String,
+    ) -> Result<printnanny_asyncapi_models::SystemdUnit> {
+        let connection = zbus::Connection::system().await?;
+        let proxy = printnanny_dbus::zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let unit_path = proxy.get_unit(unit_name.clone()).await?;
+        let unit =
+            printnanny_dbus::systemd1::models::SystemdUnit::from_owned_object_path(unit_path)
+                .await?;
+        let unit = printnanny_asyncapi_models::SystemdUnit::from(unit);
+        Ok(unit)
+    }
+
     async fn handle_get_unit_request(
         &self,
         request: &SystemdManagerGetUnitRequest,
     ) -> Result<NatsReply> {
-        let connection = zbus::Connection::system().await?;
-        let proxy = printnanny_dbus::zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
-        let unit_path = proxy.get_unit(request.unit_name.clone()).await?;
-
-        let unit =
-            printnanny_dbus::systemd1::models::SystemdUnit::from_owned_object_path(unit_path)
-                .await?;
-        let unit = Box::new(printnanny_asyncapi_models::SystemdUnit::from(unit));
-
+        let unit = self.get_systemd_unit(request.unit_name.clone()).await?;
         Ok(NatsReply::SystemdManagerGetUnitReply(
-            SystemdManagerGetUnitReply { unit },
+            SystemdManagerGetUnitReply {
+                unit: Box::new(unit),
+            },
         ))
     }
 
-    async fn handle_reload_unit_request(
+    // TODO
+    // Job type reload is not applicable for unit octoprint.service.
+    // async fn handle_reload_unit_request(
+    //     &self,
+    //     request: &SystemdManagerReloadUnitRequest,
+    // ) -> Result<NatsReply> {
+    //     let connection = zbus::Connection::system().await?;
+    //     let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+    //     let job = proxy
+    //         .reload_unit(request.unit_name.clone(), "replace".into())
+    //         .await?;
+    //     let unit = self.get_systemd_unit(request.unit_name.clone()).await?;
+
+    //     Ok(NatsReply::SystemdManagerReloadUnitReply(
+    //         SystemdManagerReloadUnitReply {
+    //             job: job.to_string(),
+    //             unit: Box::new(unit),
+    //         },
+    //     ))
+    // }
+
+    async fn handle_restart_unit_request(
         &self,
-        request: &SystemdManagerReloadUnitRequest,
+        request: &SystemdManagerRestartUnitRequest,
     ) -> Result<NatsReply> {
         let connection = zbus::Connection::system().await?;
-
         let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
         let job = proxy
             .restart_unit(request.unit_name.clone(), "replace".into())
             .await?;
-        let unit_path = proxy.get_unit(request.unit_name.clone()).await?;
-        let unit =
-            printnanny_dbus::systemd1::models::SystemdUnit::from_owned_object_path(unit_path)
-                .await?;
-        let unit = Box::new(printnanny_asyncapi_models::SystemdUnit::from(unit));
+        let unit = self.get_systemd_unit(request.unit_name.clone()).await?;
 
-        Ok(NatsReply::SystemdManagerReloadUnitReply(
-            SystemdManagerReloadUnitReply {
+        Ok(NatsReply::SystemdManagerRestartUnitReply(
+            SystemdManagerRestartUnitReply {
                 job: job.to_string(),
-                unit: unit,
+                unit: Box::new(unit),
+            },
+        ))
+    }
+
+    async fn handle_start_unit_request(
+        &self,
+        request: &SystemdManagerStartUnitRequest,
+    ) -> Result<NatsReply> {
+        let connection = zbus::Connection::system().await?;
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let job = proxy
+            .start_unit(request.unit_name.clone(), "replace".into())
+            .await?;
+        let unit = self.get_systemd_unit(request.unit_name.clone()).await?;
+        Ok(NatsReply::SystemdManagerStartUnitReply(
+            SystemdManagerStartUnitReply {
+                job: job.to_string(),
+                unit: Box::new(unit),
+            },
+        ))
+    }
+
+    async fn handle_stop_unit_request(
+        &self,
+        request: &SystemdManagerStopUnitRequest,
+    ) -> Result<NatsReply> {
+        let connection = zbus::Connection::system().await?;
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let job = proxy
+            .stop_unit(request.unit_name.clone(), "replace".into())
+            .await?;
+        let unit = self.get_systemd_unit(request.unit_name.clone()).await?;
+        Ok(NatsReply::SystemdManagerStopUnitReply(
+            SystemdManagerStopUnitReply {
+                job: job.to_string(),
+                unit: Box::new(unit),
             },
         ))
     }
@@ -489,10 +551,15 @@ impl NatsRequestHandler for NatsRequest {
             NatsRequest::SystemdManagerGetUnitRequest(request) => {
                 self.handle_get_unit_request(request).await?
             }
-            NatsRequest::SystemdManagerReloadUnitRequest(request) => {
-                self.handle_reload_unit_request(request).await?
+            NatsRequest::SystemdManagerRestartUnitRequest(request) => {
+                self.handle_restart_unit_request(request).await?
             }
-
+            NatsRequest::SystemdManagerStartUnitRequest(request) => {
+                self.handle_start_unit_request(request).await?
+            }
+            NatsRequest::SystemdManagerStopUnitRequest(request) => {
+                self.handle_stop_unit_request(request).await?
+            }
             _ => todo!(),
         };
 
@@ -912,9 +979,9 @@ mod tests {
 
     #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
-    async fn test_dbus_systemd_reload_unit_error() {
+    async fn test_dbus_systemd_restart_unit_error() {
         let request =
-            NatsRequest::SystemdManagerReloadUnitRequest(SystemdManagerReloadUnitRequest {
+            NatsRequest::SystemdManagerRestartUnitRequest(SystemdManagerRestartUnitRequest {
                 unit_name: "doesnotexist.service".into(),
             });
         let reply = request.handle().await;
@@ -924,17 +991,71 @@ mod tests {
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_reload_unit_ok() {
         let request =
-            NatsRequest::SystemdManagerReloadUnitRequest(SystemdManagerReloadUnitRequest {
+            NatsRequest::SystemdManagerRestartUnitRequest(SystemdManagerRestartUnitRequest {
                 unit_name: "octoprint.service".into(),
             });
         let reply = request.handle().await.unwrap();
-        if let NatsReply::SystemdManagerReloadUnitReply(reply) = reply {
+        if let NatsReply::SystemdManagerRestartUnitReply(reply) = reply {
             assert_eq!(
                 *(*reply.unit).load_state,
                 printnanny_asyncapi_models::SystemdUnitLoadState::Loaded
             );
         } else {
-            panic!("Expected NatsReply::SystemdManagerReloadUniReply")
+            panic!("Expected NatsReply::SystemdManagerRestartUniReply")
+        }
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_start_unit_error() {
+        let request = NatsRequest::SystemdManagerStartUnitRequest(SystemdManagerStartUnitRequest {
+            unit_name: "doesnotexist.service".into(),
+        });
+        let reply = request.handle().await;
+        assert!(reply.is_err());
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_start_unit_ok() {
+        let request = NatsRequest::SystemdManagerStartUnitRequest(SystemdManagerStartUnitRequest {
+            unit_name: "octoprint.service".into(),
+        });
+        let reply = request.handle().await.unwrap();
+        if let NatsReply::SystemdManagerStartUnitReply(reply) = reply {
+            assert_eq!(
+                *(*reply.unit).load_state,
+                printnanny_asyncapi_models::SystemdUnitLoadState::Loaded
+            );
+        } else {
+            panic!("Expected NatsReply::SystemdManagerStartUnitReply")
+        }
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_stop_unit_error() {
+        let request = NatsRequest::SystemdManagerStopUnitRequest(SystemdManagerStopUnitRequest {
+            unit_name: "doesnotexist.service".into(),
+        });
+        let reply = request.handle().await;
+        assert!(reply.is_err());
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_stop_unit_ok() {
+        let request = NatsRequest::SystemdManagerStopUnitRequest(SystemdManagerStopUnitRequest {
+            unit_name: "octoprint.service".into(),
+        });
+        let reply = request.handle().await.unwrap();
+        if let NatsReply::SystemdManagerStopUnitReply(reply) = reply {
+            assert_eq!(
+                *(*reply.unit).load_state,
+                printnanny_asyncapi_models::SystemdUnitLoadState::Loaded
+            );
+        } else {
+            panic!("Expected NatsReply::SystemdManagerStopUnitReply")
         }
     }
 }
