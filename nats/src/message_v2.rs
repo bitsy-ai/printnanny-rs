@@ -873,13 +873,13 @@ mod tests {
         assert!(natsreply.is_err());
     }
 
-    // #[cfg(feature = "systemd")]
-    // #[test(tokio::test)] // async test
-    // async fn test_dbus_systemd_manager_get_unit_ok() {
-    //     let request = NatsRequest::SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest {
-    //         unit_name: "octoprint.service".into(),
-    //     });
-    //     let reply = request.handle.await?.unwrap();
-    //     assert!()
-    // }
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_get_unit_error() {
+        let request = NatsRequest::SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest {
+            unit_name: "doesnotexist.service".into(),
+        });
+        let reply = request.handle().await;
+        assert!(reply.is_err());
+    }
 }
