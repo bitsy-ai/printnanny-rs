@@ -2,7 +2,7 @@
 name = "printnanny-services"
 description = "Library of MQTT, API, and other services used by PrintNanny"
 license = "AGPL-3.0-or-later"
-version = "0.29.4"
+version = "0.30.0"
 authors = ["Leigh Johnson <leigh@printnanny.ai>"]
 edition = "2021"
 rust-version = "1.63"
@@ -24,8 +24,8 @@ lazy_static = "1"            # A macro for declaring lazily evaluated statics in
 log = "0.4"
 parking_lot = "0.12.1"                  # More compact and efficient implementations of the standard synchronization primitives.
 printnanny-api-client = "0.113.0"
-printnanny-dbus = { path = "../dbus", version = "^0.1" }
-printnanny-settings = { path = "../settings", version = "^0.1"}
+printnanny-dbus = { path = "../dbus", version = "^0.2"}
+printnanny-settings = { path = "../settings", version = "^0.2"}
 procfs = "0.12"
 rustls = "0.19"
 tokio-rustls = "0.22"

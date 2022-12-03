@@ -1,6 +1,6 @@
 [package]
 name = "printnanny-settings"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Leigh Johnson <leigh@printnanny.ai>"]
 license = "AGPL-3.0-or-later"
@@ -22,7 +22,7 @@ glob = "0.3.0"
 
 log = "0.4"
 toml = "0.5"
-printnanny-dbus = { path = "../dbus", version = "^0.1" }
+printnanny-dbus = { path = "../dbus", version = "^0.2"}
 serde_json = "1"
 sys-info = "0.9"
 thiserror = "1"
