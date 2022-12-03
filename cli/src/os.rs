@@ -4,8 +4,8 @@ use log::error;
 use std::fs;
 
 use printnanny_services::metadata;
-use printnanny_services::settings::printnanny::PrintNannySettings;
-use printnanny_services::settings::SettingsFormat;
+use printnanny_settings::printnanny::PrintNannySettings;
+use printnanny_settings::SettingsFormat;
 pub struct OsCommand;
 
 const MTOD_HEADER: &str = r"

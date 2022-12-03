@@ -2045,6 +2045,7 @@ dependencies = [
  "printnanny-dbus",
  "printnanny-nats",
  "printnanny-services",
+ "printnanny-settings",
  "serde 1.0.137",
  "serde_bytes",
  "serde_json",
