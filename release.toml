@@ -3,5 +3,4 @@ pre-release-commit-message = "chore: Release {{version}}"
 consolidate-pushes = true
 allow-branch = ["main"]
 sign-commit = true
-shared-version = true
 dependent-version = "upgrade"
