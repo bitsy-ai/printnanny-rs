@@ -850,6 +850,7 @@ dependencies = [
  "pear",
  "serde 1.0.137",
  "serde_json",
+ "serde_yaml",
  "tempfile",
  "toml",
  "uncased",
@@ -2227,7 +2228,6 @@ dependencies = [
  "figment",
  "file-lock",
  "futures",
- "git2",
  "glob",
  "hex",
  "http",
@@ -2240,12 +2240,12 @@ dependencies = [
  "printnanny-api-client 0.113.0",
  "printnanny-asyncapi-models",
  "printnanny-dbus",
+ "printnanny-settings",
  "procfs",
  "rand",
  "reqwest",
  "rustls 0.19.1",
  "sha2",
- "sys-info",
  "sysinfo",
  "tempfile",
  "test-log",
@@ -2256,6 +2256,27 @@ dependencies = [
  "tokio-util 0.7.4",
  "warp",
  "zip",
+]
+
+[[package]]
+name = "printnanny-settings"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "clap",
+ "env_logger",
+ "figment",
+ "git2",
+ "log",
+ "predicates 2.1.1",
+ "printnanny-asyncapi-models",
+ "printnanny-dbus",
+ "serde 1.0.137",
+ "serde_json",
+ "sys-info",
+ "test-log",
+ "thiserror",
+ "toml",
 ]
 
 [[package]]
@@ -2814,6 +2835,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "serde_yaml"
+version = "0.8.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "578a7433b776b56a35785ed5ce9a7e777ac0598aac5a6dd1b4b18a307c7fc71b"
+dependencies = [
+ "indexmap",
+ "ryu",
+ "serde 1.0.137",
+ "yaml-rust",
 ]
 
 [[package]]

@@ -1,4 +1,5 @@
 pub mod cam;
+pub mod error;
 pub mod klipper;
 pub mod mainsail;
 pub mod moonraker;
@@ -9,8 +10,11 @@ pub mod vcs;
 // re-export crates
 pub use clap;
 pub use figment;
+pub use git2;
+pub use printnanny_asyncapi_models;
 pub use serde;
 pub use serde_json;
+pub use sys_info;
 pub use toml;
 
 use clap::{ArgEnum, PossibleValue};

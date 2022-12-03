@@ -36,40 +36,6 @@ const DEFAULT_PRINTNANNY_SETTINGS_GIT_REMOTE: &str =
 const DEFAULT_PRINTNANNY_SETTINGS_GIT_EMAIL: &str = "robots@printnanny.ai";
 const DEFAULT_PRINTNANNY_SETTINGS_GIT_NAME: &str = "PrintNanny";
 
-lazy_static! {
-    static ref DEFAULT_SYSTEMD_UNITS: HashMap<String, SystemdUnit> = {
-        let mut m = HashMap::new();
-
-        // printnanny-vision.service
-        m.insert(
-            "printnanny-vision.service".to_string(),
-            SystemdUnit {
-                unit: "printnanny-vision.service".to_string(),
-                enabled: true,
-            },
-        );
-
-        // octoprint.service
-        m.insert(
-            "octoprint.service".to_string(),
-            SystemdUnit {
-                unit: "octoprint.service".to_string(),
-                enabled: true,
-            },
-        );
-
-        // mainsail.service
-        m.insert(
-            "mainsail.service".to_string(),
-            SystemdUnit {
-                unit: "mansail.service".to_string(),
-                enabled: false,
-            },
-        );
-        m
-    };
-}
-
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NatsConfig {
     pub uri: String,
