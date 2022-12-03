@@ -2077,6 +2077,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "printnanny-asyncapi-models"
+version = "0.1.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd8a19629a921b77061f4cdabc296259f703cd4c982b288123cc5bcf5fccced9"
+dependencies = [
+ "serde 1.0.137",
+ "serde_json",
+]
+
+[[package]]
 name = "printnanny-cli"
 version = "0.29.4"
 dependencies = [
@@ -2103,6 +2113,7 @@ name = "printnanny-dbus"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "printnanny-asyncapi-models",
  "serde 1.0.137",
  "zbus",
  "zbus_systemd",
@@ -2229,6 +2240,7 @@ dependencies = [
  "parking_lot 0.12.1",
  "predicates 2.1.1",
  "printnanny-api-client 0.113.0",
+ "printnanny-asyncapi-models",
  "printnanny-dbus",
  "procfs",
  "rand",

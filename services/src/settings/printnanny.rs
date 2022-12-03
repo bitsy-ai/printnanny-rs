@@ -3,7 +3,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use clap::{ArgEnum, PossibleValue};
+use async_trait::async_trait;
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
@@ -12,15 +12,19 @@ use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
-use super::error::PrintNannySettingsError;
-
-use super::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
-use super::printnanny_api::ApiService;
-use super::state::PrintNannyCloudData;
-use crate::error::ServiceError;
-use crate::printer_mgmt;
-use crate::vcs::VersionControlledSettings;
+use crate::printnanny_api::ApiService;
 use printnanny_api_client::models;
+
+use crate::error::{PrintNannySettingsError, ServiceError};
+use crate::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
+use crate::settings::cam::PrintNannyCamSettings;
+use crate::settings::klipper::KlipperSettings;
+use crate::settings::mainsail::MainsailSettings;
+use crate::settings::moonraker::MoonrakerSettings;
+use crate::settings::octoprint::OctoPrintSettings;
+use crate::settings::vcs::{VersionControlledSettings, VersionControlledSettingsError};
+use crate::settings::SettingsFormat;
+use crate::state::PrintNannyCloudData;
 
 // FACTORY_RESET holds the struct field names of PrintNannyCloudConfig
 // each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
@@ -66,18 +70,6 @@ lazy_static! {
     };
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ArgEnum, Deserialize, Serialize)]
-pub enum SettingsFormat {
-    #[serde(rename = "ini")]
-    Ini,
-    #[serde(rename = "json")]
-    Json,
-    #[serde(rename = "toml")]
-    Toml,
-    #[serde(rename = "yaml")]
-    Yaml,
-}
-
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NatsConfig {
     pub uri: String,
@@ -90,36 +82,6 @@ impl Default for NatsConfig {
             uri: "nats://localhost:4222".to_string(),
             require_tls: false,
         }
-    }
-}
-
-impl SettingsFormat {
-    pub fn possible_values() -> impl Iterator<Item = PossibleValue<'static>> {
-        SettingsFormat::value_variants()
-            .iter()
-            .filter_map(ArgEnum::to_possible_value)
-    }
-}
-
-impl std::fmt::Display for SettingsFormat {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.to_possible_value()
-            .expect("no values are skipped")
-            .get_name()
-            .fmt(f)
-    }
-}
-
-impl std::str::FromStr for SettingsFormat {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        for variant in Self::value_variants() {
-            if variant.to_possible_value().unwrap().matches(s, false) {
-                return Ok(*variant);
-            }
-        }
-        Err(format!("Invalid variant: {}", s))
     }
 }
 
@@ -177,23 +139,25 @@ impl Default for GitSettings {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PrintNannySettings {
+    pub cam: PrintNannyCamSettings,
     pub git: GitSettings,
     pub paths: PrintNannyPaths,
-    pub klipper: printer_mgmt::klipper::KlipperSettings,
-    pub mainsail: printer_mgmt::mainsail::MainsailSettings,
-    pub moonraker: printer_mgmt::moonraker::MoonrakerSettings,
-    pub octoprint: printer_mgmt::octoprint::OctoPrintSettings,
+    pub klipper: KlipperSettings,
+    pub mainsail: MainsailSettings,
+    pub moonraker: MoonrakerSettings,
+    pub octoprint: OctoPrintSettings,
 }
 
 impl Default for PrintNannySettings {
     fn default() -> Self {
         let git = GitSettings::default();
         Self {
+            cam: PrintNannyCamSettings::default(),
             paths: PrintNannyPaths::default(),
-            klipper: printer_mgmt::klipper::KlipperSettings::default(),
-            octoprint: printer_mgmt::octoprint::OctoPrintSettings::default(),
-            moonraker: printer_mgmt::moonraker::MoonrakerSettings::default(),
-            mainsail: printer_mgmt::mainsail::MainsailSettings::default(),
+            klipper: KlipperSettings::default(),
+            octoprint: OctoPrintSettings::default(),
+            moonraker: MoonrakerSettings::default(),
+            mainsail: MainsailSettings::default(),
             git,
         }
     }
@@ -204,11 +168,29 @@ impl PrintNannySettings {
         let figment = Self::figment()?;
         let mut result: PrintNannySettings = figment.extract()?;
 
-        result.octoprint =
-            printer_mgmt::octoprint::OctoPrintSettings::from_dir(&result.paths.settings_dir);
+        result.octoprint = OctoPrintSettings::from_dir(&result.paths.settings_dir);
+        result.moonraker = MoonrakerSettings::from_dir(&result.paths.settings_dir);
+        result.klipper = KlipperSettings::from_dir(&result.paths.settings_dir);
+
         debug!("Initialized config {:?}", result);
 
         Ok(result)
+    }
+    pub async fn init_local_git_repo(&self) -> Result<(), PrintNannySettingsError> {
+        let repo = git2::Repository::clone(&self.git.remote, &self.paths.settings_dir)?;
+        let config = repo.config()?;
+        let mut localconfig = config.open_level(git2::ConfigLevel::Local)?;
+        localconfig.set_str("user.email", &self.git.email)?;
+        localconfig.set_str("user.name", &self.git.name)?;
+        localconfig.set_str("init.defaultBranch", &self.git.default_branch)?;
+        let settings_file = self.get_settings_file();
+        if !settings_file.exists() {
+            info!("Initializing {}", &settings_file.display());
+            let commit_msg = "initialize default printnanny.toml".to_string();
+            let content = self.to_toml_string()?;
+            self.save_and_commit(&content, Some(commit_msg)).await?;
+        }
+        Ok(())
     }
     pub fn dashboard_url(&self) -> String {
         let hostname = sys_info::hostname().unwrap_or_else(|_| "printnanny".to_string());
@@ -354,6 +336,11 @@ impl PrintNannySettings {
         Ok(figment.extract()?)
     }
 
+    pub fn to_toml_string(&self) -> Result<String, PrintNannySettingsError> {
+        let result = toml::ser::to_string_pretty(self)?;
+        Ok(result)
+    }
+
     fn read_path_glob<T: 'static + figment::providers::Format>(
         pattern: &str,
         figment: Figment,
@@ -447,6 +434,37 @@ impl Provider for PrintNannySettings {
     }
 }
 
+#[async_trait]
+impl VersionControlledSettings for PrintNannySettings {
+    type SettingsModel = PrintNannySettings;
+    fn from_dir(settings_dir: &Path) -> Self {
+        let settings_file = settings_dir.join("printnanny/printnanny.toml");
+        let result = PrintNannySettings::from_toml(settings_file).unwrap();
+        result
+    }
+    fn get_settings_format(&self) -> SettingsFormat {
+        SettingsFormat::Toml
+    }
+    fn get_settings_file(&self) -> PathBuf {
+        self.paths
+            .settings_dir
+            .join("printnanny/printnanny.toml")
+            .into()
+    }
+    async fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {
+        debug!("Running PrintNannySettings pre_save hook");
+        Ok(())
+    }
+
+    async fn post_save(&self) -> Result<(), VersionControlledSettingsError> {
+        debug!("Running PrintNannySettings post_save hook");
+        Ok(())
+    }
+    fn validate(&self) -> Result<(), VersionControlledSettingsError> {
+        todo!("OctoPrintSettings validate hook is not yet implemented");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -525,7 +543,7 @@ mod tests {
             let settings = PrintNannySettings::new().unwrap();
             assert_eq!(
                 settings.octoprint.enabled,
-                printer_mgmt::octoprint::OctoPrintSettings::default().enabled,
+                OctoPrintSettings::default().enabled,
             );
             jail.set_env("PRINTNANNY_SETTINGS_OCTOPRINT__ENABLED", "false");
             let figment = PrintNannySettings::figment().unwrap();

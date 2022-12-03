@@ -1,12 +1,22 @@
 use std::collections::HashMap;
 use std::net::IpAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
+use async_trait::async_trait;
+use figment::providers::Env;
+use log::{debug, info};
 use serde::{Deserialize, Serialize};
+
+use printnanny_dbus::zbus;
+use printnanny_dbus::zbus_systemd;
+
+use super::vcs::{VersionControlledSettings, VersionControlledSettingsError};
+use crate::settings::SettingsFormat;
 
 pub const MOONRAKER_INSTALL_DIR: &str = "/var/lib/moonraker";
 pub const MOONRAKER_VENV: &str = "/var/lib/moonraker/venv";
-pub const MOONRAKER_SETTINGS_FILE: &str = "/var/lib/printnanny/settings/moonraker/moonraker.conf";
+pub const DEFAULT_MOONRAKER_SETTINGS_FILE: &str =
+    "/var/lib/printnanny/settings/moonraker/moonraker.conf";
 
 // Moonraker server config
 // https://moonraker.readthedocs.io/en/latest/configuration/#server
@@ -313,18 +323,69 @@ pub struct MoonrakerSettings {
     pub enabled: bool,
     pub install_dir: PathBuf,
     pub settings_file: PathBuf,
+    pub settings_format: SettingsFormat,
     pub venv: PathBuf,
 }
 
 impl Default for MoonrakerSettings {
     fn default() -> Self {
         let install_dir: PathBuf = MOONRAKER_INSTALL_DIR.into();
-        let settings_file = MOONRAKER_SETTINGS_FILE.into();
+        let settings_file = PathBuf::from(Env::var_or(
+            "MOONRAKER_SETTINGS_FILE",
+            DEFAULT_MOONRAKER_SETTINGS_FILE,
+        ));
         Self {
             settings_file,
             install_dir,
             enabled: false,
             venv: MOONRAKER_VENV.into(),
+            settings_format: SettingsFormat::Ini,
         }
+    }
+}
+
+#[async_trait]
+impl VersionControlledSettings for MoonrakerSettings {
+    type SettingsModel = MoonrakerSettings;
+    fn from_dir(settings_dir: &Path) -> Self {
+        let settings_file = settings_dir.join("moonraker/moonraker.conf");
+        Self {
+            settings_file,
+            ..Self::default()
+        }
+    }
+    fn get_settings_format(&self) -> SettingsFormat {
+        self.settings_format
+    }
+    fn get_settings_file(&self) -> PathBuf {
+        self.settings_file.clone()
+    }
+    async fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {
+        debug!("Running KlipperSettings pre_save hook");
+        // stop OctoPrint serviice
+        let connection = zbus::Connection::system().await?;
+
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let job = proxy
+            .stop_unit("klipper.service".to_string(), "replace".to_string())
+            .await?;
+        info!("Stopped klipper.service, job: {:?}", job);
+        Ok(())
+    }
+
+    async fn post_save(&self) -> Result<(), VersionControlledSettingsError> {
+        debug!("Running KlipperSettings post_save hook");
+        // start OctoPrint service
+        let connection = zbus::Connection::system().await?;
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let job = proxy
+            .start_unit("klipper.service".into(), "replace".into())
+            .await?;
+        info!("Started klipper.service, job: {:?}", job);
+
+        Ok(())
+    }
+    fn validate(&self) -> Result<(), VersionControlledSettingsError> {
+        todo!("OctoPrintSettings validate hook is not yet implemented");
     }
 }

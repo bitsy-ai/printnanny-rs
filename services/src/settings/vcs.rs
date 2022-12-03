@@ -4,14 +4,16 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use git2::{DiffFormat, DiffOptions, Repository};
 use log::info;
+use printnanny_asyncapi_models::SettingsFile;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use printnanny_dbus::zbus;
 
-use super::error::PrintNannyCloudDataError;
-use super::error::PrintNannySettingsError;
-use super::settings::{PrintNannySettings, SettingsFormat};
+use crate::error::PrintNannyCloudDataError;
+use crate::error::PrintNannySettingsError;
+use crate::settings::printnanny::PrintNannySettings;
+use crate::settings::SettingsFormat;
 
 #[derive(Error, Debug)]
 pub enum VersionControlledSettingsError {
@@ -44,20 +46,22 @@ pub struct GitCommit {
 #[async_trait]
 pub trait VersionControlledSettings {
     type SettingsModel: Serialize;
-    fn init_local_git_config(&self) -> Result<(), PrintNannySettingsError> {
-        let settings = PrintNannySettings::new()?;
-        let repo = self.get_git_repo()?;
-        let config = repo.config()?;
-        let mut localconfig = config.open_level(git2::ConfigLevel::Local)?;
-        localconfig.set_str("user.email", &settings.git.email)?;
-        localconfig.set_str("user.name", &settings.git.name)?;
-        localconfig.set_str("init.defaultBranch", &settings.git.default_branch)?;
-        Ok(())
-    }
-    fn git_clone(&self) -> Result<Repository, PrintNannySettingsError> {
-        let settings = PrintNannySettings::new()?;
-        let repo = Repository::clone(&settings.git.remote, settings.paths.settings_dir)?;
-        Ok(repo)
+    fn to_payload(&self) -> Result<SettingsFile, VersionControlledSettingsError> {
+        let file_name = self.get_settings_file().display().to_string();
+        let file_format = self.get_settings_format();
+        let content = match fs::read_to_string(&file_name) {
+            Ok(data) => Ok(data),
+            Err(e) => Err(VersionControlledSettingsError::ReadIOError {
+                path: file_name.clone(),
+                error: e,
+            }),
+        }?;
+        info!("Loaded settings from: {}", &file_name);
+        Ok(SettingsFile {
+            file_name,
+            file_format: Box::new(file_format.into()),
+            content,
+        })
     }
 
     fn get_git_repo(&self) -> Result<Repository, git2::Error> {
@@ -84,10 +88,10 @@ pub trait VersionControlledSettings {
     }
     fn read_settings(&self) -> Result<String, VersionControlledSettingsError> {
         let settings_file = self.get_settings_file();
-        let result = match fs::read_to_string(settings_file) {
+        let result = match fs::read_to_string(&settings_file) {
             Ok(d) => Ok(d),
             Err(e) => Err(VersionControlledSettingsError::ReadIOError {
-                path: settings_file.display().to_string(),
+                path: (&settings_file.display()).to_string(),
                 error: e,
             }),
         }?;
@@ -95,7 +99,20 @@ pub trait VersionControlledSettings {
     }
     fn write_settings(&self, content: &str) -> Result<(), VersionControlledSettingsError> {
         let output = self.get_settings_file();
-        match fs::write(output, content) {
+        let parent_dir = output.parent().unwrap();
+        if !parent_dir.exists() {
+            match fs::create_dir_all(parent_dir) {
+                Ok(_) => {
+                    info!("Created directory {}", parent_dir.display());
+                    Ok(())
+                }
+                Err(e) => Err(VersionControlledSettingsError::WriteIOError {
+                    path: parent_dir.display().to_string(),
+                    error: e,
+                }),
+            }?;
+        }
+        match fs::write(&output, content) {
             Ok(_) => Ok(()),
             Err(e) => Err(VersionControlledSettingsError::WriteIOError {
                 path: output.display().to_string(),
@@ -121,11 +138,12 @@ pub trait VersionControlledSettings {
     }
 
     fn get_git_commit_message(&self) -> Result<String, git2::Error> {
-        let settings_filename = self.get_settings_file().file_name().unwrap();
+        let settings_file = self.get_settings_file();
+        let settings_filename = settings_file.file_name().unwrap();
         let commit_parent_count = self.git_head_commit_parent_count()? + 1; // add 1 to git count of parent commits
         Ok(format!(
             "PrintNanny updated {:?} - revision #{}",
-            settings_filename, commit_parent_count
+            &settings_filename, &commit_parent_count
         ))
     }
 
@@ -183,7 +201,17 @@ pub trait VersionControlledSettings {
         repo.revert(&commit, None)
     }
 
-    async fn save(
+    async fn git_revert_hooks(
+        &self,
+        oid: Option<git2::Oid>,
+    ) -> Result<(), VersionControlledSettingsError> {
+        self.pre_save().await?;
+        self.git_revert(oid)?;
+        self.pre_save().await?;
+        Ok(())
+    }
+
+    async fn save_and_commit(
         &self,
         content: &str,
         commit_msg: Option<String>,
@@ -199,7 +227,7 @@ pub trait VersionControlledSettings {
     fn from_dir(settings_dir: &Path) -> Self::SettingsModel;
 
     fn get_settings_format(&self) -> SettingsFormat;
-    fn get_settings_file(&self) -> &Path;
+    fn get_settings_file(&self) -> PathBuf;
 
     async fn pre_save(&self) -> Result<(), VersionControlledSettingsError>;
     async fn post_save(&self) -> Result<(), VersionControlledSettingsError>;
@@ -223,6 +251,28 @@ impl<'repo> From<git2::Commit<'repo>> for GitCommit {
             header: commit.raw_header().unwrap().to_string(),
             message: commit.message().unwrap().to_string(),
             ts: commit.time().seconds(),
+        }
+    }
+}
+
+impl From<&printnanny_asyncapi_models::GitCommit> for GitCommit {
+    fn from(commit: &printnanny_asyncapi_models::GitCommit) -> GitCommit {
+        GitCommit {
+            oid: commit.oid.clone(),
+            header: commit.header.clone(),
+            message: commit.message.clone(),
+            ts: commit.ts.clone(),
+        }
+    }
+}
+
+impl From<&GitCommit> for printnanny_asyncapi_models::GitCommit {
+    fn from(commit: &GitCommit) -> printnanny_asyncapi_models::GitCommit {
+        printnanny_asyncapi_models::GitCommit {
+            oid: commit.oid.clone(),
+            header: commit.header.clone(),
+            message: commit.message.clone(),
+            ts: commit.ts.clone(),
         }
     }
 }

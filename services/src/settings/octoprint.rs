@@ -10,8 +10,8 @@ use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
 use crate::error::PrintNannySettingsError;
-use crate::settings::{PrintNannySettings, SettingsFormat};
-use crate::vcs::{VersionControlledSettings, VersionControlledSettingsError};
+use crate::settings::vcs::{VersionControlledSettings, VersionControlledSettingsError};
+use crate::settings::SettingsFormat;
 
 pub const OCTOPRINT_INSTALL_DIR: &str = "/var/lib/octoprint";
 pub const OCTOPRINT_VENV: &str = "/var/lib/octoprint/venv";
@@ -46,8 +46,8 @@ impl VersionControlledSettings for OctoPrintSettings {
     fn get_settings_format(&self) -> SettingsFormat {
         self.settings_format
     }
-    fn get_settings_file(&self) -> &Path {
-        &self.settings_file
+    fn get_settings_file(&self) -> PathBuf {
+        self.settings_file.clone()
     }
 
     async fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {
@@ -64,7 +64,7 @@ impl VersionControlledSettings for OctoPrintSettings {
     }
 
     async fn post_save(&self) -> Result<(), VersionControlledSettingsError> {
-        debug!("Running OctoPrintSettings post_save hook");
+        debug!("Running KlipperSettings post_save hook");
         // start OctoPrint service
         let connection = zbus::Connection::system().await?;
         let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;

@@ -1,11 +1,11 @@
 use anyhow::{anyhow, Result};
 use clap::ArgMatches;
 use log::error;
-use printnanny_services::settings::{PrintNannySettings, SettingsFormat};
 use std::fs;
 
 use printnanny_services::metadata;
-
+use printnanny_services::settings::printnanny::PrintNannySettings;
+use printnanny_services::settings::SettingsFormat;
 pub struct OsCommand;
 
 const MTOD_HEADER: &str = r"
