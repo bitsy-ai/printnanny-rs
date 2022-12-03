@@ -34,7 +34,7 @@ impl Default for KlipperSettings {
             settings_file,
             install_dir,
             enabled: false,
-            venv: KLIPPER_VENV.into(), // klipper shares moonraker virtual environment
+            venv: KLIPPER_VENV.into(),
             settings_format: SettingsFormat::Ini,
         }
     }
