@@ -7,7 +7,8 @@ use printnanny_dbus::zbus;
 #[derive(Debug, Clone, clap::ValueEnum, Deserialize, Serialize, PartialEq, Eq)]
 pub enum VideoSrcType {
     File,
-    Device,
+    CSI,
+    USB,
     Uri,
 }
 
@@ -133,7 +134,7 @@ impl Default for PrintNannyCamSettings {
         let video_udp_port = 20001;
         let overlay_udp_port = 20002;
 
-        let video_src_type = VideoSrcType::Device;
+        let video_src_type = VideoSrcType::CSI;
         let video_height = 480;
         let video_width = 640;
         let video_framerate = 15;
