@@ -435,6 +435,30 @@ impl NatsRequest {
             SystemdManagerGetUnitReply { unit },
         ))
     }
+
+    async fn handle_reload_unit_request(
+        &self,
+        request: &SystemdManagerReloadUnitRequest,
+    ) -> Result<NatsReply> {
+        let connection = zbus::Connection::system().await?;
+
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let job = proxy
+            .restart_unit(request.unit_name.clone(), "replace".into())
+            .await?;
+        let unit_path = proxy.get_unit(request.unit_name.clone()).await?;
+        let unit =
+            printnanny_dbus::systemd1::models::SystemdUnit::from_owned_object_path(unit_path)
+                .await?;
+        let unit = Box::new(printnanny_asyncapi_models::SystemdUnit::from(unit));
+
+        Ok(NatsReply::SystemdManagerReloadUnitReply(
+            SystemdManagerReloadUnitReply {
+                job: job.to_string(),
+                unit: unit,
+            },
+        ))
+    }
 }
 
 #[async_trait]
@@ -464,6 +488,9 @@ impl NatsRequestHandler for NatsRequest {
             }
             NatsRequest::SystemdManagerGetUnitRequest(request) => {
                 self.handle_get_unit_request(request).await?
+            }
+            NatsRequest::SystemdManagerReloadUnitRequest(request) => {
+                self.handle_reload_unit_request(request).await?
             }
 
             _ => todo!(),
@@ -881,5 +908,33 @@ mod tests {
         });
         let reply = request.handle().await;
         assert!(reply.is_err());
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_reload_unit_error() {
+        let request =
+            NatsRequest::SystemdManagerReloadUnitRequest(SystemdManagerReloadUnitRequest {
+                unit_name: "doesnotexist.service".into(),
+            });
+        let reply = request.handle().await;
+        assert!(reply.is_err());
+    }
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_reload_unit_ok() {
+        let request =
+            NatsRequest::SystemdManagerReloadUnitRequest(SystemdManagerReloadUnitRequest {
+                unit_name: "octoprint.service".into(),
+            });
+        let reply = request.handle().await.unwrap();
+        if let NatsReply::SystemdManagerReloadUnitReply(reply) = reply {
+            assert_eq!(
+                *(*reply.unit).load_state,
+                printnanny_asyncapi_models::SystemdUnitLoadState::Loaded
+            );
+        } else {
+            panic!("Expected NatsReply::SystemdManagerReloadUniReply")
+        }
     }
 }
