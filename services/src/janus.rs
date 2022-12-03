@@ -1,14 +1,16 @@
 use anyhow::Result;
-use clap::ArgEnum;
 use log::info;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
 
-use super::error::PrintNannyCloudDataError;
-use super::state::PrintNannyCloudData;
+use printnanny_settings::clap;
+use printnanny_settings::clap::ValueEnum;
 
-#[derive(Eq, PartialEq, Debug, Clone, Copy, ArgEnum)]
+use printnanny_settings::error::PrintNannyCloudDataError;
+use printnanny_settings::state::PrintNannyCloudData;
+
+#[derive(Eq, PartialEq, Debug, Clone, Copy, clap::ArgEnum)]
 pub enum JanusAdminEndpoint {
     GetStatus,
     Info,

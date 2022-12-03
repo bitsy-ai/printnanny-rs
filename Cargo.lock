@@ -2242,6 +2242,8 @@ dependencies = [
  "rand",
  "reqwest",
  "rustls 0.19.1",
+ "serde 1.0.137",
+ "serde_json",
  "sha2",
  "sysinfo",
  "tempfile",

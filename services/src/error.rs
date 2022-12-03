@@ -6,7 +6,11 @@ use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::apis::Error as ApiError;
 
-use crate::settings::vcs::VersionControlledSettingsError;
+use printnanny_settings::figment;
+use printnanny_settings::sys_info;
+use printnanny_settings::toml;
+
+use printnanny_settings::error::{PrintNannyCloudDataError, PrintNannySettingsError};
 
 #[derive(Error, Debug)]
 pub enum PrintNannyCamSettingsError {

@@ -6,12 +6,7 @@ version = "0.29.4"
 authors = ["Leigh Johnson <leigh@printnanny.ai>"]
 edition = "2021"
 rust-version = "1.63"
-[build]
-targets = [
-    "aarch64-unknown-linux-gnu",
-    "armv7-unknown-linux-gnueabihf",
-    "x86_64-unknown-linux-gnu",
-]
+
 [dependencies]
 async-process = "1.3"
 async-trait = "0.1"
@@ -40,6 +35,8 @@ reqwest = "0.11"
 sysinfo = "0.26.2"
 tempfile = "3.3.0"
 thiserror = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 tokio = { version = "1.21", features = ["full", "rt-multi-thread", "rt"] }
 tokio-util = { version="0.7", features = ["codec"] }
 tokio-serde = { version="0.8", features = ["json"] }

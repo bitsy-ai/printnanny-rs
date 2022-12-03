@@ -15,8 +15,6 @@ pub use figment;
 pub use git2;
 pub use printnanny_api_client; // OpenAPI v3 client
 pub use printnanny_asyncapi_models; // AsyncAPI 2.x Models
-pub use serde;
-pub use serde_json;
 pub use sys_info;
 pub use toml;
 

@@ -161,49 +161,6 @@ impl PrintNannySettings {
         Ok(figment.find_value(key)?)
     }
 
-    // pub async fn connect_cloud_account(
-    //     &self,
-    //     base_path: String,
-    //     bearer_access_token: String,
-    // ) -> Result<(), ServiceError> {
-    //     let state_file = self.paths.state_file();
-    //     let state_lock = self.paths.state_lock();
-
-    //     let mut state = PrintNannyCloudData::load(&state_file)?;
-    //     state.api.base_path = base_path;
-    //     state.api.bearer_access_token = Some(bearer_access_token);
-
-    //     state.save(&state_file, &state_lock, true)?;
-
-    //     let mut api_service = ApiService::new()?;
-
-    //     // sync data models
-    //     api_service.sync().await?;
-    //     let mut state = PrintNannyCloudData::load(&self.paths.state_file())?;
-    //     let pi_id = state.pi.unwrap().id;
-    //     // download credential and device identity bundled in license.zip
-    //     api_service.pi_download_license(pi_id).await?;
-    //     // mark setup complete
-    //     let req = models::PatchedPiRequest {
-    //         setup_finished: Some(true),
-    //         // None values are skipped by serde serializer
-    //         sbc: None,
-    //         hostname: None,
-    //         fqdn: None,
-    //         favorite: None,
-    //     };
-    //     api_service.pi_partial_update(pi_id, req).await?;
-    //     let pi = api_service.pi_retrieve(pi_id).await?;
-    //     state.pi = Some(pi);
-    //     state.save(&self.paths.state_file(), &self.paths.state_lock(), true)?;
-    //     Ok(())
-    // }
-
-    // pub async fn sync(&self) -> Result<(), ServiceError> {
-    //     let mut service = ApiService::new()?;
-    //     service.sync().await
-    // }
-
     // intended for use with Rocket's figmment
     pub fn from_figment(figment: Figment) -> Figment {
         figment.merge(Self::figment().unwrap())

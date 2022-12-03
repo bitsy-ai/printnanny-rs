@@ -5,7 +5,14 @@ use std::future::Future;
 use std::io::BufReader;
 use std::path::Path;
 
-use serde::{Deserialize, Serialize};
+use serde;
+use serde_json;
+// settings modules
+use printnanny_settings::error::PrintNannySettingsError;
+use printnanny_settings::printnanny::PrintNannySettings;
+use printnanny_settings::state::PrintNannyCloudData;
+
+use printnanny_settings::sys_info;
 
 use printnanny_api_client::apis::accounts_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
@@ -13,12 +20,9 @@ use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::models;
 
-use crate::state::PrintNannyCloudData;
-
-use crate::error::{PrintNannySettingsError, ServiceError};
+use crate::error::ServiceError;
 use crate::file::open;
 use crate::metadata;
-use crate::settings::printnanny::PrintNannySettings;
 
 #[derive(Debug, Clone)]
 pub struct ApiService {
@@ -60,6 +64,48 @@ impl ApiService {
             pi: None,
             user: None,
         })
+    }
+
+    pub async fn connect_cloud_account(
+        &self,
+        base_path: String,
+        bearer_access_token: String,
+    ) -> Result<(), ServiceError> {
+        let state_file = self.settings.paths.state_file();
+        let state_lock = self.settings.paths.state_lock();
+
+        let mut state = PrintNannyCloudData::load(&state_file)?;
+        state.api.base_path = base_path;
+        state.api.bearer_access_token = Some(bearer_access_token);
+
+        state.save(&state_file, &state_lock, true)?;
+
+        let mut api_service = ApiService::new()?;
+
+        // sync data models
+        api_service.sync().await?;
+        let mut state = PrintNannyCloudData::load(&self.settings.paths.state_file())?;
+        let pi_id = state.pi.unwrap().id;
+        // download credential and device identity bundled in license.zip
+        api_service.pi_download_license(pi_id).await?;
+        // mark setup complete
+        let req = models::PatchedPiRequest {
+            setup_finished: Some(true),
+            // None values are skipped by serde serializer
+            sbc: None,
+            hostname: None,
+            fqdn: None,
+            favorite: None,
+        };
+        api_service.pi_partial_update(pi_id, req).await?;
+        let pi = api_service.pi_retrieve(pi_id).await?;
+        state.pi = Some(pi);
+        state.save(
+            &self.settings.paths.state_file(),
+            &self.settings.paths.state_lock(),
+            true,
+        )?;
+        Ok(())
     }
 
     pub async fn auth_user_retreive(&self) -> Result<models::User, ServiceError> {

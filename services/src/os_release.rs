@@ -22,11 +22,12 @@
 // OUT OF OR
 
 use super::file::open;
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io::{self, prelude::*, BufReader};
 use std::iter::FromIterator;
 use std::path::Path;
+
+use serde::{Deserialize, Serialize};
 
 fn is_enclosed_with(line: &str, pattern: char) -> bool {
     line.starts_with(pattern) && line.ends_with(pattern)
@@ -134,6 +135,8 @@ impl FromIterator<String> for OsRelease {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use printnanny_settings::paths::PRINTNANNY_SETTINGS_FILENAME;
+    use printnanny_settings::printnanny::PrintNannySettings;
 
     const OTHER_EXAMPLE: &str = r#"PRETTY_NAME="Ubuntu 22.04 LTS"
 TESTING="newfield"
@@ -187,7 +190,7 @@ VARIANT_ID=printnanny-octoprint
             );
 
             let config = PrintNannySettings::new().unwrap();
-            let os_release = OsRelease::new_from(config.paths.os_release);
+            let os_release = OsRelease::new_from(config.paths.os_release).unwrap();
             assert_eq!("2022-06-18T18:46:49Z".to_string(), os_release.build_id);
             Ok(())
         });
