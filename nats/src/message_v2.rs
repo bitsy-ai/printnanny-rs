@@ -6,7 +6,8 @@ use printnanny_services::settings::printnanny::PrintNannySettings;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use printnanny_asyncapi_models::{
+use printnanny_dbus::printnanny_asyncapi_models;
+use printnanny_dbus::printnanny_asyncapi_models::{
     PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp, SettingsApplyReply,
     SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsLoadRequest,
     SettingsRevertReply, SettingsRevertRequest, SystemdManagerDisableUnitsReply,
@@ -123,7 +124,7 @@ impl NatsRequest {
             }),
             Err(e) => NatsReply::PrintNannyCloudAuthReply(PrintNannyCloudAuthReply {
                 status_code: 403,
-                msg: format!("Error connecting account: {}", e.to_string()),
+                msg: format!("Error connecting account: {}", e),
             }),
         };
         Ok(result)
@@ -423,12 +424,13 @@ impl NatsRequest {
     ) -> Result<NatsReply> {
         let connection = zbus::Connection::system().await?;
         let proxy = printnanny_dbus::zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
-        let unit_path = proxy.get_unit(&request.unit_name).await?;
+        let unit_path = proxy.get_unit(request.unit_name.clone()).await?;
 
         let unit =
             printnanny_dbus::systemd1::models::SystemdUnit::from_owned_object_path(unit_path)
-                .await?
-                .into();
+                .await?;
+        let unit = Box::new(printnanny_asyncapi_models::SystemdUnit::from(unit));
+
         Ok(NatsReply::SystemdManagerGetUnitReply(
             SystemdManagerGetUnitReply { unit },
         ))
@@ -463,6 +465,7 @@ impl NatsRequestHandler for NatsRequest {
             NatsRequest::SystemdManagerGetUnitRequest(request) => {
                 self.handle_get_unit_request(request).await?
             }
+
             _ => todo!(),
         };
 
@@ -832,6 +835,20 @@ mod tests {
         } else {
             panic!("Expected NatsReply::SystemdManagerDisableUnitReply")
         }
+
+        // assert unit GetUnitRequest returns disabled state
+        let request = NatsRequest::SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest {
+            unit_name: "octoprint.service".into(),
+        });
+        let reply = request.handle().await.unwrap();
+        if let NatsReply::SystemdManagerGetUnitReply(reply) = reply {
+            assert_eq!(
+                *(*reply.unit).unit_file_state,
+                printnanny_asyncapi_models::SystemdUnitFileState::Disabled
+            );
+        } else {
+            panic!("Expected NatsReply::SystemdManagerGetUnitRepl")
+        }
     }
 
     #[cfg(feature = "systemd")]
@@ -855,4 +872,14 @@ mod tests {
         let natsreply = natsrequest.handle().await;
         assert!(natsreply.is_err());
     }
+
+    // #[cfg(feature = "systemd")]
+    // #[test(tokio::test)] // async test
+    // async fn test_dbus_systemd_manager_get_unit_ok() {
+    //     let request = NatsRequest::SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest {
+    //         unit_name: "octoprint.service".into(),
+    //     });
+    //     let reply = request.handle.await?.unwrap();
+    //     assert!()
+    // }
 }

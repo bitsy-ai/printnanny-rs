@@ -163,19 +163,53 @@ impl From<SystemdUnit> for printnanny_asyncapi_models::SystemdUnit {
             SystemdActiveState::Reloading => {
                 printnanny_asyncapi_models::SystemdUnitActiveState::Reloading
             }
-            SystemdActiveState::Loaded => {
-                printnanny_asyncapi_models::SystemdUnitActiveState::Loaded
-            }
             SystemdActiveState::Deactivating => {
                 printnanny_asyncapi_models::SystemdUnitActiveState::Deactivating
             }
         };
+
+        let load_state = match unit.load_state {
+            SystemdLoadState::Masked => printnanny_asyncapi_models::SystemdUnitLoadState::Masked,
+            SystemdLoadState::Error => printnanny_asyncapi_models::SystemdUnitLoadState::Error,
+            SystemdLoadState::Loaded => printnanny_asyncapi_models::SystemdUnitLoadState::Loaded,
+        };
+
+        let unit_file_state = match unit.unit_file_state {
+            SystemdUnitFileState::Enabled => {
+                printnanny_asyncapi_models::SystemdUnitFileState::Enabled
+            }
+            SystemdUnitFileState::EnabledRuntime => {
+                printnanny_asyncapi_models::SystemdUnitFileState::EnabledMinusRuntime
+            }
+            SystemdUnitFileState::Disabled => {
+                printnanny_asyncapi_models::SystemdUnitFileState::Disabled
+            }
+            SystemdUnitFileState::Linked => {
+                printnanny_asyncapi_models::SystemdUnitFileState::Linked
+            }
+            SystemdUnitFileState::LinkedRuntime => {
+                printnanny_asyncapi_models::SystemdUnitFileState::LinkedMinusRuntime
+            }
+            SystemdUnitFileState::Masked => {
+                printnanny_asyncapi_models::SystemdUnitFileState::Masked
+            }
+            SystemdUnitFileState::MaskedRuntime => {
+                printnanny_asyncapi_models::SystemdUnitFileState::MaskedMinusRuntime
+            }
+            SystemdUnitFileState::Static => {
+                printnanny_asyncapi_models::SystemdUnitFileState::ReservedStatic
+            }
+            SystemdUnitFileState::Invalid => {
+                printnanny_asyncapi_models::SystemdUnitFileState::Invalid
+            }
+        };
+
         printnanny_asyncapi_models::SystemdUnit {
             id: unit.id,
             fragment_path: unit.fragment_path,
-            active_state: Box::new(unit.active_state),
-            load_state: Box::new(unit.load_state),
-            unit_file_state: Box::new(unit.unit_file_state),
+            active_state: Box::new(active_state),
+            load_state: Box::new(load_state),
+            unit_file_state: Box::new(unit_file_state),
         }
     }
 }
