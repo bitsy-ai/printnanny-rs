@@ -4,14 +4,17 @@ pub mod klipper;
 pub mod mainsail;
 pub mod moonraker;
 pub mod octoprint;
+pub mod paths;
 pub mod printnanny;
+pub mod state;
 pub mod vcs;
 
 // re-export crates
 pub use clap;
 pub use figment;
 pub use git2;
-pub use printnanny_asyncapi_models;
+pub use printnanny_api_client; // OpenAPI v3 client
+pub use printnanny_asyncapi_models; // AsyncAPI 2.x Models
 pub use serde;
 pub use serde_json;
 pub use sys_info;

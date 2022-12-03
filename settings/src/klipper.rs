@@ -8,8 +8,9 @@ use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
 use super::moonraker::MOONRAKER_VENV;
-use crate::settings::vcs::{VersionControlledSettings, VersionControlledSettingsError};
-use crate::settings::SettingsFormat;
+use crate::error::VersionControlledSettingsError;
+use crate::vcs::VersionControlledSettings;
+use crate::SettingsFormat;
 
 pub const KLIPPER_INSTALL_DIR: &str = "/home/printnanny/.klipper";
 pub const KLIPPER_SETTINGS_FILE: &str =

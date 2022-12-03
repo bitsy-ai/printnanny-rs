@@ -40,12 +40,6 @@ pub fn save_model_json<T: serde::Serialize>(model: &T, path: &Path) -> Result<()
     Ok(())
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct PrintNannyApiConfig {
-    pub base_path: String,
-    pub bearer_access_token: Option<String>,
-}
-
 impl ApiService {
     // config priority:
     // args >> api_config.json >> anonymous api usage only

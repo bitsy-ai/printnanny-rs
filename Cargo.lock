@@ -2219,7 +2219,6 @@ dependencies = [
  "assert_cmd",
  "async-process",
  "async-trait",
- "bytes",
  "chrono",
  "config",
  "console",
@@ -2228,7 +2227,6 @@ dependencies = [
  "figment",
  "file-lock",
  "futures",
- "glob",
  "hex",
  "http",
  "jsonwebtoken",
@@ -2238,7 +2236,6 @@ dependencies = [
  "parking_lot 0.12.1",
  "predicates 2.1.1",
  "printnanny-api-client 0.113.0",
- "printnanny-asyncapi-models",
  "printnanny-dbus",
  "printnanny-settings",
  "procfs",
@@ -2263,12 +2260,16 @@ name = "printnanny-settings"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bytes",
  "clap",
  "env_logger",
  "figment",
+ "file-lock",
  "git2",
+ "glob",
  "log",
  "predicates 2.1.1",
+ "printnanny-api-client 0.113.0",
  "printnanny-asyncapi-models",
  "printnanny-dbus",
  "serde 1.0.137",
@@ -2277,6 +2278,7 @@ dependencies = [
  "test-log",
  "thiserror",
  "toml",
+ "zip",
 ]
 
 [[package]]

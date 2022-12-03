@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 use thiserror::Error;
 
+use printnanny_dbus::zbus;
+
 #[derive(Error, Debug)]
 pub enum VersionControlledSettingsError {
     #[error("Failed to write {path} - {error}")]

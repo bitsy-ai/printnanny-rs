@@ -67,7 +67,7 @@ pub trait VersionControlledSettings {
         let result = match fs::read_to_string(&settings_file) {
             Ok(d) => Ok(d),
             Err(e) => Err(VersionControlledSettingsError::ReadIOError {
-                path: (&settings_file.display()).to_string(),
+                path: (settings_file.display()).to_string(),
                 error: e,
             }),
         }?;
@@ -237,7 +237,7 @@ impl From<&printnanny_asyncapi_models::GitCommit> for GitCommit {
             oid: commit.oid.clone(),
             header: commit.header.clone(),
             message: commit.message.clone(),
-            ts: commit.ts.clone(),
+            ts: commit.ts,
         }
     }
 }
@@ -248,7 +248,7 @@ impl From<&GitCommit> for printnanny_asyncapi_models::GitCommit {
             oid: commit.oid.clone(),
             header: commit.header.clone(),
             message: commit.message.clone(),
-            ts: commit.ts.clone(),
+            ts: commit.ts,
         }
     }
 }
