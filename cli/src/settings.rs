@@ -1,8 +1,8 @@
 use std::io::{self, Write};
 
 use printnanny_services::error::ServiceError;
-use printnanny_services::settings::printnanny::PrintNannySettings;
-use printnanny_services::settings::SettingsFormat;
+use printnanny_settings::printnanny::PrintNannySettings;
+use printnanny_settings::SettingsFormat;
 
 pub struct SettingsCommand;
 

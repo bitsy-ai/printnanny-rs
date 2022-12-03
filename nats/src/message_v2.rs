@@ -2,7 +2,6 @@ use std::fmt::Debug;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use printnanny_services::settings::printnanny::PrintNannySettings;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -13,17 +12,19 @@ use printnanny_dbus::printnanny_asyncapi_models::{
     SettingsRevertReply, SettingsRevertRequest, SystemdManagerDisableUnitsReply,
     SystemdManagerDisableUnitsRequest, SystemdManagerEnableUnitsReply,
     SystemdManagerEnableUnitsRequest, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
-    SystemdManagerReloadUnitReply, SystemdManagerReloadUnitRequest, SystemdManagerRestartUnitReply,
-    SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
-    SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdUnitChange,
-    SystemdUnitChangeState,
+    SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply,
+    SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest,
+    SystemdUnitChange, SystemdUnitChangeState,
 };
 
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
-use printnanny_services::git2;
-use printnanny_services::settings::vcs::VersionControlledSettings;
+use printnanny_settings::git2;
+use printnanny_settings::printnanny::PrintNannySettings;
+use printnanny_settings::vcs::VersionControlledSettings;
+
+use printnanny_services::printnanny_api::ApiService;
 
 #[async_trait]
 pub trait NatsRequestHandler {
@@ -115,8 +116,8 @@ impl NatsRequest {
         &self,
         request: &PrintNannyCloudAuthRequest,
     ) -> Result<NatsReply> {
-        let settings = PrintNannySettings::new()?;
-        let result = settings
+        let api_service = ApiService::new()?;
+        let result = api_service
             .connect_cloud_account(request.api_url.clone(), request.api_token.clone())
             .await;
         let result = match result {
@@ -323,7 +324,6 @@ impl NatsRequest {
             SettingsApp::Octoprint => self.handle_octoprint_settings_load(request),
             SettingsApp::Moonraker => self.handle_moonraker_settings_load(request),
             SettingsApp::Klipper => self.handle_klipper_settings_load(request),
-            _ => todo!(),
         }
     }
 
@@ -333,7 +333,6 @@ impl NatsRequest {
             SettingsApp::Octoprint => self.handle_octoprint_settings_apply(request).await,
             SettingsApp::Moonraker => self.handle_moonraker_settings_apply(request).await,
             SettingsApp::Klipper => self.handle_klipper_settings_apply(request).await,
-            _ => todo!(),
         }
     }
 
@@ -346,7 +345,6 @@ impl NatsRequest {
             SettingsApp::Octoprint => self.handle_octoprint_settings_revert(request).await,
             SettingsApp::Moonraker => self.handle_moonraker_settings_revert(request).await,
             SettingsApp::Klipper => self.handle_klipper_settings_revert(request).await,
-            _ => todo!(),
         }
     }
 
@@ -560,7 +558,6 @@ impl NatsRequestHandler for NatsRequest {
             NatsRequest::SystemdManagerStopUnitRequest(request) => {
                 self.handle_stop_unit_request(request).await?
             }
-            _ => todo!(),
         };
 
         Ok(reply)
@@ -583,6 +580,7 @@ mod tests {
                 r#"
             [paths]
             settings_dir = "{output}/settings"
+            state_dir = "{output}/"
             log_dir = "{output}/log"
             "#,
                 output = &output
@@ -691,45 +689,44 @@ mod tests {
         })
     }
 
-    const OCTOPRINT_MODIFIED_SETTINGS: &str = r#"
-    ---
-    server:
-      commands:
-        systemShutdownCommand: sudo shutdown -h now
-        systemRestartCommand: sudo shutdown -r now
-        serverRestartCommand: sudo systemctl restart octoprint.service
-    
-    api:
-      disabled: true
-    
-    system:
-      actions:
-        - name: Start PrintNanny Cam
-          action: printnanny_cam_start
-          command: sudo systemctl restart printnanny-vision.service
-        - name: Stop PrintNanny Cam
-          action: printnanny_cam_stop
-          command: sudo systemctl stop printnanny-vision.service
-    events:
-      subscriptions:
-        - command: sudo systemctl start printnanny-vision.service
-          debug: false
-          event: plugin_octoprint_nanny_vision_start
-          type: system
-          enabled: true
-        - command: sudo systemctl stop printnanny-vision.service
-          enabled: true
-          debug: false
-          event: plugin_octoprint_nanny_vision_stop
-          type: system
-    
-    webcam:
-      stream: /printnanny-hls/playlist.m3u8
-    "#;
-
     #[cfg(feature = "systemd")]
     #[test]
     fn test_octoprint_settings_apply_load_revert() {
+        const OCTOPRINT_MODIFIED_SETTINGS: &str = r#"
+        ---
+        server:
+          commands:
+            systemShutdownCommand: sudo shutdown -h now
+            systemRestartCommand: sudo shutdown -r now
+            serverRestartCommand: sudo systemctl restart octoprint.service
+        
+        api:
+          disabled: true
+        
+        system:
+          actions:
+            - name: Start PrintNanny Cam
+              action: printnanny_cam_start
+              command: sudo systemctl restart printnanny-vision.service
+            - name: Stop PrintNanny Cam
+              action: printnanny_cam_stop
+              command: sudo systemctl stop printnanny-vision.service
+        events:
+          subscriptions:
+            - command: sudo systemctl start printnanny-vision.service
+              debug: false
+              event: plugin_octoprint_nanny_vision_start
+              type: system
+              enabled: true
+            - command: sudo systemctl stop printnanny-vision.service
+              enabled: true
+              debug: false
+              event: plugin_octoprint_nanny_vision_stop
+              type: system
+        
+        webcam:
+          stream: /printnanny-hls/playlist.m3u8
+        "#;
         figment::Jail::expect_with(|jail| {
             // init git repo in jail tmp dir
             make_settings_repo(jail);
@@ -798,43 +795,42 @@ mod tests {
         });
     }
 
-    const MOONRAKER_MODIFIED_SETTINGS: &str = r#"
-    # https://github.com/Arksine/moonraker/blob/master/docs/installation.md
-    [server]
-    host: 0.0.0.0
-    port: 7125
-    klippy_uds_address: /var/run/klipper/klippy.sock
-    
-    [machine]
-    validate_service: false
-    provider: systemd_dbus
-    
-    [authorization]
-    cors_domains:
-        https://my.mainsail.xyz
-        http://my.mainsail.xyz
-        http://*.local
-        http://*.lan
-    
-    trusted_clients:
-        10.0.0.0/8
-        127.0.0.0/8
-        169.254.0.0/16
-        172.16.0.0/12
-        192.168.0.0/16
-        FE80::/10
-        ::1/128
-    
-    # enables partial support of Octoprint API
-    [octoprint_compat]
-    
-    # enables moonraker to track and store print history.
-    [history]
-    "#;
-
     #[cfg(feature = "systemd")]
     #[test]
     fn test_moonraker_settings_apply_load_revert() {
+        const MOONRAKER_MODIFIED_SETTINGS: &str = r#"
+        # https://github.com/Arksine/moonraker/blob/master/docs/installation.md
+        [server]
+        host: 0.0.0.0
+        port: 7125
+        klippy_uds_address: /var/run/klipper/klippy.sock
+        
+        [machine]
+        validate_service: false
+        provider: systemd_dbus
+        
+        [authorization]
+        cors_domains:
+            https://my.mainsail.xyz
+            http://my.mainsail.xyz
+            http://*.local
+            http://*.lan
+        
+        trusted_clients:
+            10.0.0.0/8
+            127.0.0.0/8
+            169.254.0.0/16
+            172.16.0.0/12
+            192.168.0.0/16
+            FE80::/10
+            ::1/128
+        
+        # enables partial support of Octoprint API
+        [octoprint_compat]
+        
+        # enables moonraker to track and store print history.
+        [history]
+        "#;
         figment::Jail::expect_with(|jail| {
             // init git repo in jail tmp dir
             make_settings_repo(jail);

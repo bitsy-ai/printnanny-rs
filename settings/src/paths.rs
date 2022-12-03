@@ -10,7 +10,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use zip::ZipArchive;
 
 use super::error::PrintNannySettingsError;
-use super::os_release::OsRelease;
 
 pub const DEFAULT_PRINTNANNY_USER: &str = "printnanny";
 pub const PRINTNANNY_SETTINGS_FILENAME: &str = "printnanny.toml";
@@ -113,9 +112,6 @@ impl PrintNannyPaths {
 
     pub fn try_load_nats_creds(&self) -> Result<String, std::io::Error> {
         std::fs::read_to_string(self.cloud_nats_creds())
-    }
-    pub fn load_os_release(&self) -> Result<OsRelease, std::io::Error> {
-        OsRelease::new_from(&self.os_release)
     }
 
     // unpack license to credentials dir (defaults to /etc/printnanny/creds)

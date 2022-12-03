@@ -1,7 +1,8 @@
 use std::io::Read;
 use std::path::PathBuf;
 
-use super::error::PrintNannySettingsError;
+use printnanny_settings::error::PrintNannySettingsError;
+
 use super::error::ServiceError;
 use super::file::open;
 

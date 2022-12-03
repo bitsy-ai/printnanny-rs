@@ -4,11 +4,16 @@ use std::{io::Write, path::Path};
 use file_lock::{FileLock, FileOptions};
 use serde::{Deserialize, Serialize};
 
-use crate::settings::printnanny::PrintNannySettings;
+use crate::printnanny::PrintNannySettings;
 
 use super::error::PrintNannyCloudDataError;
-use super::printnanny_api::PrintNannyApiConfig;
 use printnanny_api_client::models;
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct PrintNannyApiConfig {
+    pub base_path: String,
+    pub bearer_access_token: Option<String>,
+}
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyCloudData {

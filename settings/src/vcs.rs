@@ -6,34 +6,10 @@ use git2::{DiffFormat, DiffOptions, Repository};
 use log::info;
 use printnanny_asyncapi_models::SettingsFile;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
-use printnanny_dbus::zbus;
-
-use crate::error::PrintNannyCloudDataError;
-use crate::error::PrintNannySettingsError;
-use crate::settings::printnanny::PrintNannySettings;
-use crate::settings::SettingsFormat;
-
-#[derive(Error, Debug)]
-pub enum VersionControlledSettingsError {
-    #[error("Failed to write {path} - {error}")]
-    WriteIOError { path: String, error: std::io::Error },
-    #[error("Failed to read {path} - {error}")]
-    ReadIOError { path: String, error: std::io::Error },
-    #[error("Failed to copy {src:?} to {dest:?} - {error}")]
-    CopyIOError {
-        src: PathBuf,
-        dest: PathBuf,
-        error: std::io::Error,
-    },
-    #[error(transparent)]
-    GitError(#[from] git2::Error),
-    #[error(transparent)]
-    ZbusError(#[from] zbus::Error),
-    #[error(transparent)]
-    PrintNannyCloudDataError(#[from] PrintNannyCloudDataError),
-}
+use crate::error::VersionControlledSettingsError;
+use crate::printnanny::PrintNannySettings;
+use crate::SettingsFormat;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct GitCommit {
@@ -91,7 +67,7 @@ pub trait VersionControlledSettings {
         let result = match fs::read_to_string(&settings_file) {
             Ok(d) => Ok(d),
             Err(e) => Err(VersionControlledSettingsError::ReadIOError {
-                path: (&settings_file.display()).to_string(),
+                path: (settings_file.display()).to_string(),
                 error: e,
             }),
         }?;
@@ -261,7 +237,7 @@ impl From<&printnanny_asyncapi_models::GitCommit> for GitCommit {
             oid: commit.oid.clone(),
             header: commit.header.clone(),
             message: commit.message.clone(),
-            ts: commit.ts.clone(),
+            ts: commit.ts,
         }
     }
 }
@@ -272,7 +248,7 @@ impl From<&GitCommit> for printnanny_asyncapi_models::GitCommit {
             oid: commit.oid.clone(),
             header: commit.header.clone(),
             message: commit.message.clone(),
-            ts: commit.ts.clone(),
+            ts: commit.ts,
         }
     }
 }

@@ -3,7 +3,6 @@ use bytes::Buf;
 use clap::{crate_authors, ArgMatches, Command};
 use futures::prelude::*;
 use log::{debug, error, info, warn};
-use printnanny_services::state::PrintNannyCloudData;
 use std::io::Read;
 use std::path::PathBuf;
 use tokio::net::{UnixListener, UnixStream};
@@ -12,7 +11,9 @@ use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
 use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
 use printnanny_services::error::NatsError;
-use printnanny_services::settings::printnanny::PrintNannySettings;
+
+use printnanny_settings::printnanny::PrintNannySettings;
+use printnanny_settings::state::PrintNannyCloudData;
 
 use crate::cloud_commands;
 use crate::util::to_nats_command_subscribe_subject;
@@ -204,15 +205,12 @@ impl NatsCloudWorker {
                         if msg.is_some() {
                             // if buffer is full, drop head event
                             if event_buffer.len() >= max_buffer_size {
-                                match event_buffer.split_first() {
-                                    Some((head, rest)) => {
-                                        let (subject, payload) = head;
-                                        let payload: PolymorphicPiEventRequest =
-                                            serde_json::from_slice(payload)?;
-                                        warn!("Event buffer is full (max size: {}). Dropping oldest event on subject={} payload={:?}", max_buffer_size, subject, payload);
-                                        event_buffer = rest.to_vec();
-                                    }
-                                    None => (),
+                                if let Some((head, rest)) = event_buffer.split_first() {
+                                    let (subject, payload) = head;
+                                    let payload: PolymorphicPiEventRequest =
+                                        serde_json::from_slice(payload)?;
+                                    warn!("Event buffer is full (max size: {}). Dropping oldest event on subject={} payload={:?}", max_buffer_size, subject, payload);
+                                    event_buffer = rest.to_vec();
                                 }
                             }
 

@@ -22,11 +22,12 @@
 // OUT OF OR
 
 use super::file::open;
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io::{self, prelude::*, BufReader};
 use std::iter::FromIterator;
 use std::path::Path;
+
+use serde::{Deserialize, Serialize};
 
 fn is_enclosed_with(line: &str, pattern: char) -> bool {
     line.starts_with(pattern) && line.ends_with(pattern)
@@ -134,6 +135,8 @@ impl FromIterator<String> for OsRelease {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use printnanny_settings::paths::PRINTNANNY_SETTINGS_FILENAME;
+    use printnanny_settings::printnanny::PrintNannySettings;
 
     const OTHER_EXAMPLE: &str = r#"PRETTY_NAME="Ubuntu 22.04 LTS"
 TESTING="newfield"
@@ -150,6 +153,48 @@ PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-poli
 UBUNTU_CODENAME=jammy
 "#;
 
+    #[test_log::test]
+    fn test_custom_os_release_path() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_file(
+                PRINTNANNY_SETTINGS_FILENAME,
+                r#"
+            [octoprint]
+            enabled = false
+            "#,
+            )?;
+            jail.create_file(
+                "os-release",
+                r#"
+ID=printnanny
+ID_LIKE="BitsyLinux"
+BUILD_ID="2022-06-18T18:46:49Z"
+NAME="PrintNanny Linux"
+VERSION="0.1.2 (Amber)"
+VERSION_ID=0.1.2
+PRETTY_NAME="PrintNanny Linux 0.1.2 (Amber)"
+DISTRO_CODENAME="Amber"
+HOME_URL="https://printnanny.ai"
+BUG_REPORT_URL="https://github.com/bitsy-ai/printnanny-os/issues"
+YOCTO_VERSION="4.0.1"
+YOCTO_CODENAME="Kirkstone"
+SDK_VERSION="0.1.2"
+VARIANT="PrintNanny OctoPrint Edition"
+VARIANT_ID=printnanny-octoprint
+            "#,
+            )?;
+            jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
+            jail.set_env(
+                "PRINTNANNY_SETTINGS_PATHS__OS_RELEASE",
+                format!("{:?}", jail.directory().join("os-release")),
+            );
+
+            let config = PrintNannySettings::new().unwrap();
+            let os_release = OsRelease::new_from(config.paths.os_release).unwrap();
+            assert_eq!("2022-06-18T18:46:49Z".to_string(), os_release.build_id);
+            Ok(())
+        });
+    }
     #[test]
     fn other_os_release() {
         let os_release = OsRelease::from_iter(OTHER_EXAMPLE.lines().map(|x| x.into()));

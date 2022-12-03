@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -8,23 +7,18 @@ use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
 use glob::glob;
-use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
-use crate::printnanny_api::ApiService;
-use printnanny_api_client::models;
-
-use crate::error::{PrintNannySettingsError, ServiceError};
+use crate::cam::PrintNannyCamSettings;
+use crate::error::{PrintNannySettingsError, VersionControlledSettingsError};
+use crate::klipper::KlipperSettings;
+use crate::mainsail::MainsailSettings;
+use crate::moonraker::MoonrakerSettings;
+use crate::octoprint::OctoPrintSettings;
 use crate::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
-use crate::settings::cam::PrintNannyCamSettings;
-use crate::settings::klipper::KlipperSettings;
-use crate::settings::mainsail::MainsailSettings;
-use crate::settings::moonraker::MoonrakerSettings;
-use crate::settings::octoprint::OctoPrintSettings;
-use crate::settings::vcs::{VersionControlledSettings, VersionControlledSettingsError};
-use crate::settings::SettingsFormat;
-use crate::state::PrintNannyCloudData;
+use crate::vcs::VersionControlledSettings;
+use crate::SettingsFormat;
 
 // FACTORY_RESET holds the struct field names of PrintNannyCloudConfig
 // each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
@@ -35,40 +29,6 @@ const DEFAULT_PRINTNANNY_SETTINGS_GIT_REMOTE: &str =
     "https://github.com/bitsy-ai/printnanny-settings.git";
 const DEFAULT_PRINTNANNY_SETTINGS_GIT_EMAIL: &str = "robots@printnanny.ai";
 const DEFAULT_PRINTNANNY_SETTINGS_GIT_NAME: &str = "PrintNanny";
-
-lazy_static! {
-    static ref DEFAULT_SYSTEMD_UNITS: HashMap<String, SystemdUnit> = {
-        let mut m = HashMap::new();
-
-        // printnanny-vision.service
-        m.insert(
-            "printnanny-vision.service".to_string(),
-            SystemdUnit {
-                unit: "printnanny-vision.service".to_string(),
-                enabled: true,
-            },
-        );
-
-        // octoprint.service
-        m.insert(
-            "octoprint.service".to_string(),
-            SystemdUnit {
-                unit: "octoprint.service".to_string(),
-                enabled: true,
-            },
-        );
-
-        // mainsail.service
-        m.insert(
-            "mainsail.service".to_string(),
-            SystemdUnit {
-                unit: "mansail.service".to_string(),
-                enabled: false,
-            },
-        );
-        m
-    };
-}
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NatsConfig {
@@ -200,49 +160,6 @@ impl PrintNannySettings {
         let figment = Self::figment()?;
         Ok(figment.find_value(key)?)
     }
-
-    pub async fn connect_cloud_account(
-        &self,
-        base_path: String,
-        bearer_access_token: String,
-    ) -> Result<(), ServiceError> {
-        let state_file = self.paths.state_file();
-        let state_lock = self.paths.state_lock();
-
-        let mut state = PrintNannyCloudData::load(&state_file)?;
-        state.api.base_path = base_path;
-        state.api.bearer_access_token = Some(bearer_access_token);
-
-        state.save(&state_file, &state_lock, true)?;
-
-        let mut api_service = ApiService::new()?;
-
-        // sync data models
-        api_service.sync().await?;
-        let mut state = PrintNannyCloudData::load(&self.paths.state_file())?;
-        let pi_id = state.pi.unwrap().id;
-        // download credential and device identity bundled in license.zip
-        api_service.pi_download_license(pi_id).await?;
-        // mark setup complete
-        let req = models::PatchedPiRequest {
-            setup_finished: Some(true),
-            // None values are skipped by serde serializer
-            sbc: None,
-            hostname: None,
-            fqdn: None,
-            favorite: None,
-        };
-        api_service.pi_partial_update(pi_id, req).await?;
-        let pi = api_service.pi_retrieve(pi_id).await?;
-        state.pi = Some(pi);
-        state.save(&self.paths.state_file(), &self.paths.state_lock(), true)?;
-        Ok(())
-    }
-
-    // pub async fn sync(&self) -> Result<(), ServiceError> {
-    //     let mut service = ApiService::new()?;
-    //     service.sync().await
-    // }
 
     // intended for use with Rocket's figmment
     pub fn from_figment(figment: Figment) -> Figment {
@@ -439,17 +356,13 @@ impl VersionControlledSettings for PrintNannySettings {
     type SettingsModel = PrintNannySettings;
     fn from_dir(settings_dir: &Path) -> Self {
         let settings_file = settings_dir.join("printnanny/printnanny.toml");
-        let result = PrintNannySettings::from_toml(settings_file).unwrap();
-        result
+        PrintNannySettings::from_toml(settings_file).unwrap()
     }
     fn get_settings_format(&self) -> SettingsFormat {
         SettingsFormat::Toml
     }
     fn get_settings_file(&self) -> PathBuf {
-        self.paths
-            .settings_dir
-            .join("printnanny/printnanny.toml")
-            .into()
+        self.paths.settings_dir.join("printnanny/printnanny.toml")
     }
     async fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {
         debug!("Running PrintNannySettings pre_save hook");
@@ -638,49 +551,6 @@ mod tests {
                 .unwrap()
                 .into_string();
             assert_eq!(value, expected);
-            Ok(())
-        });
-    }
-
-    #[test_log::test]
-    fn test_os_release() {
-        figment::Jail::expect_with(|jail| {
-            jail.create_file(
-                PRINTNANNY_SETTINGS_FILENAME,
-                r#"
-                [octoprint]
-                enabled = false
-                "#,
-            )?;
-            jail.create_file(
-                "os-release",
-                r#"
-ID=printnanny
-ID_LIKE="BitsyLinux"
-BUILD_ID="2022-06-18T18:46:49Z"
-NAME="PrintNanny Linux"
-VERSION="0.1.2 (Amber)"
-VERSION_ID=0.1.2
-PRETTY_NAME="PrintNanny Linux 0.1.2 (Amber)"
-DISTRO_CODENAME="Amber"
-HOME_URL="https://printnanny.ai"
-BUG_REPORT_URL="https://github.com/bitsy-ai/printnanny-os/issues"
-YOCTO_VERSION="4.0.1"
-YOCTO_CODENAME="Kirkstone"
-SDK_VERSION="0.1.2"
-VARIANT="PrintNanny OctoPrint Edition"
-VARIANT_ID=printnanny-octoprint
-                "#,
-            )?;
-            jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
-            jail.set_env(
-                "PRINTNANNY_SETTINGS_PATHS__OS_RELEASE",
-                format!("{:?}", jail.directory().join("os-release")),
-            );
-
-            let config = PrintNannySettings::new().unwrap();
-            let os_release = config.paths.load_os_release().unwrap();
-            assert_eq!("2022-06-18T18:46:49Z".to_string(), os_release.build_id);
             Ok(())
         });
     }

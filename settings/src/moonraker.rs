@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::default::Default;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 
@@ -10,8 +11,9 @@ use serde::{Deserialize, Serialize};
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
-use super::vcs::{VersionControlledSettings, VersionControlledSettingsError};
-use crate::settings::SettingsFormat;
+use crate::error::VersionControlledSettingsError;
+use crate::vcs::VersionControlledSettings;
+use crate::SettingsFormat;
 
 pub const MOONRAKER_INSTALL_DIR: &str = "/home/printnanny/.moonraker";
 pub const MOONRAKER_VENV: &str = "/home/printnanny/moonraker-venv";
@@ -128,7 +130,7 @@ impl Default for MoonrakerDataStoreSettings {
 
 // Moonraker job queue
 // https://moonraker.readthedocs.io/en/latest/configuration/#job_queue
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct MoonrakerJobQueueSettings {
     pub load_on_startup: bool,
     pub automatic_transition: bool,
@@ -138,32 +140,12 @@ pub struct MoonrakerJobQueueSettings {
     pub job_transition_gcode: Option<String>,
 }
 
-impl Default for MoonrakerJobQueueSettings {
-    fn default() -> Self {
-        Self {
-            load_on_startup: false,
-            automatic_transition: false,
-            job_transition_delay: None,
-            job_transition_gcode: None,
-        }
-    }
-}
-
 // Moonraker announcements
 // https://moonraker.readthedocs.io/en/latest/configuration/#announcements
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct MoonrakerAnnouncementSettings {
     pub subscriptions: Vec<String>,
     pub dev_mode: bool,
-}
-
-impl Default for MoonrakerAnnouncementSettings {
-    fn default() -> Self {
-        Self {
-            subscriptions: vec![],
-            dev_mode: false,
-        }
-    }
 }
 
 // Moonraker webcam
