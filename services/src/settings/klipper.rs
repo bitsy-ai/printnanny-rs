@@ -11,9 +11,9 @@ use super::moonraker::MOONRAKER_VENV;
 use crate::settings::vcs::{VersionControlledSettings, VersionControlledSettingsError};
 use crate::settings::SettingsFormat;
 
-pub const KLIPPER_INSTALL_DIR: &str = "/var/lib/klipper";
-// /var/lib/printnanny/settings contains a local git repo used to commit/revert changes to settings
-pub const KLIPPER_SETTINGS_FILE: &str = "/var/lib/printnanny/settings/klipper/printer.cfg";
+pub const KLIPPER_INSTALL_DIR: &str = "/home/printnanny/.klipper";
+pub const KLIPPER_SETTINGS_FILE: &str =
+    "/home/printnanny/.config/printnanny/settings/klipper/printer.cfg";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KlipperSettings {

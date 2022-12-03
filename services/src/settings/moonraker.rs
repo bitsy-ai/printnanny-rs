@@ -13,10 +13,10 @@ use printnanny_dbus::zbus_systemd;
 use super::vcs::{VersionControlledSettings, VersionControlledSettingsError};
 use crate::settings::SettingsFormat;
 
-pub const MOONRAKER_INSTALL_DIR: &str = "/var/lib/moonraker";
-pub const MOONRAKER_VENV: &str = "/var/lib/moonraker/venv";
+pub const MOONRAKER_INSTALL_DIR: &str = "/home/printnanny/.moonraker";
+pub const MOONRAKER_VENV: &str = "/home/printnanny/moonraker-venv";
 pub const DEFAULT_MOONRAKER_SETTINGS_FILE: &str =
-    "/var/lib/printnanny/settings/moonraker/moonraker.conf";
+    "/home/printnanny/.config/printnanny/setttings/moonraker/moonraker.conf";
 
 // Moonraker server config
 // https://moonraker.readthedocs.io/en/latest/configuration/#server

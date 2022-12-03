@@ -13,10 +13,10 @@ use crate::error::PrintNannySettingsError;
 use crate::settings::vcs::{VersionControlledSettings, VersionControlledSettingsError};
 use crate::settings::SettingsFormat;
 
-pub const OCTOPRINT_INSTALL_DIR: &str = "/var/lib/octoprint";
-pub const OCTOPRINT_VENV: &str = "/var/lib/octoprint/venv";
+pub const OCTOPRINT_INSTALL_DIR: &str = "/home/printnanny/.octoprint";
+pub const OCTOPRINT_VENV: &str = "/home/printnanny/octoprint.venv";
 pub const DEFAULT_OCTOPRINT_SETTINGS_FILE: &str =
-    "/var/lib/printnanny/settings/octoprint/octoprint.yaml";
+    "/home/printnanny/.config/printnanny/settings/octoprint/octoprint.yaml";
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PipPackage {
