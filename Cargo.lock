@@ -850,7 +850,6 @@ dependencies = [
  "pear",
  "serde 1.0.137",
  "serde_json",
- "serde_yaml",
  "tempfile",
  "toml",
  "uncased",
@@ -2221,7 +2220,6 @@ dependencies = [
  "async-trait",
  "bytes",
  "chrono",
- "clap",
  "config",
  "console",
  "dialoguer",
@@ -2246,9 +2244,6 @@ dependencies = [
  "rand",
  "reqwest",
  "rustls 0.19.1",
- "serde 1.0.137",
- "serde_json",
- "serde_with",
  "sha2",
  "sys-info",
  "sysinfo",
@@ -2259,7 +2254,6 @@ dependencies = [
  "tokio-rustls 0.22.0",
  "tokio-serde",
  "tokio-util 0.7.4",
- "toml",
  "warp",
  "zip",
 ]
@@ -2820,18 +2814,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "serde_yaml"
-version = "0.8.26"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "578a7433b776b56a35785ed5ce9a7e777ac0598aac5a6dd1b4b18a307c7fc71b"
-dependencies = [
- "indexmap",
- "ryu",
- "serde 1.0.137",
- "yaml-rust",
 ]
 
 [[package]]

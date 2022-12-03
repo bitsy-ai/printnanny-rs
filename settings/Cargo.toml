@@ -1,0 +1,18 @@
+[package]
+name = "printnanny-settings"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
+figment = { version = "0.10", features = ["env", "json", "toml", "yaml"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.5"
+
+[dev-dependencies]
+predicates = "2"
+figment = { version = "0.10", features = ["env", "json", "toml", "test"] }
+test-log = "0.2"

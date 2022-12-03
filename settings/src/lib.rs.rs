@@ -6,6 +6,13 @@ pub mod octoprint;
 pub mod printnanny;
 pub mod vcs;
 
+// re-export crates
+pub use clap;
+pub use figment;
+pub use serde;
+pub use serde_json;
+pub use toml;
+
 use clap::{ArgEnum, PossibleValue};
 use serde::{Deserialize, Serialize};
 
