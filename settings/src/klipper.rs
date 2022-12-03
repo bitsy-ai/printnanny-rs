@@ -13,6 +13,7 @@ use crate::vcs::VersionControlledSettings;
 use crate::SettingsFormat;
 
 pub const KLIPPER_INSTALL_DIR: &str = "/home/printnanny/.klipper";
+pub const KLIPPER_VENV: &str = "/home/printnanny/klipper-venv";
 pub const KLIPPER_SETTINGS_FILE: &str =
     "/home/printnanny/.config/printnanny/settings/klipper/printer.cfg";
 
@@ -33,7 +34,7 @@ impl Default for KlipperSettings {
             settings_file,
             install_dir,
             enabled: false,
-            venv: MOONRAKER_VENV.into(), // klipper shares moonraker virtual environment
+            venv: KLIPPER_VENV.into(), // klipper shares moonraker virtual environment
             settings_format: SettingsFormat::Ini,
         }
     }
