@@ -1119,6 +1119,19 @@ mod tests {
     #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_stop_unit_ok() {
+        let request =
+            NatsRequest::SystemdManagerEnableUnitsRequest(SystemdManagerEnableUnitsRequest {
+                files: vec!["octoprint.service".into()],
+            });
+        let natsreply = request.handle().await.unwrap();
+        if let NatsReply::SystemdManagerEnableUnitsReply(reply) = natsreply {
+            // unit may already be in an enabled state
+            assert!(reply.changes.len() == 1 || reply.changes.len() == 0);
+        } else {
+            panic!("Expected NatsReply::SystemdManagerEnableUnitReply")
+        }
+        request.handle().await.unwrap();
+
         let request = NatsRequest::SystemdManagerStopUnitRequest(SystemdManagerStopUnitRequest {
             unit_name: "octoprint.service".into(),
         });

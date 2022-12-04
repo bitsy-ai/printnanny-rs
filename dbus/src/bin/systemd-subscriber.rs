@@ -1,4 +1,4 @@
-// use anyhow::Result;
+use anyhow::Result;
 // use env_logger;
 // use log::info;
 // use zbus::export::futures_util::{future::try_join_all, StreamExt};
@@ -49,8 +49,10 @@
 //     Ok(())
 // }
 
-// #[tokio::main]
-// async fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
+    Ok(())
+}
 //     env_logger::init();
 
 //     let connection = zbus::Connection::system().await?;
