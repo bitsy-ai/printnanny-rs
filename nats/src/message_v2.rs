@@ -2,6 +2,8 @@ use std::fmt::Debug;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use bytes::Bytes;
+use printnanny_services::metadata::system_info;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -25,21 +27,18 @@ use printnanny_settings::printnanny::PrintNannySettings;
 use printnanny_settings::vcs::VersionControlledSettings;
 
 use printnanny_services::printnanny_api::ApiService;
+use printnanny_settings::sys_info;
 
 #[async_trait]
 pub trait NatsRequestHandler {
     type Request: Serialize + DeserializeOwned + Clone + Debug + NatsRequestHandler;
-    type Reply: Serialize + DeserializeOwned + Clone + Debug + NatsReplyBuilder;
+    type Reply: Serialize + DeserializeOwned + Clone + Debug;
 
+    fn replace_subject_pattern(subject: &str, pattern: &str, replace: &str) -> String {
+        subject.replace(pattern, replace)
+    }
+    fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Request>;
     async fn handle(&self) -> Result<Self::Reply>;
-}
-
-#[async_trait]
-pub trait NatsReplyBuilder {
-    type Request: Serialize + DeserializeOwned + Clone + Debug + NatsRequestHandler;
-    type Reply: Serialize + DeserializeOwned + Clone + Debug + NatsReplyBuilder;
-
-    // async fn build_reply(&self, request: Self::Request) -> Result<Self::Reply>;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -57,18 +56,18 @@ pub enum NatsRequest {
     // pi.{pi}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
     SystemdManagerDisableUnitsRequest(SystemdManagerDisableUnitsRequest),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
+    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
     SystemdManagerEnableUnitsRequest(SystemdManagerEnableUnitsRequest),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
+    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
     SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest),
     // TODO: : Job type reload is not applicable for unit octoprint.service.
     // #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
     // SystemdManagerReloadUnitRequest(SystemdManagerReloadUnitRequest),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
+    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
     SystemdManagerRestartUnitRequest(SystemdManagerRestartUnitRequest),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
+    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
     SystemdManagerStartUnitRequest(SystemdManagerStartUnitRequest),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
+    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
     SystemdManagerStopUnitRequest(SystemdManagerStopUnitRequest),
 }
 
@@ -85,29 +84,21 @@ pub enum NatsReply {
     SettingsRevertReply(SettingsRevertReply),
 
     // pi.{pi}.dbus.org.freedesktop.systemd1.*
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
+    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
     SystemdManagerDisableUnitsReply(SystemdManagerDisableUnitsReply),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
+    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
     SystemdManagerEnableUnitsReply(SystemdManagerEnableUnitsReply),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
+    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
     SystemdManagerGetUnitReply(SystemdManagerGetUnitReply),
     // TODO: : Job type reload is not applicable for unit octoprint.service.
     // #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
     // SystemdManagerReloadUnitReply(SystemdManagerReloadUnitReply),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
+    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
     SystemdManagerRestartUnitReply(SystemdManagerRestartUnitReply),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
+    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
     SystemdManagerStartUnitReply(SystemdManagerStartUnitReply),
-    #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
+    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
     SystemdManagerStopUnitReply(SystemdManagerStopUnitReply),
-}
-
-#[async_trait]
-impl NatsReplyBuilder for NatsReply {
-    type Request = NatsRequest;
-    type Reply = NatsReply;
-
-    // async fn build_reply(&self, request: Self::Request) -> Result<Self::Reply> {}
 }
 
 impl NatsRequest {
@@ -526,6 +517,57 @@ impl NatsRequestHandler for NatsRequest {
     type Request = NatsRequest;
     type Reply = NatsReply;
 
+    fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Request> {
+        let request = match subject_pattern {
+            "pi.{pi}.settings.printnanny.cloud.auth" => {
+                NatsRequest::PrintNannyCloudAuthRequest(serde_json::from_slice::<
+                    PrintNannyCloudAuthRequest,
+                >(payload.as_ref())?)
+            }
+            "pi.{pi}.settings.vcs.load" => NatsRequest::SettingsLoadRequest(
+                serde_json::from_slice::<SettingsLoadRequest>(payload.as_ref())?,
+            ),
+            "pi.{pi}.settings.vcs.apply" => NatsRequest::SettingsApplyRequest(
+                serde_json::from_slice::<SettingsApplyRequest>(payload.as_ref())?,
+            ),
+            "pi.{pi}.settings.vcs.revert" => NatsRequest::SettingsRevertRequest(
+                serde_json::from_slice::<SettingsRevertRequest>(payload.as_ref())?,
+            ),
+            "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.DisableUnit" => {
+                NatsRequest::SystemdManagerDisableUnitsRequest(serde_json::from_slice::<
+                    SystemdManagerDisableUnitsRequest,
+                >(payload.as_ref())?)
+            }
+            "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.EnableUnit" => {
+                NatsRequest::SystemdManagerEnableUnitsRequest(serde_json::from_slice::<
+                    SystemdManagerEnableUnitsRequest,
+                >(payload.as_ref())?)
+            }
+            "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.GetUnit" => {
+                NatsRequest::SystemdManagerGetUnitRequest(serde_json::from_slice::<
+                    SystemdManagerGetUnitRequest,
+                >(payload.as_ref())?)
+            }
+            "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.RestartUnit" => {
+                NatsRequest::SystemdManagerRestartUnitRequest(serde_json::from_slice::<
+                    SystemdManagerRestartUnitRequest,
+                >(payload.as_ref())?)
+            }
+            "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.StartUnit" => {
+                NatsRequest::SystemdManagerStartUnitRequest(serde_json::from_slice::<
+                    SystemdManagerStartUnitRequest,
+                >(payload.as_ref())?)
+            }
+            "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.StopUnit" => {
+                NatsRequest::SystemdManagerStopUnitRequest(serde_json::from_slice::<
+                    SystemdManagerStopUnitRequest,
+                >(payload.as_ref())?)
+            }
+        };
+
+        Ok(request)
+    }
+
     async fn handle(&self) -> Result<Self::Reply> {
         let reply = match self {
             // pi.{pi}.settings.*
@@ -593,6 +635,19 @@ mod tests {
             .unwrap()
             .block_on(settings.init_local_git_repo())
             .unwrap();
+    }
+
+    #[test]
+    fn test_replace_subject_pattern() {
+        let subject = NatsRequest::replace_subject_pattern(
+            "pi.localhost.dbus.org.freedesktop.systemd1.Manager.GetUnit",
+            "localhost",
+            "{pi}",
+        );
+        assert_eq!(
+            subject,
+            "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.GetUnit"
+        )
     }
 
     #[test]

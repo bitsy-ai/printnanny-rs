@@ -6,6 +6,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct RequestErrorMsg<Request: Serialize + Debug> {
+    pub subject: String,
     pub request: Request,
     pub msg: String,
 }
