@@ -988,6 +988,10 @@ mod tests {
         if let NatsReply::SystemdManagerEnableUnitsReply(reply) = natsreply {
             // unit may already be in an enabled state
             assert!(reply.changes.len() == 1 || reply.changes.len() == 0);
+            assert_eq!(
+                *(*reply.unit).unit_file_state,
+                printnanny_asyncapi_models::SystemdUnitFileState::Enabled
+            );
         } else {
             panic!("Expected NatsReply::SystemdManagerEnableUnitReply")
         }
@@ -1002,20 +1006,6 @@ mod tests {
             assert_eq!(reply.changes.len(), 1);
         } else {
             panic!("Expected NatsReply::SystemdManagerDisableUnitReply")
-        }
-
-        // assert unit GetUnitRequest returns disabled state
-        let request = NatsRequest::SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest {
-            unit_name: "octoprint.service".into(),
-        });
-        let reply = request.handle().await.unwrap();
-        if let NatsReply::SystemdManagerGetUnitReply(reply) = reply {
-            assert_eq!(
-                *(*reply.unit).unit_file_state,
-                printnanny_asyncapi_models::SystemdUnitFileState::Disabled
-            );
-        } else {
-            panic!("Expected NatsReply::SystemdManagerGetUnitRepl")
         }
     }
 
