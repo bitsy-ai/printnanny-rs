@@ -2141,9 +2141,13 @@ dependencies = [
 name = "printnanny-dbus"
 version = "0.2.0"
 dependencies = [
+ "anyhow",
  "async-trait",
+ "env_logger",
+ "log",
  "printnanny-asyncapi-models",
  "serde 1.0.148",
+ "tokio",
  "zbus",
  "zbus_systemd",
 ]
