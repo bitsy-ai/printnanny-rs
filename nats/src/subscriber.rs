@@ -51,11 +51,7 @@ where
         + Debug
         + NatsRequestHandler<Request = Request>
         + NatsRequestHandler<Reply = Reply>,
-    Reply: Serialize
-        + DeserializeOwned
-        + Debug
-        + NatsRequestHandler<Request = Request>
-        + NatsRequestHandler<Reply = Reply>,
+    Reply: Serialize + DeserializeOwned + Debug,
 {
     pub fn clap_command(app_name: Option<String>) -> Command<'static> {
         let app_name = app_name.unwrap_or_else(|| DEFAULT_NATS_EDGE_APP_NAME.to_string());

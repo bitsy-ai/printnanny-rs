@@ -1,8 +1,9 @@
 use std::fmt::Debug;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
+use log::info;
 use printnanny_services::metadata::system_info;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -368,6 +369,10 @@ impl NatsRequest {
                 },
             )
             .collect();
+        info!(
+            "Disabled units: {:?} - changes: {:?}",
+            request.files, changes
+        );
         Ok(NatsReply::SystemdManagerDisableUnitsReply(
             SystemdManagerDisableUnitsReply { changes },
         ))
@@ -404,6 +409,11 @@ impl NatsRequest {
                 },
             )
             .collect();
+        info!(
+            "Enabled units: {:?} - changes: {:?}",
+            request.files, changes
+        );
+
         Ok(NatsReply::SystemdManagerEnableUnitsReply(
             SystemdManagerEnableUnitsReply { changes },
         ))
@@ -518,54 +528,64 @@ impl NatsRequestHandler for NatsRequest {
     type Reply = NatsReply;
 
     fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Request> {
-        let request = match subject_pattern {
+        match subject_pattern {
             "pi.{pi}.settings.printnanny.cloud.auth" => {
-                NatsRequest::PrintNannyCloudAuthRequest(serde_json::from_slice::<
-                    PrintNannyCloudAuthRequest,
-                >(payload.as_ref())?)
+                Ok(NatsRequest::PrintNannyCloudAuthRequest(
+                    serde_json::from_slice::<PrintNannyCloudAuthRequest>(payload.as_ref())?,
+                ))
             }
-            "pi.{pi}.settings.vcs.load" => NatsRequest::SettingsLoadRequest(
-                serde_json::from_slice::<SettingsLoadRequest>(payload.as_ref())?,
-            ),
-            "pi.{pi}.settings.vcs.apply" => NatsRequest::SettingsApplyRequest(
-                serde_json::from_slice::<SettingsApplyRequest>(payload.as_ref())?,
-            ),
-            "pi.{pi}.settings.vcs.revert" => NatsRequest::SettingsRevertRequest(
+            "pi.{pi}.settings.vcs.load" => {
+                Ok(NatsRequest::SettingsLoadRequest(serde_json::from_slice::<
+                    SettingsLoadRequest,
+                >(
+                    payload.as_ref()
+                )?))
+            }
+            "pi.{pi}.settings.vcs.apply" => {
+                Ok(NatsRequest::SettingsApplyRequest(serde_json::from_slice::<
+                    SettingsApplyRequest,
+                >(
+                    payload.as_ref()
+                )?))
+            }
+            "pi.{pi}.settings.vcs.revert" => Ok(NatsRequest::SettingsRevertRequest(
                 serde_json::from_slice::<SettingsRevertRequest>(payload.as_ref())?,
-            ),
+            )),
             "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.DisableUnit" => {
-                NatsRequest::SystemdManagerDisableUnitsRequest(serde_json::from_slice::<
-                    SystemdManagerDisableUnitsRequest,
-                >(payload.as_ref())?)
+                Ok(NatsRequest::SystemdManagerDisableUnitsRequest(
+                    serde_json::from_slice::<SystemdManagerDisableUnitsRequest>(payload.as_ref())?,
+                ))
             }
             "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.EnableUnit" => {
-                NatsRequest::SystemdManagerEnableUnitsRequest(serde_json::from_slice::<
-                    SystemdManagerEnableUnitsRequest,
-                >(payload.as_ref())?)
+                Ok(NatsRequest::SystemdManagerEnableUnitsRequest(
+                    serde_json::from_slice::<SystemdManagerEnableUnitsRequest>(payload.as_ref())?,
+                ))
             }
             "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.GetUnit" => {
-                NatsRequest::SystemdManagerGetUnitRequest(serde_json::from_slice::<
-                    SystemdManagerGetUnitRequest,
-                >(payload.as_ref())?)
+                Ok(NatsRequest::SystemdManagerGetUnitRequest(
+                    serde_json::from_slice::<SystemdManagerGetUnitRequest>(payload.as_ref())?,
+                ))
             }
             "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.RestartUnit" => {
-                NatsRequest::SystemdManagerRestartUnitRequest(serde_json::from_slice::<
-                    SystemdManagerRestartUnitRequest,
-                >(payload.as_ref())?)
+                Ok(NatsRequest::SystemdManagerRestartUnitRequest(
+                    serde_json::from_slice::<SystemdManagerRestartUnitRequest>(payload.as_ref())?,
+                ))
             }
             "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.StartUnit" => {
-                NatsRequest::SystemdManagerStartUnitRequest(serde_json::from_slice::<
-                    SystemdManagerStartUnitRequest,
-                >(payload.as_ref())?)
+                Ok(NatsRequest::SystemdManagerStartUnitRequest(
+                    serde_json::from_slice::<SystemdManagerStartUnitRequest>(payload.as_ref())?,
+                ))
             }
             "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.StopUnit" => {
-                NatsRequest::SystemdManagerStopUnitRequest(serde_json::from_slice::<
-                    SystemdManagerStopUnitRequest,
-                >(payload.as_ref())?)
+                Ok(NatsRequest::SystemdManagerStopUnitRequest(
+                    serde_json::from_slice::<SystemdManagerStopUnitRequest>(payload.as_ref())?,
+                ))
             }
-        };
-
-        Ok(request)
+            _ => Err(anyhow!(
+                "NATS message handler not implemented for subject pattern {}",
+                subject_pattern
+            )),
+        }
     }
 
     async fn handle(&self) -> Result<Self::Reply> {
