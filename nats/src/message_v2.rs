@@ -373,6 +373,8 @@ impl NatsRequest {
             "Disabled units: {:?} - changes: {:?}",
             request.files, changes
         );
+        proxy.reload().await?;
+
         Ok(NatsReply::SystemdManagerDisableUnitsReply(
             SystemdManagerDisableUnitsReply { changes },
         ))
@@ -413,6 +415,7 @@ impl NatsRequest {
             "Enabled units: {:?} - changes: {:?}",
             request.files, changes
         );
+        proxy.reload().await?;
 
         Ok(NatsReply::SystemdManagerEnableUnitsReply(
             SystemdManagerEnableUnitsReply { changes },
