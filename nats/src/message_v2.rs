@@ -988,10 +988,6 @@ mod tests {
         if let NatsReply::SystemdManagerEnableUnitsReply(reply) = natsreply {
             // unit may already be in an enabled state
             assert!(reply.changes.len() == 1 || reply.changes.len() == 0);
-            assert_eq!(
-                *(*reply.unit).unit_file_state,
-                printnanny_asyncapi_models::SystemdUnitFileState::Enabled
-            );
         } else {
             panic!("Expected NatsReply::SystemdManagerEnableUnitReply")
         }
