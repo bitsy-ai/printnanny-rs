@@ -27,6 +27,7 @@ where
 {
     subject: String,
     nats_server_uri: String,
+    hostname: String,
     require_tls: bool,
     nats_creds: Option<PathBuf>,
     _request: PhantomData<Request>,
@@ -71,6 +72,7 @@ where
                     .takes_value(true)
                     .default_value(DEFAULT_NATS_URI),
             )
+            .arg(Arg::new("hostname").long("hostname").takes_value(true))
             .arg(Arg::new("nats_creds").long("nats-creds").takes_value(true))
             .arg(
                 Arg::new("socket")
@@ -99,7 +101,11 @@ where
         let nats_creds = args.value_of("nats_creds");
         let nats_creds = nats_creds.map(PathBuf::from);
 
+        let system_hostname = sys_info::hostname().unwrap_or("localhost".into());
+        let hostname = args.value_of("hostname").unwrap_or(&system_hostname).into();
+
         Self {
+            hostname,
             subject: subject.to_string(),
             nats_server_uri: nats_server_uri.to_string(),
             nats_creds,
@@ -132,15 +138,14 @@ where
             "Listening on {} where subject={}",
             &self.nats_server_uri, &self.subject
         );
-        let hostname = sys_info::hostname().unwrap();
         while let Some(message) = subscriber.next().await {
             debug!("Received NATS Message: {:?}", message);
 
             let subject_pattern =
-                Request::replace_subject_pattern(&message.subject, &hostname, "{pi}");
+                Request::replace_subject_pattern(&message.subject, &self.hostname, "{pi}");
             debug!(
-                "Extracted subject_pattern {} from subject {}",
-                &subject_pattern, &message.subject
+                "Extracted subject_pattern {} from subject {} using hostname {}",
+                &subject_pattern, &message.subject, &self.hostname
             );
             let request = Request::deserialize_payload(&subject_pattern, &message.payload)?;
             let res = match request.handle().await {
