@@ -41,6 +41,7 @@ async fn main() -> Result<()> {
         "printnanny-nats-server.service".into(),
         "printnanny-dash.service".into(),
         "syncthing@printnanny.service".into(),
+        "tailscaled.service".into(),
     ];
 
     let units = proxy.list_units_by_names(unit_names.to_vec()).await?;
