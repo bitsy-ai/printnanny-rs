@@ -7,6 +7,7 @@ use futures_util::StreamExt;
 use git_version::git_version;
 use log::LevelFilter;
 use log::{info, warn};
+use printnanny_dbus::printnanny_asyncapi_models::SystemdUnitActiveState;
 use tokio::time::{sleep, Duration};
 
 use printnanny_dbus;
@@ -14,15 +15,38 @@ use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
 use printnanny_settings::printnanny_asyncapi_models::{
-    SystemdUnit, SystemdUnitActiveStateChanged, SystemdUnitFileStateChanged,
+    SystemdUnit, SystemdUnitActiveStateChanged, SystemdUnitFileState, SystemdUnitFileStateChanged,
 };
+use printnanny_settings::sys_info;
 
 use printnanny_nats::client::try_init_nats_client;
 
 const DEFAULT_NATS_URI: &str = "nats://localhost:4223";
 const GIT_VERSION: &str = git_version!();
 
-async fn receive_active_state_change(unit_name: String) -> Result<()> {
+async fn receive_active_state_change(
+    unit_name: String,
+    nats_server_uri: String,
+    nats_creds: Option<PathBuf>,
+) -> Result<()> {
+    let mut nats_client: Option<async_nats::Client> = None;
+    let hostname = sys_info::hostname()?;
+    let subject = format!("pi.{}.dbus.org.freedesktop.systemd1.Unit", &hostname);
+    while nats_client.is_none() {
+        match try_init_nats_client(&nats_server_uri, nats_creds.clone(), false).await {
+            Ok(nc) => {
+                nats_client = Some(nc);
+            }
+            Err(_) => {
+                warn!(
+                    "Waiting for NATS server to be available before initializing dbus subscriber threads"
+                );
+                sleep(Duration::from_millis(2000)).await;
+            }
+        }
+    }
+    let nats_client = nats_client.unwrap();
+
     let connection = zbus::Connection::system().await?;
     let manager = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
     let unit_path = manager.get_unit(unit_name.to_string()).await?;
@@ -30,7 +54,7 @@ async fn receive_active_state_change(unit_name: String) -> Result<()> {
     let mut stream = unit_proxy.receive_active_state_changed().await;
     info!("Subscribed to {} ActiveState changes", unit_name);
 
-    let tasks = while let Some(change) = stream.next().await {
+    while let Some(change) = stream.next().await {
         let result = change.get().await?;
         info!("{} ActiveState changed to {:?}", unit_name, &result);
         let unit = printnanny_dbus::systemd1::models::SystemdUnit::from_owned_object_path(
@@ -38,22 +62,90 @@ async fn receive_active_state_change(unit_name: String) -> Result<()> {
         )
         .await?;
         let unit = SystemdUnit::from(unit);
-    };
+        let active_state = match result.as_str() {
+            "active" => SystemdUnitActiveState::Active,
+            "activating" => SystemdUnitActiveState::Activating,
+            "deactivating" => SystemdUnitActiveState::Deactivating,
+            "inactive" => SystemdUnitActiveState::Inactive,
+            "reloading" => SystemdUnitActiveState::Reloading,
+            "loaded" => SystemdUnitActiveState::Loaded,
+            _ => unimplemented!(
+                "receive_active_state_change is not implemented for state: {}",
+                &result
+            ),
+        };
+        let payload = SystemdUnitActiveStateChanged {
+            unit: Box::new(unit),
+            active_state: Box::new(active_state),
+        };
+        nats_client
+            .publish(subject.clone(), serde_json::to_vec(&payload)?.into())
+            .await?;
+    }
     Ok(())
 }
 
-async fn receive_unit_file_state_change(unit_name: String) -> Result<()> {
+async fn receive_unit_file_state_change(
+    unit_name: String,
+    nats_server_uri: String,
+    nats_creds: Option<PathBuf>,
+) -> Result<()> {
+    let mut nats_client: Option<async_nats::Client> = None;
+    let hostname = sys_info::hostname()?;
+    let subject = format!("pi.{}.dbus.org.freedesktop.systemd1.Unit", &hostname);
+    while nats_client.is_none() {
+        match try_init_nats_client(&nats_server_uri, nats_creds.clone(), false).await {
+            Ok(nc) => {
+                nats_client = Some(nc);
+            }
+            Err(_) => {
+                warn!(
+                    "Waiting for NATS server to be available before initializing dbus subscriber threads"
+                );
+                sleep(Duration::from_millis(2000)).await;
+            }
+        }
+    }
+    let nats_client = nats_client.unwrap();
+
     let connection = zbus::Connection::system().await?;
     let manager = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
     let unit_path = manager.get_unit(unit_name.to_string()).await?;
-    let unit_proxy = zbus_systemd::systemd1::UnitProxy::new(&connection, unit_path).await?;
+    let unit_proxy = zbus_systemd::systemd1::UnitProxy::new(&connection, unit_path.clone()).await?;
     let mut stream = unit_proxy.receive_unit_file_state_changed().await;
     info!("Subscribed to {} UnitFileState changes", unit_name);
 
-    let tasks = vec![while let Some(change) = stream.next().await {
+    while let Some(change) = stream.next().await {
         let result = change.get().await?;
-        info!("Received signal: {:?}", result);
-    }];
+        info!("{} UnitFileState changed to {:?}", unit_name, &result);
+        let unit = printnanny_dbus::systemd1::models::SystemdUnit::from_owned_object_path(
+            unit_path.clone(),
+        )
+        .await?;
+        let unit = SystemdUnit::from(unit);
+        let active_state = match result.as_str() {
+            "enabled" => SystemdUnitFileState::Enabled,
+            "enabled-runtime" => SystemdUnitFileState::EnabledMinusRuntime,
+            "linked" => SystemdUnitFileState::Linked,
+            "linked-runtime" => SystemdUnitFileState::LinkedMinusRuntime,
+            "masked" => SystemdUnitFileState::Masked,
+            "masked-runtime" => SystemdUnitFileState::MaskedMinusRuntime,
+            "static" => SystemdUnitFileState::Static,
+            "disabled" => SystemdUnitFileState::Disabled,
+            "invalid" => SystemdUnitFileState::Invalid,
+            _ => unimplemented!(
+                "receive_unit_file_state_change is not implemented for state: {}",
+                &result
+            ),
+        };
+        let payload = SystemdUnitFileStateChanged {
+            unit: Box::new(unit),
+            unit_file_state: Box::new(active_state),
+        };
+        nats_client
+            .publish(subject.clone(), serde_json::to_vec(&payload)?.into())
+            .await?;
+    }
     Ok(())
 }
 
@@ -100,24 +192,6 @@ async fn main() -> Result<()> {
     let nats_server_uri = app_m.value_of("nats_server_uri").unwrap();
     let nats_creds = app_m.value_of("nats_creds").map(|v| PathBuf::from(v));
 
-    let mut nats_client: Option<async_nats::Client> = None;
-    while nats_client.is_none() {
-        match try_init_nats_client(nats_server_uri, nats_creds.clone(), false).await {
-            Ok(nc) => {
-                nats_client = Some(nc);
-            }
-            Err(_) => {
-                warn!(
-                    "Waiting for NATS server to be available before initializing dbus subscriber threads"
-                );
-                sleep(Duration::from_millis(2000)).await;
-            }
-        }
-    }
-
-    let connection = zbus::Connection::system().await?;
-    let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
-
     let unit_names: Vec<String> = vec![
         // "cloud-config.service",
         // "cloud-final.service",
@@ -136,7 +210,16 @@ async fn main() -> Result<()> {
     ];
     let mut tasks = Vec::with_capacity(unit_names.len());
     for unit_name in unit_names {
-        tasks.push(tokio::spawn(receive_active_state_change(unit_name)));
+        tasks.push(tokio::spawn(receive_active_state_change(
+            unit_name.clone(),
+            nats_server_uri.to_string(),
+            nats_creds.clone(),
+        )));
+        tasks.push(tokio::spawn(receive_unit_file_state_change(
+            unit_name.clone(),
+            nats_server_uri.to_string(),
+            nats_creds.clone(),
+        )));
     }
 
     let mut res = Vec::with_capacity(tasks.len());
@@ -144,36 +227,6 @@ async fn main() -> Result<()> {
         res.push(f.await?);
     }
     info!("Finished tasks: {:#?}", res);
-    // let subscribers = units
-    //     .iter()
-    //     .map(|result| async {
-    //         let (
-    //             unit_name,
-    //             unit_description,
-    //             load_state,
-    //             active_state,
-    //             sub_state,
-    //             _follow_unit,
-    //             unit_object_path,
-    //             _job_id,
-    //             _job_type,
-    //             job_object_path,
-    //         ) = result;
-
-    //         let unit_proxy = zbus_systemd::systemd1::UnitProxy::new(&connection, unit_object_path)
-    //             .await
-    //             .unwrap();
-
-    //         let stream = unit_proxy.receive_all_signals().await.unwrap();
-    //         tokio::spawn(async {
-    //             while let Some(signal) = stream.next().await {
-    //                 info!("Received signal: {:?}", signal)
-    //             }
-    //         })
-    //     })
-    //     .map(flatten);
-
-    // let futures = try_join_all(tasks).await?;
 
     Ok(())
 }
