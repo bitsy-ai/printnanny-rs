@@ -2166,6 +2166,8 @@ dependencies = [
  "env_logger",
  "figment",
  "futures",
+ "futures-util",
+ "git-version",
  "log",
  "printnanny-api-client",
  "printnanny-dbus",
