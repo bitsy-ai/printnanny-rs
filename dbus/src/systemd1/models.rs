@@ -197,7 +197,7 @@ impl From<SystemdUnit> for printnanny_asyncapi_models::SystemdUnit {
                 printnanny_asyncapi_models::SystemdUnitFileState::MaskedMinusRuntime
             }
             SystemdUnitFileState::Static => {
-                printnanny_asyncapi_models::SystemdUnitFileState::ReservedStatic
+                printnanny_asyncapi_models::SystemdUnitFileState::Static
             }
             SystemdUnitFileState::Invalid => {
                 printnanny_asyncapi_models::SystemdUnitFileState::Invalid

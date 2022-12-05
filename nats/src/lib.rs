@@ -1,3 +1,4 @@
+pub mod client;
 pub mod cloud_commands;
 pub mod cloud_publisher;
 pub mod cloud_worker;

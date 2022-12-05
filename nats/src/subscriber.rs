@@ -117,7 +117,7 @@ where
                     nats_client = Some(nc);
                 }
                 Err(_) => {
-                    warn!("Waiting for NATS client to initialize subscriber thread");
+                    warn!("Waiting for NATS server to be available");
                     sleep(Duration::from_millis(2000)).await;
                 }
             }

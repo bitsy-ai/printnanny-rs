@@ -9,6 +9,9 @@ rust-version = "1.63"
 repository = "https://github.com/bitsy-ai/printnanny-cli.git"
 
 [[bin]]
+name = "dbus-systemd-nats-adapter"
+
+[[bin]]
 name = "nats-cloud-publisher"
 
 [[bin]]
@@ -31,6 +34,8 @@ chrono = "0.4.22"
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
 env_logger = "0.9"
 futures = "0.3"
+futures-util = "0.3.25"        # Common utilities and extension traits for the futures-rs library. 
+git-version = "0.3"
 log = "0.4"
 printnanny-api-client = "0.113.0"
 printnanny-dbus = { path = "../dbus", version = "^0.2"}
