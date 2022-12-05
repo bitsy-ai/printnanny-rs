@@ -138,6 +138,10 @@ where
 
             let subject_pattern =
                 Request::replace_subject_pattern(&message.subject, &hostname, "{pi}");
+            debug!(
+                "Extracted subject_pattern {} from subject {}",
+                &subject_pattern, &message.subject
+            );
             let request = Request::deserialize_payload(&subject_pattern, &message.payload)?;
             let res = match request.handle().await {
                 Ok(r) => ReplyResult::<Request, Reply>::Ok(r),
