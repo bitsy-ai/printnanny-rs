@@ -1,17 +1,18 @@
 use std::fmt::Debug;
+use std::fs;
+use std::process::Command;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
 use log::info;
-use printnanny_services::metadata::system_info;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::printnanny_asyncapi_models;
 use printnanny_dbus::printnanny_asyncapi_models::{
-    PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp, SettingsApplyReply,
-    SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsLoadRequest,
+    DeviceInfoLoadReply, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp,
+    SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsLoadRequest,
     SettingsRevertReply, SettingsRevertRequest, SystemdManagerDisableUnitsReply,
     SystemdManagerDisableUnitsRequest, SystemdManagerEnableUnitsReply,
     SystemdManagerEnableUnitsRequest, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
@@ -28,9 +29,6 @@ use printnanny_settings::printnanny::PrintNannySettings;
 use printnanny_settings::vcs::VersionControlledSettings;
 
 use printnanny_services::printnanny_api::ApiService;
-use printnanny_settings::sys_info;
-
-use crate::error::RequestErrorMsg;
 
 #[async_trait]
 pub trait NatsRequestHandler {
@@ -47,6 +45,10 @@ pub trait NatsRequestHandler {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "subject_pattern")]
 pub enum NatsRequest {
+    // pi.{pi_id}.device_info.load
+    #[serde(rename = "pi.{pi_id}.device_info.load")]
+    DeviceInfoLoadRequest,
+
     // pi.{pi_id}.settings.*
     #[serde(rename = "pi.{pi_id}.settings.printnanny.cloud.auth")]
     PrintNannyCloudAuthRequest(PrintNannyCloudAuthRequest),
@@ -78,6 +80,10 @@ pub enum NatsRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "subject_pattern")]
 pub enum NatsReply {
+    // pi.{pi_id}.device_info.load
+    #[serde(rename = "pi.{pi_id}.device_info.load")]
+    DeviceInfoLoadReply(DeviceInfoLoadReply),
+
     // pi.{pi_id}.settings.*
     #[serde(rename = "pi.{pi_id}.settings.printnanny.cloud.auth")]
     PrintNannyCloudAuthReply(PrintNannyCloudAuthReply),
@@ -107,6 +113,19 @@ pub enum NatsReply {
 }
 
 impl NatsRequest {
+    // message messages sent to: "pi.{pi_id}.device_info.load"
+    pub async fn handle_device_info_load(&self) -> Result<NatsReply> {
+        let settings = PrintNannySettings::new()?;
+        let issue = fs::read_to_string(settings.paths.issue_txt)?;
+        let os_release = fs::read_to_string(settings.paths.os_release)?;
+
+        Ok(NatsReply::DeviceInfoLoadReply(DeviceInfoLoadReply {
+            issue,
+            os_release,
+            printnanny_cli_version: "".into(),
+        }))
+    }
+
     // handle messages sent to: "pi.{pi_id}.settings.printnanny.cloud.auth"
     pub async fn handle_printnanny_cloud_auth(
         &self,
@@ -536,6 +555,7 @@ impl NatsRequestHandler for NatsRequest {
 
     fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Request> {
         match subject_pattern {
+            "pi.{pi_id}.device_info.load" => Ok(NatsRequest::DeviceInfoLoadRequest),
             "pi.{pi_id}.settings.printnanny.cloud.auth" => {
                 Ok(NatsRequest::PrintNannyCloudAuthRequest(
                     serde_json::from_slice::<PrintNannyCloudAuthRequest>(payload.as_ref())?,
@@ -597,6 +617,9 @@ impl NatsRequestHandler for NatsRequest {
 
     async fn handle(&self) -> Result<Self::Reply> {
         let reply = match self {
+            // pi.{pi_id}.device_info.load
+            NatsRequest::DeviceInfoLoadRequest => self.handle_device_info_load().await?,
+
             // pi.{pi_id}.settings.*
             NatsRequest::PrintNannyCloudAuthRequest(request) => {
                 self.handle_printnanny_cloud_auth(request).await?
@@ -675,6 +698,17 @@ mod tests {
             subject,
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.GetUnit"
         )
+    }
+
+    #[test(tokio::test)]
+    async fn test_device_info_load() {
+        let request = NatsRequest::DeviceInfoLoadRequest;
+
+        let reply = request.handle().await.unwrap();
+        if let NatsReply::DeviceInfoLoadReply(reply) = reply {
+        } else {
+            panic!("Expected NatsReply::DeviceInfoLoadReply")
+        }
     }
 
     #[test]
