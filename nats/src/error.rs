@@ -1,14 +1,14 @@
 use std::fmt;
 use std::fmt::Debug;
 
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct RequestErrorMsg<Request: Serialize + Debug> {
-    pub subject: String,
+    pub subject_pattern: String,
     pub request: Request,
-    pub msg: String,
+    pub error: String,
 }
 
 impl<Request: Serialize + Debug> fmt::Display for RequestErrorMsg<Request> {
@@ -21,16 +21,7 @@ impl<Request: Serialize + Debug> fmt::Display for RequestErrorMsg<Request> {
         write!(
             f,
             "Error handling NatsRequest: {} Request: {:?}",
-            self.msg, self.request
+            self.error, self.request
         )
     }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
-#[serde(tag = "status")]
-pub enum ReplyResult<Request: Serialize + Debug, Response: Serialize + Debug> {
-    #[serde(rename = "ok")]
-    Ok(Response),
-    #[serde(rename = "error")]
-    Err(RequestErrorMsg<Request>),
 }

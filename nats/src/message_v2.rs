@@ -30,6 +30,8 @@ use printnanny_settings::vcs::VersionControlledSettings;
 use printnanny_services::printnanny_api::ApiService;
 use printnanny_settings::sys_info;
 
+use crate::error::RequestErrorMsg;
+
 #[async_trait]
 pub trait NatsRequestHandler {
     type Request: Serialize + DeserializeOwned + Clone + Debug + NatsRequestHandler;
@@ -43,67 +45,69 @@ pub trait NatsRequestHandler {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "subject_pattern")]
 pub enum NatsRequest {
-    // pi.{pi}.settings.*
-    #[serde(rename = "pi.{pi}.settings.printnanny.cloud.auth")]
+    // pi.{pi_id}.settings.*
+    #[serde(rename = "pi.{pi_id}.settings.printnanny.cloud.auth")]
     PrintNannyCloudAuthRequest(PrintNannyCloudAuthRequest),
-    #[serde(rename = "pi.{pi}.settings.vcs.load")]
+    #[serde(rename = "pi.{pi_id}.settings.vcs.load")]
     SettingsLoadRequest(SettingsLoadRequest),
-    #[serde(rename = "pi.{pi}.settings.vcs.apply")]
+    #[serde(rename = "pi.{pi_id}.settings.vcs.apply")]
     SettingsApplyRequest(SettingsApplyRequest),
-    #[serde(rename = "pi.{pi}.settings.vcs.revert")]
+    #[serde(rename = "pi.{pi_id}.settings.vcs.revert")]
     SettingsRevertRequest(SettingsRevertRequest),
 
-    // pi.{pi}.dbus.org.freedesktop.systemd1.*
-    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
+    // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
+    #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
     SystemdManagerDisableUnitsRequest(SystemdManagerDisableUnitsRequest),
-    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
+    #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
     SystemdManagerEnableUnitsRequest(SystemdManagerEnableUnitsRequest),
-    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
+    #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
     SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest),
     // TODO: : Job type reload is not applicable for unit octoprint.service.
     // #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
     // SystemdManagerReloadUnitRequest(SystemdManagerReloadUnitRequest),
-    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
+    #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
     SystemdManagerRestartUnitRequest(SystemdManagerRestartUnitRequest),
-    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
+    #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
     SystemdManagerStartUnitRequest(SystemdManagerStartUnitRequest),
-    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
+    #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
     SystemdManagerStopUnitRequest(SystemdManagerStopUnitRequest),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "subject_pattern")]
 pub enum NatsReply {
-    // pi.{pi}.settings.*
-    #[serde(rename = "pi.{pi}.settings.printnanny.cloud.auth")]
+    // pi.{pi_id}.settings.*
+    #[serde(rename = "pi.{pi_id}.settings.printnanny.cloud.auth")]
     PrintNannyCloudAuthReply(PrintNannyCloudAuthReply),
-    #[serde(rename = "pi.{pi}.settings.printnanny.load")]
+    #[serde(rename = "pi.{pi_id}.settings.printnanny.load")]
     SettingsLoadReply(SettingsLoadReply),
-    #[serde(rename = "pi.{pi}.settings.printnanny.apply")]
+    #[serde(rename = "pi.{pi_id}.settings.printnanny.apply")]
     SettingsApplyReply(SettingsApplyReply),
-    #[serde(rename = "pi.{pi}.settings.printnanny.revert")]
+    #[serde(rename = "pi.{pi_id}.settings.printnanny.revert")]
     SettingsRevertReply(SettingsRevertReply),
 
-    // pi.{pi}.dbus.org.freedesktop.systemd1.*
-    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
+    // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
+    #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
     SystemdManagerDisableUnitsReply(SystemdManagerDisableUnitsReply),
-    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
+    #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
     SystemdManagerEnableUnitsReply(SystemdManagerEnableUnitsReply),
-    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
+    #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
     SystemdManagerGetUnitReply(SystemdManagerGetUnitReply),
     // TODO: : Job type reload is not applicable for unit octoprint.service.
     // #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
     // SystemdManagerReloadUnitReply(SystemdManagerReloadUnitReply),
-    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
+    #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.RestartUnit")]
     SystemdManagerRestartUnitReply(SystemdManagerRestartUnitReply),
-    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
+    #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.StartUnit")]
     SystemdManagerStartUnitReply(SystemdManagerStartUnitReply),
-    #[serde(rename = "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
+    #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
     SystemdManagerStopUnitReply(SystemdManagerStopUnitReply),
 }
 
 impl NatsRequest {
-    // handle messages sent to: "pi.{pi}.settings.printnanny.cloud.auth"
+    // handle messages sent to: "pi.{pi_id}.settings.printnanny.cloud.auth"
     pub async fn handle_printnanny_cloud_auth(
         &self,
         request: &PrintNannyCloudAuthRequest,
@@ -532,54 +536,54 @@ impl NatsRequestHandler for NatsRequest {
 
     fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Request> {
         match subject_pattern {
-            "pi.{pi}.settings.printnanny.cloud.auth" => {
+            "pi.{pi_id}.settings.printnanny.cloud.auth" => {
                 Ok(NatsRequest::PrintNannyCloudAuthRequest(
                     serde_json::from_slice::<PrintNannyCloudAuthRequest>(payload.as_ref())?,
                 ))
             }
-            "pi.{pi}.settings.vcs.load" => {
+            "pi.{pi_id}.settings.vcs.load" => {
                 Ok(NatsRequest::SettingsLoadRequest(serde_json::from_slice::<
                     SettingsLoadRequest,
                 >(
                     payload.as_ref()
                 )?))
             }
-            "pi.{pi}.settings.vcs.apply" => {
+            "pi.{pi_id}.settings.vcs.apply" => {
                 Ok(NatsRequest::SettingsApplyRequest(serde_json::from_slice::<
                     SettingsApplyRequest,
                 >(
                     payload.as_ref()
                 )?))
             }
-            "pi.{pi}.settings.vcs.revert" => Ok(NatsRequest::SettingsRevertRequest(
+            "pi.{pi_id}.settings.vcs.revert" => Ok(NatsRequest::SettingsRevertRequest(
                 serde_json::from_slice::<SettingsRevertRequest>(payload.as_ref())?,
             )),
-            "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.DisableUnit" => {
+            "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit" => {
                 Ok(NatsRequest::SystemdManagerDisableUnitsRequest(
                     serde_json::from_slice::<SystemdManagerDisableUnitsRequest>(payload.as_ref())?,
                 ))
             }
-            "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.EnableUnit" => {
+            "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.EnableUnit" => {
                 Ok(NatsRequest::SystemdManagerEnableUnitsRequest(
                     serde_json::from_slice::<SystemdManagerEnableUnitsRequest>(payload.as_ref())?,
                 ))
             }
-            "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.GetUnit" => {
+            "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.GetUnit" => {
                 Ok(NatsRequest::SystemdManagerGetUnitRequest(
                     serde_json::from_slice::<SystemdManagerGetUnitRequest>(payload.as_ref())?,
                 ))
             }
-            "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.RestartUnit" => {
+            "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.RestartUnit" => {
                 Ok(NatsRequest::SystemdManagerRestartUnitRequest(
                     serde_json::from_slice::<SystemdManagerRestartUnitRequest>(payload.as_ref())?,
                 ))
             }
-            "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.StartUnit" => {
+            "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.StartUnit" => {
                 Ok(NatsRequest::SystemdManagerStartUnitRequest(
                     serde_json::from_slice::<SystemdManagerStartUnitRequest>(payload.as_ref())?,
                 ))
             }
-            "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.StopUnit" => {
+            "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.StopUnit" => {
                 Ok(NatsRequest::SystemdManagerStopUnitRequest(
                     serde_json::from_slice::<SystemdManagerStopUnitRequest>(payload.as_ref())?,
                 ))
@@ -593,7 +597,7 @@ impl NatsRequestHandler for NatsRequest {
 
     async fn handle(&self) -> Result<Self::Reply> {
         let reply = match self {
-            // pi.{pi}.settings.*
+            // pi.{pi_id}.settings.*
             NatsRequest::PrintNannyCloudAuthRequest(request) => {
                 self.handle_printnanny_cloud_auth(request).await?
             }
@@ -604,7 +608,7 @@ impl NatsRequestHandler for NatsRequest {
             NatsRequest::SettingsRevertRequest(request) => {
                 self.handle_settings_revert(request).await?
             }
-            // pi.{pi}.dbus.org.freedesktop.systemd1.*
+            // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
             NatsRequest::SystemdManagerDisableUnitsRequest(request) => {
                 self.handle_disable_units_request(request).await?
             }
@@ -665,11 +669,11 @@ mod tests {
         let subject = NatsRequest::replace_subject_pattern(
             "pi.localhost.dbus.org.freedesktop.systemd1.Manager.GetUnit",
             "localhost",
-            "{pi}",
+            "{pi_id}",
         );
         assert_eq!(
             subject,
-            "pi.{pi}.dbus.org.freedesktop.systemd1.Manager.GetUnit"
+            "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.GetUnit"
         )
     }
 

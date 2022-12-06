@@ -15,7 +15,7 @@ use tokio::time::{sleep, Duration};
 use printnanny_services::error::{CommandError, NatsError};
 use printnanny_settings::sys_info;
 
-use crate::error::{ReplyResult, RequestErrorMsg};
+use crate::error::RequestErrorMsg;
 
 use super::message_v2::NatsRequestHandler;
 
@@ -142,32 +142,31 @@ where
             debug!("Received NATS Message: {:?}", message);
 
             let subject_pattern =
-                Request::replace_subject_pattern(&message.subject, &self.hostname, "{pi}");
+                Request::replace_subject_pattern(&message.subject, &self.hostname, "{pi_id}");
             debug!(
                 "Extracted subject_pattern {} from subject {} using hostname {}",
                 &subject_pattern, &message.subject, &self.hostname
             );
             let request = Request::deserialize_payload(&subject_pattern, &message.payload)?;
-            let res = match request.handle().await {
-                Ok(r) => ReplyResult::<Request, Reply>::Ok(r),
-                Err(e) => {
-                    let r = RequestErrorMsg::<Request> {
-                        msg: e.to_string(),
-                        subject: message.subject,
-                        request,
-                    };
-                    ReplyResult::Err(r)
-                }
-            };
 
             match message.reply {
                 Some(reply_inbox) => {
-                    let payload = serde_json::to_vec(&res).unwrap();
+                    let payload = match request.handle().await {
+                        Ok(r) => serde_json::to_vec(&r)?,
+                        Err(e) => {
+                            let r = RequestErrorMsg {
+                                error: e.to_string(),
+                                subject_pattern: subject_pattern,
+                                request,
+                            };
+                            serde_json::to_vec(&r)?
+                        }
+                    };
                     match nats_client.publish(reply_inbox, payload.into()).await {
                         Ok(_) => Ok(()),
-                        Err(e) => Err(CommandError::NatsError(NatsError::PublishError {
+                        Err(e) => Err(NatsError::PublishError {
                             error: e.to_string(),
-                        })),
+                        }),
                     }
                 }
                 None => Ok(()),
