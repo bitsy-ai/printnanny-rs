@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 use std::fs;
-use std::process::Command;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -15,12 +14,11 @@ use printnanny_dbus::printnanny_asyncapi_models::{
     SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsLoadRequest,
     SettingsRevertReply, SettingsRevertRequest, SystemdManagerDisableUnitsReply,
     SystemdManagerDisableUnitsRequest, SystemdManagerEnableUnitsReply,
-    SystemdManagerEnableUnitsRequest, SystemdManagerGetUnitFileStateError,
-    SystemdManagerGetUnitFileStateReply, SystemdManagerGetUnitFileStateRequest,
-    SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
-    SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
-    SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdUnitChange,
-    SystemdUnitChangeState, SystemdUnitFileState,
+    SystemdManagerEnableUnitsRequest, SystemdManagerGetUnitFileStateReply,
+    SystemdManagerGetUnitFileStateRequest, SystemdManagerGetUnitReply,
+    SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest,
+    SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply,
+    SystemdManagerStopUnitRequest, SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState,
 };
 
 use printnanny_dbus::zbus;

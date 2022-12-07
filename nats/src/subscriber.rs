@@ -1,10 +1,8 @@
 use std::fmt::Debug;
-use std::io::Read;
 use std::marker::PhantomData;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use bytes::Buf;
 use clap::{crate_authors, Arg, ArgMatches, Command};
 use futures::stream::StreamExt;
 use log::{debug, info, warn};
@@ -12,7 +10,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, Duration};
 
-use printnanny_services::error::{CommandError, NatsError};
+use printnanny_services::error::NatsError;
 use printnanny_settings::sys_info;
 
 use crate::error::RequestErrorMsg;

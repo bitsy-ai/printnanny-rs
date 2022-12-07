@@ -10,7 +10,6 @@ use log::{info, warn};
 use printnanny_dbus::printnanny_asyncapi_models::SystemdUnitActiveState;
 use tokio::time::{sleep, Duration};
 
-use printnanny_dbus;
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
@@ -190,7 +189,7 @@ async fn main() -> Result<()> {
     };
 
     let nats_server_uri = app_m.value_of("nats_server_uri").unwrap();
-    let nats_creds = app_m.value_of("nats_creds").map(|v| PathBuf::from(v));
+    let nats_creds = app_m.value_of("nats_creds").map(PathBuf::from);
 
     let unit_names: Vec<String> = vec![
         // "cloud-config.service",

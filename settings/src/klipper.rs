@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
-use super::moonraker::MOONRAKER_VENV;
 use crate::error::VersionControlledSettingsError;
 use crate::vcs::VersionControlledSettings;
 use crate::SettingsFormat;
