@@ -20,7 +20,7 @@ use printnanny_dbus::printnanny_asyncapi_models::{
     SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
     SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
     SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdUnitChange,
-    SystemdUnitChangeState,
+    SystemdUnitChangeState, SystemdUnitFileState,
 };
 
 use printnanny_dbus::zbus;
@@ -484,11 +484,26 @@ impl NatsRequest {
         let connection = zbus::Connection::system().await?;
         let proxy = printnanny_dbus::zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
 
-        let unit_file_state = proxy.get_unit_file_state(request.unit_name).await?;
+        let unit_file_state = proxy.get_unit_file_state(request.unit_name.clone()).await?;
 
-        Ok(NatsReply::SystemdManagerGetUnitFileStateReply({
-            unit_file_state
-        }))
+        let unit_file_state = match unit_file_state.as_str() {
+            "enabled" => SystemdUnitFileState::Enabled,
+            "enabled-runtime" => SystemdUnitFileState::EnabledMinusRuntime,
+            "linked" => SystemdUnitFileState::Linked,
+            "linked-runtime" => SystemdUnitFileState::LinkedMinusRuntime,
+            "masked" => SystemdUnitFileState::Masked,
+            "masked-runtime" => SystemdUnitFileState::MaskedMinusRuntime,
+            "static" => SystemdUnitFileState::Static,
+            "disabled" => SystemdUnitFileState::Disabled,
+            "invalid" => SystemdUnitFileState::Invalid,
+            _ => unimplemented!(),
+        };
+
+        Ok(NatsReply::SystemdManagerGetUnitFileStateReply(
+            SystemdManagerGetUnitFileStateReply {
+                unit_file_state: Box::new(unit_file_state),
+            },
+        ))
     }
 
     // TODO
@@ -1036,6 +1051,38 @@ mod tests {
 
             Ok(())
         });
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_manager_get_unit_file_state_ok() {
+        let request = NatsRequest::SystemdManagerGetUnitFileStateRequest(
+            SystemdManagerGetUnitFileStateRequest {
+                unit_name: "octoprint.service".into(),
+            },
+        );
+        let reply = request.handle().await.unwrap();
+        if let NatsReply::SystemdManagerGetUnitFileStateReply(reply) = reply {
+            // unit may already be in an enabled state
+            assert!(
+                *reply.unit_file_state == SystemdUnitFileState::Enabled
+                    || *reply.unit_file_state == SystemdUnitFileState::Disabled
+            );
+        } else {
+            panic!("Expected NatsReply::SystemdManagerGetUnit")
+        }
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_manager_get_unit_file_state_error() {
+        let request = NatsRequest::SystemdManagerGetUnitFileStateRequest(
+            SystemdManagerGetUnitFileStateRequest {
+                unit_name: "doesnotexist.service".into(),
+            },
+        );
+        let reply = request.handle().await;
+        assert!(reply.is_err());
     }
 
     #[cfg(feature = "systemd")]
