@@ -626,6 +626,13 @@ impl NatsRequestHandler for NatsRequest {
                     serde_json::from_slice::<SystemdManagerGetUnitRequest>(payload.as_ref())?,
                 ))
             }
+            "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.GetUnitFileState" => {
+                Ok(NatsRequest::SystemdManagerGetUnitFileStateRequest(
+                    serde_json::from_slice::<SystemdManagerGetUnitFileStateRequest>(
+                        payload.as_ref(),
+                    )?,
+                ))
+            }
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.RestartUnit" => {
                 Ok(NatsRequest::SystemdManagerRestartUnitRequest(
                     serde_json::from_slice::<SystemdManagerRestartUnitRequest>(payload.as_ref())?,
