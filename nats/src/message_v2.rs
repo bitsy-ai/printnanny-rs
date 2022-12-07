@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 use std::fs;
-use std::process::Command;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -15,10 +14,11 @@ use printnanny_dbus::printnanny_asyncapi_models::{
     SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsLoadRequest,
     SettingsRevertReply, SettingsRevertRequest, SystemdManagerDisableUnitsReply,
     SystemdManagerDisableUnitsRequest, SystemdManagerEnableUnitsReply,
-    SystemdManagerEnableUnitsRequest, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
-    SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply,
-    SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest,
-    SystemdUnitChange, SystemdUnitChangeState,
+    SystemdManagerEnableUnitsRequest, SystemdManagerGetUnitFileStateReply,
+    SystemdManagerGetUnitFileStateRequest, SystemdManagerGetUnitReply,
+    SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest,
+    SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply,
+    SystemdManagerStopUnitRequest, SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState,
 };
 
 use printnanny_dbus::zbus;
@@ -66,6 +66,8 @@ pub enum NatsRequest {
     SystemdManagerEnableUnitsRequest(SystemdManagerEnableUnitsRequest),
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
     SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest),
+    #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.GetUnitFileState")]
+    SystemdManagerGetUnitFileStateRequest(SystemdManagerGetUnitFileStateRequest),
     // TODO: : Job type reload is not applicable for unit octoprint.service.
     // #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
     // SystemdManagerReloadUnitRequest(SystemdManagerReloadUnitRequest),
@@ -101,6 +103,8 @@ pub enum NatsReply {
     SystemdManagerEnableUnitsReply(SystemdManagerEnableUnitsReply),
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
     SystemdManagerGetUnitReply(SystemdManagerGetUnitReply),
+    #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.GetUnitFileState")]
+    SystemdManagerGetUnitFileStateReply(SystemdManagerGetUnitFileStateReply),
     // TODO: : Job type reload is not applicable for unit octoprint.service.
     // #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
     // SystemdManagerReloadUnitReply(SystemdManagerReloadUnitReply),
@@ -471,6 +475,35 @@ impl NatsRequest {
         ))
     }
 
+    async fn handle_get_unit_file_state_request(
+        &self,
+        request: &SystemdManagerGetUnitFileStateRequest,
+    ) -> Result<NatsReply> {
+        let connection = zbus::Connection::system().await?;
+        let proxy = printnanny_dbus::zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+
+        let unit_file_state = proxy.get_unit_file_state(request.unit_name.clone()).await?;
+
+        let unit_file_state = match unit_file_state.as_str() {
+            "enabled" => SystemdUnitFileState::Enabled,
+            "enabled-runtime" => SystemdUnitFileState::EnabledMinusRuntime,
+            "linked" => SystemdUnitFileState::Linked,
+            "linked-runtime" => SystemdUnitFileState::LinkedMinusRuntime,
+            "masked" => SystemdUnitFileState::Masked,
+            "masked-runtime" => SystemdUnitFileState::MaskedMinusRuntime,
+            "static" => SystemdUnitFileState::Static,
+            "disabled" => SystemdUnitFileState::Disabled,
+            "invalid" => SystemdUnitFileState::Invalid,
+            _ => unimplemented!(),
+        };
+
+        Ok(NatsReply::SystemdManagerGetUnitFileStateReply(
+            SystemdManagerGetUnitFileStateReply {
+                unit_file_state: Box::new(unit_file_state),
+            },
+        ))
+    }
+
     // TODO
     // Job type reload is not applicable for unit octoprint.service.
     // async fn handle_reload_unit_request(
@@ -640,6 +673,9 @@ impl NatsRequestHandler for NatsRequest {
             }
             NatsRequest::SystemdManagerGetUnitRequest(request) => {
                 self.handle_get_unit_request(request).await?
+            }
+            NatsRequest::SystemdManagerGetUnitFileStateRequest(request) => {
+                self.handle_get_unit_file_state_request(request).await?
             }
             NatsRequest::SystemdManagerRestartUnitRequest(request) => {
                 self.handle_restart_unit_request(request).await?
@@ -1013,6 +1049,38 @@ mod tests {
 
             Ok(())
         });
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_manager_get_unit_file_state_ok() {
+        let request = NatsRequest::SystemdManagerGetUnitFileStateRequest(
+            SystemdManagerGetUnitFileStateRequest {
+                unit_name: "octoprint.service".into(),
+            },
+        );
+        let reply = request.handle().await.unwrap();
+        if let NatsReply::SystemdManagerGetUnitFileStateReply(reply) = reply {
+            // unit may already be in an enabled state
+            assert!(
+                *reply.unit_file_state == SystemdUnitFileState::Enabled
+                    || *reply.unit_file_state == SystemdUnitFileState::Disabled
+            );
+        } else {
+            panic!("Expected NatsReply::SystemdManagerGetUnit")
+        }
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test(tokio::test)] // async test
+    async fn test_dbus_systemd_manager_get_unit_file_state_error() {
+        let request = NatsRequest::SystemdManagerGetUnitFileStateRequest(
+            SystemdManagerGetUnitFileStateRequest {
+                unit_name: "doesnotexist.service".into(),
+            },
+        );
+        let reply = request.handle().await;
+        assert!(reply.is_err());
     }
 
     #[cfg(feature = "systemd")]

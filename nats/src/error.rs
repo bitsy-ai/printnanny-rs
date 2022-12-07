@@ -1,7 +1,7 @@
 use std::fmt;
 use std::fmt::Debug;
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone, Eq, PartialEq, Serialize)]
