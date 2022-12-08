@@ -154,7 +154,7 @@ where
                         Err(e) => {
                             let r = RequestErrorMsg {
                                 error: e.to_string(),
-                                subject_pattern: subject_pattern,
+                                subject_pattern,
                                 request,
                             };
                             serde_json::to_vec(&r)?
