@@ -1,4 +1,5 @@
 use std::io::{self, Write};
+use std::path::PathBuf;
 
 use printnanny_services::error::ServiceError;
 use printnanny_settings::printnanny::PrintNannySettings;
@@ -10,6 +11,11 @@ impl SettingsCommand {
     pub async fn handle(sub_m: &clap::ArgMatches) -> Result<(), ServiceError> {
         let config: PrintNannySettings = PrintNannySettings::new()?;
         match sub_m.subcommand() {
+            Some(("clone", args)) => {
+                let dir = args.value_of("dir").map(PathBuf::from);
+                let settings = PrintNannySettings::new()?;
+                settings.init_local_git_repo(dir).await?;
+            }
             Some(("get", args)) => {
                 let key = args.value_of("key");
                 let f: SettingsFormat = args.value_of_t("format").unwrap();
