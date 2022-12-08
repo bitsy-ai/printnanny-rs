@@ -136,8 +136,12 @@ impl PrintNannySettings {
 
         Ok(result)
     }
-    pub async fn init_local_git_repo(&self) -> Result<(), PrintNannySettingsError> {
-        let repo = git2::Repository::clone(&self.git.remote, &self.paths.settings_dir)?;
+    pub async fn init_local_git_repo(
+        &self,
+        dir: Option<PathBuf>,
+    ) -> Result<(), PrintNannySettingsError> {
+        let target_dir = dir.unwrap_or(self.paths.settings_dir.clone());
+        let repo = git2::Repository::clone(&self.git.remote, &target_dir)?;
         let config = repo.config()?;
         let mut localconfig = config.open_level(git2::ConfigLevel::Local)?;
         localconfig.set_str("user.email", &self.git.email)?;

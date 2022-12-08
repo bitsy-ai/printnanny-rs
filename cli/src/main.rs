@@ -12,7 +12,7 @@ use git_version::git_version;
 use printnanny_nats::message_v2::{NatsReply, NatsRequest};
 use printnanny_nats::cloud_worker::DEFAULT_NATS_CLOUD_APP_NAME;
 use printnanny_nats::subscriber::{ NatsSubscriber, DEFAULT_NATS_EDGE_APP_NAME};
-use printnanny_settings::SettingsFormat;
+use printnanny_settings::{SettingsFormat};
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_cli::settings::{SettingsCommand};
 use printnanny_cli::cloud_data::CloudDataCommand;
@@ -110,6 +110,18 @@ async fn main() -> Result<()> {
             .version(GIT_VERSION)
             .arg_required_else_help(true)
             .about("Interact with PrintNanny device and user settings")
+            .subcommand(Command::new("clone")
+                .author(crate_authors!())
+                .about(crate_description!())
+                .version(GIT_VERSION)
+                .about("Git clone PrintNanny Settings repo (default settings files for PrintNanny, OctoPrint, Moonraker, Klipper)")
+                .arg(Arg::new("dir")
+                    .short('d')
+                    .long("dir")
+                    .takes_value(true)
+                    .help("Directory to clone repo to")
+                )            
+            )
             .subcommand(Command::new("get")
                 .author(crate_authors!())
                 .about(crate_description!())

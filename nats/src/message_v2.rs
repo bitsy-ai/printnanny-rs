@@ -702,7 +702,7 @@ mod tests {
         let settings = PrintNannySettings::new().unwrap();
         Runtime::new()
             .unwrap()
-            .block_on(settings.init_local_git_repo())
+            .block_on(settings.init_local_git_repo(None))
             .unwrap();
     }
 
