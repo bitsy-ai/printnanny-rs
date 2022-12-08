@@ -295,41 +295,40 @@ impl NatsRequest {
         }))
     }
 
-    fn handle_printnanny_settings_load(&self, request: &SettingsLoadRequest) -> Result<NatsReply> {
+    fn handle_printnanny_settings_load(&self) -> Result<Vec<SettingsFile>> {
         let settings = PrintNannySettings::new()?;
-        let files = vec![settings.to_payload()?];
-        self.build_settings_load_reply(request, settings, files)
+        let files = vec![settings.to_payload(SettingsApp::Printnanny)?];
+        Ok(files)
     }
 
-    fn handle_octoprint_settings_load(&self, request: &SettingsLoadRequest) -> Result<NatsReply> {
+    fn handle_octoprint_settings_load(&self) -> Result<Vec<SettingsFile>> {
         let settings = PrintNannySettings::new()?;
-        let files = vec![settings.octoprint.to_payload()?];
-        self.build_settings_load_reply(request, settings, files)
+        let files = vec![settings.octoprint.to_payload(SettingsApp::Octoprint)?];
+        Ok(files)
     }
 
-    fn handle_moonraker_settings_load(&self, request: &SettingsLoadRequest) -> Result<NatsReply> {
+    fn handle_moonraker_settings_load(&self) -> Result<Vec<SettingsFile>> {
         let settings = PrintNannySettings::new()?;
-        let files = vec![settings.moonraker.to_payload()?];
-        self.build_settings_load_reply(request, settings, files)
+        let files = vec![settings.moonraker.to_payload(SettingsApp::Moonraker)?];
+        Ok(files)
     }
 
-    fn handle_klipper_settings_load(&self, request: &SettingsLoadRequest) -> Result<NatsReply> {
+    fn handle_klipper_settings_load(&self) -> Result<Vec<SettingsFile>> {
         let settings = PrintNannySettings::new()?;
-        let files = vec![settings.klipper.to_payload()?];
-        self.build_settings_load_reply(request, settings, files)
+        let files = vec![settings.klipper.to_payload(SettingsApp::Klipper)?];
+        Ok(files)
     }
 
     fn build_settings_load_reply(
         &self,
-        request: &SettingsLoadRequest,
         settings: PrintNannySettings,
         files: Vec<SettingsFile>,
     ) -> Result<NatsReply> {
         let git_head_commit = settings.get_git_head_commit()?.oid;
         let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
             settings.get_rev_list()?.iter().map(|r| r.into()).collect();
+
         let reply = SettingsLoadReply {
-            app: request.app.clone(),
             files,
             git_head_commit,
             git_history,
@@ -337,13 +336,22 @@ impl NatsRequest {
         Ok(NatsReply::SettingsLoadReply(reply))
     }
 
-    pub fn handle_settings_load(&self, request: &SettingsLoadRequest) -> Result<NatsReply> {
-        match *request.app {
-            SettingsApp::Printnanny => self.handle_printnanny_settings_load(request),
-            SettingsApp::Octoprint => self.handle_octoprint_settings_load(request),
-            SettingsApp::Moonraker => self.handle_moonraker_settings_load(request),
-            SettingsApp::Klipper => self.handle_klipper_settings_load(request),
-        }
+    pub fn handle_settings_load(&self) -> Result<NatsReply> {
+        let settings = PrintNannySettings::new()?;
+
+        let git_head_commit = settings.get_git_head_commit()?.oid;
+        let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
+            settings.get_rev_list()?.iter().map(|r| r.into()).collect();
+
+        let mut files = self.handle_printnanny_settings_load()?;
+        files.extend(self.handle_octoprint_settings_load()?);
+        files.extend(self.handle_moonraker_settings_load()?);
+        files.extend(self.handle_klipper_settings_load()?);
+        Ok(NatsReply::SettingsLoadReply(SettingsLoadReply {
+            files: files,
+            git_head_commit: git_head_commit,
+            git_history: git_history,
+        }))
     }
 
     pub async fn handle_settings_apply(&self, request: &SettingsApplyRequest) -> Result<NatsReply> {

@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use git2::{DiffFormat, DiffOptions, Repository};
 use log::info;
-use printnanny_asyncapi_models::SettingsFile;
+use printnanny_asyncapi_models::{SettingsApp, SettingsFile};
 use serde::{Deserialize, Serialize};
 
 use crate::error::VersionControlledSettingsError;
@@ -22,7 +22,7 @@ pub struct GitCommit {
 #[async_trait]
 pub trait VersionControlledSettings {
     type SettingsModel: Serialize;
-    fn to_payload(&self) -> Result<SettingsFile, VersionControlledSettingsError> {
+    fn to_payload(&self, app: SettingsApp) -> Result<SettingsFile, VersionControlledSettingsError> {
         let file_name = self.get_settings_file().display().to_string();
         let file_format = self.get_settings_format();
         let content = match fs::read_to_string(&file_name) {
@@ -34,6 +34,7 @@ pub trait VersionControlledSettings {
         }?;
         info!("Loaded settings from: {}", &file_name);
         Ok(SettingsFile {
+            app: Box::new(app),
             file_name,
             file_format: Box::new(file_format.into()),
             content,
