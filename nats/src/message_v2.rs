@@ -161,7 +161,7 @@ impl NatsRequest {
         // revert commit
         let oid = git2::Oid::from_str(&request.git_commit)?;
         settings.git_revert_hooks(Some(oid)).await?;
-        let files = vec![settings.to_payload()?];
+        let files = vec![settings.to_payload(SettingsApp::Printnanny)?];
         self.build_settings_revert_reply(request, &settings, files)
     }
 
@@ -173,7 +173,7 @@ impl NatsRequest {
         // revert commit
         let oid = git2::Oid::from_str(&request.git_commit)?;
         settings.octoprint.git_revert_hooks(Some(oid)).await?;
-        let files = vec![settings.octoprint.to_payload()?];
+        let files = vec![settings.octoprint.to_payload(SettingsApp::Octoprint)?];
         self.build_settings_revert_reply(request, &settings, files)
     }
 
@@ -185,7 +185,7 @@ impl NatsRequest {
         // revert commit
         let oid = git2::Oid::from_str(&request.git_commit)?;
         settings.moonraker.git_revert_hooks(Some(oid)).await?;
-        let files = vec![settings.moonraker.to_payload()?];
+        let files = vec![settings.moonraker.to_payload(SettingsApp::Moonraker)?];
         self.build_settings_revert_reply(request, &settings, files)
     }
 
@@ -197,7 +197,7 @@ impl NatsRequest {
         // revert commit
         let oid = git2::Oid::from_str(&request.git_commit)?;
         settings.klipper.git_revert_hooks(Some(oid)).await?;
-        let files = vec![settings.klipper.to_payload()?];
+        let files = vec![settings.klipper.to_payload(SettingsApp::Klipper)?];
         self.build_settings_revert_reply(request, &settings, files)
     }
 
@@ -224,13 +224,11 @@ impl NatsRequest {
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
 
-        for f in request.files.iter() {
-            settings
-                .save_and_commit(&f.content, Some(request.git_commit_msg.clone()))
-                .await?;
-        }
-        let files = vec![settings.to_payload()?];
-        self.build_settings_apply_reply(request, settings, files)
+        settings
+            .save_and_commit(&request.file.content, Some(request.git_commit_msg.clone()))
+            .await?;
+        let file = settings.to_payload(SettingsApp::Printnanny)?;
+        self.build_settings_apply_reply(request, settings, file)
     }
 
     async fn handle_octoprint_settings_apply(
@@ -238,14 +236,12 @@ impl NatsRequest {
         request: &SettingsApplyRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
-        for f in request.files.iter() {
-            settings
-                .octoprint
-                .save_and_commit(&f.content, Some(request.git_commit_msg.clone()))
-                .await?;
-        }
-        let files = vec![settings.octoprint.to_payload()?];
-        self.build_settings_apply_reply(request, settings, files)
+        settings
+            .octoprint
+            .save_and_commit(&request.file.content, Some(request.git_commit_msg.clone()))
+            .await?;
+        let file = settings.octoprint.to_payload(SettingsApp::Octoprint)?;
+        self.build_settings_apply_reply(request, settings, file)
     }
 
     async fn handle_moonraker_settings_apply(
@@ -253,14 +249,12 @@ impl NatsRequest {
         request: &SettingsApplyRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
-        for f in request.files.iter() {
-            settings
-                .moonraker
-                .save_and_commit(&f.content, Some(request.git_commit_msg.clone()))
-                .await?;
-        }
-        let files = vec![settings.moonraker.to_payload()?];
-        self.build_settings_apply_reply(request, settings, files)
+        settings
+            .moonraker
+            .save_and_commit(&request.file.content, Some(request.git_commit_msg.clone()))
+            .await?;
+        let file = settings.moonraker.to_payload(SettingsApp::Moonraker)?;
+        self.build_settings_apply_reply(request, settings, file)
     }
 
     async fn handle_klipper_settings_apply(
@@ -268,28 +262,25 @@ impl NatsRequest {
         request: &SettingsApplyRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
-        for f in request.files.iter() {
-            settings
-                .klipper
-                .save_and_commit(&f.content, Some(request.git_commit_msg.clone()))
-                .await?;
-        }
-        let files = vec![settings.klipper.to_payload()?];
-        self.build_settings_apply_reply(request, settings, files)
+        settings
+            .klipper
+            .save_and_commit(&request.file.content, Some(request.git_commit_msg.clone()))
+            .await?;
+        let file = settings.klipper.to_payload(SettingsApp::Klipper)?;
+        self.build_settings_apply_reply(request, settings, file)
     }
 
     fn build_settings_apply_reply(
         &self,
         request: &SettingsApplyRequest,
         settings: PrintNannySettings,
-        files: Vec<SettingsFile>,
+        file: SettingsFile,
     ) -> Result<NatsReply> {
         let git_head_commit = settings.get_git_head_commit()?.oid;
         let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
             settings.get_rev_list()?.iter().map(|r| r.into()).collect();
         Ok(NatsReply::SettingsApplyReply(SettingsApplyReply {
-            app: request.app.clone(),
-            files,
+            file: Box::new(file),
             git_head_commit,
             git_history,
         }))
@@ -319,23 +310,6 @@ impl NatsRequest {
         Ok(files)
     }
 
-    fn build_settings_load_reply(
-        &self,
-        settings: PrintNannySettings,
-        files: Vec<SettingsFile>,
-    ) -> Result<NatsReply> {
-        let git_head_commit = settings.get_git_head_commit()?.oid;
-        let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
-            settings.get_rev_list()?.iter().map(|r| r.into()).collect();
-
-        let reply = SettingsLoadReply {
-            files,
-            git_head_commit,
-            git_history,
-        };
-        Ok(NatsReply::SettingsLoadReply(reply))
-    }
-
     pub fn handle_settings_load(&self) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
 
@@ -348,14 +322,14 @@ impl NatsRequest {
         files.extend(self.handle_moonraker_settings_load()?);
         files.extend(self.handle_klipper_settings_load()?);
         Ok(NatsReply::SettingsLoadReply(SettingsLoadReply {
-            files: files,
-            git_head_commit: git_head_commit,
-            git_history: git_history,
+            files,
+            git_head_commit,
+            git_history,
         }))
     }
 
     pub async fn handle_settings_apply(&self, request: &SettingsApplyRequest) -> Result<NatsReply> {
-        match *request.app {
+        match *request.file.app {
             SettingsApp::Printnanny => self.handle_printnanny_settings_apply(request).await,
             SettingsApp::Octoprint => self.handle_octoprint_settings_apply(request).await,
             SettingsApp::Moonraker => self.handle_moonraker_settings_apply(request).await,
@@ -602,13 +576,7 @@ impl NatsRequestHandler for NatsRequest {
                     serde_json::from_slice::<PrintNannyCloudAuthRequest>(payload.as_ref())?,
                 ))
             }
-            "pi.{pi_id}.settings.vcs.load" => {
-                Ok(NatsRequest::SettingsLoadRequest(serde_json::from_slice::<
-                    SettingsLoadRequest,
-                >(
-                    payload.as_ref()
-                )?))
-            }
+            "pi.{pi_id}.settings.vcs.load" => Ok(NatsRequest::SettingsLoadRequest),
             "pi.{pi_id}.settings.vcs.apply" => {
                 Ok(NatsRequest::SettingsApplyRequest(serde_json::from_slice::<
                     SettingsApplyRequest,
@@ -793,7 +761,7 @@ mod tests {
 
             // apply a settings change
             let mut settings = PrintNannySettings::new().unwrap();
-            let original = settings.to_payload().unwrap();
+            let original = settings.to_payload(SettingsApp::Printnanny).unwrap();
             let mut modified = original.clone();
             let git_head_commit = settings.get_git_head_commit().unwrap().oid;
             settings.paths.log_dir = "/path/to/testing".into();
@@ -801,8 +769,7 @@ mod tests {
             let git_commit_msg = "testing".to_string();
 
             let request_apply = NatsRequest::SettingsApplyRequest(SettingsApplyRequest {
-                files: vec![modified.clone()],
-                app: Box::new(SettingsApp::Printnanny),
+                file: Box::new(modified.clone()),
                 git_head_commit,
                 git_commit_msg: git_commit_msg.clone(),
             });
@@ -815,7 +782,7 @@ mod tests {
             if let NatsReply::SettingsApplyReply(reply) = reply {
                 assert_eq!(reply.git_history[0].message, git_commit_msg);
                 assert_eq!(reply.git_head_commit, revert_commit);
-                assert_eq!(reply.files[0].content, modified.content);
+                assert_eq!(reply.file.content, modified.content);
             } else {
                 panic!("Expected NatsReply::SettingsApplyReply")
             }
@@ -899,15 +866,17 @@ mod tests {
             let settings = PrintNannySettings::new().unwrap();
 
             // apply a settings change
-            let original = settings.octoprint.to_payload().unwrap();
+            let original = settings
+                .octoprint
+                .to_payload(SettingsApp::Octoprint)
+                .unwrap();
             let mut modified = original.clone();
             modified.content = OCTOPRINT_MODIFIED_SETTINGS.into();
             let git_head_commit = settings.get_git_head_commit().unwrap().oid;
             let git_commit_msg = "testing".to_string();
 
             let request_apply = NatsRequest::SettingsApplyRequest(SettingsApplyRequest {
-                files: vec![modified.clone()],
-                app: Box::new(SettingsApp::Octoprint),
+                file: Box::new(modified.clone()),
                 git_head_commit,
                 git_commit_msg: git_commit_msg.clone(),
             });
@@ -919,7 +888,7 @@ mod tests {
             if let NatsReply::SettingsApplyReply(reply) = reply {
                 assert_eq!(reply.git_history[0].message, git_commit_msg);
                 assert_eq!(reply.git_head_commit, revert_commit);
-                assert_eq!(reply.files[0].content, modified.content);
+                assert_eq!(reply.file.content, modified.content);
             } else {
                 panic!("Expected NatsReply::SettingsApplyReply")
             }
@@ -1001,15 +970,17 @@ mod tests {
             let settings = PrintNannySettings::new().unwrap();
 
             // apply a settings change
-            let original = settings.moonraker.to_payload().unwrap();
+            let original = settings
+                .moonraker
+                .to_payload(SettingsApp::Octoprint)
+                .unwrap();
             let mut modified = original.clone();
             modified.content = MOONRAKER_MODIFIED_SETTINGS.into();
             let git_head_commit = settings.get_git_head_commit().unwrap().oid;
             let git_commit_msg = "testing".to_string();
 
             let request_apply = NatsRequest::SettingsApplyRequest(SettingsApplyRequest {
-                files: vec![modified.clone()],
-                app: Box::new(SettingsApp::Moonraker),
+                file: Box::new(modified.clone()),
                 git_head_commit,
                 git_commit_msg: git_commit_msg.clone(),
             });
@@ -1021,7 +992,7 @@ mod tests {
             if let NatsReply::SettingsApplyReply(reply) = reply {
                 assert_eq!(reply.git_history[0].message, git_commit_msg);
                 assert_eq!(reply.git_head_commit, revert_commit);
-                assert_eq!(reply.files[0].content, modified.content);
+                assert_eq!(reply.file.content, modified.content);
             } else {
                 panic!("Expected NatsReply::SettingsApplyReply")
             }
