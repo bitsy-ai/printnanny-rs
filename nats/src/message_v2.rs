@@ -11,14 +11,14 @@ use serde::{Deserialize, Serialize};
 use printnanny_dbus::printnanny_asyncapi_models;
 use printnanny_dbus::printnanny_asyncapi_models::{
     DeviceInfoLoadReply, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp,
-    SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsLoadRequest,
-    SettingsRevertReply, SettingsRevertRequest, SystemdManagerDisableUnitsReply,
-    SystemdManagerDisableUnitsRequest, SystemdManagerEnableUnitsReply,
-    SystemdManagerEnableUnitsRequest, SystemdManagerGetUnitFileStateReply,
-    SystemdManagerGetUnitFileStateRequest, SystemdManagerGetUnitReply,
-    SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest,
-    SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply,
-    SystemdManagerStopUnitRequest, SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState,
+    SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsRevertReply,
+    SettingsRevertRequest, SystemdManagerDisableUnitsReply, SystemdManagerDisableUnitsRequest,
+    SystemdManagerEnableUnitsReply, SystemdManagerEnableUnitsRequest,
+    SystemdManagerGetUnitFileStateReply, SystemdManagerGetUnitFileStateRequest,
+    SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
+    SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
+    SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdUnitChange,
+    SystemdUnitChangeState, SystemdUnitFileState,
 };
 
 use printnanny_dbus::zbus;
@@ -53,7 +53,7 @@ pub enum NatsRequest {
     #[serde(rename = "pi.{pi_id}.settings.printnanny.cloud.auth")]
     PrintNannyCloudAuthRequest(PrintNannyCloudAuthRequest),
     #[serde(rename = "pi.{pi_id}.settings.vcs.load")]
-    SettingsLoadRequest(SettingsLoadRequest),
+    SettingsLoadRequest,
     #[serde(rename = "pi.{pi_id}.settings.vcs.apply")]
     SettingsApplyRequest(SettingsApplyRequest),
     #[serde(rename = "pi.{pi_id}.settings.vcs.revert")]
@@ -664,7 +664,7 @@ impl NatsRequestHandler for NatsRequest {
             NatsRequest::PrintNannyCloudAuthRequest(request) => {
                 self.handle_printnanny_cloud_auth(request).await?
             }
-            NatsRequest::SettingsLoadRequest(request) => self.handle_settings_load(request)?,
+            NatsRequest::SettingsLoadRequest => self.handle_settings_load()?,
             NatsRequest::SettingsApplyRequest(request) => {
                 self.handle_settings_apply(request).await?
             }
@@ -813,9 +813,7 @@ mod tests {
             }
 
             // load the settings we just applied
-            let request_load = NatsRequest::SettingsLoadRequest(SettingsLoadRequest {
-                app: Box::new(SettingsApp::Printnanny),
-            });
+            let request_load = NatsRequest::SettingsLoadRequest;
             let reply = Runtime::new()
                 .unwrap()
                 .block_on(request_load.handle())
@@ -919,9 +917,7 @@ mod tests {
             }
 
             // load the settings we just applied
-            let request_load = NatsRequest::SettingsLoadRequest(SettingsLoadRequest {
-                app: Box::new(SettingsApp::Octoprint),
-            });
+            let request_load = NatsRequest::SettingsLoadRequest;
             let reply = Runtime::new()
                 .unwrap()
                 .block_on(request_load.handle())
@@ -1023,9 +1019,7 @@ mod tests {
             }
 
             // load the settings we just applied
-            let request_load = NatsRequest::SettingsLoadRequest(SettingsLoadRequest {
-                app: Box::new(SettingsApp::Octoprint),
-            });
+            let request_load = NatsRequest::SettingsLoadRequest;
             let reply = Runtime::new()
                 .unwrap()
                 .block_on(request_load.handle())
