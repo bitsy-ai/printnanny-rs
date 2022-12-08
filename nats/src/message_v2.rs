@@ -272,7 +272,7 @@ impl NatsRequest {
 
     fn build_settings_apply_reply(
         &self,
-        request: &SettingsApplyRequest,
+        _request: &SettingsApplyRequest,
         settings: PrintNannySettings,
         file: SettingsFile,
     ) -> Result<NatsReply> {
