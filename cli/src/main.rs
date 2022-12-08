@@ -13,7 +13,6 @@ use printnanny_nats::message_v2::{NatsReply, NatsRequest};
 use printnanny_nats::cloud_worker::DEFAULT_NATS_CLOUD_APP_NAME;
 use printnanny_nats::subscriber::{ NatsSubscriber, DEFAULT_NATS_EDGE_APP_NAME};
 use printnanny_settings::{SettingsFormat};
-use printnanny_settings::printnanny::PrintNannySettings;
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_cli::settings::{SettingsCommand};
 use printnanny_cli::cloud_data::CloudDataCommand;
@@ -24,7 +23,6 @@ const GIT_VERSION: &str = git_version!();
 #[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() -> Result<()> {
     let mut builder = Builder::new();
-    let settings = PrintNannySettings::new()?;
     let app_name = "printnanny";
     let app = Command::new(app_name)
         .subcommand_required(true)
