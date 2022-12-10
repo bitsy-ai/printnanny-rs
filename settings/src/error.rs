@@ -76,6 +76,9 @@ pub enum PrintNannySettingsError {
     InvalidValue { value: String },
 
     #[error(transparent)]
+    FromUtf8Error(#[from] std::string::FromUtf8Error),
+
+    #[error(transparent)]
     JsonSerError(#[from] serde_json::Error),
     #[error(transparent)]
     TomlSerError(#[from] toml::ser::Error),

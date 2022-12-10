@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::zbus;
 
+use crate::error::PrintNannySettingsError;
+
 #[derive(Debug, Clone, clap::ValueEnum, Deserialize, Serialize, PartialEq, Eq)]
 pub enum VideoSrcType {
     File,
@@ -134,12 +136,15 @@ impl CameraVideoSource {
         let filtered = stdout.replace(remove_str, "");
         filtered
             .lines()
-            .map(Self::parse_list_camera_line)
-            .filter_map(|v| v)
+            .filter_map(Self::parse_list_camera_line)
             .collect()
     }
 
-    // pub fn from_libcamera_list() -> Result<Vec<CameraVideoSource>> {}
+    pub fn from_libcamera_list() -> Result<Vec<CameraVideoSource>, PrintNannySettingsError> {
+        let output = Self::list_cameras_command_output()?;
+        let utfstdout = String::from_utf8(output.stdout)?;
+        Ok(Self::parse_list_cameras_command_output(&utfstdout))
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
