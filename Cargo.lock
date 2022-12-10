@@ -2249,6 +2249,7 @@ dependencies = [
  "printnanny-api-client",
  "printnanny-asyncapi-models",
  "printnanny-dbus",
+ "regex",
  "serde 1.0.148",
  "serde_json",
  "sys-info",

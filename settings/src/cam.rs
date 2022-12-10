@@ -1,8 +1,13 @@
-use clap::ArgMatches;
+use std::process::{Command, Output};
 
+use clap::ArgMatches;
+use log::debug;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::zbus;
+
+use crate::error::PrintNannySettingsError;
 
 #[derive(Debug, Clone, clap::ValueEnum, Deserialize, Serialize, PartialEq, Eq)]
 pub enum VideoSrcType {
@@ -84,6 +89,80 @@ impl From<&ArgMatches> for TfliteModelSettings {
             tensor_framerate,
         }
     }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
+pub struct CameraVideoSource {
+    pub index: i32,
+    pub name: String,
+    pub label: String,
+}
+
+impl CameraVideoSource {
+    pub fn list_cameras_command_output() -> Result<Output, std::io::Error> {
+        let output = Command::new("cam")
+            .env("LIBCAMERA_LOG_LEVELS", "*:ERROR") // supress verbose output: https://libcamera.org/getting-started.html#basic-testing-with-cam-utility
+            .args(&["--list", "--list-properties"])
+            .output()?;
+        Ok(output)
+    }
+
+    pub fn parse_list_camera_line(line: &str) -> Option<CameraVideoSource> {
+        let re = Regex::new(r"(\d): '(.*)' \((.*)\)").unwrap();
+        match re.captures(line) {
+            Some(caps) => {
+                let index = caps.get(1).map(|s| s.as_str());
+                let label = caps.get(2).map(|s| s.as_str());
+                let name = caps.get(3).map(|s| s.as_str());
+                debug!(
+                    "parse_list_camera_line capture groups: {:#?} {:#?} {:#?}",
+                    &index, &label, &name
+                );
+                if index.is_some() && label.is_some() && name.is_some() {
+                    let index = index.unwrap().parse::<i32>().unwrap();
+                    let label = label.unwrap().into();
+                    let name = name.unwrap().into();
+                    Some(CameraVideoSource { index, name, label })
+                } else {
+                    None
+                }
+            }
+            None => None,
+        }
+    }
+
+    pub fn parse_list_cameras_command_output(stdout: &str) -> Vec<CameraVideoSource> {
+        let remove_str = "Available cameras:";
+        let filtered = stdout.replace(remove_str, "");
+        filtered
+            .lines()
+            .filter_map(Self::parse_list_camera_line)
+            .collect()
+    }
+
+    pub fn from_libcamera_list() -> Result<Vec<CameraVideoSource>, PrintNannySettingsError> {
+        let output = Self::list_cameras_command_output()?;
+        let utfstdout = String::from_utf8(output.stdout)?;
+        Ok(Self::parse_list_cameras_command_output(&utfstdout))
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
+pub struct MediaVideoSource {
+    pub uri: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(tag = "video_src_type")]
+pub enum VideoSource {
+    #[serde(rename = "csi")]
+    CSI(CameraVideoSource),
+    #[serde(rename = "usb")]
+    USB(CameraVideoSource),
+    #[serde(rename = "file")]
+    File(MediaVideoSource),
+    #[serde(rename = "uri")]
+    Uri(MediaVideoSource),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
@@ -239,5 +318,73 @@ impl From<&ArgMatches> for PrintNannyCamSettings {
             hls_playlist_root,
             nats_server_uri,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MULTIPLE_CAMERAS: &str = r#"Available cameras:
+1: 'imx219' (/base/soc/i2c0mux/i2c@1/imx219@10)
+2: 'Logitech BRIO' (/base/scb/pcie@7d500000/pci@0,0/usb@0,0-1:1.0-046d:085e)"#;
+
+    const ONE_CSI_CAMERA: &str = r#"Available cameras:
+1: 'imx219' (/base/soc/i2c0mux/i2c@1/imx219@10)"#;
+
+    const ONE_USB_CAMERA: &str = r#"Available cameras:
+1: 'Logitech BRIO' (/base/scb/pcie@7d500000/pci@0,0/usb@0,0-1:1.0-046d:085e)"#;
+
+    #[test_log::test]
+    fn test_parse_multiple_libcamera_list_command_output() {
+        let result = CameraVideoSource::parse_list_cameras_command_output(MULTIPLE_CAMERAS);
+
+        assert_eq!(
+            *result.get(0).unwrap(),
+            CameraVideoSource {
+                index: 1,
+                label: "imx219".into(),
+                name: "/base/soc/i2c0mux/i2c@1/imx219@10".into()
+            }
+        );
+        assert_eq!(
+            *result.get(1).unwrap(),
+            CameraVideoSource {
+                index: 2,
+                label: "Logitech BRIO".into(),
+                name: "/base/scb/pcie@7d500000/pci@0,0/usb@0,0-1:1.0-046d:085e".into()
+            }
+        )
+    }
+    #[test_log::test]
+    fn test_parse_one_csi_libcamera_list_command_output() {
+        let result = CameraVideoSource::parse_list_cameras_command_output(ONE_CSI_CAMERA);
+
+        assert_eq!(
+            *result.get(0).unwrap(),
+            CameraVideoSource {
+                index: 1,
+                label: "imx219".into(),
+                name: "/base/soc/i2c0mux/i2c@1/imx219@10".into()
+            }
+        );
+    }
+    #[test_log::test]
+    fn test_parse_one_usb_libcamera_list_command_output() {
+        let result = CameraVideoSource::parse_list_cameras_command_output(ONE_USB_CAMERA);
+        assert_eq!(
+            *result.get(0).unwrap(),
+            CameraVideoSource {
+                index: 1,
+                label: "Logitech BRIO".into(),
+                name: "/base/scb/pcie@7d500000/pci@0,0/usb@0,0-1:1.0-046d:085e".into()
+            }
+        )
+    }
+
+    #[test_log::test]
+    fn test_parse_no_libcamera_list_command_output() {
+        let result = CameraVideoSource::parse_list_cameras_command_output("");
+        assert_eq!(result.len(), 0)
     }
 }
