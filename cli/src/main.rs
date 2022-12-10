@@ -9,6 +9,7 @@ use clap::{
 use git_version::git_version;
 
 
+use printnanny_cli::cam::CameraCommand;
 use printnanny_nats::message_v2::{NatsReply, NatsRequest};
 use printnanny_nats::cloud_worker::DEFAULT_NATS_CLOUD_APP_NAME;
 use printnanny_nats::subscriber::{ NatsSubscriber, DEFAULT_NATS_EDGE_APP_NAME};
@@ -33,6 +34,19 @@ async fn main() -> Result<()> {
         .short('v')
         .multiple_occurrences(true)
         .help("Sets the level of verbosity. Info: -v Debug: -vv Trace: -vvv"))
+
+        // cam
+        .subcommand(Command::new("cam")
+            .author(crate_authors!())
+            .about("Interact with PrintNanny camera/device APIs")
+            .version(GIT_VERSION)
+            .subcommand_required(true)
+            .subcommand(Command::new("list")
+            .author(crate_authors!())
+            .about(crate_description!())
+            .version(GIT_VERSION)
+            .about("List devices/cameras compatible with PrintNanny Vision")           
+        ))
 
         // dash
         .subcommand(Command::new("dash")
@@ -227,6 +241,9 @@ async fn main() -> Result<()> {
     };
 
     match app_m.subcommand() {
+        Some(("cam", sub_m)) => {
+            CameraCommand::handle(sub_m)?;
+        },
         Some(("nats-publisher", sub_m)) => {
             let app = printnanny_nats::cloud_publisher::CloudEventPublisher::new(sub_m)?;
             app.run().await?;
