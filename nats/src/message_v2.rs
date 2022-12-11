@@ -9,7 +9,7 @@ use printnanny_settings::cam::CameraVideoSource;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use printnanny_dbus::printnanny_asyncapi_models;
+use printnanny_dbus::printnanny_asyncapi_models::{self, CamerasLoadReply};
 use printnanny_dbus::printnanny_asyncapi_models::{
     DeviceInfoLoadReply, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp,
     SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsRevertReply,
@@ -89,7 +89,7 @@ pub enum NatsRequest {
 pub enum NatsReply {
     // pi.{pi_id}.cameras.load
     #[serde(rename = "pi.{pi_id}.cameras.load")]
-    CameraLoadReply,
+    CameraLoadReply(CamerasLoadReply),
 
     // pi.{pi_id}.device_info.load
     #[serde(rename = "pi.{pi_id}.device_info.load")]
@@ -135,7 +135,9 @@ impl NatsRequest {
         Ok(NatsReply::DeviceInfoLoadReply(DeviceInfoLoadReply {
             issue,
             os_release,
-            printnanny_cli_version: "".into(),
+            printnanny_cli_version: "".into(), // TODO
+            tailscale_address_ipv4: "".into(), // TODO
+            tailscale_address_ipv6: "".into(), // TODO
         }))
     }
 
@@ -163,10 +165,13 @@ impl NatsRequest {
 
     pub fn handle_cameras_load(&self) -> Result<NatsReply> {
         let cameras: Vec<printnanny_asyncapi_models::Camera> =
-            CameraVideoSource::from_libcamera_list()?.map(|v| v.into());
+            CameraVideoSource::from_libcamera_list()?
+                .iter()
+                .map(|v| v.into())
+                .collect();
 
         Ok(NatsReply::CameraLoadReply(
-            printnanny_asyncapi_models::Camera { cameras },
+            printnanny_asyncapi_models::cameras_load_reply::CamerasLoadReply { cameras },
         ))
     }
 
