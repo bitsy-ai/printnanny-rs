@@ -136,8 +136,8 @@ impl NatsRequest {
             issue,
             os_release,
             printnanny_cli_version: "".into(), // TODO
-            tailscale_address_ipv4: "".into(), // TODO
-            tailscale_address_ipv6: "".into(), // TODO
+            tailscale_address_ipv4: None,      // TODO
+            tailscale_address_ipv6: None,      // TODO
         }))
     }
 
