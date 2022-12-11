@@ -94,7 +94,7 @@ impl From<&ArgMatches> for TfliteModelSettings {
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct CameraVideoSource {
     pub index: i32,
-    pub name: String,
+    pub device_name: String,
     pub label: String,
 }
 
@@ -113,16 +113,20 @@ impl CameraVideoSource {
             Some(caps) => {
                 let index = caps.get(1).map(|s| s.as_str());
                 let label = caps.get(2).map(|s| s.as_str());
-                let name = caps.get(3).map(|s| s.as_str());
+                let device_name = caps.get(3).map(|s| s.as_str());
                 debug!(
                     "parse_list_camera_line capture groups: {:#?} {:#?} {:#?}",
-                    &index, &label, &name
+                    &index, &label, &device_name
                 );
-                if index.is_some() && label.is_some() && name.is_some() {
+                if index.is_some() && label.is_some() && device_name.is_some() {
                     let index = index.unwrap().parse::<i32>().unwrap();
                     let label = label.unwrap().into();
-                    let name = name.unwrap().into();
-                    Some(CameraVideoSource { index, name, label })
+                    let device_name = device_name.unwrap().into();
+                    Some(CameraVideoSource {
+                        index,
+                        device_name,
+                        label,
+                    })
                 } else {
                     None
                 }
@@ -152,7 +156,7 @@ impl From<&CameraVideoSource> for printnanny_asyncapi_models::camera::Camera {
         printnanny_asyncapi_models::camera::Camera {
             index: obj.index,
             label: obj.label.clone(),
-            name: obj.name.clone(),
+            device_name: obj.device_name.clone(),
         }
     }
 }
@@ -354,7 +358,7 @@ mod tests {
             CameraVideoSource {
                 index: 1,
                 label: "imx219".into(),
-                name: "/base/soc/i2c0mux/i2c@1/imx219@10".into()
+                device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into()
             }
         );
         assert_eq!(
@@ -362,7 +366,7 @@ mod tests {
             CameraVideoSource {
                 index: 2,
                 label: "Logitech BRIO".into(),
-                name: "/base/scb/pcie@7d500000/pci@0,0/usb@0,0-1:1.0-046d:085e".into()
+                device_name: "/base/scb/pcie@7d500000/pci@0,0/usb@0,0-1:1.0-046d:085e".into()
             }
         )
     }
@@ -375,7 +379,7 @@ mod tests {
             CameraVideoSource {
                 index: 1,
                 label: "imx219".into(),
-                name: "/base/soc/i2c0mux/i2c@1/imx219@10".into()
+                device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into()
             }
         );
     }
@@ -387,7 +391,7 @@ mod tests {
             CameraVideoSource {
                 index: 1,
                 label: "Logitech BRIO".into(),
-                name: "/base/scb/pcie@7d500000/pci@0,0/usb@0,0-1:1.0-046d:085e".into()
+                device_name: "/base/scb/pcie@7d500000/pci@0,0/usb@0,0-1:1.0-046d:085e".into()
             }
         )
     }
