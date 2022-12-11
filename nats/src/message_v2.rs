@@ -656,6 +656,8 @@ impl NatsRequestHandler for NatsRequest {
 
     async fn handle(&self) -> Result<Self::Reply> {
         let reply = match self {
+            // pi.{pi_id}.cameras.load
+            NatsRequest::CameraLoadRequest => self.handle_cameras_load()?,
             // pi.{pi_id}.device_info.load
             NatsRequest::DeviceInfoLoadRequest => self.handle_device_info_load().await?,
 
