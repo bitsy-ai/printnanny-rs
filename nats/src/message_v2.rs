@@ -5,10 +5,11 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
 use log::info;
+use printnanny_settings::cam::CameraVideoSource;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use printnanny_dbus::printnanny_asyncapi_models;
+use printnanny_dbus::printnanny_asyncapi_models::{self, CamerasLoadReply};
 use printnanny_dbus::printnanny_asyncapi_models::{
     DeviceInfoLoadReply, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp,
     SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsRevertReply,
@@ -45,6 +46,10 @@ pub trait NatsRequestHandler {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "subject_pattern")]
 pub enum NatsRequest {
+    // pi.{pi_id}.cameras.load
+    #[serde(rename = "pi.{pi_id}.cameras.load")]
+    CameraLoadRequest,
+
     // pi.{pi_id}.device_info.load
     #[serde(rename = "pi.{pi_id}.device_info.load")]
     DeviceInfoLoadRequest,
@@ -82,6 +87,10 @@ pub enum NatsRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "subject_pattern")]
 pub enum NatsReply {
+    // pi.{pi_id}.cameras.load
+    #[serde(rename = "pi.{pi_id}.cameras.load")]
+    CameraLoadReply(CamerasLoadReply),
+
     // pi.{pi_id}.device_info.load
     #[serde(rename = "pi.{pi_id}.device_info.load")]
     DeviceInfoLoadReply(DeviceInfoLoadReply),
@@ -126,7 +135,9 @@ impl NatsRequest {
         Ok(NatsReply::DeviceInfoLoadReply(DeviceInfoLoadReply {
             issue,
             os_release,
-            printnanny_cli_version: "".into(),
+            printnanny_cli_version: "".into(), // TODO
+            tailscale_address_ipv4: None,      // TODO
+            tailscale_address_ipv6: None,      // TODO
         }))
     }
 
@@ -150,6 +161,18 @@ impl NatsRequest {
             }),
         };
         Ok(result)
+    }
+
+    pub fn handle_cameras_load(&self) -> Result<NatsReply> {
+        let cameras: Vec<printnanny_asyncapi_models::Camera> =
+            CameraVideoSource::from_libcamera_list()?
+                .iter()
+                .map(|v| v.into())
+                .collect();
+
+        Ok(NatsReply::CameraLoadReply(
+            printnanny_asyncapi_models::cameras_load_reply::CamerasLoadReply { cameras },
+        ))
     }
 
     pub async fn handle_printnanny_settings_revert(
@@ -633,6 +656,8 @@ impl NatsRequestHandler for NatsRequest {
 
     async fn handle(&self) -> Result<Self::Reply> {
         let reply = match self {
+            // pi.{pi_id}.cameras.load
+            NatsRequest::CameraLoadRequest => self.handle_cameras_load()?,
             // pi.{pi_id}.device_info.load
             NatsRequest::DeviceInfoLoadRequest => self.handle_device_info_load().await?,
 
