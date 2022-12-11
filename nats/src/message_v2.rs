@@ -593,6 +593,7 @@ impl NatsRequestHandler for NatsRequest {
 
     fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Request> {
         match subject_pattern {
+            "pi.{pi_id}.cameras.load" => Ok(NatsRequest::CameraLoadRequest),
             "pi.{pi_id}.device_info.load" => Ok(NatsRequest::DeviceInfoLoadRequest),
             "pi.{pi_id}.settings.printnanny.cloud.auth" => {
                 Ok(NatsRequest::PrintNannyCloudAuthRequest(
