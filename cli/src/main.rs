@@ -10,9 +10,9 @@ use git_version::git_version;
 
 
 use printnanny_cli::cam::CameraCommand;
+use printnanny_nats::subscriber::NatsSubscriber;
 use printnanny_nats::message_v2::{NatsReply, NatsRequest};
 use printnanny_nats::cloud_worker::DEFAULT_NATS_CLOUD_APP_NAME;
-use printnanny_nats::subscriber::{ NatsSubscriber, DEFAULT_NATS_EDGE_APP_NAME};
 use printnanny_settings::{SettingsFormat};
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_cli::settings::{SettingsCommand};
@@ -191,6 +191,7 @@ async fn main() -> Result<()> {
             ))
 
         // nats-edge-worker
+        .subcommand(NatsSubscriber::<NatsRequest, NatsReply>::clap_command(None))
         // TODO
         // .subcommand(printnanny_nats::subscriber::NatsSubscriber::<NatsRequest, NatsReply>::clap_command(None))
         // nats-cloud-worker
