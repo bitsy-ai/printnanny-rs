@@ -94,7 +94,7 @@ impl From<&ArgMatches> for TfliteModelSettings {
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct CameraVideoSource {
     pub index: i32,
-    pub name: String,
+    pub device_name: String,
     pub label: String,
 }
 
@@ -113,16 +113,20 @@ impl CameraVideoSource {
             Some(caps) => {
                 let index = caps.get(1).map(|s| s.as_str());
                 let label = caps.get(2).map(|s| s.as_str());
-                let name = caps.get(3).map(|s| s.as_str());
+                let device_name = caps.get(3).map(|s| s.as_str());
                 debug!(
                     "parse_list_camera_line capture groups: {:#?} {:#?} {:#?}",
-                    &index, &label, &name
+                    &index, &label, &device_name
                 );
-                if index.is_some() && label.is_some() && name.is_some() {
+                if index.is_some() && label.is_some() && device_name.is_some() {
                     let index = index.unwrap().parse::<i32>().unwrap();
                     let label = label.unwrap().into();
-                    let name = name.unwrap().into();
-                    Some(CameraVideoSource { index, name, label })
+                    let device_name = device_name.unwrap().into();
+                    Some(CameraVideoSource {
+                        index,
+                        device_name,
+                        label,
+                    })
                 } else {
                     None
                 }
