@@ -99,7 +99,7 @@ where
         let nats_creds = args.value_of("nats_creds");
         let nats_creds = nats_creds.map(PathBuf::from);
 
-        let system_hostname = sys_info::hostname().unwrap_or("localhost".into());
+        let system_hostname = sys_info::hostname().unwrap_or_else(|_| "localhost".into());
         let hostname = args.value_of("hostname").unwrap_or(&system_hostname).into();
 
         Self {

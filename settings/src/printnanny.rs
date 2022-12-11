@@ -140,7 +140,7 @@ impl PrintNannySettings {
         &self,
         dir: Option<PathBuf>,
     ) -> Result<(), PrintNannySettingsError> {
-        let target_dir = dir.unwrap_or(self.paths.settings_dir.clone());
+        let target_dir = dir.unwrap_or_else(|| self.paths.settings_dir.clone());
         let repo = git2::Repository::clone(&self.git.remote, &target_dir)?;
         let config = repo.config()?;
         let mut localconfig = config.open_level(git2::ConfigLevel::Local)?;

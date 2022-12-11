@@ -2,7 +2,6 @@ use std::io;
 use std::io::Write;
 
 use anyhow::{Ok, Result};
-use printnanny_services::error::ServiceError;
 use printnanny_settings::{cam::CameraVideoSource, SettingsFormat};
 
 pub struct CameraCommand;
