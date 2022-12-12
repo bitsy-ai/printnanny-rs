@@ -13,13 +13,12 @@ use printnanny_dbus::printnanny_asyncapi_models::{self, CamerasLoadReply};
 use printnanny_dbus::printnanny_asyncapi_models::{
     DeviceInfoLoadReply, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp,
     SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsRevertReply,
-    SettingsRevertRequest, SystemdManagerDisableUnitsReply, SystemdManagerDisableUnitsRequest,
-    SystemdManagerEnableUnitsReply, SystemdManagerEnableUnitsRequest,
-    SystemdManagerGetUnitFileStateReply, SystemdManagerGetUnitFileStateRequest,
-    SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
-    SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
-    SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdUnitChange,
-    SystemdUnitChangeState, SystemdUnitFileState,
+    SettingsRevertRequest, SystemdManagerDisableUnitsReply, SystemdManagerEnableUnitsReply,
+    SystemdManagerGetUnitFileStateReply, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
+    SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply,
+    SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest,
+    SystemdManagerUnitFilesRequest, SystemdUnitChange, SystemdUnitChangeState,
+    SystemdUnitFileState,
 };
 
 use printnanny_dbus::zbus;
@@ -66,13 +65,13 @@ pub enum NatsRequest {
 
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
-    SystemdManagerDisableUnitsRequest(SystemdManagerDisableUnitsRequest),
+    SystemdManagerDisableUnitsRequest(SystemdManagerUnitFilesRequest),
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.EnableUnit")]
-    SystemdManagerEnableUnitsRequest(SystemdManagerEnableUnitsRequest),
+    SystemdManagerEnableUnitsRequest(SystemdManagerUnitFilesRequest),
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.GetUnit")]
     SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest),
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.GetUnitFileState")]
-    SystemdManagerGetUnitFileStateRequest(SystemdManagerGetUnitFileStateRequest),
+    SystemdManagerGetUnitFileStateRequest(SystemdManagerGetUnitRequest),
     // TODO: : Job type reload is not applicable for unit octoprint.service.
     // #[serde(rename = "pi.dbus.org.freedesktop.systemd1.Manager.ReloadUnit")]
     // SystemdManagerReloadUnitRequest(SystemdManagerReloadUnitRequest),
@@ -374,7 +373,7 @@ impl NatsRequest {
 
     pub async fn handle_disable_units_request(
         &self,
-        request: &SystemdManagerDisableUnitsRequest,
+        request: &SystemdManagerUnitFilesRequest,
     ) -> Result<NatsReply> {
         let connection = zbus::Connection::system().await?;
         let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
@@ -408,13 +407,16 @@ impl NatsRequest {
         proxy.reload().await?;
 
         Ok(NatsReply::SystemdManagerDisableUnitsReply(
-            SystemdManagerDisableUnitsReply { changes },
+            SystemdManagerDisableUnitsReply {
+                changes,
+                request: Box::new(request.clone()),
+            },
         ))
     }
 
     pub async fn handle_enable_units_request(
         &self,
-        request: &SystemdManagerEnableUnitsRequest,
+        request: &SystemdManagerUnitFilesRequest,
     ) -> Result<NatsReply> {
         let connection = zbus::Connection::system().await?;
 
@@ -450,7 +452,10 @@ impl NatsRequest {
         proxy.reload().await?;
 
         Ok(NatsReply::SystemdManagerEnableUnitsReply(
-            SystemdManagerEnableUnitsReply { changes },
+            SystemdManagerEnableUnitsReply {
+                changes,
+                request: Box::new(request.clone()),
+            },
         ))
     }
 
@@ -482,7 +487,7 @@ impl NatsRequest {
 
     async fn handle_get_unit_file_state_request(
         &self,
-        request: &SystemdManagerGetUnitFileStateRequest,
+        request: &SystemdManagerGetUnitRequest,
     ) -> Result<NatsReply> {
         let connection = zbus::Connection::system().await?;
         let proxy = printnanny_dbus::zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
@@ -505,6 +510,7 @@ impl NatsRequest {
         Ok(NatsReply::SystemdManagerGetUnitFileStateReply(
             SystemdManagerGetUnitFileStateReply {
                 unit_file_state: Box::new(unit_file_state),
+                request: Box::new(request.clone()),
             },
         ))
     }
@@ -613,12 +619,12 @@ impl NatsRequestHandler for NatsRequest {
             )),
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit" => {
                 Ok(NatsRequest::SystemdManagerDisableUnitsRequest(
-                    serde_json::from_slice::<SystemdManagerDisableUnitsRequest>(payload.as_ref())?,
+                    serde_json::from_slice::<SystemdManagerUnitFilesRequest>(payload.as_ref())?,
                 ))
             }
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.EnableUnit" => {
                 Ok(NatsRequest::SystemdManagerEnableUnitsRequest(
-                    serde_json::from_slice::<SystemdManagerEnableUnitsRequest>(payload.as_ref())?,
+                    serde_json::from_slice::<SystemdManagerUnitFilesRequest>(payload.as_ref())?,
                 ))
             }
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.GetUnit" => {
@@ -628,9 +634,7 @@ impl NatsRequestHandler for NatsRequest {
             }
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.GetUnitFileState" => {
                 Ok(NatsRequest::SystemdManagerGetUnitFileStateRequest(
-                    serde_json::from_slice::<SystemdManagerGetUnitFileStateRequest>(
-                        payload.as_ref(),
-                    )?,
+                    serde_json::from_slice::<SystemdManagerGetUnitRequest>(payload.as_ref())?,
                 ))
             }
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.RestartUnit" => {
@@ -1060,14 +1064,13 @@ mod tests {
     #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_get_unit_file_state_ok() {
-        let request = NatsRequest::SystemdManagerGetUnitFileStateRequest(
-            SystemdManagerGetUnitFileStateRequest {
+        let request =
+            NatsRequest::SystemdManagerGetUnitFileStateRequest(SystemdManagerGetUnitRequest {
                 unit_name: "octoprint.service".into(),
-            },
-        );
+            });
         let reply = request.handle().await.unwrap();
         if let NatsReply::SystemdManagerGetUnitFileStateReply(reply) = reply {
-            // unit may already be in an enabled state
+            // unit may already be in an enabled stateSystemdManagerUnitFilesRequest
             assert!(
                 *reply.unit_file_state == SystemdUnitFileState::Enabled
                     || *reply.unit_file_state == SystemdUnitFileState::Disabled
@@ -1080,11 +1083,10 @@ mod tests {
     #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_get_unit_file_state_error() {
-        let request = NatsRequest::SystemdManagerGetUnitFileStateRequest(
-            SystemdManagerGetUnitFileStateRequest {
+        let request =
+            NatsRequest::SystemdManagerGetUnitFileStateRequest(SystemdManagerGetUnitRequest {
                 unit_name: "doesnotexist.service".into(),
-            },
-        );
+            });
         let reply = request.handle().await;
         assert!(reply.is_err());
     }
@@ -1093,7 +1095,7 @@ mod tests {
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_enable_disable_unit_ok() {
         let request =
-            NatsRequest::SystemdManagerEnableUnitsRequest(SystemdManagerEnableUnitsRequest {
+            NatsRequest::SystemdManagerEnableUnitsRequest(SystemdManagerUnitFilesRequest {
                 files: vec!["octoprint.service".into()],
             });
         let natsreply = request.handle().await.unwrap();
@@ -1105,7 +1107,7 @@ mod tests {
         }
 
         let request =
-            NatsRequest::SystemdManagerDisableUnitsRequest(SystemdManagerDisableUnitsRequest {
+            NatsRequest::SystemdManagerDisableUnitsRequest(SystemdManagerUnitFilesRequest {
                 files: vec!["octoprint.service".into()],
             });
         let natsreply = request.handle().await.unwrap();
@@ -1120,7 +1122,7 @@ mod tests {
     #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_disable_unit_error() {
-        let request = SystemdManagerDisableUnitsRequest {
+        let request = SystemdManagerUnitFilesRequest {
             files: vec!["doesnotexist.service".into()],
         };
         let natsrequest = NatsRequest::SystemdManagerDisableUnitsRequest(request.clone());
@@ -1131,7 +1133,7 @@ mod tests {
     #[cfg(feature = "systemd")]
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_enable_unit_error() {
-        let request = SystemdManagerEnableUnitsRequest {
+        let request = SystemdManagerUnitFilesRequest {
             files: vec!["doesnotexist.service".into()],
         };
         let natsrequest = NatsRequest::SystemdManagerEnableUnitsRequest(request.clone());
@@ -1218,7 +1220,7 @@ mod tests {
     #[test(tokio::test)] // async test
     async fn test_dbus_systemd_stop_unit_ok() {
         let request =
-            NatsRequest::SystemdManagerEnableUnitsRequest(SystemdManagerEnableUnitsRequest {
+            NatsRequest::SystemdManagerEnableUnitsRequest(SystemdManagerUnitFilesRequest {
                 files: vec!["octoprint.service".into()],
             });
         let natsreply = request.handle().await.unwrap();
