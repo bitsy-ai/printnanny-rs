@@ -55,7 +55,7 @@ async fn main() -> Result<()> {
                 .default_value("json")
                 .help("Output format")
             )     
-        )
+        ))
 
         // dash
         .subcommand(Command::new("dash")
@@ -226,7 +226,7 @@ async fn main() -> Result<()> {
                 )
             )
             .about("Interact with PrintNanny OS")
-        ));
+        );
     
     
     let app_m = app.get_matches();
