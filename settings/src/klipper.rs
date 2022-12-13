@@ -14,7 +14,7 @@ use crate::SettingsFormat;
 pub const KLIPPER_INSTALL_DIR: &str = "/home/printnanny/.klipper";
 pub const KLIPPER_VENV: &str = "/home/printnanny/klipper-venv";
 pub const KLIPPER_SETTINGS_FILE: &str =
-    "/home/printnanny/.config/printnanny/settings/klipper/printer.cfg";
+    "/home/printnanny/.config/printnanny/vcs/klipper/printer.cfg";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KlipperSettings {
@@ -44,7 +44,7 @@ impl VersionControlledSettings for KlipperSettings {
     type SettingsModel = KlipperSettings;
 
     fn from_dir(settings_dir: &Path) -> Self {
-        let settings_file = settings_dir.join("klipper/klipper.cfg");
+        let settings_file = settings_dir.join("klipper/printer.cfg");
         Self {
             settings_file,
             ..Self::default()
