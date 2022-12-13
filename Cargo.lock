@@ -2147,6 +2147,7 @@ dependencies = [
  "log",
  "printnanny-asyncapi-models",
  "serde 1.0.148",
+ "thiserror",
  "tokio",
  "zbus",
  "zbus_systemd",
