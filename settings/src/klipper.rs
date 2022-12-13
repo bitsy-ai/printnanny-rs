@@ -44,7 +44,7 @@ impl VersionControlledSettings for KlipperSettings {
     type SettingsModel = KlipperSettings;
 
     fn from_dir(settings_dir: &Path) -> Self {
-        let settings_file = settings_dir.join("klipper/klipper.cfg");
+        let settings_file = settings_dir.join("klipper/printer.cfg");
         Self {
             settings_file,
             ..Self::default()
