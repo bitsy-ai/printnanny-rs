@@ -23,6 +23,8 @@ use printnanny_services::error;
 
 use crate::subjects;
 
+pub const DEFAULT_NATS_CLOUD_PUBLISHER_APP_NAME: &str = "nats-cloud-publisher";
+
 #[derive(Debug, Clone)]
 pub struct CloudEventPublisher {
     args: ArgMatches,
@@ -49,8 +51,10 @@ impl CloudEventPublisher {
             state,
         })
     }
-    pub fn clap_command() -> Command<'static> {
-        let app_name = "nats-cloud-publisher";
+    pub fn clap_command(app_name: Option<String>) -> Command<'static> {
+        let app_name =
+            app_name.unwrap_or_else(|| DEFAULT_NATS_CLOUD_PUBLISHER_APP_NAME.to_string());
+
         let app = Command::new(app_name)
             .author(crate_authors!())
             .about("Issue command via NATs")

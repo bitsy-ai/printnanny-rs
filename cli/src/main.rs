@@ -10,7 +10,8 @@ use git_version::git_version;
 
 
 use printnanny_cli::cam::CameraCommand;
-use printnanny_nats::subscriber::NatsSubscriber;
+use printnanny_nats::cloud_publisher::DEFAULT_NATS_CLOUD_PUBLISHER_APP_NAME;
+use printnanny_nats::subscriber::{ DEFAULT_NATS_EDGE_APP_NAME, NatsSubscriber};
 use printnanny_nats::message_v2::{NatsReply, NatsRequest};
 use printnanny_nats::cloud_worker::DEFAULT_NATS_CLOUD_APP_NAME;
 use printnanny_settings::{SettingsFormat};
@@ -54,7 +55,7 @@ async fn main() -> Result<()> {
                 .default_value("json")
                 .help("Output format")
             )     
-        ))
+        )
 
         // dash
         .subcommand(Command::new("dash")
@@ -191,13 +192,13 @@ async fn main() -> Result<()> {
             ))
 
         // nats-edge-worker
-        .subcommand(NatsSubscriber::<NatsRequest, NatsReply>::clap_command(None))
+        .subcommand(NatsSubscriber::<NatsRequest, NatsReply>::clap_command(Some(DEFAULT_NATS_EDGE_APP_NAME.to_string())))
         // TODO
         // .subcommand(printnanny_nats::subscriber::NatsSubscriber::<NatsRequest, NatsReply>::clap_command(None))
         // nats-cloud-worker
-        .subcommand(printnanny_nats::cloud_worker::NatsCloudWorker::clap_command(None))
+        .subcommand(printnanny_nats::cloud_worker::NatsCloudWorker::clap_command(Some(DEFAULT_NATS_CLOUD_APP_NAME.to_string())))
         // nats-cloud-publisher
-        .subcommand(printnanny_nats::cloud_publisher::CloudEventPublisher::clap_command())
+        .subcommand(printnanny_nats::cloud_publisher::CloudEventPublisher::clap_command(Some(DEFAULT_NATS_CLOUD_PUBLISHER_APP_NAME.to_string())))
         // os <issue|motd>
         .subcommand(Command::new("os")
             .author(crate_authors!())
@@ -225,7 +226,7 @@ async fn main() -> Result<()> {
                 )
             )
             .about("Interact with PrintNanny OS")
-        );
+        ));
     
     
     let app_m = app.get_matches();
