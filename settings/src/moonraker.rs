@@ -18,7 +18,7 @@ use crate::SettingsFormat;
 pub const MOONRAKER_INSTALL_DIR: &str = "/home/printnanny/.moonraker";
 pub const MOONRAKER_VENV: &str = "/home/printnanny/moonraker-venv";
 pub const DEFAULT_MOONRAKER_SETTINGS_FILE: &str =
-    "/home/printnanny/.config/vcs/moonraker/moonraker.conf";
+    "/home/printnanny/.config/printnanny/vcs/moonraker/moonraker.conf";
 
 // Moonraker server config
 // https://moonraker.readthedocs.io/en/latest/configuration/#server
