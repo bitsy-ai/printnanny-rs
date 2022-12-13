@@ -15,6 +15,8 @@ pub enum SystemdLoadState {
     Error,
     #[serde(rename = "masked")]
     Masked,
+    #[serde(rename = "not-found")]
+    NotFound,
 }
 
 impl FromStr for SystemdLoadState {
@@ -24,6 +26,7 @@ impl FromStr for SystemdLoadState {
             "loaded" => Ok(SystemdLoadState::Loaded),
             "error" => Ok(SystemdLoadState::Error),
             "masked" => Ok(SystemdLoadState::Masked),
+            "not-found" => Ok(SystemdLoadState::NotFound),
             _ => Err(format!("Invalid value for SystemdLoadState: {}", input)),
         }
     }
