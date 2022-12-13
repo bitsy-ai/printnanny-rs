@@ -13,8 +13,7 @@ use crate::SettingsFormat;
 
 pub const KLIPPER_INSTALL_DIR: &str = "/home/printnanny/.klipper";
 pub const KLIPPER_VENV: &str = "/home/printnanny/klipper-venv";
-pub const KLIPPER_SETTINGS_FILE: &str =
-    "/home/printnanny/.config/printnanny/settings/klipper/printer.cfg";
+pub const KLIPPER_SETTINGS_FILE: &str = "/home/printnanny/.config/vcs/klipper/printer.cfg";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KlipperSettings {

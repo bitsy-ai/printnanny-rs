@@ -13,9 +13,9 @@ use super::error::PrintNannySettingsError;
 
 pub const DEFAULT_PRINTNANNY_USER: &str = "printnanny";
 pub const PRINTNANNY_SETTINGS_FILENAME: &str = "printnanny.toml";
-pub const DEFAULT_PRINTNANNY_SETTINGS_DIR: &str = "/home/printnanny/.config/printnanny";
+pub const DEFAULT_PRINTNANNY_SETTINGS_DIR: &str = "/home/printnanny/.config/vcs";
 pub const DEFAULT_PRINTNANNY_SETTINGS_FILE: &str =
-    "/home/printnanny/.config/printnanny/settings/printnanny/printnanny.toml";
+    "/home/printnanny/.config/vcs/printnanny/printnanny.toml";
 pub const DEFAULT_PRINTNANNY_DATA_DIR: &str = "/home/printnanny/.local/share";
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
@@ -52,7 +52,6 @@ impl Default for PrintNannyPaths {
 }
 
 impl PrintNannyPaths {
-    
     pub fn state_file(&self) -> PathBuf {
         self.state_dir.join("PrintNannyCloudData.toml")
     }
