@@ -135,16 +135,23 @@ impl SystemdUnit {
         path: zbus::zvariant::OwnedObjectPath,
     ) -> Result<SystemdUnit, SystemdError> {
         let connection = zbus::Connection::system().await?;
-        let unit = UnitProxy::new(&connection, path).await?;
+        let unit = UnitProxy::new(&connection, path.clone()).await?;
 
         let unit_file_state = unit.unit_file_state().await?;
         let load_path = unit.load_state().await?;
         let active_state = unit.active_state().await?;
 
+        let load_state = SystemdLoadState::from_str(&load_path)?;
+        if load_state == SystemdLoadState::NotFound {
+            return Err(SystemdError::UnitNotFound {
+                unit: path.to_string(),
+            });
+        }
+
         let result = SystemdUnit {
             id: unit.id().await?,
             fragment_path: unit.fragment_path().await?,
-            load_state: SystemdLoadState::from_str(&load_path)?,
+            load_state: load_state,
             active_state: SystemdActiveState::from_str(&active_state)?,
             unit_file_state: SystemdUnitFileState::from_str(&unit_file_state)?,
             load_error: unit.load_error().await?,
