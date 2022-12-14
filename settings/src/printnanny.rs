@@ -313,7 +313,7 @@ impl VersionControlledSettings for PrintNannySettings {
 
     async fn post_save(&self) -> Result<(), VersionControlledSettingsError> {
         debug!("Running PrintNannySettings post_save hook");
-        // most PrintNanny services read settings on an as-needing basis, so we don't need to restart them
+        // most PrintNanny services read settings on an as-needed basis, so we don't need to restart them
         // the exception is printnanny-vision.service, which loads in settings once at start time.
         let connection = zbus::Connection::system().await?;
         let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
