@@ -96,7 +96,6 @@ pub struct CameraVideoSource {
     pub index: i32,
     pub device_name: String,
     pub label: String,
-    pub src_type: printnanny_asyncapi_models::CameraSourceType,
 }
 
 impl CameraVideoSource {
@@ -123,15 +122,10 @@ impl CameraVideoSource {
                     let index = index.unwrap().parse::<i32>().unwrap();
                     let label = label.unwrap().into();
                     let device_name: String = device_name.unwrap().into();
-                    let src_type = match &device_name.contains("usb") {
-                        true => printnanny_asyncapi_models::CameraSourceType::Usb,
-                        false => printnanny_asyncapi_models::CameraSourceType::Csi,
-                    };
                     Some(CameraVideoSource {
                         index,
                         device_name,
                         label,
-                        src_type,
                     })
                 } else {
                     None
@@ -157,17 +151,6 @@ impl CameraVideoSource {
     }
 }
 
-impl From<&CameraVideoSource> for printnanny_asyncapi_models::camera::Camera {
-    fn from(obj: &CameraVideoSource) -> printnanny_asyncapi_models::camera::Camera {
-        printnanny_asyncapi_models::camera::Camera {
-            index: obj.index,
-            label: obj.label.clone(),
-            device_name: obj.device_name.clone(),
-            src_type: Box::new(obj.src_type),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct MediaVideoSource {
     pub uri: String,
@@ -186,6 +169,21 @@ pub enum VideoSource {
     Uri(MediaVideoSource),
 }
 
+impl From<&CameraVideoSource> for printnanny_asyncapi_models::camera::Camera {
+    fn from(obj: &CameraVideoSource) -> printnanny_asyncapi_models::camera::Camera {
+        let src_type = match &obj.device_name.contains("usb") {
+            true => printnanny_asyncapi_models::CameraSourceType::Usb,
+            false => printnanny_asyncapi_models::CameraSourceType::Csi,
+        };
+        printnanny_asyncapi_models::camera::Camera {
+            index: obj.index,
+            label: obj.label.clone(),
+            device_name: obj.device_name.clone(),
+            src_type: Box::new(src_type),
+        }
+    }
+}
+
 impl From<printnanny_asyncapi_models::VideoSource> for VideoSource {
     fn from(obj: printnanny_asyncapi_models::VideoSource) -> VideoSource {
         match obj {
@@ -195,7 +193,6 @@ impl From<printnanny_asyncapi_models::VideoSource> for VideoSource {
                         index: camera.index,
                         device_name: camera.device_name,
                         label: camera.label,
-                        src_type: *camera.src_type,
                     })
                 }
                 printnanny_asyncapi_models::CameraSourceType::Usb => {
@@ -203,7 +200,6 @@ impl From<printnanny_asyncapi_models::VideoSource> for VideoSource {
                         index: camera.index,
                         device_name: camera.device_name,
                         label: camera.label,
-                        src_type: *camera.src_type,
                     })
                 }
             },
@@ -266,7 +262,6 @@ impl Default for PrintNannyCamSettings {
             device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
             label: "imx219".into(),
             index: 0,
-            src_type: printnanny_asyncapi_models::CameraSourceType::Csi,
         });
         let preview = false;
         let tflite_model = TfliteModelSettings::default();
@@ -393,7 +388,6 @@ mod tests {
                 index: 1,
                 label: "imx219".into(),
                 device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
-                src_type: printnanny_asyncapi_models::CameraSourceType::Csi
             }
         );
         assert_eq!(
@@ -402,7 +396,6 @@ mod tests {
                 index: 2,
                 label: "Logitech BRIO".into(),
                 device_name: "/base/scb/pcie@7d500000/pci@0,0/usb@0,0-1:1.0-046d:085e".into(),
-                src_type: printnanny_asyncapi_models::CameraSourceType::Usb
             }
         )
     }
@@ -416,7 +409,6 @@ mod tests {
                 index: 1,
                 label: "imx219".into(),
                 device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
-                src_type: printnanny_asyncapi_models::CameraSourceType::Csi
             }
         );
     }
@@ -429,7 +421,6 @@ mod tests {
                 index: 1,
                 label: "Logitech BRIO".into(),
                 device_name: "/base/scb/pcie@7d500000/pci@0,0/usb@0,0-1:1.0-046d:085e".into(),
-                src_type: printnanny_asyncapi_models::CameraSourceType::Usb
             }
         )
     }
