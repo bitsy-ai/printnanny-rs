@@ -792,7 +792,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test]
+    #[test_log::test]
     fn test_printnanny_cloud_auth_failed() {
         figment::Jail::expect_with(|jail| {
             // init git repo in jail tmp dir
@@ -805,22 +805,18 @@ mod tests {
                 api_url,
                 api_token,
             });
-            figment::Jail::expect_with(|jail| {
-                make_settings_repo(jail);
-                let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
-                if let NatsReply::PrintNannyCloudAuthReply(reply) = reply {
-                    assert_eq!(reply.status_code, 403);
-                } else {
-                    panic!("Expected NatsReply::PrintNannyCloudAuthReply")
-                }
-                Ok(())
-            });
+            let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
+            if let NatsReply::PrintNannyCloudAuthReply(reply) = reply {
+                assert_eq!(reply.status_code, 403);
+            } else {
+                panic!("Expected NatsReply::PrintNannyCloudAuthReply")
+            }
             Ok(())
         })
     }
 
     #[cfg(feature = "systemd")]
-    #[test]
+    #[test_log::test]
     fn test_printnanny_settings_apply_load_revert() {
         figment::Jail::expect_with(|jail| {
             // init git repo in jail tmp dir
@@ -889,7 +885,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test]
+    #[test_log::test]
     fn test_octoprint_settings_apply_load_revert() {
         const OCTOPRINT_MODIFIED_SETTINGS: &str = r#"
         ---
@@ -995,7 +991,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test]
+    #[test_log::test]
     fn test_moonraker_settings_apply_load_revert() {
         const MOONRAKER_MODIFIED_SETTINGS: &str = r#"
         # https://github.com/Arksine/moonraker/blob/master/docs/installation.md
@@ -1099,7 +1095,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_get_unit_file_state_ok() {
         let request =
             NatsRequest::SystemdManagerGetUnitFileStateRequest(SystemdManagerGetUnitRequest {
@@ -1118,7 +1114,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_get_unit_file_state_error() {
         let request =
             NatsRequest::SystemdManagerGetUnitFileStateRequest(SystemdManagerGetUnitRequest {
@@ -1129,7 +1125,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_enable_disable_unit_ok() {
         let request =
             NatsRequest::SystemdManagerEnableUnitsRequest(SystemdManagerUnitFilesRequest {
@@ -1157,7 +1153,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_disable_unit_error() {
         let request = SystemdManagerUnitFilesRequest {
             files: vec!["doesnotexist.service".into()],
@@ -1168,7 +1164,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_enable_unit_error() {
         let request = SystemdManagerUnitFilesRequest {
             files: vec!["doesnotexist.service".into()],
@@ -1179,7 +1175,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_get_unit_error() {
         let request = NatsRequest::SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest {
             unit_name: "doesnotexist.service".into(),
@@ -1189,7 +1185,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_restart_unit_error() {
         let request =
             NatsRequest::SystemdManagerRestartUnitRequest(SystemdManagerRestartUnitRequest {
@@ -1199,7 +1195,7 @@ mod tests {
         assert!(reply.is_err());
     }
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_reload_unit_ok() {
         let request =
             NatsRequest::SystemdManagerRestartUnitRequest(SystemdManagerRestartUnitRequest {
@@ -1217,7 +1213,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_start_unit_error() {
         let request = NatsRequest::SystemdManagerStartUnitRequest(SystemdManagerStartUnitRequest {
             unit_name: "doesnotexist.service".into(),
@@ -1227,7 +1223,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_start_unit_ok() {
         let request = NatsRequest::SystemdManagerStartUnitRequest(SystemdManagerStartUnitRequest {
             unit_name: "octoprint.service".into(),
@@ -1244,7 +1240,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_stop_unit_error() {
         let request = NatsRequest::SystemdManagerStopUnitRequest(SystemdManagerStopUnitRequest {
             unit_name: "doesnotexist.service".into(),
@@ -1254,7 +1250,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_stop_unit_ok() {
         let request =
             NatsRequest::SystemdManagerEnableUnitsRequest(SystemdManagerUnitFilesRequest {
