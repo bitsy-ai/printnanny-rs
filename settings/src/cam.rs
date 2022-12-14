@@ -163,7 +163,7 @@ impl From<&CameraVideoSource> for printnanny_asyncapi_models::camera::Camera {
             index: obj.index,
             label: obj.label.clone(),
             device_name: obj.device_name.clone(),
-            src_type: Box::new(obj.src_type.clone()),
+            src_type: Box::new(obj.src_type),
         }
     }
 }
