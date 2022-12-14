@@ -16,7 +16,7 @@ pub const PRINTNANNY_SETTINGS_FILENAME: &str = "printnanny.toml";
 pub const DEFAULT_PRINTNANNY_SETTINGS_DIR: &str = "/home/printnanny/.config/printnanny/vcs";
 pub const DEFAULT_PRINTNANNY_SETTINGS_FILE: &str =
     "/home/printnanny/.config/printnanny/vcs/printnanny/printnanny.toml";
-pub const DEFAULT_PRINTNANNY_DATA_DIR: &str = "/home/printnanny/.local/share";
+pub const DEFAULT_PRINTNANNY_DATA_DIR: &str = "/home/printnanny/.local/share/printnanny";
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
 pub struct PrintNannyPaths {
