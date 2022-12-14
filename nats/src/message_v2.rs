@@ -56,11 +56,11 @@ pub enum NatsRequest {
     // pi.{pi_id}.settings.*
     #[serde(rename = "pi.{pi_id}.settings.printnanny.cloud.auth")]
     PrintNannyCloudAuthRequest(PrintNannyCloudAuthRequest),
-    #[serde(rename = "pi.{pi_id}.settings.vcs.load")]
+    #[serde(rename = "pi.{pi_id}.settings.file.load")]
     SettingsLoadRequest,
-    #[serde(rename = "pi.{pi_id}.settings.vcs.apply")]
+    #[serde(rename = "pi.{pi_id}.settings.file.apply")]
     SettingsApplyRequest(SettingsApplyRequest),
-    #[serde(rename = "pi.{pi_id}.settings.vcs.revert")]
+    #[serde(rename = "pi.{pi_id}.settings.file.revert")]
     SettingsRevertRequest(SettingsRevertRequest),
 
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
@@ -606,15 +606,15 @@ impl NatsRequestHandler for NatsRequest {
                     serde_json::from_slice::<PrintNannyCloudAuthRequest>(payload.as_ref())?,
                 ))
             }
-            "pi.{pi_id}.settings.vcs.load" => Ok(NatsRequest::SettingsLoadRequest),
-            "pi.{pi_id}.settings.vcs.apply" => {
+            "pi.{pi_id}.settings.file.load" => Ok(NatsRequest::SettingsLoadRequest),
+            "pi.{pi_id}.settings.file.apply" => {
                 Ok(NatsRequest::SettingsApplyRequest(serde_json::from_slice::<
                     SettingsApplyRequest,
                 >(
                     payload.as_ref()
                 )?))
             }
-            "pi.{pi_id}.settings.vcs.revert" => Ok(NatsRequest::SettingsRevertRequest(
+            "pi.{pi_id}.settings.file.revert" => Ok(NatsRequest::SettingsRevertRequest(
                 serde_json::from_slice::<SettingsRevertRequest>(payload.as_ref())?,
             )),
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit" => {
