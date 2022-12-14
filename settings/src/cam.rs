@@ -181,7 +181,7 @@ pub enum VideoSource {
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyCamSettings {
-    pub video_src: String,
+    pub video_src: VideoSource,
     pub preview: bool,
     pub nats_server_uri: String,
     pub overlay_udp_port: i32,
@@ -202,7 +202,6 @@ pub struct PrintNannyCamSettings {
     // Some(bool) -> bool
     pub hls_http_enabled: Option<bool>,
     // complex types last, otherwise serde will raise TomlSerError(ValueAfterTable)
-    pub video_src_type: VideoSrcType,
     pub tflite_model: TfliteModelSettings,
 }
 
@@ -221,13 +220,16 @@ impl PrintNannyCamSettings {
 
 impl Default for PrintNannyCamSettings {
     fn default() -> Self {
-        let video_src = "/dev/video0".into();
+        let video_src = VideoSource::CSI(CameraVideoSource {
+            device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
+            label: "imx219".into(),
+            index: 0,
+        });
         let preview = false;
         let tflite_model = TfliteModelSettings::default();
         let video_udp_port = 20001;
         let overlay_udp_port = 20002;
 
-        let video_src_type = VideoSrcType::CSI;
         let video_height = 480;
         let video_width = 640;
         let video_framerate = 15;
@@ -241,7 +243,6 @@ impl Default for PrintNannyCamSettings {
         Self {
             video_src,
             tflite_model,
-            video_src_type,
             video_height,
             video_width,
             video_framerate,
@@ -260,15 +261,6 @@ impl Default for PrintNannyCamSettings {
 impl From<&ArgMatches> for PrintNannyCamSettings {
     fn from(args: &ArgMatches) -> Self {
         let tflite_model = TfliteModelSettings::from(args);
-
-        let video_src_type: &VideoSrcType = args
-            .get_one::<VideoSrcType>("video_src_type")
-            .expect("--video-src-type");
-
-        let video_src = args
-            .value_of("video_src")
-            .expect("--video-src is required")
-            .into();
         let video_height: i32 = args
             .value_of_t::<i32>("video_height")
             .expect("--video-height must be an integer");
@@ -319,11 +311,9 @@ impl From<&ArgMatches> for PrintNannyCamSettings {
         Self {
             tflite_model,
             preview,
-            video_src,
             video_height,
             video_width,
             video_framerate,
-            video_src_type: video_src_type.clone(),
             video_udp_port,
             overlay_udp_port,
             hls_http_enabled,
@@ -331,6 +321,7 @@ impl From<&ArgMatches> for PrintNannyCamSettings {
             hls_playlist,
             hls_playlist_root,
             nats_server_uri,
+            ..Default::default()
         }
     }
 }
