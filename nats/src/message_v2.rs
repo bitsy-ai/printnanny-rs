@@ -754,7 +754,7 @@ mod tests {
         let request = NatsRequest::DeviceInfoLoadRequest;
 
         let reply = request.handle().await.unwrap();
-        if let NatsReply::DeviceInfoLoadReply(reply) = reply {
+        if let NatsReply::DeviceInfoLoadReply(_reply) = reply {
         } else {
             panic!("Expected NatsReply::DeviceInfoLoadReply")
         }
