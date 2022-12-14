@@ -793,22 +793,27 @@ mod tests {
 
     #[test]
     fn test_printnanny_cloud_auth_failed() {
-        let email = "testing@test.com".to_string();
-        let api_url = "http://localhost:8080/".to_string();
-        let api_token = "test_token".to_string();
-        let request = NatsRequest::PrintNannyCloudAuthRequest(PrintNannyCloudAuthRequest {
-            email,
-            api_url,
-            api_token,
-        });
         figment::Jail::expect_with(|jail| {
+            // init git repo in jail tmp dir
             make_settings_repo(jail);
-            let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
-            if let NatsReply::PrintNannyCloudAuthReply(reply) = reply {
-                assert_eq!(reply.status_code, 403);
-            } else {
-                panic!("Expected NatsReply::PrintNannyCloudAuthReply")
-            }
+            let email = "testing@test.com".to_string();
+            let api_url = "http://localhost:8080/".to_string();
+            let api_token = "test_token".to_string();
+            let request = NatsRequest::PrintNannyCloudAuthRequest(PrintNannyCloudAuthRequest {
+                email,
+                api_url,
+                api_token,
+            });
+            figment::Jail::expect_with(|jail| {
+                make_settings_repo(jail);
+                let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
+                if let NatsReply::PrintNannyCloudAuthReply(reply) = reply {
+                    assert_eq!(reply.status_code, 403);
+                } else {
+                    panic!("Expected NatsReply::PrintNannyCloudAuthReply")
+                }
+                Ok(())
+            });
             Ok(())
         })
     }
