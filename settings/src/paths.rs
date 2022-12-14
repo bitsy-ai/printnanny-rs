@@ -16,7 +16,7 @@ pub const PRINTNANNY_SETTINGS_FILENAME: &str = "printnanny.toml";
 pub const DEFAULT_PRINTNANNY_SETTINGS_DIR: &str = "/home/printnanny/.config/printnanny/vcs";
 pub const DEFAULT_PRINTNANNY_SETTINGS_FILE: &str =
     "/home/printnanny/.config/printnanny/vcs/printnanny/printnanny.toml";
-pub const DEFAULT_PRINTNANNY_DATA_DIR: &str = "/home/printnanny/.local/share";
+pub const DEFAULT_PRINTNANNY_DATA_DIR: &str = "/home/printnanny/.local/share/printnanny";
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
 pub struct PrintNannyPaths {
@@ -52,8 +52,8 @@ impl Default for PrintNannyPaths {
 }
 
 impl PrintNannyPaths {
-    pub fn state_file(&self) -> PathBuf {
-        self.state_dir.join("PrintNannyCloudData.toml")
+    pub fn cloud(&self) -> PathBuf {
+        self.state_dir.join("cloud/PrintNannyCloudData.toml")
     }
 
     // lock acquired when modifying persistent application data
@@ -96,10 +96,6 @@ impl PrintNannyPaths {
     // media (videos)
     pub fn video(&self) -> PathBuf {
         self.data().join("video")
-    }
-
-    pub fn lib_confd(&self) -> PathBuf {
-        self.state_dir.join("printnanny.d")
     }
 
     pub fn user_confd(&self) -> PathBuf {
@@ -215,7 +211,6 @@ impl serde::Serialize for PrintNannyPaths {
             pub data: PathBuf,
             pub events_socket: PathBuf,
             pub issue_txt: PathBuf,
-            pub lib_confd: PathBuf,
             pub state_dir: PathBuf,
             pub log_dir: PathBuf,
             pub nats_creds: PathBuf,
@@ -231,7 +226,6 @@ impl serde::Serialize for PrintNannyPaths {
             data: self.data(),
             events_socket: self.events_socket(),
             issue_txt: self.issue_txt.clone(),
-            lib_confd: self.lib_confd(),
             state_dir: self.state_dir.clone(),
             log_dir: self.log_dir.clone(),
             nats_creds: self.cloud_nats_creds(),

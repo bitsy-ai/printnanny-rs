@@ -36,13 +36,13 @@ impl Default for PrintNannyCloudData {
 impl PrintNannyCloudData {
     pub fn new() -> Result<PrintNannyCloudData, PrintNannyCloudDataError> {
         let settings = PrintNannySettings::new().unwrap();
-        let result = Self::load(&settings.paths.state_file())?;
+        let result = Self::load(&settings.paths.cloud())?;
         Ok(result)
     }
 
     pub fn save(
         &self,
-        state_file: &Path,
+        cloud: &Path,
         state_lock: &Path,
         is_blocking: bool,
     ) -> Result<(), PrintNannyCloudDataError> {
@@ -56,7 +56,7 @@ impl PrintNannyCloudData {
         match filelock.file.write_all(&data) {
             Ok(()) => Ok(()),
             Err(e) => Err(PrintNannyCloudDataError::WriteIOError {
-                path: state_file.display().to_string(),
+                path: cloud.display().to_string(),
                 error: e,
             }),
         }
@@ -64,7 +64,7 @@ impl PrintNannyCloudData {
 
     pub fn try_check_cloud_data(&self) -> Result<(), PrintNannyCloudDataError> {
         let settings = PrintNannySettings::new().unwrap();
-        let state = PrintNannyCloudData::load(&settings.paths.state_file())?;
+        let state = PrintNannyCloudData::load(&settings.paths.cloud())?;
         match &state.pi {
             Some(_) => Ok(()),
             None => Err(PrintNannyCloudDataError::SetupIncomplete {
@@ -95,11 +95,11 @@ impl PrintNannyCloudData {
         Ok(())
     }
 
-    pub fn load(state_file: &Path) -> Result<PrintNannyCloudData, PrintNannyCloudDataError> {
-        let state_str = match fs::read_to_string(state_file) {
+    pub fn load(cloud: &Path) -> Result<PrintNannyCloudData, PrintNannyCloudDataError> {
+        let state_str = match fs::read_to_string(cloud) {
             Ok(d) => Ok(d),
             Err(e) => Err(PrintNannyCloudDataError::ReadIOError {
-                path: state_file.display().to_string(),
+                path: cloud.display().to_string(),
                 error: e,
             }),
         }?;

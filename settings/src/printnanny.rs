@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
-use glob::glob;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
@@ -19,11 +18,6 @@ use crate::octoprint::OctoPrintSettings;
 use crate::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
 use crate::vcs::VersionControlledSettings;
 use crate::SettingsFormat;
-
-// FACTORY_RESET holds the struct field names of PrintNannyCloudConfig
-// each member of FACTORY_RESET is written to a separate config fragment under /etc/printnanny/conf.d
-// as the name implies, this const is used for performing a reset of any config data modified from defaults
-const FACTORY_RESET: [&str; 2] = ["cloud", "systemd_units"];
 
 const DEFAULT_PRINTNANNY_SETTINGS_GIT_REMOTE: &str =
     "https://github.com/bitsy-ai/printnanny-settings.git";
@@ -202,17 +196,9 @@ impl PrintNannySettings {
         }
     }
 
-    // load figment fragments from all *.toml and *.json files relative to base_dir
-    fn load_confd(base_dir: &Path, figment: Figment) -> Result<Figment, PrintNannySettingsError> {
-        let toml_glob = format!("{}/*.toml", &base_dir.display());
-        let json_glob = format!("{}/*.json", &base_dir.display());
-
-        let result = Self::read_path_glob::<Json>(&json_glob, figment);
-        let result = Self::read_path_glob::<Toml>(&toml_glob, result);
-        Ok(result)
-    }
-
     pub fn figment() -> Result<Figment, PrintNannySettingsError> {
+        // if PRINTNANNY_SETTINGS env var is set, check file exists and is readable
+        Self::check_file_from_env_var("PRINTNANNY_SETTINGS")?;
         // merge file in PRINTNANNY_SETTINGS env var (if set)
         let result = Figment::from(Self { ..Self::default() })
             .merge(Toml::file(Env::var_or(
@@ -222,32 +208,6 @@ impl PrintNannySettings {
             // allow nested environment variables:
             // PRINTNANNY_SETTINGS_KEY__SUBKEY
             .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"));
-
-        // extract paths, to load application state conf.d fragments
-        let lib_settings_file: String = result
-            .find_value("paths.state_dir")
-            .unwrap()
-            .deserialize::<String>()
-            .unwrap();
-        let paths = PrintNannyPaths {
-            state_dir: PathBuf::from(lib_settings_file),
-            ..PrintNannyPaths::default()
-        };
-        // merge application state
-        let result = Self::load_confd(&paths.lib_confd(), result)?;
-        // if PRINTNANNY_SETTINGS env var is set, check file exists and is readable
-        Self::check_file_from_env_var("PRINTNANNY_SETTINGS")?;
-
-        // finally, re-merge PRINTNANNY_SETTINGS and PRINTNANNY_ENV so these values take highest precedence
-        let result = result
-            .merge(Toml::file(Env::var_or(
-                "PRINTNANNY_SETTINGS",
-                DEFAULT_PRINTNANNY_SETTINGS_FILE,
-            )))
-            // allow nested environment variables:
-            // PRINTNANNY_KEY__SUBKEY
-            .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"));
-
         info!("Finalized PrintNannyCloudConfig: \n {:?}", result);
         Ok(result)
     }
@@ -262,34 +222,9 @@ impl PrintNannySettings {
         Ok(result)
     }
 
-    fn read_path_glob<T: 'static + figment::providers::Format>(
-        pattern: &str,
-        figment: Figment,
-    ) -> Figment {
-        debug!("Merging config from {}", &pattern);
-        let mut result = figment;
-        for entry in glob(pattern).expect("Failed to read glob pattern") {
-            match entry {
-                Ok(path) => {
-                    let key = path.file_stem().unwrap().to_str().unwrap();
-                    debug!("Merging key={} config from {}", &key, &path.display());
-                    result = result.clone().merge(T::file(&path));
-                }
-                Err(e) => error!("{:?}", e),
-            }
-        }
-        result
-    }
-
     pub fn try_factory_reset(&self) -> Result<(), PrintNannySettingsError> {
         // for each key/value pair in FACTORY_RESET, remove file
-        for key in FACTORY_RESET.iter() {
-            let filename = format!("{}.json", key);
-            let filename = self.paths.lib_confd().join(filename);
-            fs::remove_file(&filename)?;
-            info!("Removed {} data {:?}", key, filename);
-        }
-        Ok(())
+        todo!()
     }
 
     // Save settings to PRINTNANNY_SETTINGS (default: /var/lib/printnanny/PrintNannySettings.toml)
@@ -429,10 +364,7 @@ mod tests {
                 [paths]
                 settings_dir = "/opt/printnanny/"
                 state_dir = "/var/lib/custom"
-        
-                
-                [api]
-                base_path = "https://print-nanny.com"
+
                 "#,
             )?;
             jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
@@ -518,7 +450,6 @@ mod tests {
 
             let figment = PrintNannySettings::figment().unwrap();
             let mut settings: PrintNannySettings = figment.extract()?;
-            fs::create_dir(settings.paths.lib_confd()).unwrap();
 
             settings.octoprint.enabled = true;
             settings.save();

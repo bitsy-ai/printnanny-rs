@@ -1,4 +1,5 @@
 pub mod cam;
+pub mod cloud;
 pub mod error;
 pub mod klipper;
 pub mod mainsail;
@@ -6,7 +7,6 @@ pub mod moonraker;
 pub mod octoprint;
 pub mod paths;
 pub mod printnanny;
-pub mod state;
 pub mod vcs;
 
 // re-export crates
