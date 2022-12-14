@@ -18,7 +18,7 @@ pub const DEFAULT_PRINTNANNY_SETTINGS_FILE: &str =
     "/home/printnanny/.config/printnanny/vcs/printnanny/printnanny.toml";
 pub const DEFAULT_PRINTNANNY_DATA_DIR: &str = "/home/printnanny/.local/share/printnanny";
 
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyPaths {
     pub state_dir: PathBuf,    // application state
     pub settings_dir: PathBuf, // local git repo used to commit/revert changes to user-supplied config
