@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::fs;
+use std::time::SystemTime;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -9,18 +10,17 @@ use printnanny_settings::cam::CameraVideoSource;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+use printnanny_dbus::printnanny_asyncapi_models;
 use printnanny_dbus::printnanny_asyncapi_models::{
-    self, CamerasLoadReply, WebrtcSettingsApplyRequest,
-};
-use printnanny_dbus::printnanny_asyncapi_models::{
-    DeviceInfoLoadReply, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp,
-    SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsRevertReply,
-    SettingsRevertRequest, SystemdManagerDisableUnitsReply, SystemdManagerEnableUnitsReply,
-    SystemdManagerGetUnitFileStateReply, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
-    SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply,
-    SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest,
-    SystemdManagerUnitFilesRequest, SystemdUnitChange, SystemdUnitChangeState,
-    SystemdUnitFileState, WebrtcSettingsApplyReply, WebrtcSettingsApplyRequest,
+    CamerasLoadReply, DeviceInfoLoadReply, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest,
+    SettingsApp, SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply,
+    SettingsRevertReply, SettingsRevertRequest, SystemdManagerDisableUnitsReply,
+    SystemdManagerEnableUnitsReply, SystemdManagerGetUnitFileStateReply,
+    SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
+    SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
+    SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdManagerUnitFilesRequest,
+    SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState, WebrtcSettingsApplyReply,
+    WebrtcSettingsApplyRequest,
 };
 
 use printnanny_dbus::zbus;
@@ -109,7 +109,7 @@ pub enum NatsReply {
     #[serde(rename = "pi.{pi_id}.settings.printnanny.revert")]
     SettingsRevertReply(SettingsRevertReply),
     #[serde(rename = "pi.{pi_id}.settings.webrtc.apply")]
-    WebrtcSettingsApplyReply(WebRtcSettingsApplyReply),
+    WebrtcSettingsApplyReply(WebrtcSettingsApplyReply),
 
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
@@ -371,14 +371,15 @@ impl NatsRequest {
         request: &WebrtcSettingsApplyRequest,
     ) -> Result<NatsReply> {
         let mut settings = PrintNannySettings::new()?;
-        settings.cam.video_src = VideoSource::from(&request.video_src);
-        let content = setttings.to_toml_string()?;
-        let ts = SystemTime::now().as_secs();
-        let commit_msg = format!("Updated PrintNanny WebRTC stream settings @ {ts}");
-        settings.save_and_commit(content, Some(commit_msg))?;
+        settings.cam.video_src =
+            printnanny_settings::cam::VideoSource::from(*request.video_src.clone());
+        let content = settings.to_toml_string()?;
+        let ts = SystemTime::now();
+        let commit_msg = format!("Updated PrintNanny WebRTC stream settings @ {ts:?}");
+        settings.save_and_commit(&content, Some(commit_msg)).await?;
         Ok(NatsReply::WebrtcSettingsApplyReply(
             WebrtcSettingsApplyReply {
-                request: request.clone(),
+                request: Box::new(request.clone()),
             },
         ))
     }

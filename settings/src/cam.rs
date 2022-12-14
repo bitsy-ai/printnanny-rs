@@ -186,38 +186,34 @@ pub enum VideoSource {
     Uri(MediaVideoSource),
 }
 
-impl From<&printnanny_asyncapi_models::VideoSource> for VideoSource {
-    fn from(obj: &printnanny_asyncapi_models::VideoSource) -> VideoSource {
+impl From<printnanny_asyncapi_models::VideoSource> for VideoSource {
+    fn from(obj: printnanny_asyncapi_models::VideoSource) -> VideoSource {
         match obj {
             printnanny_asyncapi_models::VideoSource::Camera(camera) => match *camera.src_type {
                 printnanny_asyncapi_models::CameraSourceType::Csi => {
                     VideoSource::CSI(CameraVideoSource {
                         index: camera.index,
-                        device_name: camera.device_name.clone(),
-                        label: camera.label.clone(),
-                        src_type: *camera.src_type.clone(),
+                        device_name: camera.device_name,
+                        label: camera.label,
+                        src_type: *camera.src_type,
                     })
                 }
                 printnanny_asyncapi_models::CameraSourceType::Usb => {
                     VideoSource::USB(CameraVideoSource {
                         index: camera.index,
-                        device_name: camera.device_name.clone(),
-                        label: camera.label.clone(),
-                        src_type: *camera.src_type.clone(),
+                        device_name: camera.device_name,
+                        label: camera.label,
+                        src_type: *camera.src_type,
                     })
                 }
             },
             printnanny_asyncapi_models::VideoSource::PlaybackVideo(video) => {
                 match *video.src_type {
                     printnanny_asyncapi_models::PlaybackSourceType::File => {
-                        VideoSource::File(MediaVideoSource {
-                            uri: video.uri.clone(),
-                        })
+                        VideoSource::File(MediaVideoSource { uri: video.uri })
                     }
                     printnanny_asyncapi_models::PlaybackSourceType::Uri => {
-                        VideoSource::Uri(MediaVideoSource {
-                            uri: video.uri.clone(),
-                        })
+                        VideoSource::Uri(MediaVideoSource { uri: video.uri })
                     }
                 }
             }
