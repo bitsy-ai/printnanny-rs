@@ -149,9 +149,9 @@ impl SystemdUnit {
         }
 
         let result = SystemdUnit {
+            load_state,
             id: unit.id().await?,
             fragment_path: unit.fragment_path().await?,
-            load_state: load_state,
             active_state: SystemdActiveState::from_str(&active_state)?,
             unit_file_state: SystemdUnitFileState::from_str(&unit_file_state)?,
             load_error: unit.load_error().await?,

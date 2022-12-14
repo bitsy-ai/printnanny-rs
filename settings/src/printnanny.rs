@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use figment::providers::{Env, Format, Json, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
-use glob::glob;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
@@ -197,16 +196,6 @@ impl PrintNannySettings {
         }
     }
 
-    // load figment fragments from all *.toml and *.json files relative to base_dir
-    fn load_confd(base_dir: &Path, figment: Figment) -> Result<Figment, PrintNannySettingsError> {
-        let toml_glob = format!("{}/*.toml", &base_dir.display());
-        let json_glob = format!("{}/*.json", &base_dir.display());
-
-        let result = Self::read_path_glob::<Json>(&json_glob, figment);
-        let result = Self::read_path_glob::<Toml>(&toml_glob, result);
-        Ok(result)
-    }
-
     pub fn figment() -> Result<Figment, PrintNannySettingsError> {
         // merge file in PRINTNANNY_SETTINGS env var (if set)
         let result = Figment::from(Self { ..Self::default() })
@@ -217,30 +206,6 @@ impl PrintNannySettings {
             // allow nested environment variables:
             // PRINTNANNY_SETTINGS_KEY__SUBKEY
             .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"));
-
-        // extract paths, to load application state conf.d fragments
-        let lib_settings_file: String = result
-            .find_value("paths.state_dir")
-            .unwrap()
-            .deserialize::<String>()
-            .unwrap();
-        let paths = PrintNannyPaths {
-            state_dir: PathBuf::from(lib_settings_file),
-            ..PrintNannyPaths::default()
-        };
-        // if PRINTNANNY_SETTINGS env var is set, check file exists and is readable
-        Self::check_file_from_env_var("PRINTNANNY_SETTINGS")?;
-
-        // finally, re-merge PRINTNANNY_SETTINGS and PRINTNANNY_ENV so these values take highest precedence
-        let result = result
-            .merge(Toml::file(Env::var_or(
-                "PRINTNANNY_SETTINGS",
-                DEFAULT_PRINTNANNY_SETTINGS_FILE,
-            )))
-            // allow nested environment variables:
-            // PRINTNANNY_KEY__SUBKEY
-            .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"));
-
         info!("Finalized PrintNannyCloudConfig: \n {:?}", result);
         Ok(result)
     }

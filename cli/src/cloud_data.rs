@@ -1,6 +1,6 @@
 use printnanny_services::error::ServiceError;
 use printnanny_services::printnanny_api::ApiService;
-use printnanny_settings::state::PrintNannyCloudData;
+use printnanny_settings::cloud::PrintNannyCloudData;
 use printnanny_settings::SettingsFormat;
 use std::io::{self, Write};
 

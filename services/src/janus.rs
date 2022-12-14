@@ -7,8 +7,8 @@ use std::collections::HashMap;
 use printnanny_settings::clap;
 use printnanny_settings::clap::ValueEnum;
 
+use printnanny_settings::cloud::PrintNannyCloudData;
 use printnanny_settings::error::PrintNannyCloudDataError;
-use printnanny_settings::state::PrintNannyCloudData;
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy, clap::ArgEnum)]
 pub enum JanusAdminEndpoint {
