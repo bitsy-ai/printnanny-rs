@@ -8,9 +8,9 @@ use std::path::Path;
 use serde;
 use serde_json;
 // settings modules
+use printnanny_settings::cloud::PrintNannyCloudData;
 use printnanny_settings::error::PrintNannySettingsError;
 use printnanny_settings::printnanny::PrintNannySettings;
-use printnanny_settings::state::PrintNannyCloudData;
 
 use printnanny_settings::sys_info;
 
@@ -49,12 +49,17 @@ impl ApiService {
     // args >> api_config.json >> anonymous api usage only
     pub fn new() -> Result<ApiService, ServiceError> {
         let settings = PrintNannySettings::new()?;
-        let state_file = settings.paths.state_file();
-        let state = match PrintNannyCloudData::load(&state_file) {
+        let cloud = settings.paths.cloud();
+        let state = match PrintNannyCloudData::load(&cloud) {
             Ok(data) => data,
             Err(e) => {
                 let defaults = PrintNannyCloudData::default();
-                warn!("Failed to load {} with error {}, using PrintNannyCloudData::default() {:?}", state_file.display(),e, &defaults );
+                warn!(
+                    "Failed to load {} with error {}, using PrintNannyCloudData::default() {:?}",
+                    cloud.display(),
+                    e,
+                    &defaults
+                );
                 defaults
             }
         };
@@ -79,20 +84,20 @@ impl ApiService {
         base_path: String,
         bearer_access_token: String,
     ) -> Result<(), ServiceError> {
-        let state_file = self.settings.paths.state_file();
+        let cloud = self.settings.paths.cloud();
         let state_lock = self.settings.paths.state_lock();
 
-        let mut state = PrintNannyCloudData::load(&state_file)?;
+        let mut state = PrintNannyCloudData::load(&cloud)?;
         state.api.base_path = base_path;
         state.api.bearer_access_token = Some(bearer_access_token);
 
-        state.save(&state_file, &state_lock, true)?;
+        state.save(&cloud, &state_lock, true)?;
 
         let mut api_service = ApiService::new()?;
 
         // sync data models
         api_service.sync().await?;
-        let mut state = PrintNannyCloudData::load(&self.settings.paths.state_file())?;
+        let mut state = PrintNannyCloudData::load(&self.settings.paths.cloud())?;
         let pi_id = state.pi.unwrap().id;
         // download credential and device identity bundled in license.zip
         api_service.pi_download_license(pi_id).await?;
@@ -109,7 +114,7 @@ impl ApiService {
         let pi = api_service.pi_retrieve(pi_id).await?;
         state.pi = Some(pi);
         state.save(
-            &self.settings.paths.state_file(),
+            &self.settings.paths.cloud(),
             &self.settings.paths.state_lock(),
             true,
         )?;
@@ -163,7 +168,7 @@ impl ApiService {
     // performs any necessary one-time setup tasks
     pub async fn sync(&mut self) -> Result<(), ServiceError> {
         // verify pi is authenticated
-        let mut state = PrintNannyCloudData::load(&self.settings.paths.state_file())?;
+        let mut state = PrintNannyCloudData::load(&self.settings.paths.cloud())?;
 
         match &state.pi {
             Some(pi) => {
@@ -199,9 +204,9 @@ impl ApiService {
                 state.pi = Some(pi);
             }
         };
-        let state_file = self.settings.paths.state_file();
+        let cloud = self.settings.paths.cloud();
         let state_lock = self.settings.paths.state_lock();
-        state.save(&state_file, &state_lock, true)?;
+        state.save(&cloud, &state_lock, true)?;
         Ok(())
     }
 
