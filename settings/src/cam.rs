@@ -392,7 +392,8 @@ mod tests {
             CameraVideoSource {
                 index: 1,
                 label: "imx219".into(),
-                device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into()
+                device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
+                src_type: printnanny_asyncapi_models::CameraSourceType::Csi
             }
         );
         assert_eq!(
@@ -400,7 +401,8 @@ mod tests {
             CameraVideoSource {
                 index: 2,
                 label: "Logitech BRIO".into(),
-                device_name: "/base/scb/pcie@7d500000/pci@0,0/usb@0,0-1:1.0-046d:085e".into()
+                device_name: "/base/scb/pcie@7d500000/pci@0,0/usb@0,0-1:1.0-046d:085e".into(),
+                src_type: printnanny_asyncapi_models::CameraSourceType::Usb
             }
         )
     }
@@ -413,7 +415,8 @@ mod tests {
             CameraVideoSource {
                 index: 1,
                 label: "imx219".into(),
-                device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into()
+                device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
+                src_type: printnanny_asyncapi_models::CameraSourceType::Csi
             }
         );
     }
@@ -425,7 +428,8 @@ mod tests {
             CameraVideoSource {
                 index: 1,
                 label: "Logitech BRIO".into(),
-                device_name: "/base/scb/pcie@7d500000/pci@0,0/usb@0,0-1:1.0-046d:085e".into()
+                device_name: "/base/scb/pcie@7d500000/pci@0,0/usb@0,0-1:1.0-046d:085e".into(),
+                src_type: printnanny_asyncapi_models::CameraSourceType::Usb
             }
         )
     }
