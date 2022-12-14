@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::fs;
+use std::time::SystemTime;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -9,16 +10,17 @@ use printnanny_settings::cam::CameraVideoSource;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use printnanny_dbus::printnanny_asyncapi_models::{self, CamerasLoadReply};
+use printnanny_dbus::printnanny_asyncapi_models;
 use printnanny_dbus::printnanny_asyncapi_models::{
-    DeviceInfoLoadReply, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp,
-    SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsRevertReply,
-    SettingsRevertRequest, SystemdManagerDisableUnitsReply, SystemdManagerEnableUnitsReply,
-    SystemdManagerGetUnitFileStateReply, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
-    SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply,
-    SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest,
-    SystemdManagerUnitFilesRequest, SystemdUnitChange, SystemdUnitChangeState,
-    SystemdUnitFileState,
+    CamerasLoadReply, DeviceInfoLoadReply, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest,
+    SettingsApp, SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply,
+    SettingsRevertReply, SettingsRevertRequest, SystemdManagerDisableUnitsReply,
+    SystemdManagerEnableUnitsReply, SystemdManagerGetUnitFileStateReply,
+    SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
+    SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
+    SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdManagerUnitFilesRequest,
+    SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState, WebrtcSettingsApplyReply,
+    WebrtcSettingsApplyRequest,
 };
 
 use printnanny_dbus::zbus;
@@ -63,6 +65,9 @@ pub enum NatsRequest {
     #[serde(rename = "pi.{pi_id}.settings.file.revert")]
     SettingsRevertRequest(SettingsRevertRequest),
 
+    #[serde(rename = "pi.{pi_id}.settings.webrtc.apply")]
+    WebrtcSettingsApplyRequest(WebrtcSettingsApplyRequest),
+
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
     SystemdManagerDisableUnitsRequest(SystemdManagerUnitFilesRequest),
@@ -103,6 +108,8 @@ pub enum NatsReply {
     SettingsApplyReply(SettingsApplyReply),
     #[serde(rename = "pi.{pi_id}.settings.printnanny.revert")]
     SettingsRevertReply(SettingsRevertReply),
+    #[serde(rename = "pi.{pi_id}.settings.webrtc.apply")]
+    WebrtcSettingsApplyReply(WebrtcSettingsApplyReply),
 
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
@@ -357,6 +364,24 @@ impl NatsRequest {
             SettingsApp::Moonraker => self.handle_moonraker_settings_apply(request).await,
             SettingsApp::Klipper => self.handle_klipper_settings_apply(request).await,
         }
+    }
+
+    pub async fn handle_webrtc_settings_apply(
+        &self,
+        request: &WebrtcSettingsApplyRequest,
+    ) -> Result<NatsReply> {
+        let mut settings = PrintNannySettings::new()?;
+        settings.cam.video_src =
+            printnanny_settings::cam::VideoSource::from(*request.video_src.clone());
+        let content = settings.to_toml_string()?;
+        let ts = SystemTime::now();
+        let commit_msg = format!("Updated PrintNanny WebRTC stream settings @ {ts:?}");
+        settings.save_and_commit(&content, Some(commit_msg)).await?;
+        Ok(NatsReply::WebrtcSettingsApplyReply(
+            WebrtcSettingsApplyReply {
+                request: Box::new(request.clone()),
+            },
+        ))
     }
 
     pub async fn handle_settings_revert(
@@ -617,6 +642,9 @@ impl NatsRequestHandler for NatsRequest {
             "pi.{pi_id}.settings.file.revert" => Ok(NatsRequest::SettingsRevertRequest(
                 serde_json::from_slice::<SettingsRevertRequest>(payload.as_ref())?,
             )),
+            "pi.{pi_id}.settings.webrtc.apply" => Ok(NatsRequest::WebrtcSettingsApplyRequest(
+                serde_json::from_slice::<WebrtcSettingsApplyRequest>(payload.as_ref())?,
+            )),
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit" => {
                 Ok(NatsRequest::SystemdManagerDisableUnitsRequest(
                     serde_json::from_slice::<SystemdManagerUnitFilesRequest>(payload.as_ref())?,
@@ -676,6 +704,9 @@ impl NatsRequestHandler for NatsRequest {
             }
             NatsRequest::SettingsRevertRequest(request) => {
                 self.handle_settings_revert(request).await?
+            }
+            NatsRequest::WebrtcSettingsApplyRequest(request) => {
+                self.handle_webrtc_settings_apply(request).await?
             }
             // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
             NatsRequest::SystemdManagerDisableUnitsRequest(request) => {
@@ -760,18 +791,20 @@ mod tests {
         }
     }
 
-    #[test]
+    #[cfg(feature = "systemd")]
+    #[test_log::test]
     fn test_printnanny_cloud_auth_failed() {
-        let email = "testing@test.com".to_string();
-        let api_url = "http://localhost:8080/".to_string();
-        let api_token = "test_token".to_string();
-        let request = NatsRequest::PrintNannyCloudAuthRequest(PrintNannyCloudAuthRequest {
-            email,
-            api_url,
-            api_token,
-        });
         figment::Jail::expect_with(|jail| {
+            // init git repo in jail tmp dir
             make_settings_repo(jail);
+            let email = "testing@test.com".to_string();
+            let api_url = "http://localhost:8080/".to_string();
+            let api_token = "test_token".to_string();
+            let request = NatsRequest::PrintNannyCloudAuthRequest(PrintNannyCloudAuthRequest {
+                email,
+                api_url,
+                api_token,
+            });
             let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
             if let NatsReply::PrintNannyCloudAuthReply(reply) = reply {
                 assert_eq!(reply.status_code, 403);
@@ -783,7 +816,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test]
+    #[test_log::test]
     fn test_printnanny_settings_apply_load_revert() {
         figment::Jail::expect_with(|jail| {
             // init git repo in jail tmp dir
@@ -852,7 +885,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test]
+    #[test_log::test]
     fn test_octoprint_settings_apply_load_revert() {
         const OCTOPRINT_MODIFIED_SETTINGS: &str = r#"
         ---
@@ -958,7 +991,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test]
+    #[test_log::test]
     fn test_moonraker_settings_apply_load_revert() {
         const MOONRAKER_MODIFIED_SETTINGS: &str = r#"
         # https://github.com/Arksine/moonraker/blob/master/docs/installation.md
@@ -1062,7 +1095,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_get_unit_file_state_ok() {
         let request =
             NatsRequest::SystemdManagerGetUnitFileStateRequest(SystemdManagerGetUnitRequest {
@@ -1081,7 +1114,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_get_unit_file_state_error() {
         let request =
             NatsRequest::SystemdManagerGetUnitFileStateRequest(SystemdManagerGetUnitRequest {
@@ -1092,7 +1125,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_enable_disable_unit_ok() {
         let request =
             NatsRequest::SystemdManagerEnableUnitsRequest(SystemdManagerUnitFilesRequest {
@@ -1120,7 +1153,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_disable_unit_error() {
         let request = SystemdManagerUnitFilesRequest {
             files: vec!["doesnotexist.service".into()],
@@ -1131,7 +1164,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_manager_enable_unit_error() {
         let request = SystemdManagerUnitFilesRequest {
             files: vec!["doesnotexist.service".into()],
@@ -1142,7 +1175,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_get_unit_error() {
         let request = NatsRequest::SystemdManagerGetUnitRequest(SystemdManagerGetUnitRequest {
             unit_name: "doesnotexist.service".into(),
@@ -1152,7 +1185,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_restart_unit_error() {
         let request =
             NatsRequest::SystemdManagerRestartUnitRequest(SystemdManagerRestartUnitRequest {
@@ -1162,7 +1195,7 @@ mod tests {
         assert!(reply.is_err());
     }
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_reload_unit_ok() {
         let request =
             NatsRequest::SystemdManagerRestartUnitRequest(SystemdManagerRestartUnitRequest {
@@ -1180,7 +1213,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_start_unit_error() {
         let request = NatsRequest::SystemdManagerStartUnitRequest(SystemdManagerStartUnitRequest {
             unit_name: "doesnotexist.service".into(),
@@ -1190,7 +1223,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_start_unit_ok() {
         let request = NatsRequest::SystemdManagerStartUnitRequest(SystemdManagerStartUnitRequest {
             unit_name: "octoprint.service".into(),
@@ -1207,7 +1240,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_stop_unit_error() {
         let request = NatsRequest::SystemdManagerStopUnitRequest(SystemdManagerStopUnitRequest {
             unit_name: "doesnotexist.service".into(),
@@ -1217,7 +1250,7 @@ mod tests {
     }
 
     #[cfg(feature = "systemd")]
-    #[test(tokio::test)] // async test
+    #[test_log::test(tokio::test)] // async test
     async fn test_dbus_systemd_stop_unit_ok() {
         let request =
             NatsRequest::SystemdManagerEnableUnitsRequest(SystemdManagerUnitFilesRequest {
