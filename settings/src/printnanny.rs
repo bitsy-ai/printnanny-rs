@@ -197,6 +197,8 @@ impl PrintNannySettings {
     }
 
     pub fn figment() -> Result<Figment, PrintNannySettingsError> {
+        // if PRINTNANNY_SETTINGS env var is set, check file exists and is readable
+        Self::check_file_from_env_var("PRINTNANNY_SETTINGS")?;
         // merge file in PRINTNANNY_SETTINGS env var (if set)
         let result = Figment::from(Self { ..Self::default() })
             .merge(Toml::file(Env::var_or(
