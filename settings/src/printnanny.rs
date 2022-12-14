@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
-use figment::providers::{Env, Format, Json, Serialized, Toml};
+use figment::providers::{Env, Format, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
 use log::{debug, error, info, warn};
