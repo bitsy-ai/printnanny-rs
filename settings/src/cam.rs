@@ -181,7 +181,6 @@ pub enum VideoSource {
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyCamSettings {
-    pub video_src: VideoSource,
     pub preview: bool,
     pub nats_server_uri: String,
     pub overlay_udp_port: i32,
@@ -203,6 +202,7 @@ pub struct PrintNannyCamSettings {
     pub hls_http_enabled: Option<bool>,
     // complex types last, otherwise serde will raise TomlSerError(ValueAfterTable)
     pub tflite_model: TfliteModelSettings,
+    pub video_src: VideoSource,
 }
 
 impl PrintNannyCamSettings {
