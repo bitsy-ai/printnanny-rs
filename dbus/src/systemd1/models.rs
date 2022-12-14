@@ -3,8 +3,8 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 use zbus_systemd::systemd1::UnitProxy;
 
+use crate::error::SystemdError;
 use printnanny_asyncapi_models;
-
 /// State value that reflects whether the configuration file of this unit has been loaded
 /// https://www.freedesktop.org/wiki/Software/systemd/dbus/ LoadState property
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -15,16 +15,21 @@ pub enum SystemdLoadState {
     Error,
     #[serde(rename = "masked")]
     Masked,
+    #[serde(rename = "not-found")]
+    NotFound,
 }
 
 impl FromStr for SystemdLoadState {
-    type Err = String;
+    type Err = SystemdError;
     fn from_str(input: &str) -> Result<SystemdLoadState, Self::Err> {
         match input {
             "loaded" => Ok(SystemdLoadState::Loaded),
             "error" => Ok(SystemdLoadState::Error),
             "masked" => Ok(SystemdLoadState::Masked),
-            _ => Err(format!("Invalid value for SystemdLoadState: {}", input)),
+            "not-found" => Ok(SystemdLoadState::NotFound),
+            _ => Err(SystemdError::InvalidUnitLoadState {
+                state: input.to_string(),
+            }),
         }
     }
 }
@@ -48,7 +53,7 @@ pub enum SystemdActiveState {
 }
 
 impl FromStr for SystemdActiveState {
-    type Err = String;
+    type Err = SystemdError;
     fn from_str(input: &str) -> Result<SystemdActiveState, Self::Err> {
         match input {
             "active" => Ok(SystemdActiveState::Active),
@@ -57,7 +62,9 @@ impl FromStr for SystemdActiveState {
             "inactive" => Ok(SystemdActiveState::Inactive),
             "reloading" => Ok(SystemdActiveState::Reloading),
             "loaded" => Ok(SystemdActiveState::Loaded),
-            _ => Err(format!("Invalid value for SystemdActiveState: {}", input)),
+            _ => Err(SystemdError::InvalidUnitActiveState {
+                state: input.to_string(),
+            }),
         }
     }
 }
@@ -87,7 +94,7 @@ pub enum SystemdUnitFileState {
 }
 
 impl FromStr for SystemdUnitFileState {
-    type Err = String;
+    type Err = SystemdError;
     fn from_str(input: &str) -> Result<SystemdUnitFileState, Self::Err> {
         match input {
             "enabled" => Ok(SystemdUnitFileState::Enabled),
@@ -99,7 +106,9 @@ impl FromStr for SystemdUnitFileState {
             "static" => Ok(SystemdUnitFileState::Static),
             "disabled" => Ok(SystemdUnitFileState::Disabled),
             "invalid" => Ok(SystemdUnitFileState::Invalid),
-            _ => Err(format!("Invalid value for SystemdUnitFileState: {}", input)),
+            _ => Err(SystemdError::InvalidUnitFileState {
+                state: input.to_string(),
+            }),
         }
     }
 }
@@ -124,20 +133,27 @@ pub struct SystemdUnit {
 impl SystemdUnit {
     pub async fn from_owned_object_path(
         path: zbus::zvariant::OwnedObjectPath,
-    ) -> Result<SystemdUnit, zbus::Error> {
+    ) -> Result<SystemdUnit, SystemdError> {
         let connection = zbus::Connection::system().await?;
-        let unit = UnitProxy::new(&connection, path).await?;
+        let unit = UnitProxy::new(&connection, path.clone()).await?;
 
         let unit_file_state = unit.unit_file_state().await?;
         let load_path = unit.load_state().await?;
         let active_state = unit.active_state().await?;
 
+        let load_state = SystemdLoadState::from_str(&load_path)?;
+        if load_state == SystemdLoadState::NotFound {
+            return Err(SystemdError::UnitNotFound {
+                unit: path.to_string(),
+            });
+        }
+
         let result = SystemdUnit {
             id: unit.id().await?,
             fragment_path: unit.fragment_path().await?,
-            load_state: SystemdLoadState::from_str(&load_path).unwrap(),
-            active_state: SystemdActiveState::from_str(&active_state).unwrap(),
-            unit_file_state: SystemdUnitFileState::from_str(&unit_file_state).unwrap(),
+            load_state: load_state,
+            active_state: SystemdActiveState::from_str(&active_state)?,
+            unit_file_state: SystemdUnitFileState::from_str(&unit_file_state)?,
             load_error: unit.load_error().await?,
         };
 
@@ -172,6 +188,9 @@ impl From<SystemdUnit> for printnanny_asyncapi_models::SystemdUnit {
             SystemdLoadState::Masked => printnanny_asyncapi_models::SystemdUnitLoadState::Masked,
             SystemdLoadState::Error => printnanny_asyncapi_models::SystemdUnitLoadState::Error,
             SystemdLoadState::Loaded => printnanny_asyncapi_models::SystemdUnitLoadState::Loaded,
+            SystemdLoadState::NotFound => {
+                printnanny_asyncapi_models::SystemdUnitLoadState::NotMinusFound
+            }
         };
 
         let unit_file_state = match unit.unit_file_state {

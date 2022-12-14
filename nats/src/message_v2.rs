@@ -465,7 +465,7 @@ impl NatsRequest {
     ) -> Result<printnanny_asyncapi_models::SystemdUnit> {
         let connection = zbus::Connection::system().await?;
         let proxy = printnanny_dbus::zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
-        let unit_path = proxy.get_unit(unit_name.clone()).await?;
+        let unit_path = proxy.load_unit(unit_name.clone()).await?; // load_unit is similar to get_unit, but will first attempt to load unit file
         let unit =
             printnanny_dbus::systemd1::models::SystemdUnit::from_owned_object_path(unit_path)
                 .await?;
