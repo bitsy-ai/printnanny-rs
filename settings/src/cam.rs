@@ -96,6 +96,7 @@ pub struct CameraVideoSource {
     pub index: i32,
     pub device_name: String,
     pub label: String,
+    pub src_type: printnanny_asyncapi_models::CameraSourceType,
 }
 
 impl CameraVideoSource {
@@ -121,11 +122,16 @@ impl CameraVideoSource {
                 if index.is_some() && label.is_some() && device_name.is_some() {
                     let index = index.unwrap().parse::<i32>().unwrap();
                     let label = label.unwrap().into();
-                    let device_name = device_name.unwrap().into();
+                    let device_name: String = device_name.unwrap().into();
+                    let src_type = match &device_name.contains("usb") {
+                        true => printnanny_asyncapi_models::CameraSourceType::Usb,
+                        false => printnanny_asyncapi_models::CameraSourceType::Csi,
+                    };
                     Some(CameraVideoSource {
                         index,
                         device_name,
                         label,
+                        src_type,
                     })
                 } else {
                     None
@@ -157,6 +163,7 @@ impl From<&CameraVideoSource> for printnanny_asyncapi_models::camera::Camera {
             index: obj.index,
             label: obj.label.clone(),
             device_name: obj.device_name.clone(),
+            src_type: Box::new(obj.src_type.clone()),
         }
     }
 }
@@ -167,7 +174,7 @@ pub struct MediaVideoSource {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
-#[serde(tag = "video_src_type")]
+#[serde(tag = "src_type")]
 pub enum VideoSource {
     #[serde(rename = "csi")]
     CSI(CameraVideoSource),
@@ -177,6 +184,45 @@ pub enum VideoSource {
     File(MediaVideoSource),
     #[serde(rename = "uri")]
     Uri(MediaVideoSource),
+}
+
+impl From<&printnanny_asyncapi_models::VideoSource> for VideoSource {
+    fn from(obj: &printnanny_asyncapi_models::VideoSource) -> VideoSource {
+        match obj {
+            printnanny_asyncapi_models::VideoSource::Camera(camera) => match *camera.src_type {
+                printnanny_asyncapi_models::CameraSourceType::Csi => {
+                    VideoSource::CSI(CameraVideoSource {
+                        index: camera.index,
+                        device_name: camera.device_name.clone(),
+                        label: camera.label.clone(),
+                        src_type: *camera.src_type.clone(),
+                    })
+                }
+                printnanny_asyncapi_models::CameraSourceType::Usb => {
+                    VideoSource::USB(CameraVideoSource {
+                        index: camera.index,
+                        device_name: camera.device_name.clone(),
+                        label: camera.label.clone(),
+                        src_type: *camera.src_type.clone(),
+                    })
+                }
+            },
+            printnanny_asyncapi_models::VideoSource::PlaybackVideo(video) => {
+                match *video.src_type {
+                    printnanny_asyncapi_models::PlaybackSourceType::File => {
+                        VideoSource::File(MediaVideoSource {
+                            uri: video.uri.clone(),
+                        })
+                    }
+                    printnanny_asyncapi_models::PlaybackSourceType::Uri => {
+                        VideoSource::Uri(MediaVideoSource {
+                            uri: video.uri.clone(),
+                        })
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
@@ -224,6 +270,7 @@ impl Default for PrintNannyCamSettings {
             device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
             label: "imx219".into(),
             index: 0,
+            src_type: printnanny_asyncapi_models::CameraSourceType::Csi,
         });
         let preview = false;
         let tflite_model = TfliteModelSettings::default();

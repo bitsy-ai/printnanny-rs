@@ -9,7 +9,9 @@ use printnanny_settings::cam::CameraVideoSource;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use printnanny_dbus::printnanny_asyncapi_models::{self, CamerasLoadReply};
+use printnanny_dbus::printnanny_asyncapi_models::{
+    self, CamerasLoadReply, WebrtcSettingsApplyRequest,
+};
 use printnanny_dbus::printnanny_asyncapi_models::{
     DeviceInfoLoadReply, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp,
     SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsRevertReply,
@@ -18,7 +20,7 @@ use printnanny_dbus::printnanny_asyncapi_models::{
     SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply,
     SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest,
     SystemdManagerUnitFilesRequest, SystemdUnitChange, SystemdUnitChangeState,
-    SystemdUnitFileState,
+    SystemdUnitFileState, WebrtcSettingsApplyReply, WebrtcSettingsApplyRequest,
 };
 
 use printnanny_dbus::zbus;
@@ -63,6 +65,9 @@ pub enum NatsRequest {
     #[serde(rename = "pi.{pi_id}.settings.file.revert")]
     SettingsRevertRequest(SettingsRevertRequest),
 
+    #[serde(rename = "pi.{pi_id}.settings.webrtc.apply")]
+    WebrtcSettingsApplyRequest(WebrtcSettingsApplyRequest),
+
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
     SystemdManagerDisableUnitsRequest(SystemdManagerUnitFilesRequest),
@@ -103,6 +108,8 @@ pub enum NatsReply {
     SettingsApplyReply(SettingsApplyReply),
     #[serde(rename = "pi.{pi_id}.settings.printnanny.revert")]
     SettingsRevertReply(SettingsRevertReply),
+    #[serde(rename = "pi.{pi_id}.settings.webrtc.apply")]
+    WebrtcSettingsApplyReply(WebRtcSettingsApplyReply),
 
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
@@ -357,6 +364,23 @@ impl NatsRequest {
             SettingsApp::Moonraker => self.handle_moonraker_settings_apply(request).await,
             SettingsApp::Klipper => self.handle_klipper_settings_apply(request).await,
         }
+    }
+
+    pub async fn handle_webrtc_settings_apply(
+        &self,
+        request: &WebrtcSettingsApplyRequest,
+    ) -> Result<NatsReply> {
+        let mut settings = PrintNannySettings::new()?;
+        settings.cam.video_src = VideoSource::from(&request.video_src);
+        let content = setttings.to_toml_string()?;
+        let ts = SystemTime::now().as_secs();
+        let commit_msg = format!("Updated PrintNanny WebRTC stream settings @ {ts}");
+        settings.save_and_commit(content, Some(commit_msg))?;
+        Ok(NatsReply::WebrtcSettingsApplyReply(
+            WebrtcSettingsApplyReply {
+                request: request.clone(),
+            },
+        ))
     }
 
     pub async fn handle_settings_revert(
@@ -617,6 +641,9 @@ impl NatsRequestHandler for NatsRequest {
             "pi.{pi_id}.settings.file.revert" => Ok(NatsRequest::SettingsRevertRequest(
                 serde_json::from_slice::<SettingsRevertRequest>(payload.as_ref())?,
             )),
+            "pi.{pi_id}.settings.webrtc.apply" => Ok(NatsRequest::WebrtcSettingsApplyRequest(
+                serde_json::from_slice::<WebrtcSettingsApplyRequest>(payload.as_ref())?,
+            )),
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit" => {
                 Ok(NatsRequest::SystemdManagerDisableUnitsRequest(
                     serde_json::from_slice::<SystemdManagerUnitFilesRequest>(payload.as_ref())?,
@@ -676,6 +703,9 @@ impl NatsRequestHandler for NatsRequest {
             }
             NatsRequest::SettingsRevertRequest(request) => {
                 self.handle_settings_revert(request).await?
+            }
+            NatsRequest::WebrtcSettingsApplyRequest(request) => {
+                self.handle_webrtc_settings_apply(request).await?
             }
             // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
             NatsRequest::SystemdManagerDisableUnitsRequest(request) => {
