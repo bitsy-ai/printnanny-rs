@@ -9,6 +9,9 @@ use figment::{Figment, Metadata, Profile, Provider};
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
+use printnanny_dbus::zbus;
+use printnanny_dbus::zbus_systemd;
+
 use crate::cam::PrintNannyCamSettings;
 use crate::error::{PrintNannySettingsError, VersionControlledSettingsError};
 use crate::klipper::KlipperSettings;
@@ -310,10 +313,21 @@ impl VersionControlledSettings for PrintNannySettings {
 
     async fn post_save(&self) -> Result<(), VersionControlledSettingsError> {
         debug!("Running PrintNannySettings post_save hook");
+        // most PrintNanny services read settings on an as-needing basis, so we don't need to restart them
+        // the exception is printnanny-vision.service, which loads in settings once at start time.
+        let connection = zbus::Connection::system().await?;
+        let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let job = proxy
+            .restart_unit(
+                "printnanny-vision.service".to_string(),
+                "replace".to_string(),
+            )
+            .await?;
+        debug!("Restarted printnanny-vision.service, job: {:?}", job);
         Ok(())
     }
     fn validate(&self) -> Result<(), VersionControlledSettingsError> {
-        todo!("OctoPrintSettings validate hook is not yet implemented");
+        todo!("PrintNannySettings validate hook is not yet implemented");
     }
 }
 
