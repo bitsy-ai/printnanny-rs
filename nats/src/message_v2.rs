@@ -791,6 +791,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "systemd")]
     #[test]
     fn test_printnanny_cloud_auth_failed() {
         figment::Jail::expect_with(|jail| {
