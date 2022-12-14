@@ -2116,7 +2116,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-cli"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -2139,7 +2139,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-dbus"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2155,7 +2155,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-nats"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "async-nats",
@@ -2189,7 +2189,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-services"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -2235,7 +2235,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-settings"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "bytes",
