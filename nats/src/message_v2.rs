@@ -384,7 +384,7 @@ impl NatsRequest {
         settings.camera = request.clone().into();
         let content = settings.to_toml_string()?;
         let ts = SystemTime::now();
-        let commit_msg = format!("Updated PrintNanny WebRTC stream settings @ {ts:?}");
+        let commit_msg = format!("Updated PrintNannySettings.camera @ {ts:?}");
         settings.save_and_commit(&content, Some(commit_msg)).await?;
         Ok(NatsReply::CameraSettingsApplyReply(settings.camera.into()))
     }
@@ -650,7 +650,7 @@ impl NatsRequestHandler for NatsRequest {
             "pi.{pi_id}.settings.camera.apply" => Ok(NatsRequest::CameraSettingsApplyRequest(
                 serde_json::from_slice::<PrintNannyCameraSettings>(payload.as_ref())?,
             )),
-            "pi.{pi_id}.settings.camera.apply" => Ok(NatsRequest::CameraSettingsLoadRequest),
+            "pi.{pi_id}.settings.camera.load" => Ok(NatsRequest::CameraSettingsLoadRequest),
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit" => {
                 Ok(NatsRequest::SystemdManagerDisableUnitsRequest(
                     serde_json::from_slice::<SystemdManagerUnitFilesRequest>(payload.as_ref())?,
@@ -819,6 +819,25 @@ mod tests {
                 assert_eq!(reply.status_code, 403);
             } else {
                 panic!("Expected NatsReply::PrintNannyCloudAuthReply")
+            }
+            Ok(())
+        })
+    }
+
+    #[test_log::test]
+    fn test_camera_settings_load() {
+        figment::Jail::expect_with(|jail| {
+            // init git repo in jail tmp dir
+            make_settings_repo(jail);
+            // get settings
+            let settings = PrintNannySettings::new().unwrap();
+            let request = NatsRequest::CameraSettingsLoadRequest;
+
+            let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
+            if let NatsReply::CameraSettingsLoadReply(reply) = reply {
+                let expected: printnanny_asyncapi_models::PrintNannyCameraSettings =
+                    settings.camera.into();
+                assert_eq!(expected, reply)
             }
             Ok(())
         })
