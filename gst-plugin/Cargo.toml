@@ -72,13 +72,3 @@ tempdir = "0.3"                   # A library for managing a temporary directory
 
 [build-dependencies]
 gst-plugin-version-helper = {  version = "0.7"}
-
-[profile.dev]
-debug = 2
-debug-assertions = true
-opt-level = 0
-
-[profile.test]
-debug = 2
-debug-assertions = true
-opt-level = 0

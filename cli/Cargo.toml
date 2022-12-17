@@ -2,19 +2,11 @@
 name = "printnanny-cli"
 description = "PrintNanny Command-line Interface"
 license = "AGPL-3.0-or-later"
-license-file = "LICENSE"
 version = "0.31.0"
 authors = ["Leigh Johnson <leigh@printnanny.ai>"]
 edition = "2021"
 rust-version = "1.63"
 repository = "https://github.com/bitsy-ai/printnanny-cli.git"
-
-[build]
-targets = [
-    "aarch64-unknown-linux-gnu",
-    "armv7-unknown-linux-gnueabihf",
-    "x86_64-unknown-linux-gnu",
-]
 
 [dependencies]
 printnanny-dbus = { path = "../dbus", version = "^0.3"}
