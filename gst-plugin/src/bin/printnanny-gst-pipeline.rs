@@ -18,22 +18,11 @@ use git_version::git_version;
 use log::{error, info, warn, LevelFilter};
 use thiserror::Error;
 
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
-use printnanny_settings::cam::{
-    CameraVideoSource, MediaVideoSource, PrintNannyCameraSettings, VideoSource, VideoSrcType,
-};
+use printnanny_settings::cam::{PrintNannyCameraSettings, VideoSrcType};
 use printnanny_settings::printnanny::PrintNannySettings;
 use printnanny_settings::printnanny_asyncapi_models;
-
-static CAT: Lazy<gst::DebugCategory> = Lazy::new(|| {
-    gst::DebugCategory::new(
-        "PrintNannyGstPipeline",
-        gst::DebugColorFlags::empty(),
-        Some("PritnNanny demo video pipeline"),
-    )
-});
 
 #[derive(Debug, Error)]
 struct ErrorMessage {
