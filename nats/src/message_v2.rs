@@ -12,10 +12,10 @@ use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::printnanny_asyncapi_models;
 use printnanny_dbus::printnanny_asyncapi_models::{
-    CameraSettingsApplyReply, CameraSettingsApplyRequest, CamerasLoadReply, DeviceInfoLoadReply,
-    PrintNannyCameraSettings, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp,
-    SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsRevertReply,
-    SettingsRevertRequest, SystemdManagerDisableUnitsReply, SystemdManagerEnableUnitsReply,
+    CamerasLoadReply, DeviceInfoLoadReply, PrintNannyCameraSettings, PrintNannyCloudAuthReply,
+    PrintNannyCloudAuthRequest, SettingsApp, SettingsApplyReply, SettingsApplyRequest,
+    SettingsFile, SettingsLoadReply, SettingsRevertReply, SettingsRevertRequest,
+    SystemdManagerDisableUnitsReply, SystemdManagerEnableUnitsReply,
     SystemdManagerGetUnitFileStateReply, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
     SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply,
     SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest,
@@ -66,7 +66,7 @@ pub enum NatsRequest {
     SettingsRevertRequest(SettingsRevertRequest),
 
     #[serde(rename = "pi.{pi_id}.settings.camera.apply")]
-    CameraSettingsApplyRequest(CameraSettingsApplyRequest),
+    CameraSettingsApplyRequest(PrintNannyCameraSettings),
     #[serde(rename = "pi.{pi_id}.settings.camera.load")]
     CameraSettingsLoadRequest,
 
@@ -112,7 +112,7 @@ pub enum NatsReply {
     SettingsRevertReply(SettingsRevertReply),
 
     #[serde(rename = "pi.{pi_id}.settings.camera.apply")]
-    CameraSettingsApplyReply(CameraSettingsApplyReply),
+    CameraSettingsApplyReply(PrintNannyCameraSettings),
     #[serde(rename = "pi.{pi_id}.settings.camera.load")]
     CameraSettingsLoadReply(PrintNannyCameraSettings),
 
@@ -373,25 +373,20 @@ impl NatsRequest {
 
     pub async fn handle_camera_settings_load(&self) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
-        Ok(NatsReply::CameraSettingsLoadReply(settings.camera.clone()))
+        Ok(NatsReply::CameraSettingsLoadReply(settings.camera.into()))
     }
 
-    pub async fn handle_webrtc_settings_apply(
+    pub async fn handle_camera_settings_apply(
         &self,
-        request: &WebrtcSettingsApplyRequest,
+        request: &PrintNannyCameraSettings,
     ) -> Result<NatsReply> {
         let mut settings = PrintNannySettings::new()?;
-        settings.cam.video_src =
-            printnanny_settings::cam::VideoSource::from(*request.video_src.clone());
+        settings.camera = request.clone().into();
         let content = settings.to_toml_string()?;
         let ts = SystemTime::now();
         let commit_msg = format!("Updated PrintNanny WebRTC stream settings @ {ts:?}");
         settings.save_and_commit(&content, Some(commit_msg)).await?;
-        Ok(NatsReply::WebrtcSettingsApplyReply(
-            WebrtcSettingsApplyReply {
-                request: Box::new(request.clone()),
-            },
-        ))
+        Ok(NatsReply::CameraSettingsApplyReply(settings.camera.into()))
     }
 
     pub async fn handle_settings_revert(
@@ -652,9 +647,10 @@ impl NatsRequestHandler for NatsRequest {
             "pi.{pi_id}.settings.file.revert" => Ok(NatsRequest::SettingsRevertRequest(
                 serde_json::from_slice::<SettingsRevertRequest>(payload.as_ref())?,
             )),
-            "pi.{pi_id}.settings.webrtc.apply" => Ok(NatsRequest::WebrtcSettingsApplyRequest(
-                serde_json::from_slice::<WebrtcSettingsApplyRequest>(payload.as_ref())?,
+            "pi.{pi_id}.settings.camera.apply" => Ok(NatsRequest::CameraSettingsApplyRequest(
+                serde_json::from_slice::<PrintNannyCameraSettings>(payload.as_ref())?,
             )),
+            "pi.{pi_id}.settings.camera.apply" => Ok(NatsRequest::CameraSettingsLoadRequest),
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit" => {
                 Ok(NatsRequest::SystemdManagerDisableUnitsRequest(
                     serde_json::from_slice::<SystemdManagerUnitFilesRequest>(payload.as_ref())?,
@@ -719,7 +715,7 @@ impl NatsRequestHandler for NatsRequest {
             NatsRequest::CameraSettingsLoadRequest => self.handle_camera_settings_load().await?,
 
             NatsRequest::CameraSettingsApplyRequest(request) => {
-                self.handle_webrtc_settings_apply(request).await?
+                self.handle_camera_settings_apply(request).await?
             }
             // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
             NatsRequest::SystemdManagerDisableUnitsRequest(request) => {

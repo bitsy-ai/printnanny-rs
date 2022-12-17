@@ -7,13 +7,12 @@ use figment::providers::{Env, Format, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
 use log::{debug, error, info, warn};
-use printnanny_asyncapi_models::PrintNannyCameraSettings;
 use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
-use crate::cam::WrappedPrintNannyCameraSettings;
+use crate::cam::PrintNannyCameraSettings;
 use crate::error::{PrintNannySettingsError, VersionControlledSettingsError};
 use crate::klipper::KlipperSettings;
 use crate::mainsail::MainsailSettings;
@@ -111,7 +110,7 @@ impl Default for PrintNannySettings {
         let git = GitSettings::default();
 
         Self {
-            camera: WrappedPrintNannyCameraSettings::default().0,
+            camera: PrintNannyCameraSettings::default(),
             paths: PrintNannyPaths::default(),
             klipper: KlipperSettings::default(),
             octoprint: OctoPrintSettings::default(),
@@ -281,6 +280,17 @@ impl PrintNannySettings {
         let figment = Figment::from(provider);
         let config = figment.extract::<Self>()?;
         Ok(config)
+    }
+
+    pub async fn detect_hls_http_enabled(&self) -> Result<bool, zbus::Error> {
+        let connection = zbus::Connection::system().await?;
+        let proxy = printnanny_dbus::zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let unit_path = proxy
+            .get_unit_file_state("octoprint.service".into())
+            .await?;
+
+        let result = &unit_path == "enabled";
+        Ok(result)
     }
 }
 
