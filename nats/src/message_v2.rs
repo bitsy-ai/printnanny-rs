@@ -931,7 +931,9 @@ mod tests {
                 .block_on(request_revert.handle())
                 .unwrap();
             if let NatsReply::SettingsRevertReply(reply) = reply {
-                assert_eq!(reply.files[0].content, original.content);
+                let settings = PrintNannySettings::new().unwrap();
+
+                assert_eq!(reply.files[0].content, settings.to_toml_string().unwrap());
             } else {
                 panic!("Expected NatsReply::SettingsRevertReply")
             }
