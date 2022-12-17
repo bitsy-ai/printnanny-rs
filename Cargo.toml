@@ -2,6 +2,7 @@
 members = [
     "cli",
     "dbus",
+    "gst-plugin",
     "settings",
     "services",
     "nats",

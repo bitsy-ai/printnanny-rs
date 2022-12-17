@@ -22,9 +22,10 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 use printnanny_settings::cam::{
-    CameraVideoSource, MediaVideoSource, PrintNannyCamSettings, VideoSource, VideoSrcType,
+    CameraVideoSource, MediaVideoSource, PrintNannyCameraSettings, VideoSource, VideoSrcType,
 };
 use printnanny_settings::printnanny::PrintNannySettings;
+use printnanny_settings::printnanny_asyncapi_models;
 
 static CAT: Lazy<gst::DebugCategory> = Lazy::new(|| {
     gst::DebugCategory::new(
@@ -59,7 +60,7 @@ struct ErrorValue(Arc<Mutex<Option<Error>>>);
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PipelineApp {
-    settings: PrintNannyCamSettings,
+    settings: PrintNannyCameraSettings,
 }
 
 impl PipelineApp {
@@ -74,14 +75,14 @@ impl PipelineApp {
 
         let video_width = self.settings.video_width;
         let video_height = self.settings.video_height;
-        let tflite_model_file = self.settings.tflite_model.model_file.clone();
-        let tensor_height = self.settings.tflite_model.tensor_height;
-        let tensor_width = self.settings.tflite_model.tensor_width;
+        let tflite_model_file = self.settings.detection.model_file.clone();
+        let tensor_height = self.settings.detection.tensor_height;
+        let tensor_width = self.settings.detection.tensor_width;
         let video_framerate = self.settings.video_framerate;
-        let tflite_label_file = self.settings.tflite_model.label_file.clone();
-        let nms_threshold = self.settings.tflite_model.nms_threshold;
+        let tflite_label_file = self.settings.detection.label_file.clone();
+        let nms_threshold = self.settings.detection.nms_threshold;
         let overlay_udp_port = self.settings.overlay_udp_port;
-        let nats_server_uri = self.settings.nats_server_uri.clone();
+        let nats_server_uri = self.settings.detection.nats_server_uri.clone();
 
         let pipeline = gst::Pipeline::new(Some(&pipeline_name));
         let h264_queue = gst::ElementFactory::make("queue").name("h264_q").build()?;
@@ -173,7 +174,7 @@ impl PipelineApp {
                 true => {
                     warn!(
                         "octoprint compatibility enabled, writing hls segments/playlist to {} {}",
-                        &self.settings.hls_segments, &self.settings.hls_playlist
+                        &self.settings.hls.hls_segments, &self.settings.hls.hls_playlist
                     );
                     let h264_tee = gst::ElementFactory::make("tee")
                         .name("tee__h264_video")
@@ -184,9 +185,9 @@ impl PipelineApp {
                         .build()?;
 
                     let hls_sink = gst::ElementFactory::make("hlssink2")
-                        .property("location", &self.settings.hls_segments)
-                        .property("playlist-location", &self.settings.hls_playlist)
-                        .property("playlist-root", &self.settings.hls_playlist_root)
+                        .property("location", &self.settings.hls.hls_segments)
+                        .property("playlist-location", &self.settings.hls.hls_playlist)
+                        .property("playlist-root", &self.settings.hls.hls_playlist_root)
                         .build()?;
                     let h264_video_elements = &[
                         // &invideorate,
@@ -255,7 +256,7 @@ impl PipelineApp {
             }
         };
 
-        match self.settings.hls_http_enabled {
+        match self.settings.hls.hls_enabled {
             Some(true) => insert_h264_sinks(true)?,
             Some(false) => insert_h264_sinks(false)?,
             None => match self.settings.detect_hls_http_enabled().await? {
@@ -317,7 +318,7 @@ impl PipelineApp {
             .property("throttle", true)
             .property_from_str(
                 "framerate",
-                &format!("{}/1", &self.settings.tflite_model.tensor_framerate),
+                &format!("{}/1", &self.settings.detection.tensor_framerate),
             )
             .build()?;
 
@@ -471,7 +472,7 @@ impl PipelineApp {
 
     async fn make_libcamera_pipeline(
         &self,
-        src: &CameraVideoSource,
+        src: &printnanny_asyncapi_models::Camera,
     ) -> Result<gst::Pipeline, Error> {
         let pipeline = self.make_common_pipeline().await?;
         let videosrc = gst::ElementFactory::make("libcamerasrc")
@@ -504,7 +505,10 @@ impl PipelineApp {
         Ok(pipeline)
     }
 
-    async fn make_uri_pipeline(&self, src: &MediaVideoSource) -> Result<gst::Pipeline, Error> {
+    async fn make_uri_pipeline(
+        &self,
+        src: &printnanny_asyncapi_models::PlaybackVideo,
+    ) -> Result<gst::Pipeline, Error> {
         let pipeline = self.make_common_pipeline().await?;
 
         let uriencodebin = gst::ElementFactory::make("uridecodebin3")
@@ -574,10 +578,12 @@ impl PipelineApp {
         gst::init()?;
 
         let pipeline = match &self.settings.video_src {
-            VideoSource::Uri(src) => self.make_uri_pipeline(src).await?,
-            VideoSource::File(src) => self.make_uri_pipeline(src).await?,
-            VideoSource::CSI(src) => self.make_libcamera_pipeline(src).await?,
-            VideoSource::USB(src) => self.make_libcamera_pipeline(src).await?,
+            printnanny_asyncapi_models::VideoSource::Camera(camera) => {
+                self.make_libcamera_pipeline(camera).await?
+            }
+            printnanny_asyncapi_models::VideoSource::PlaybackVideo(video) => {
+                self.make_uri_pipeline(video).await?
+            }
         };
 
         Ok(pipeline)
@@ -656,7 +662,7 @@ fn run(pipeline: gst::Pipeline) -> Result<()> {
 
 impl From<&ArgMatches> for PipelineApp {
     fn from(args: &ArgMatches) -> Self {
-        let settings = PrintNannyCamSettings::from(args);
+        let settings = PrintNannyCameraSettings::from(args);
         Self { settings }
     }
 }
@@ -872,7 +878,7 @@ async fn main() {
                 .expect("Failed to extract settings");
             info!("Pipeline settings: {:?}", settings);
             PipelineApp {
-                settings: settings.cam,
+                settings: settings.camera,
             }
         }
         None => PipelineApp::from(&args),
