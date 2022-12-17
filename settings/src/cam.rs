@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::zbus;
 
+use printnanny_asyncapi_models::{self, PrintNannyCameraSettings};
+
 use crate::error::PrintNannySettingsError;
 
 #[derive(Debug, Clone, clap::ValueEnum, Deserialize, Serialize, PartialEq, Eq)]
@@ -218,32 +220,9 @@ impl From<printnanny_asyncapi_models::VideoSource> for VideoSource {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
-pub struct PrintNannyCamSettings {
-    pub preview: bool,
-    pub nats_server_uri: String,
-    pub overlay_udp_port: i32,
-    pub video_udp_port: i32,
-    pub video_height: i32,
-    pub video_width: i32,
-    pub video_framerate: i32,
-    pub hls_segments: String,
-    pub hls_playlist: String,
-    pub hls_playlist_root: String,
+pub struct WrappedPrintNannyCameraSettings(printnanny_asyncapi_models::PrintNannyCameraSettings);
 
-    //
-    // hls_http has 3 possible states:
-    // 1) Detect enabled/disabled based on enabled systemd services, indicated by None value
-    //  detect_hls_http_enabled() will be called
-    //
-    // 2) and 3) Explicitly enabled/disabled, indicated by Some(bool)
-    // Some(bool) -> bool
-    pub hls_http_enabled: Option<bool>,
-    // complex types last, otherwise serde will raise TomlSerError(ValueAfterTable)
-    pub tflite_model: TfliteModelSettings,
-    pub video_src: VideoSource,
-}
-
-impl PrintNannyCamSettings {
+impl WrappedPrintNannyCameraSettings {
     pub async fn detect_hls_http_enabled(&self) -> Result<bool, zbus::Error> {
         let connection = zbus::Connection::system().await?;
         let proxy = printnanny_dbus::zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
@@ -256,47 +235,61 @@ impl PrintNannyCamSettings {
     }
 }
 
-impl Default for PrintNannyCamSettings {
+impl Default for WrappedPrintNannyCameraSettings {
     fn default() -> Self {
-        let video_src = VideoSource::CSI(CameraVideoSource {
-            device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
-            label: "imx219".into(),
-            index: 0,
-        });
+        let video_src =
+            printnanny_asyncapi_models::VideoSource::Camera(printnanny_asyncapi_models::Camera {
+                device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
+                label: "imx219".into(),
+                index: 0,
+                src_type: Box::new(printnanny_asyncapi_models::CameraSourceType::Csi),
+            });
         let preview = false;
-        let tflite_model = TfliteModelSettings::default();
+        // let tflite_model = TfliteModelSettings::default();
         let video_udp_port = 20001;
         let overlay_udp_port = 20002;
 
         let video_height = 480;
         let video_width = 640;
         let video_framerate = 15;
-        let hls_http_enabled = None;
+        let hls_enabled = None;
         let hls_segments = "/var/run/printnanny-hls/segment%05d.ts".into();
         let hls_playlist = "/var/run/printnanny-hls/playlist.m3u8".into();
         let hls_playlist_root = "/printnanny-hls/".into();
 
-        let nats_server_uri = "nats://127.0.0.1:4223".into();
+        let hls = printnanny_asyncapi_models::HlsSettings {
+            hls_enabled,
+            hls_segments,
+            hls_playlist,
+            hls_playlist_root,
+        };
 
-        Self {
-            video_src,
-            tflite_model,
+        let detection = printnanny_asyncapi_models::PrintNannyDetectionSettings {
+            nats_server_uri: "nats://127.0.0.1:4223".into(),
+            label_file: "/usr/share/printnanny/model/labels.txt".into(),
+            model_file: "/usr/share/printnanny/model/model.tflite".into(),
+            nms_threshold: 50,
+            tensor_batch_size: 40,
+            tensor_height: 320,
+            tensor_width: 320,
+            tensor_framerate: 2,
+        };
+
+        Self(PrintNannyCameraSettings {
+            video_src: Box::new(video_src),
             video_height,
             video_width,
             video_framerate,
             video_udp_port,
             overlay_udp_port,
             preview,
-            hls_http_enabled,
-            hls_segments,
-            hls_playlist,
-            hls_playlist_root,
-            nats_server_uri,
-        }
+            hls: Box::new(hls),
+            detection: Box::new(detection),
+        })
     }
 }
 
-impl From<&ArgMatches> for PrintNannyCamSettings {
+impl From<&ArgMatches> for PrintNannyCameraSettings {
     fn from(args: &ArgMatches) -> Self {
         let tflite_model = TfliteModelSettings::from(args);
         let video_height: i32 = args

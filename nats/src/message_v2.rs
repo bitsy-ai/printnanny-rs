@@ -114,7 +114,7 @@ pub enum NatsReply {
     #[serde(rename = "pi.{pi_id}.settings.camera.apply")]
     CameraSettingsApplyReply(CameraSettingsApplyReply),
     #[serde(rename = "pi.{pi_id}.settings.camera.load")]
-    CameraSettingsLoadRequest(PrintNannyCameraSettings),
+    CameraSettingsLoadReply(PrintNannyCameraSettings),
 
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
@@ -369,6 +369,11 @@ impl NatsRequest {
             SettingsApp::Moonraker => self.handle_moonraker_settings_apply(request).await,
             SettingsApp::Klipper => self.handle_klipper_settings_apply(request).await,
         }
+    }
+
+    pub async fn handle_camera_settings_load(&self) -> Result<NatsReply> {
+        let settings = PrintNannySettings::new()?;
+        Ok(NatsReply::CameraSettingsLoadReply(settings.camera.clone()))
     }
 
     pub async fn handle_webrtc_settings_apply(
@@ -710,7 +715,10 @@ impl NatsRequestHandler for NatsRequest {
             NatsRequest::SettingsRevertRequest(request) => {
                 self.handle_settings_revert(request).await?
             }
-            NatsRequest::WebrtcSettingsApplyRequest(request) => {
+
+            NatsRequest::CameraSettingsLoadRequest => self.handle_camera_settings_load().await?,
+
+            NatsRequest::CameraSettingsApplyRequest(request) => {
                 self.handle_webrtc_settings_apply(request).await?
             }
             // pi.{pi_id}.dbus.org.freedesktop.systemd1.*

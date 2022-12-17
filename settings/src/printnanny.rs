@@ -7,12 +7,13 @@ use figment::providers::{Env, Format, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
 use log::{debug, error, info, warn};
+use printnanny_asyncapi_models::PrintNannyCameraSettings;
 use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
-use crate::cam::PrintNannyCamSettings;
+use crate::cam::WrappedPrintNannyCameraSettings;
 use crate::error::{PrintNannySettingsError, VersionControlledSettingsError};
 use crate::klipper::KlipperSettings;
 use crate::mainsail::MainsailSettings;
@@ -96,7 +97,7 @@ impl Default for GitSettings {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PrintNannySettings {
-    pub cam: PrintNannyCamSettings,
+    pub camera: PrintNannyCameraSettings,
     pub git: GitSettings,
     pub paths: PrintNannyPaths,
     pub klipper: KlipperSettings,
@@ -108,8 +109,9 @@ pub struct PrintNannySettings {
 impl Default for PrintNannySettings {
     fn default() -> Self {
         let git = GitSettings::default();
+
         Self {
-            cam: PrintNannyCamSettings::default(),
+            camera: WrappedPrintNannyCameraSettings::default().0,
             paths: PrintNannyPaths::default(),
             klipper: KlipperSettings::default(),
             octoprint: OctoPrintSettings::default(),
