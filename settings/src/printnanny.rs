@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
-use crate::cam::PrintNannyCamSettings;
+use crate::cam::PrintNannyCameraSettings;
 use crate::error::{PrintNannySettingsError, VersionControlledSettingsError};
 use crate::klipper::KlipperSettings;
 use crate::mainsail::MainsailSettings;
@@ -96,7 +96,7 @@ impl Default for GitSettings {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PrintNannySettings {
-    pub cam: PrintNannyCamSettings,
+    pub camera: PrintNannyCameraSettings,
     pub git: GitSettings,
     pub paths: PrintNannyPaths,
     pub klipper: KlipperSettings,
@@ -108,8 +108,9 @@ pub struct PrintNannySettings {
 impl Default for PrintNannySettings {
     fn default() -> Self {
         let git = GitSettings::default();
+
         Self {
-            cam: PrintNannyCamSettings::default(),
+            camera: PrintNannyCameraSettings::default(),
             paths: PrintNannyPaths::default(),
             klipper: KlipperSettings::default(),
             octoprint: OctoPrintSettings::default(),
@@ -211,7 +212,7 @@ impl PrintNannySettings {
             // allow nested environment variables:
             // PRINTNANNY_SETTINGS_KEY__SUBKEY
             .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"));
-        info!("Finalized PrintNannyCloudConfig: \n {:?}", result);
+        info!("Finalized PrintNannySettings: \n {:?}", result);
         Ok(result)
     }
 
@@ -280,6 +281,17 @@ impl PrintNannySettings {
         let config = figment.extract::<Self>()?;
         Ok(config)
     }
+
+    pub async fn detect_hls_http_enabled(&self) -> Result<bool, zbus::Error> {
+        let connection = zbus::Connection::system().await?;
+        let proxy = printnanny_dbus::zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+        let unit_path = proxy
+            .get_unit_file_state("octoprint.service".into())
+            .await?;
+
+        let result = &unit_path == "enabled";
+        Ok(result)
+    }
 }
 
 impl Provider for PrintNannySettings {
@@ -304,7 +316,7 @@ impl VersionControlledSettings for PrintNannySettings {
         SettingsFormat::Toml
     }
     fn get_settings_file(&self) -> PathBuf {
-        self.paths.settings_dir.join("printnanny/printnanny.toml")
+        self.paths.settings_file()
     }
     async fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {
         debug!("Running PrintNannySettings pre_save hook");
@@ -545,14 +557,14 @@ mod tests {
             jail.create_file(
                 filename,
                 r#"
-                [cam.tflite_model]
+                [camera.detection]
                 tensor_framerate = 1
                 "#,
             )?;
 
             let settings =
                 PrintNannySettings::from_toml(PathBuf::from(output).join(filename)).unwrap();
-            assert_eq!(settings.cam.tflite_model.tensor_framerate, 1);
+            assert_eq!(settings.camera.detection.tensor_framerate, 1);
 
             Ok(())
         });

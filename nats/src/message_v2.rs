@@ -12,15 +12,15 @@ use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::printnanny_asyncapi_models;
 use printnanny_dbus::printnanny_asyncapi_models::{
-    CamerasLoadReply, DeviceInfoLoadReply, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest,
-    SettingsApp, SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply,
-    SettingsRevertReply, SettingsRevertRequest, SystemdManagerDisableUnitsReply,
-    SystemdManagerEnableUnitsReply, SystemdManagerGetUnitFileStateReply,
-    SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
-    SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
-    SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdManagerUnitFilesRequest,
-    SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState, WebrtcSettingsApplyReply,
-    WebrtcSettingsApplyRequest,
+    CamerasLoadReply, DeviceInfoLoadReply, PrintNannyCameraSettings, PrintNannyCloudAuthReply,
+    PrintNannyCloudAuthRequest, SettingsApp, SettingsApplyReply, SettingsApplyRequest,
+    SettingsFile, SettingsLoadReply, SettingsRevertReply, SettingsRevertRequest,
+    SystemdManagerDisableUnitsReply, SystemdManagerEnableUnitsReply,
+    SystemdManagerGetUnitFileStateReply, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
+    SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply,
+    SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest,
+    SystemdManagerUnitFilesRequest, SystemdUnitChange, SystemdUnitChangeState,
+    SystemdUnitFileState,
 };
 
 use printnanny_dbus::zbus;
@@ -65,8 +65,10 @@ pub enum NatsRequest {
     #[serde(rename = "pi.{pi_id}.settings.file.revert")]
     SettingsRevertRequest(SettingsRevertRequest),
 
-    #[serde(rename = "pi.{pi_id}.settings.webrtc.apply")]
-    WebrtcSettingsApplyRequest(WebrtcSettingsApplyRequest),
+    #[serde(rename = "pi.{pi_id}.settings.camera.apply")]
+    CameraSettingsApplyRequest(PrintNannyCameraSettings),
+    #[serde(rename = "pi.{pi_id}.settings.camera.load")]
+    CameraSettingsLoadRequest,
 
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
@@ -108,8 +110,11 @@ pub enum NatsReply {
     SettingsApplyReply(SettingsApplyReply),
     #[serde(rename = "pi.{pi_id}.settings.printnanny.revert")]
     SettingsRevertReply(SettingsRevertReply),
-    #[serde(rename = "pi.{pi_id}.settings.webrtc.apply")]
-    WebrtcSettingsApplyReply(WebrtcSettingsApplyReply),
+
+    #[serde(rename = "pi.{pi_id}.settings.camera.apply")]
+    CameraSettingsApplyReply(PrintNannyCameraSettings),
+    #[serde(rename = "pi.{pi_id}.settings.camera.load")]
+    CameraSettingsLoadReply(PrintNannyCameraSettings),
 
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
@@ -366,22 +371,24 @@ impl NatsRequest {
         }
     }
 
-    pub async fn handle_webrtc_settings_apply(
+    pub async fn handle_camera_settings_load(&self) -> Result<NatsReply> {
+        let settings = PrintNannySettings::new()?;
+        Ok(NatsReply::CameraSettingsLoadReply(settings.camera.into()))
+    }
+
+    pub async fn handle_camera_settings_apply(
         &self,
-        request: &WebrtcSettingsApplyRequest,
+        request: &PrintNannyCameraSettings,
     ) -> Result<NatsReply> {
+        info!("Received request: {:#?}", request);
         let mut settings = PrintNannySettings::new()?;
-        settings.cam.video_src =
-            printnanny_settings::cam::VideoSource::from(*request.video_src.clone());
+        settings.camera = request.clone().into();
         let content = settings.to_toml_string()?;
         let ts = SystemTime::now();
-        let commit_msg = format!("Updated PrintNanny WebRTC stream settings @ {ts:?}");
+        let commit_msg = format!("Updated PrintNannySettings.camera @ {ts:?}");
         settings.save_and_commit(&content, Some(commit_msg)).await?;
-        Ok(NatsReply::WebrtcSettingsApplyReply(
-            WebrtcSettingsApplyReply {
-                request: Box::new(request.clone()),
-            },
-        ))
+        let settings = PrintNannySettings::new()?;
+        Ok(NatsReply::CameraSettingsApplyReply(settings.camera.into()))
     }
 
     pub async fn handle_settings_revert(
@@ -642,9 +649,10 @@ impl NatsRequestHandler for NatsRequest {
             "pi.{pi_id}.settings.file.revert" => Ok(NatsRequest::SettingsRevertRequest(
                 serde_json::from_slice::<SettingsRevertRequest>(payload.as_ref())?,
             )),
-            "pi.{pi_id}.settings.webrtc.apply" => Ok(NatsRequest::WebrtcSettingsApplyRequest(
-                serde_json::from_slice::<WebrtcSettingsApplyRequest>(payload.as_ref())?,
+            "pi.{pi_id}.settings.camera.apply" => Ok(NatsRequest::CameraSettingsApplyRequest(
+                serde_json::from_slice::<PrintNannyCameraSettings>(payload.as_ref())?,
             )),
+            "pi.{pi_id}.settings.camera.load" => Ok(NatsRequest::CameraSettingsLoadRequest),
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit" => {
                 Ok(NatsRequest::SystemdManagerDisableUnitsRequest(
                     serde_json::from_slice::<SystemdManagerUnitFilesRequest>(payload.as_ref())?,
@@ -705,8 +713,11 @@ impl NatsRequestHandler for NatsRequest {
             NatsRequest::SettingsRevertRequest(request) => {
                 self.handle_settings_revert(request).await?
             }
-            NatsRequest::WebrtcSettingsApplyRequest(request) => {
-                self.handle_webrtc_settings_apply(request).await?
+
+            NatsRequest::CameraSettingsLoadRequest => self.handle_camera_settings_load().await?,
+
+            NatsRequest::CameraSettingsApplyRequest(request) => {
+                self.handle_camera_settings_apply(request).await?
             }
             // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
             NatsRequest::SystemdManagerDisableUnitsRequest(request) => {
@@ -815,6 +826,51 @@ mod tests {
         })
     }
 
+    #[test_log::test]
+    fn test_camera_settings_load() {
+        figment::Jail::expect_with(|jail| {
+            // init git repo in jail tmp dir
+            make_settings_repo(jail);
+            // get settings
+            let settings = PrintNannySettings::new().unwrap();
+            let request = NatsRequest::CameraSettingsLoadRequest;
+
+            let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
+            if let NatsReply::CameraSettingsLoadReply(reply) = reply {
+                let expected: printnanny_asyncapi_models::PrintNannyCameraSettings =
+                    settings.camera.into();
+                assert_eq!(expected, reply)
+            }
+            Ok(())
+        })
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test_log::test]
+    fn test_camera_settings_apply_load_revert() {
+        figment::Jail::expect_with(|jail| {
+            // init git repo in jail tmp dir
+            make_settings_repo(jail);
+
+            // apply a settings change
+            let settings = PrintNannySettings::new().unwrap();
+            let mut modified = settings.camera.clone();
+            modified.hls.hls_enabled = Some(false);
+
+            let request = NatsRequest::CameraSettingsApplyRequest(modified.clone().into());
+            let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
+
+            if let NatsReply::CameraSettingsApplyReply(reply) = reply {
+                assert_eq!(reply.hls.hls_enabled, Some(false));
+                let settings = PrintNannySettings::new().unwrap();
+                assert_eq!(settings.camera.hls.hls_enabled, Some(false))
+            } else {
+                panic!("Expected NatsReply::CameraSettingsApplyReply")
+            }
+            Ok(())
+        })
+    }
+
     #[cfg(feature = "systemd")]
     #[test_log::test]
     fn test_printnanny_settings_apply_load_revert() {
@@ -875,7 +931,9 @@ mod tests {
                 .block_on(request_revert.handle())
                 .unwrap();
             if let NatsReply::SettingsRevertReply(reply) = reply {
-                assert_eq!(reply.files[0].content, original.content);
+                let settings = PrintNannySettings::new().unwrap();
+
+                assert_eq!(reply.files[0].content, settings.to_toml_string().unwrap());
             } else {
                 panic!("Expected NatsReply::SettingsRevertReply")
             }
