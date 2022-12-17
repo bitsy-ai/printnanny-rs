@@ -845,6 +845,33 @@ mod tests {
 
     #[cfg(feature = "systemd")]
     #[test_log::test]
+    fn test_camera_settings_apply_load_revert() {
+        figment::Jail::expect_with(|jail| {
+            // init git repo in jail tmp dir
+            make_settings_repo(jail);
+
+            // apply a settings change
+            let mut settings = PrintNannySettings::new().unwrap();
+            let mut modified = settings.camera.clone();
+            modified.hls.hls_enabled = Some(false);
+
+            let request = NatsRequest::CameraSettingsApplyRequest(modified.clone().into());
+            let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
+            let revert_commit = settings.get_git_head_commit().unwrap().oid;
+
+            if let NatsReply::CameraSettingsApplyReply(reply) = reply {
+                assert_eq!(reply.hls.hls_enabled, Some(false));
+                let settings = PrintNannySettings::new().unwrap();
+                assert_eq!(settings.camera.hls.hls_enabled, Some(false))
+            } else {
+                panic!("Expected NatsReply::CameraSettingsApplyReply")
+            }
+            Ok(())
+        })
+    }
+
+    #[cfg(feature = "systemd")]
+    #[test_log::test]
     fn test_printnanny_settings_apply_load_revert() {
         figment::Jail::expect_with(|jail| {
             // init git repo in jail tmp dir
