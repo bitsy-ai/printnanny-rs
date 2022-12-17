@@ -557,14 +557,14 @@ mod tests {
             jail.create_file(
                 filename,
                 r#"
-                [cam.tflite_model]
+                [camera.detection]
                 tensor_framerate = 1
                 "#,
             )?;
 
             let settings =
                 PrintNannySettings::from_toml(PathBuf::from(output).join(filename)).unwrap();
-            assert_eq!(settings.cam.tflite_model.tensor_framerate, 1);
+            assert_eq!(settings.camera.detection.tensor_framerate, 1);
 
             Ok(())
         });
