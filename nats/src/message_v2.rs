@@ -12,15 +12,15 @@ use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::printnanny_asyncapi_models;
 use printnanny_dbus::printnanny_asyncapi_models::{
-    CamerasLoadReply, DeviceInfoLoadReply, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest,
-    SettingsApp, SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply,
-    SettingsRevertReply, SettingsRevertRequest, SystemdManagerDisableUnitsReply,
-    SystemdManagerEnableUnitsReply, SystemdManagerGetUnitFileStateReply,
-    SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
-    SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
-    SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdManagerUnitFilesRequest,
-    SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState, WebrtcSettingsApplyReply,
-    WebrtcSettingsApplyRequest,
+    CameraSettingsApplyReply, CameraSettingsApplyRequest, CamerasLoadReply, DeviceInfoLoadReply,
+    PrintNannyCameraSettings, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp,
+    SettingsApplyReply, SettingsApplyRequest, SettingsFile, SettingsLoadReply, SettingsRevertReply,
+    SettingsRevertRequest, SystemdManagerDisableUnitsReply, SystemdManagerEnableUnitsReply,
+    SystemdManagerGetUnitFileStateReply, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
+    SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply,
+    SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest,
+    SystemdManagerUnitFilesRequest, SystemdUnitChange, SystemdUnitChangeState,
+    SystemdUnitFileState,
 };
 
 use printnanny_dbus::zbus;
@@ -65,8 +65,10 @@ pub enum NatsRequest {
     #[serde(rename = "pi.{pi_id}.settings.file.revert")]
     SettingsRevertRequest(SettingsRevertRequest),
 
-    #[serde(rename = "pi.{pi_id}.settings.webrtc.apply")]
-    WebrtcSettingsApplyRequest(WebrtcSettingsApplyRequest),
+    #[serde(rename = "pi.{pi_id}.settings.camera.apply")]
+    CameraSettingsApplyRequest(CameraSettingsApplyRequest),
+    #[serde(rename = "pi.{pi_id}.settings.camera.load")]
+    CameraSettingsLoadRequest,
 
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
@@ -108,8 +110,11 @@ pub enum NatsReply {
     SettingsApplyReply(SettingsApplyReply),
     #[serde(rename = "pi.{pi_id}.settings.printnanny.revert")]
     SettingsRevertReply(SettingsRevertReply),
-    #[serde(rename = "pi.{pi_id}.settings.webrtc.apply")]
-    WebrtcSettingsApplyReply(WebrtcSettingsApplyReply),
+
+    #[serde(rename = "pi.{pi_id}.settings.camera.apply")]
+    CameraSettingsApplyReply(CameraSettingsApplyReply),
+    #[serde(rename = "pi.{pi_id}.settings.camera.load")]
+    CameraSettingsLoadRequest(PrintNannyCameraSettings),
 
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
