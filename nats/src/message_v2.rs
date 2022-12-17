@@ -380,12 +380,14 @@ impl NatsRequest {
         &self,
         request: &PrintNannyCameraSettings,
     ) -> Result<NatsReply> {
+        info!("Received request: {:#?}", request);
         let mut settings = PrintNannySettings::new()?;
         settings.camera = request.clone().into();
         let content = settings.to_toml_string()?;
         let ts = SystemTime::now();
         let commit_msg = format!("Updated PrintNannySettings.camera @ {ts:?}");
         settings.save_and_commit(&content, Some(commit_msg)).await?;
+        let settings = PrintNannySettings::new()?;
         Ok(NatsReply::CameraSettingsApplyReply(settings.camera.into()))
     }
 
@@ -851,13 +853,12 @@ mod tests {
             make_settings_repo(jail);
 
             // apply a settings change
-            let mut settings = PrintNannySettings::new().unwrap();
+            let settings = PrintNannySettings::new().unwrap();
             let mut modified = settings.camera.clone();
             modified.hls.hls_enabled = Some(false);
 
             let request = NatsRequest::CameraSettingsApplyRequest(modified.clone().into());
             let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
-            let revert_commit = settings.get_git_head_commit().unwrap().oid;
 
             if let NatsReply::CameraSettingsApplyReply(reply) = reply {
                 assert_eq!(reply.hls.hls_enabled, Some(false));

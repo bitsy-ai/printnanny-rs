@@ -2,7 +2,6 @@ use std::process::{Command, Output};
 
 use clap::ArgMatches;
 use log::debug;
-use printnanny_asyncapi_models::PrintNannyDetectionSettings;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -380,10 +379,6 @@ impl From<&ArgMatches> for PrintNannyCameraSettings {
         let tensor_width: i32 = args
             .value_of_t::<i32>("tensor_width")
             .expect("--tensor-width must be an integer");
-
-        let tensor_channels: i32 = args
-            .value_of_t::<i32>("tensor_channels")
-            .expect("--tensor-channels must be an integer");
 
         let tensor_framerate: i32 = args
             .value_of_t::<i32>("tensor_framerate")

@@ -212,7 +212,7 @@ impl PrintNannySettings {
             // allow nested environment variables:
             // PRINTNANNY_SETTINGS_KEY__SUBKEY
             .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"));
-        info!("Finalized PrintNannyCloudConfig: \n {:?}", result);
+        info!("Finalized PrintNannySettings: \n {:?}", result);
         Ok(result)
     }
 
@@ -316,7 +316,7 @@ impl VersionControlledSettings for PrintNannySettings {
         SettingsFormat::Toml
     }
     fn get_settings_file(&self) -> PathBuf {
-        self.paths.settings_dir.join("printnanny/printnanny.toml")
+        self.paths.settings_file()
     }
     async fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {
         debug!("Running PrintNannySettings pre_save hook");
