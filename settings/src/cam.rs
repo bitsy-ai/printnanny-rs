@@ -1,7 +1,7 @@
 use std::process::{Command, Output};
 
 use clap::ArgMatches;
-use log::debug;
+use log::{debug, error};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -102,7 +102,7 @@ impl CameraVideoSource {
     pub fn list_cameras_command_output() -> Result<Output, std::io::Error> {
         let output = Command::new("cam")
             .env("LIBCAMERA_LOG_LEVELS", "*:ERROR") // supress verbose output: https://libcamera.org/getting-started.html#basic-testing-with-cam-utility
-            .args(&["--list", "--list-properties"])
+            .args(["--list", "--list-properties"])
             .output()?;
         Ok(output)
     }
@@ -118,17 +118,23 @@ impl CameraVideoSource {
                     "parse_list_camera_line capture groups: {:#?} {:#?} {:#?}",
                     &index, &label, &device_name
                 );
-                if index.is_some() && label.is_some() && device_name.is_some() {
-                    let index = index.unwrap().parse::<i32>().unwrap();
-                    let label = label.unwrap().into();
-                    let device_name: String = device_name.unwrap().into();
-                    Some(CameraVideoSource {
-                        index,
-                        device_name,
-                        label,
-                    })
-                } else {
-                    None
+
+                match index {
+                    Some(index) => match index.parse::<i32>() {
+                        Ok(index) => match device_name {
+                            Some(device_name) => label.map(|label| CameraVideoSource {
+                                index,
+                                device_name: device_name.into(),
+                                label: label.into(),
+                            }),
+                            None => None,
+                        },
+                        Err(e) => {
+                            error!("Failed to parse integer from {}, error: {}", &index, &e);
+                            None
+                        }
+                    },
+                    _ => None,
                 }
             }
             None => None,

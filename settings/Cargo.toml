@@ -7,7 +7,7 @@ license = "AGPL-3.0-or-later"
 description = "Utilities for interacting with PrintNanny settings"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-rust-version = "1.63"
+rust-version = "1.64"
 
 [dependencies]
 printnanny-api-client = "0.113.0"

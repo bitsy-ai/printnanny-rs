@@ -235,7 +235,7 @@ impl PrintNannySettings {
     pub fn try_save(&self) -> Result<(), PrintNannySettingsError> {
         let settings_file = self.paths.settings_file();
         let settings_data = toml::ser::to_string_pretty(self)?;
-        fs::write(&settings_file, &settings_data)?;
+        fs::write(settings_file, settings_data)?;
         Ok(())
     }
     // Save settings to PRINTNANNY_SETTINGS (default: /var/lib/printnanny/PrintNannySettings.toml)
@@ -254,7 +254,7 @@ impl PrintNannySettings {
             SettingsFormat::Toml => toml::ser::to_string_pretty(self)?,
             _ => unimplemented!("try_init is not implemented for format: {}", format),
         };
-        fs::write(&filename, content)?;
+        fs::write(filename, content)?;
         Ok(())
     }
 

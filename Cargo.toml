@@ -2,7 +2,19 @@
 members = [
     "cli",
     "dbus",
+    "gst-plugin",
     "settings",
     "services",
     "nats",
 ]
+
+
+[profile.dev]
+debug = 2
+debug-assertions = true
+opt-level = 0
+
+[profile.test]
+debug = 2
+debug-assertions = true
+opt-level = 0

@@ -46,7 +46,7 @@ impl Swupdate {
         let (path, _f) = self.download_file().await?;
 
         let output = Command::new("swupdate")
-            .args(&["-v", "-i", path.to_str().unwrap()])
+            .args(["-v", "-i", path.to_str().unwrap()])
             .output()
             .await?;
         Ok(output)

@@ -228,7 +228,7 @@ pub async fn handle_pi_cam_command(
                 models::PiCamStatusType::CamStarted
             );
             let output = Command::new("sudo")
-                .args(&["systemctl", "restart", "printnanny-cam.service"])
+                .args(["systemctl", "restart", "printnanny-cam.service"])
                 .output()
                 .await?;
             match output.status.success() {
@@ -285,7 +285,7 @@ pub async fn handle_pi_cam_command(
         }
         models::PiCamCommandType::CamStop => {
             let output = Command::new("sudo")
-                .args(&["systemctl", "stop", "printnanny-cam.service"])
+                .args(["systemctl", "stop", "printnanny-cam.service"])
                 .output()
                 .await?;
             match output.status.success() {
