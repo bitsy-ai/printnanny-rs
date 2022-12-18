@@ -61,7 +61,7 @@ impl RpiCpuInfo {
     }
     pub fn new() -> Result<Self, ServiceError> {
         let path = "/proc/cpuinfo";
-        let file = match open(&path) {
+        let file = match open(path) {
             Ok(f) => Ok(f),
             Err(error) => Err(PrintNannySettingsError::ReadIOError {
                 path: PathBuf::from(path),

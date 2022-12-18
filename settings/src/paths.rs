@@ -155,7 +155,7 @@ impl PrintNannyPaths {
                 }),
             }?;
 
-            match std::fs::write(&dest, contents) {
+            match std::fs::write(dest, contents) {
                 Ok(_) => Ok(()),
                 Err(error) => Err(PrintNannySettingsError::WriteIOError {
                     path: PathBuf::from(filename),
@@ -175,7 +175,7 @@ impl PrintNannyPaths {
             .as_secs();
         let new_filename = format!("{}.{}.bak", filename.display(), ts);
         let new_filepath = PathBuf::from(&new_filename);
-        fs::copy(&filename, &new_filepath)?;
+        fs::copy(filename, &new_filepath)?;
         info!(
             "{} already exists, backed up to {} before overwriting",
             filename.display(),
