@@ -88,7 +88,7 @@ pub struct GstTensorsSettings {
 }
 
 // based on: https://github.com/nnstreamer/nnstreamer/blob/f2c3bcd87f34ac2ad52ca0a17f6515c54e6f2d66/tests/nnstreamer_decoder/unittest_decoder.cc#L28
-pub extern "C" fn printnanny_bb_dataframe_decoder(
+extern "C" fn printnanny_bb_dataframe_decoder(
     input: *const GstTensorMemory,
     config: *const GstTensorsSettings,
     _data: libc::c_void,
