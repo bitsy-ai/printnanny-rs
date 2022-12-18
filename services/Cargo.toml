@@ -5,7 +5,7 @@ license = "AGPL-3.0-or-later"
 version = "0.31.0"
 authors = ["Leigh Johnson <leigh@printnanny.ai>"]
 edition = "2021"
-rust-version = "1.64"
+rust-version = "1.63"
 
 [dependencies]
 async-process = "1.3"
