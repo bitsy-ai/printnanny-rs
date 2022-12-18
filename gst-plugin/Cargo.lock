@@ -2704,7 +2704,7 @@ dependencies = [
 [[package]]
 name = "printnanny-services"
 version = "0.27.2"
-source = "git+https://github.com/bitsy-ai/printnanny-cli.git#3cf8d22b30e76d9e5b92cc6f97035abc41e93f63"
+source = "git+https://github.com/bitsy-ai/printnanny-rs.git#3cf8d22b30e76d9e5b92cc6f97035abc41e93f63"
 dependencies = [
  "anyhow",
  "async-process",

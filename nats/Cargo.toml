@@ -6,7 +6,7 @@ version = "0.31.0"
 authors = ["Leigh Johnson <leigh@printnanny.ai>"]
 edition = "2021"
 rust-version = "1.64"
-repository = "https://github.com/bitsy-ai/printnanny-cli.git"
+repository = "https://github.com/bitsy-ai/printnanny-rs.git"
 
 [[bin]]
 name = "dbus-systemd-nats-adapter"
