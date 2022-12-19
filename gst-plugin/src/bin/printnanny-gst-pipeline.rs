@@ -62,8 +62,10 @@ impl PipelineApp {
 
         let video_udp_port = self.settings.video_udp_port;
 
-        let video_width = self.settings.camera.caps.width;
-        let video_height = self.settings.camera.caps.height;
+        let src_caps = self.settings.get_caps();
+
+        let video_width = src_caps.width;
+        let video_height = src_caps.height;
         let tflite_model_file = self.settings.detection.model_file.clone();
         let tensor_height = self.settings.detection.tensor_height;
         let tensor_width = self.settings.detection.tensor_width;
@@ -473,11 +475,13 @@ impl PipelineApp {
             .name("capsfilter__camera")
             .build()?;
 
+        let src_caps = self.settings.get_caps();
+
         capsfilter.set_property(
             "caps",
             gst_video::VideoCapsBuilder::new()
-                .width(self.settings.video_width)
-                .height(self.settings.video_height)
+                .width(src_caps.width)
+                .height(src_caps.height)
                 .framerate(self.settings.video_framerate.into())
                 .format(gst_video::VideoFormat::Yuy2) // equivalent to YUYV pixel format
                 .build(),

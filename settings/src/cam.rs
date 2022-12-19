@@ -343,6 +343,18 @@ impl PrintNannyCameraSettings {
         let result = &unit_path == "enabled";
         Ok(result)
     }
+
+    pub fn get_caps(&self) -> printnanny_asyncapi_models::GstreamerCaps {
+        match &self.video_src {
+            printnanny_asyncapi_models::VideoSource::Camera(camera) => {
+                (*camera.selected_caps).clone()
+            }
+            _ => todo!(
+                "PrintNannyCameraSettings.get_caps is not implemented for VideoSource: {:?}",
+                self.video_src
+            ),
+        }
+    }
 }
 
 impl Default for PrintNannyCameraSettings {
@@ -350,9 +362,6 @@ impl Default for PrintNannyCameraSettings {
         let preview = false;
         let video_udp_port = 20001;
         let overlay_udp_port = 20002;
-
-        let video_height = 480;
-        let video_width = 640;
         let video_framerate = 15;
         let hls_enabled = None;
         let hls_segments = "/var/run/printnanny-hls/segment%05d.ts".into();
@@ -369,7 +378,7 @@ impl Default for PrintNannyCameraSettings {
         let video_src =
             printnanny_asyncapi_models::VideoSource::Camera(printnanny_asyncapi_models::Camera {
                 available_caps: vec![CameraVideoSource::default_caps()],
-                selected_caps: CameraVideoSource::default_caps(),
+                selected_caps: Box::new(CameraVideoSource::default_caps()),
                 device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
                 label: "imx219".into(),
                 index: 0,
@@ -558,6 +567,7 @@ mod tests {
                 index: 1,
                 label: "imx219".into(),
                 device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
+                caps: CameraVideoSource::default_caps()
             }
         );
         assert_eq!(
@@ -566,6 +576,7 @@ mod tests {
                 index: 2,
                 label: "Logitech BRIO".into(),
                 device_name: "/base/scb/pcie@7d500000/pci@0,0/usb@0,0-1:1.0-046d:085e".into(),
+                caps: CameraVideoSource::default_caps()
             }
         )
     }
@@ -579,6 +590,7 @@ mod tests {
                 index: 1,
                 label: "imx219".into(),
                 device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
+                caps: CameraVideoSource::default_caps()
             }
         );
     }
@@ -591,6 +603,7 @@ mod tests {
                 index: 1,
                 label: "Logitech BRIO".into(),
                 device_name: "/base/scb/pcie@7d500000/pci@0,0/usb@0,0-1:1.0-046d:085e".into(),
+                caps: CameraVideoSource::default_caps()
             }
         )
     }
