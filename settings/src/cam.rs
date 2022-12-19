@@ -5,6 +5,9 @@ use log::{debug, error};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use gst::prelude::DeviceExt;
+use gst::prelude::DeviceProviderExtManual;
+
 use printnanny_dbus::zbus;
 
 use crate::error::PrintNannySettingsError;
@@ -99,6 +102,67 @@ pub struct CameraVideoSource {
 }
 
 impl CameraVideoSource {
+    pub fn default_caps() -> printnanny_asyncapi_models::GstreamerCaps {
+        printnanny_asyncapi_models::GstreamerCaps {
+            media_type: "video/x-raw".into(),
+            format: "YUY2".into(),
+            width: 640,
+            height: 480,
+        }
+    }
+    pub fn list_available_caps(&self) -> Vec<printnanny_asyncapi_models::GstreamerCaps> {
+        let get_factory = gst::DeviceProviderFactory::find(" libcameraprovider");
+        if let Some(libcamera_device_provider_factory) = get_factory {
+            match libcamera_device_provider_factory.get() {
+                Some(provider) => {
+                    let devices: Vec<gst::Device> = provider
+                        .devices()
+                        .filter(|d| {
+                            let display_name = d.display_name();
+                            display_name == self.device_name
+                        })
+                        .collect();
+                    if devices.len() > 1 {
+                        error!(
+                            "libcameraprovider detected multiple devices matching name: {}",
+                            self.device_name
+                        );
+                        vec![Self::default_caps()]
+                    } else if devices.len() == 1 {
+                        let device = devices.first().unwrap();
+                        match device.caps() {
+                            Some(caps) => caps
+                                .into_iter()
+                                .map(|(s, _c)| {
+                                    let height = s.get("height").unwrap();
+                                    let width = s.get("width").unwrap();
+                                    let format = s.get("format").unwrap();
+                                    let media_type = s.get("media_type").unwrap();
+                                    printnanny_asyncapi_models::GstreamerCaps {
+                                        height,
+                                        width,
+                                        format,
+                                        media_type,
+                                    }
+                                })
+                                .collect(),
+                            None => vec![Self::default_caps()],
+                        }
+                    } else {
+                        error!(
+                            "libcameraprovider detected 0 devices matching name {}",
+                            self.device_name
+                        );
+                        vec![Self::default_caps()]
+                    }
+                }
+                None => vec![Self::default_caps()],
+            }
+        } else {
+            vec![Self::default_caps()]
+        }
+    }
+
     pub fn list_cameras_command_output() -> Result<Output, std::io::Error> {
         let output = Command::new("cam")
             .env("LIBCAMERA_LOG_LEVELS", "*:ERROR") // supress verbose output: https://libcamera.org/getting-started.html#basic-testing-with-cam-utility
@@ -181,7 +245,9 @@ impl From<&CameraVideoSource> for printnanny_asyncapi_models::camera::Camera {
             true => printnanny_asyncapi_models::CameraSourceType::Usb,
             false => printnanny_asyncapi_models::CameraSourceType::Csi,
         };
+        let available_caps = obj.list_available_caps();
         printnanny_asyncapi_models::camera::Camera {
+            available_caps,
             index: obj.index,
             label: obj.label.clone(),
             device_name: obj.device_name.clone(),
@@ -281,6 +347,7 @@ impl Default for PrintNannyCameraSettings {
 
         let video_src =
             printnanny_asyncapi_models::VideoSource::Camera(printnanny_asyncapi_models::Camera {
+                available_caps: vec![CameraVideoSource::default_caps()],
                 device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
                 label: "imx219".into(),
                 index: 0,
