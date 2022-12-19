@@ -62,8 +62,8 @@ impl PipelineApp {
 
         let video_udp_port = self.settings.video_udp_port;
 
-        let video_width = self.settings.video_width;
-        let video_height = self.settings.video_height;
+        let video_width = self.settings.camera.caps.width;
+        let video_height = self.settings.camera.caps.height;
         let tflite_model_file = self.settings.detection.model_file.clone();
         let tensor_height = self.settings.detection.tensor_height;
         let tensor_width = self.settings.detection.tensor_width;

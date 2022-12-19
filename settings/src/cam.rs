@@ -99,6 +99,19 @@ pub struct CameraVideoSource {
     pub index: i32,
     pub device_name: String,
     pub label: String,
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    pub caps: printnanny_asyncapi_models::GstreamerCaps,
+}
+
+impl Default for CameraVideoSource {
+    fn default() -> Self {
+        Self {
+            caps: Self::default_caps(),
+            device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
+            label: "imx219".into(),
+            index: 0,
+        }
+    }
 }
 
 impl CameraVideoSource {
@@ -110,6 +123,14 @@ impl CameraVideoSource {
             height: 480,
         }
     }
+
+    pub fn camera_source_type(&self) -> printnanny_asyncapi_models::CameraSourceType {
+        match &self.device_name.contains("usb") {
+            true => printnanny_asyncapi_models::CameraSourceType::Usb,
+            false => printnanny_asyncapi_models::CameraSourceType::Csi,
+        }
+    }
+
     pub fn list_available_caps(&self) -> Vec<printnanny_asyncapi_models::GstreamerCaps> {
         let get_factory = gst::DeviceProviderFactory::find(" libcameraprovider");
         if let Some(libcamera_device_provider_factory) = get_factory {
@@ -190,6 +211,7 @@ impl CameraVideoSource {
                                 index,
                                 device_name: device_name.into(),
                                 label: label.into(),
+                                caps: Self::default_caps(),
                             }),
                             None => None,
                         },
@@ -241,12 +263,10 @@ pub enum VideoSource {
 
 impl From<&CameraVideoSource> for printnanny_asyncapi_models::camera::Camera {
     fn from(obj: &CameraVideoSource) -> printnanny_asyncapi_models::camera::Camera {
-        let src_type = match &obj.device_name.contains("usb") {
-            true => printnanny_asyncapi_models::CameraSourceType::Usb,
-            false => printnanny_asyncapi_models::CameraSourceType::Csi,
-        };
+        let src_type = obj.camera_source_type();
         let available_caps = obj.list_available_caps();
         printnanny_asyncapi_models::camera::Camera {
+            selected_caps: Box::new(obj.caps.clone()),
             available_caps,
             index: obj.index,
             label: obj.label.clone(),
@@ -262,6 +282,7 @@ impl From<printnanny_asyncapi_models::VideoSource> for VideoSource {
             printnanny_asyncapi_models::VideoSource::Camera(camera) => match *camera.src_type {
                 printnanny_asyncapi_models::CameraSourceType::Csi => {
                     VideoSource::CSI(CameraVideoSource {
+                        caps: *camera.selected_caps,
                         index: camera.index,
                         device_name: camera.device_name,
                         label: camera.label,
@@ -269,6 +290,8 @@ impl From<printnanny_asyncapi_models::VideoSource> for VideoSource {
                 }
                 printnanny_asyncapi_models::CameraSourceType::Usb => {
                     VideoSource::USB(CameraVideoSource {
+                        caps: *camera.selected_caps,
+
                         index: camera.index,
                         device_name: camera.device_name,
                         label: camera.label,
@@ -301,8 +324,6 @@ pub struct PrintNannyCameraSettings {
     pub preview: bool,
     pub overlay_udp_port: i32,
     pub video_udp_port: i32,
-    pub video_height: i32,
-    pub video_width: i32,
     pub video_framerate: i32,
 
     // complex types last, otherwise serde will raise TomlSerError(ValueAfterTable)
@@ -348,6 +369,7 @@ impl Default for PrintNannyCameraSettings {
         let video_src =
             printnanny_asyncapi_models::VideoSource::Camera(printnanny_asyncapi_models::Camera {
                 available_caps: vec![CameraVideoSource::default_caps()],
+                selected_caps: CameraVideoSource::default_caps(),
                 device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
                 label: "imx219".into(),
                 index: 0,
@@ -367,8 +389,6 @@ impl Default for PrintNannyCameraSettings {
 
         Self {
             video_src,
-            video_height,
-            video_width,
             video_framerate,
             video_udp_port,
             overlay_udp_port,
@@ -386,8 +406,6 @@ impl From<printnanny_asyncapi_models::PrintNannyCameraSettings> for PrintNannyCa
             video_udp_port: obj.video_udp_port,
             preview: obj.preview,
             video_framerate: obj.video_framerate,
-            video_height: obj.video_height,
-            video_width: obj.video_width,
             detection: *obj.detection,
             hls: *obj.hls,
             video_src: *obj.video_src,
@@ -402,8 +420,6 @@ impl From<PrintNannyCameraSettings> for printnanny_asyncapi_models::PrintNannyCa
             video_udp_port: obj.video_udp_port,
             preview: obj.preview,
             video_framerate: obj.video_framerate,
-            video_height: obj.video_height,
-            video_width: obj.video_width,
             detection: Box::new(obj.detection),
             hls: Box::new(obj.hls),
             video_src: Box::new(obj.video_src),
@@ -509,8 +525,6 @@ impl From<&ArgMatches> for PrintNannyCameraSettings {
         Self {
             detection,
             preview,
-            video_height,
-            video_width,
             video_framerate,
             video_udp_port,
             overlay_udp_port,
