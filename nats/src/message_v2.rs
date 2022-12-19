@@ -13,9 +13,9 @@ use serde::{Deserialize, Serialize};
 use printnanny_dbus::printnanny_asyncapi_models;
 use printnanny_dbus::printnanny_asyncapi_models::{
     CamerasLoadReply, DeviceInfoLoadReply, PrintNannyCameraSettings, PrintNannyCloudAuthReply,
-    PrintNannyCloudAuthRequest, SettingsApp, SettingsApplyReply, SettingsApplyRequest,
-    SettingsFile, SettingsLoadReply, SettingsRevertReply, SettingsRevertRequest,
-    SystemdManagerDisableUnitsReply, SystemdManagerEnableUnitsReply,
+    PrintNannyCloudAuthRequest, SettingsApp, SettingsFile, SettingsFileApplyReply,
+    SettingsFileApplyRequest, SettingsFileLoadReply, SettingsFileRevertReply,
+    SettingsFileRevertRequest, SystemdManagerDisableUnitsReply, SystemdManagerEnableUnitsReply,
     SystemdManagerGetUnitFileStateReply, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
     SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply,
     SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest,
@@ -59,16 +59,16 @@ pub enum NatsRequest {
     #[serde(rename = "pi.{pi_id}.settings.printnanny.cloud.auth")]
     PrintNannyCloudAuthRequest(PrintNannyCloudAuthRequest),
     #[serde(rename = "pi.{pi_id}.settings.file.load")]
-    SettingsLoadRequest,
+    SettingsFileLoadRequest,
     #[serde(rename = "pi.{pi_id}.settings.file.apply")]
-    SettingsApplyRequest(SettingsApplyRequest),
+    SettingsFileApplyRequest(SettingsFileApplyRequest),
     #[serde(rename = "pi.{pi_id}.settings.file.revert")]
-    SettingsRevertRequest(SettingsRevertRequest),
+    SettingsFileRevertRequest(SettingsFileRevertRequest),
 
     #[serde(rename = "pi.{pi_id}.settings.camera.apply")]
-    CameraSettingsApplyRequest(PrintNannyCameraSettings),
+    CameraSettingsFileApplyRequest(PrintNannyCameraSettings),
     #[serde(rename = "pi.{pi_id}.settings.camera.load")]
-    CameraSettingsLoadRequest,
+    CameraSettingsFileLoadRequest,
 
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
@@ -105,16 +105,16 @@ pub enum NatsReply {
     #[serde(rename = "pi.{pi_id}.settings.printnanny.cloud.auth")]
     PrintNannyCloudAuthReply(PrintNannyCloudAuthReply),
     #[serde(rename = "pi.{pi_id}.settings.printnanny.load")]
-    SettingsLoadReply(SettingsLoadReply),
+    SettingsFileLoadReply(SettingsFileLoadReply),
     #[serde(rename = "pi.{pi_id}.settings.printnanny.apply")]
-    SettingsApplyReply(SettingsApplyReply),
+    SettingsFileApplyReply(SettingsFileApplyReply),
     #[serde(rename = "pi.{pi_id}.settings.printnanny.revert")]
-    SettingsRevertReply(SettingsRevertReply),
+    SettingsFileRevertReply(SettingsFileRevertReply),
 
     #[serde(rename = "pi.{pi_id}.settings.camera.apply")]
-    CameraSettingsApplyReply(PrintNannyCameraSettings),
+    CameraSettingsFileApplyReply(PrintNannyCameraSettings),
     #[serde(rename = "pi.{pi_id}.settings.camera.load")]
-    CameraSettingsLoadReply(PrintNannyCameraSettings),
+    CameraSettingsFileLoadReply(PrintNannyCameraSettings),
 
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
@@ -188,7 +188,7 @@ impl NatsRequest {
 
     pub async fn handle_printnanny_settings_revert(
         &self,
-        request: &SettingsRevertRequest,
+        request: &SettingsFileRevertRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
 
@@ -201,7 +201,7 @@ impl NatsRequest {
 
     async fn handle_octoprint_settings_revert(
         &self,
-        request: &SettingsRevertRequest,
+        request: &SettingsFileRevertRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
         // revert commit
@@ -213,7 +213,7 @@ impl NatsRequest {
 
     async fn handle_moonraker_settings_revert(
         &self,
-        request: &SettingsRevertRequest,
+        request: &SettingsFileRevertRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
         // revert commit
@@ -225,7 +225,7 @@ impl NatsRequest {
 
     async fn handle_klipper_settings_revert(
         &self,
-        request: &SettingsRevertRequest,
+        request: &SettingsFileRevertRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
         // revert commit
@@ -237,24 +237,26 @@ impl NatsRequest {
 
     fn build_settings_revert_reply(
         &self,
-        request: &SettingsRevertRequest,
+        request: &SettingsFileRevertRequest,
         settings: &PrintNannySettings,
         files: Vec<SettingsFile>,
     ) -> Result<NatsReply> {
         let git_head_commit = settings.get_git_head_commit()?.oid;
         let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
             settings.get_rev_list()?.iter().map(|r| r.into()).collect();
-        Ok(NatsReply::SettingsRevertReply(SettingsRevertReply {
-            app: request.app.clone(),
-            files,
-            git_head_commit,
-            git_history,
-        }))
+        Ok(NatsReply::SettingsFileRevertReply(
+            SettingsFileRevertReply {
+                app: request.app.clone(),
+                files,
+                git_head_commit,
+                git_history,
+            },
+        ))
     }
 
     async fn handle_printnanny_settings_apply(
         &self,
-        request: &SettingsApplyRequest,
+        request: &SettingsFileApplyRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
 
@@ -267,7 +269,7 @@ impl NatsRequest {
 
     async fn handle_octoprint_settings_apply(
         &self,
-        request: &SettingsApplyRequest,
+        request: &SettingsFileApplyRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
         settings
@@ -280,7 +282,7 @@ impl NatsRequest {
 
     async fn handle_moonraker_settings_apply(
         &self,
-        request: &SettingsApplyRequest,
+        request: &SettingsFileApplyRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
         settings
@@ -293,7 +295,7 @@ impl NatsRequest {
 
     async fn handle_klipper_settings_apply(
         &self,
-        request: &SettingsApplyRequest,
+        request: &SettingsFileApplyRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
         settings
@@ -306,14 +308,14 @@ impl NatsRequest {
 
     fn build_settings_apply_reply(
         &self,
-        _request: &SettingsApplyRequest,
+        _request: &SettingsFileApplyRequest,
         settings: PrintNannySettings,
         file: SettingsFile,
     ) -> Result<NatsReply> {
         let git_head_commit = settings.get_git_head_commit()?.oid;
         let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
             settings.get_rev_list()?.iter().map(|r| r.into()).collect();
-        Ok(NatsReply::SettingsApplyReply(SettingsApplyReply {
+        Ok(NatsReply::SettingsFileApplyReply(SettingsFileApplyReply {
             file: Box::new(file),
             git_head_commit,
             git_history,
@@ -355,14 +357,17 @@ impl NatsRequest {
         files.extend(self.handle_octoprint_settings_load()?);
         files.extend(self.handle_moonraker_settings_load()?);
         files.extend(self.handle_klipper_settings_load()?);
-        Ok(NatsReply::SettingsLoadReply(SettingsLoadReply {
+        Ok(NatsReply::SettingsFileLoadReply(SettingsFileLoadReply {
             files,
             git_head_commit,
             git_history,
         }))
     }
 
-    pub async fn handle_settings_apply(&self, request: &SettingsApplyRequest) -> Result<NatsReply> {
+    pub async fn handle_settings_apply(
+        &self,
+        request: &SettingsFileApplyRequest,
+    ) -> Result<NatsReply> {
         match *request.file.app {
             SettingsApp::Printnanny => self.handle_printnanny_settings_apply(request).await,
             SettingsApp::Octoprint => self.handle_octoprint_settings_apply(request).await,
@@ -373,7 +378,9 @@ impl NatsRequest {
 
     pub async fn handle_camera_settings_load(&self) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
-        Ok(NatsReply::CameraSettingsLoadReply(settings.camera.into()))
+        Ok(NatsReply::CameraSettingsFileLoadReply(
+            settings.camera.into(),
+        ))
     }
 
     pub async fn handle_camera_settings_apply(
@@ -388,12 +395,14 @@ impl NatsRequest {
         let commit_msg = format!("Updated PrintNannySettings.camera @ {ts:?}");
         settings.save_and_commit(&content, Some(commit_msg)).await?;
         let settings = PrintNannySettings::new()?;
-        Ok(NatsReply::CameraSettingsApplyReply(settings.camera.into()))
+        Ok(NatsReply::CameraSettingsFileApplyReply(
+            settings.camera.into(),
+        ))
     }
 
     pub async fn handle_settings_revert(
         &self,
-        request: &SettingsRevertRequest,
+        request: &SettingsFileRevertRequest,
     ) -> Result<NatsReply> {
         match *request.app {
             SettingsApp::Printnanny => self.handle_printnanny_settings_revert(request).await,
@@ -638,21 +647,17 @@ impl NatsRequestHandler for NatsRequest {
                     serde_json::from_slice::<PrintNannyCloudAuthRequest>(payload.as_ref())?,
                 ))
             }
-            "pi.{pi_id}.settings.file.load" => Ok(NatsRequest::SettingsLoadRequest),
-            "pi.{pi_id}.settings.file.apply" => {
-                Ok(NatsRequest::SettingsApplyRequest(serde_json::from_slice::<
-                    SettingsApplyRequest,
-                >(
-                    payload.as_ref()
-                )?))
-            }
-            "pi.{pi_id}.settings.file.revert" => Ok(NatsRequest::SettingsRevertRequest(
-                serde_json::from_slice::<SettingsRevertRequest>(payload.as_ref())?,
+            "pi.{pi_id}.settings.file.load" => Ok(NatsRequest::SettingsFileLoadRequest),
+            "pi.{pi_id}.settings.file.apply" => Ok(NatsRequest::SettingsFileApplyRequest(
+                serde_json::from_slice::<SettingsFileApplyRequest>(payload.as_ref())?,
             )),
-            "pi.{pi_id}.settings.camera.apply" => Ok(NatsRequest::CameraSettingsApplyRequest(
+            "pi.{pi_id}.settings.file.revert" => Ok(NatsRequest::SettingsFileRevertRequest(
+                serde_json::from_slice::<SettingsFileRevertRequest>(payload.as_ref())?,
+            )),
+            "pi.{pi_id}.settings.camera.apply" => Ok(NatsRequest::CameraSettingsFileApplyRequest(
                 serde_json::from_slice::<PrintNannyCameraSettings>(payload.as_ref())?,
             )),
-            "pi.{pi_id}.settings.camera.load" => Ok(NatsRequest::CameraSettingsLoadRequest),
+            "pi.{pi_id}.settings.camera.load" => Ok(NatsRequest::CameraSettingsFileLoadRequest),
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit" => {
                 Ok(NatsRequest::SystemdManagerDisableUnitsRequest(
                     serde_json::from_slice::<SystemdManagerUnitFilesRequest>(payload.as_ref())?,
@@ -706,17 +711,19 @@ impl NatsRequestHandler for NatsRequest {
             NatsRequest::PrintNannyCloudAuthRequest(request) => {
                 self.handle_printnanny_cloud_auth(request).await?
             }
-            NatsRequest::SettingsLoadRequest => self.handle_settings_load()?,
-            NatsRequest::SettingsApplyRequest(request) => {
+            NatsRequest::SettingsFileLoadRequest => self.handle_settings_load()?,
+            NatsRequest::SettingsFileApplyRequest(request) => {
                 self.handle_settings_apply(request).await?
             }
-            NatsRequest::SettingsRevertRequest(request) => {
+            NatsRequest::SettingsFileRevertRequest(request) => {
                 self.handle_settings_revert(request).await?
             }
 
-            NatsRequest::CameraSettingsLoadRequest => self.handle_camera_settings_load().await?,
+            NatsRequest::CameraSettingsFileLoadRequest => {
+                self.handle_camera_settings_load().await?
+            }
 
-            NatsRequest::CameraSettingsApplyRequest(request) => {
+            NatsRequest::CameraSettingsFileApplyRequest(request) => {
                 self.handle_camera_settings_apply(request).await?
             }
             // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
@@ -833,10 +840,10 @@ mod tests {
             make_settings_repo(jail);
             // get settings
             let settings = PrintNannySettings::new().unwrap();
-            let request = NatsRequest::CameraSettingsLoadRequest;
+            let request = NatsRequest::CameraSettingsFileLoadRequest;
 
             let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
-            if let NatsReply::CameraSettingsLoadReply(reply) = reply {
+            if let NatsReply::CameraSettingsFileLoadReply(reply) = reply {
                 let expected: printnanny_asyncapi_models::PrintNannyCameraSettings =
                     settings.camera.into();
                 assert_eq!(expected, reply)
@@ -857,15 +864,15 @@ mod tests {
             let mut modified = settings.camera.clone();
             modified.hls.hls_enabled = Some(false);
 
-            let request = NatsRequest::CameraSettingsApplyRequest(modified.clone().into());
+            let request = NatsRequest::CameraSettingsFileApplyRequest(modified.clone().into());
             let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
 
-            if let NatsReply::CameraSettingsApplyReply(reply) = reply {
+            if let NatsReply::CameraSettingsFileApplyReply(reply) = reply {
                 assert_eq!(reply.hls.hls_enabled, Some(false));
                 let settings = PrintNannySettings::new().unwrap();
                 assert_eq!(settings.camera.hls.hls_enabled, Some(false))
             } else {
-                panic!("Expected NatsReply::CameraSettingsApplyReply")
+                panic!("Expected NatsReply::CameraSettingsFileApplyReply")
             }
             Ok(())
         })
@@ -887,7 +894,7 @@ mod tests {
             modified.content = settings.to_toml_string().unwrap();
             let git_commit_msg = "testing".to_string();
 
-            let request_apply = NatsRequest::SettingsApplyRequest(SettingsApplyRequest {
+            let request_apply = NatsRequest::SettingsFileApplyRequest(SettingsFileApplyRequest {
                 file: Box::new(modified.clone()),
                 git_head_commit,
                 git_commit_msg: git_commit_msg.clone(),
@@ -898,44 +905,45 @@ mod tests {
                 .unwrap();
             let revert_commit = settings.get_git_head_commit().unwrap().oid;
 
-            if let NatsReply::SettingsApplyReply(reply) = reply {
+            if let NatsReply::SettingsFileApplyReply(reply) = reply {
                 assert_eq!(reply.git_history[0].message, git_commit_msg);
                 assert_eq!(reply.git_head_commit, revert_commit);
                 assert_eq!(reply.file.content, modified.content);
             } else {
-                panic!("Expected NatsReply::SettingsApplyReply")
+                panic!("Expected NatsReply::SettingsFileApplyReply")
             }
 
             // load the settings we just applied
-            let request_load = NatsRequest::SettingsLoadRequest;
+            let request_load = NatsRequest::SettingsFileLoadRequest;
             let reply = Runtime::new()
                 .unwrap()
                 .block_on(request_load.handle())
                 .unwrap();
-            let reply = if let NatsReply::SettingsLoadReply(reply) = reply {
+            let reply = if let NatsReply::SettingsFileLoadReply(reply) = reply {
                 assert_eq!(reply.git_history[0].message, git_commit_msg);
                 assert_eq!(reply.git_head_commit, revert_commit);
                 reply
             } else {
-                panic!("Expected NatsReply::SettingsLoadReply")
+                panic!("Expected NatsReply::SettingsFileLoadReply")
             };
 
             // revert the settings
-            let request_revert = NatsRequest::SettingsRevertRequest(SettingsRevertRequest {
-                git_commit: revert_commit,
-                app: Box::new(SettingsApp::Printnanny),
-                files: reply.files,
-            });
+            let request_revert =
+                NatsRequest::SettingsFileRevertRequest(SettingsFileRevertRequest {
+                    git_commit: revert_commit,
+                    app: Box::new(SettingsApp::Printnanny),
+                    files: reply.files,
+                });
             let reply = Runtime::new()
                 .unwrap()
                 .block_on(request_revert.handle())
                 .unwrap();
-            if let NatsReply::SettingsRevertReply(reply) = reply {
+            if let NatsReply::SettingsFileRevertReply(reply) = reply {
                 let settings = PrintNannySettings::new().unwrap();
 
                 assert_eq!(reply.files[0].content, settings.to_toml_string().unwrap());
             } else {
-                panic!("Expected NatsReply::SettingsRevertReply")
+                panic!("Expected NatsReply::SettingsFileRevertReply")
             }
 
             Ok(())
@@ -996,7 +1004,7 @@ mod tests {
             let git_head_commit = settings.get_git_head_commit().unwrap().oid;
             let git_commit_msg = "testing".to_string();
 
-            let request_apply = NatsRequest::SettingsApplyRequest(SettingsApplyRequest {
+            let request_apply = NatsRequest::SettingsFileApplyRequest(SettingsFileApplyRequest {
                 file: Box::new(modified.clone()),
                 git_head_commit,
                 git_commit_msg: git_commit_msg.clone(),
@@ -1006,42 +1014,43 @@ mod tests {
                 .block_on(request_apply.handle())
                 .unwrap();
             let revert_commit = settings.get_git_head_commit().unwrap().oid;
-            if let NatsReply::SettingsApplyReply(reply) = reply {
+            if let NatsReply::SettingsFileApplyReply(reply) = reply {
                 assert_eq!(reply.git_history[0].message, git_commit_msg);
                 assert_eq!(reply.git_head_commit, revert_commit);
                 assert_eq!(reply.file.content, modified.content);
             } else {
-                panic!("Expected NatsReply::SettingsApplyReply")
+                panic!("Expected NatsReply::SettingsFileApplyReply")
             }
 
             // load the settings we just applied
-            let request_load = NatsRequest::SettingsLoadRequest;
+            let request_load = NatsRequest::SettingsFileLoadRequest;
             let reply = Runtime::new()
                 .unwrap()
                 .block_on(request_load.handle())
                 .unwrap();
-            let reply = if let NatsReply::SettingsLoadReply(reply) = reply {
+            let reply = if let NatsReply::SettingsFileLoadReply(reply) = reply {
                 assert_eq!(reply.git_history[0].message, git_commit_msg);
                 assert_eq!(reply.git_head_commit, revert_commit);
                 reply
             } else {
-                panic!("Expected NatsReply::SettingsLoadReply")
+                panic!("Expected NatsReply::SettingsFileLoadReply")
             };
 
             // revert the settings
-            let request_revert = NatsRequest::SettingsRevertRequest(SettingsRevertRequest {
-                git_commit: revert_commit,
-                app: Box::new(SettingsApp::Octoprint),
-                files: reply.files,
-            });
+            let request_revert =
+                NatsRequest::SettingsFileRevertRequest(SettingsFileRevertRequest {
+                    git_commit: revert_commit,
+                    app: Box::new(SettingsApp::Octoprint),
+                    files: reply.files,
+                });
             let reply = Runtime::new()
                 .unwrap()
                 .block_on(request_revert.handle())
                 .unwrap();
-            if let NatsReply::SettingsRevertReply(reply) = reply {
+            if let NatsReply::SettingsFileRevertReply(reply) = reply {
                 assert_eq!(reply.files[0].content, original.content);
             } else {
-                panic!("Expected NatsReply::SettingsRevertReply")
+                panic!("Expected NatsReply::SettingsFileRevertReply")
             }
 
             Ok(())
@@ -1100,7 +1109,7 @@ mod tests {
             let git_head_commit = settings.get_git_head_commit().unwrap().oid;
             let git_commit_msg = "testing".to_string();
 
-            let request_apply = NatsRequest::SettingsApplyRequest(SettingsApplyRequest {
+            let request_apply = NatsRequest::SettingsFileApplyRequest(SettingsFileApplyRequest {
                 file: Box::new(modified.clone()),
                 git_head_commit,
                 git_commit_msg: git_commit_msg.clone(),
@@ -1110,42 +1119,43 @@ mod tests {
                 .block_on(request_apply.handle())
                 .unwrap();
             let revert_commit = settings.get_git_head_commit().unwrap().oid;
-            if let NatsReply::SettingsApplyReply(reply) = reply {
+            if let NatsReply::SettingsFileApplyReply(reply) = reply {
                 assert_eq!(reply.git_history[0].message, git_commit_msg);
                 assert_eq!(reply.git_head_commit, revert_commit);
                 assert_eq!(reply.file.content, modified.content);
             } else {
-                panic!("Expected NatsReply::SettingsApplyReply")
+                panic!("Expected NatsReply::SettingsFileApplyReply")
             }
 
             // load the settings we just applied
-            let request_load = NatsRequest::SettingsLoadRequest;
+            let request_load = NatsRequest::SettingsFileLoadRequest;
             let reply = Runtime::new()
                 .unwrap()
                 .block_on(request_load.handle())
                 .unwrap();
-            let reply = if let NatsReply::SettingsLoadReply(reply) = reply {
+            let reply = if let NatsReply::SettingsFileLoadReply(reply) = reply {
                 assert_eq!(reply.git_history[0].message, git_commit_msg);
                 assert_eq!(reply.git_head_commit, revert_commit);
                 reply
             } else {
-                panic!("Expected NatsReply::SettingsLoadReply")
+                panic!("Expected NatsReply::SettingsFileLoadReply")
             };
 
             // revert the settings
-            let request_revert = NatsRequest::SettingsRevertRequest(SettingsRevertRequest {
-                git_commit: revert_commit,
-                app: Box::new(SettingsApp::Moonraker),
-                files: reply.files,
-            });
+            let request_revert =
+                NatsRequest::SettingsFileRevertRequest(SettingsFileRevertRequest {
+                    git_commit: revert_commit,
+                    app: Box::new(SettingsApp::Moonraker),
+                    files: reply.files,
+                });
             let reply = Runtime::new()
                 .unwrap()
                 .block_on(request_revert.handle())
                 .unwrap();
-            if let NatsReply::SettingsRevertReply(reply) = reply {
+            if let NatsReply::SettingsFileRevertReply(reply) = reply {
                 assert_eq!(reply.files[0].content, original.content);
             } else {
-                panic!("Expected NatsReply::SettingsRevertReply")
+                panic!("Expected NatsReply::SettingsFileRevertReply")
             }
 
             Ok(())
