@@ -3287,6 +3287,7 @@ dependencies = [
  "file-lock",
  "git2",
  "glob",
+ "gstreamer",
  "log",
  "predicates 2.1.4",
  "printnanny-api-client",
