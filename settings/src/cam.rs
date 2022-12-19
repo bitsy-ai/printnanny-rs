@@ -133,7 +133,7 @@ impl CameraVideoSource {
                         match device.caps() {
                             Some(caps) => caps
                                 .into_iter()
-                                .map(|(s, c)| {
+                                .map(|(s, _c)| {
                                     let height = s.get("height").unwrap();
                                     let width = s.get("width").unwrap();
                                     let format = s.get("format").unwrap();
