@@ -3114,9 +3114,9 @@ dependencies = [
 
 [[package]]
 name = "printnanny-asyncapi-models"
-version = "0.1.43"
+version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24b0a83a8ee2e0de1b0f44610ebb2a62ada62f440b2451e70f9e78b82c97a6fe"
+checksum = "b126a918550fc699755051e51cc674dc5576721497aa3ecf710f236c7a17bd7c"
 dependencies = [
  "serde 1.0.148",
  "serde_json",
