@@ -399,7 +399,6 @@ impl NatsRequest {
         let ts = SystemTime::now();
         let commit_msg = format!("Updated PrintNannySettings.camera @ {ts:?}");
         settings.save_and_commit(&content, Some(commit_msg)).await?;
-        let settings = PrintNannySettings::new()?;
         Ok(NatsReply::CameraSettingsFileApplyReply(
             settings.camera.into(),
         ))
