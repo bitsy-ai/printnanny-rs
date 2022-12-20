@@ -5,7 +5,7 @@ use std::time::SystemTime;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
-use log::info;
+use log::{debug, info};
 use printnanny_settings::cam::CameraVideoSource;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -389,12 +389,16 @@ impl NatsRequest {
     ) -> Result<NatsReply> {
         info!("Received request: {:#?}", request);
         let mut settings = PrintNannySettings::new()?;
+        match settings.init_local_git_repo(None).await {
+            Ok(_) => info!("Initialized printnanny-settings local git repo"),
+            Err(e) => debug!("Skipping local git repo init, {}", e),
+        };
+
         settings.camera = request.clone().into();
         let content = settings.to_toml_string()?;
         let ts = SystemTime::now();
         let commit_msg = format!("Updated PrintNannySettings.camera @ {ts:?}");
         settings.save_and_commit(&content, Some(commit_msg)).await?;
-        let settings = PrintNannySettings::new()?;
         Ok(NatsReply::CameraSettingsFileApplyReply(
             settings.camera.into(),
         ))
