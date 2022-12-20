@@ -134,17 +134,25 @@ impl PrintNannySettings {
 
         Ok(result)
     }
+    pub fn config_local_git_repo(
+        &self,
+        repo: &git2::Repository,
+    ) -> Result<(), PrintNannySettingsError> {
+        let config = repo.config()?;
+        let mut localconfig = config.open_level(git2::ConfigLevel::Local)?;
+        localconfig.set_str("user.email", &self.git.email)?;
+        localconfig.set_str("user.name", &self.git.name)?;
+        localconfig.set_str("init.defaultBranch", &self.git.default_branch)?;
+        Ok(())
+    }
+
     pub async fn init_local_git_repo(
         &self,
         dir: Option<PathBuf>,
     ) -> Result<(), PrintNannySettingsError> {
         let target_dir = dir.unwrap_or_else(|| self.paths.settings_dir.clone());
         let repo = git2::Repository::clone(&self.git.remote, &target_dir)?;
-        let config = repo.config()?;
-        let mut localconfig = config.open_level(git2::ConfigLevel::Local)?;
-        localconfig.set_str("user.email", &self.git.email)?;
-        localconfig.set_str("user.name", &self.git.name)?;
-        localconfig.set_str("init.defaultBranch", &self.git.default_branch)?;
+        self.config_local_git_repo(&repo)?;
         let settings_file = self.get_settings_file();
         if !settings_file.exists() {
             info!("Initializing {}", &settings_file.display());
