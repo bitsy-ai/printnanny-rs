@@ -1,6 +1,8 @@
 /target
 .tmp
 
+.bb
+
 *.db*
 env/
 target/

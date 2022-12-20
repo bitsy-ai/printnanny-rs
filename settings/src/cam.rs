@@ -160,7 +160,7 @@ impl CameraVideoSource {
                                         let height = s.get("height").unwrap();
                                         let width = s.get("width").unwrap();
                                         let format = s.get("format").unwrap();
-                                        let media_type = s.get("media_type").unwrap();
+                                        let media_type = s.name().into();
                                         printnanny_asyncapi_models::GstreamerCaps {
                                             height,
                                             width,
