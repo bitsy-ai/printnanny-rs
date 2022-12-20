@@ -20,9 +20,10 @@ use thiserror::Error;
 
 use serde::{Deserialize, Serialize};
 
-use printnanny_settings::cam::{PrintNannyCameraSettings, VideoSrcType};
+use printnanny_settings::cam::{
+    CameraVideoSource, MediaVideoSource, PrintNannyCameraSettings, VideoSource, VideoSrcType,
+};
 use printnanny_settings::printnanny::PrintNannySettings;
-use printnanny_settings::printnanny_asyncapi_models;
 
 #[derive(Debug, Error)]
 struct ErrorMessage {
@@ -463,7 +464,7 @@ impl PipelineApp {
 
     async fn make_libcamera_pipeline(
         &self,
-        src: &printnanny_asyncapi_models::Camera,
+        src: &CameraVideoSource,
     ) -> Result<gst::Pipeline, Error> {
         let pipeline = self.make_common_pipeline().await?;
         let videosrc = gst::ElementFactory::make("libcamerasrc")
@@ -498,10 +499,7 @@ impl PipelineApp {
         Ok(pipeline)
     }
 
-    async fn make_uri_pipeline(
-        &self,
-        src: &printnanny_asyncapi_models::PlaybackVideo,
-    ) -> Result<gst::Pipeline, Error> {
+    async fn make_uri_pipeline(&self, src: &MediaVideoSource) -> Result<gst::Pipeline, Error> {
         let pipeline = self.make_common_pipeline().await?;
 
         let uriencodebin = gst::ElementFactory::make("uridecodebin3")
@@ -571,12 +569,10 @@ impl PipelineApp {
         gst::init()?;
 
         let pipeline = match &self.settings.video_src {
-            printnanny_asyncapi_models::VideoSource::Camera(camera) => {
-                self.make_libcamera_pipeline(camera).await?
-            }
-            printnanny_asyncapi_models::VideoSource::PlaybackVideo(video) => {
-                self.make_uri_pipeline(video).await?
-            }
+            VideoSource::CSI(camera) => self.make_libcamera_pipeline(camera).await?,
+            VideoSource::USB(camera) => self.make_libcamera_pipeline(camera).await?,
+            VideoSource::Uri(video) => self.make_uri_pipeline(video).await?,
+            VideoSource::File(video) => self.make_uri_pipeline(video).await?,
         };
 
         Ok(pipeline)

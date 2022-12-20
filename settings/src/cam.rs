@@ -132,7 +132,8 @@ impl CameraVideoSource {
     }
 
     pub fn list_available_caps(&self) -> Vec<printnanny_asyncapi_models::GstreamerCaps> {
-        let get_factory = gst::DeviceProviderFactory::find(" libcameraprovider");
+        gst::init().unwrap();
+        let get_factory = gst::DeviceProviderFactory::find("libcameraprovider");
         if let Some(libcamera_device_provider_factory) = get_factory {
             match libcamera_device_provider_factory.get() {
                 Some(provider) => {
@@ -312,7 +313,6 @@ impl From<printnanny_asyncapi_models::VideoSource> for VideoSource {
     }
 }
 
-//
 // hls_enabled has 3 possible states:
 // 1) Detect enabled/disabled based on enabled systemd services, indicated by None value
 //  detect_hls_http_enabled() will be called
@@ -328,7 +328,7 @@ pub struct PrintNannyCameraSettings {
 
     // complex types last, otherwise serde will raise TomlSerError(ValueAfterTable)
     pub detection: printnanny_asyncapi_models::PrintNannyDetectionSettings,
-    pub video_src: printnanny_asyncapi_models::VideoSource,
+    pub video_src: VideoSource,
     pub hls: printnanny_asyncapi_models::HlsSettings,
 }
 
@@ -346,9 +346,9 @@ impl PrintNannyCameraSettings {
 
     pub fn get_caps(&self) -> printnanny_asyncapi_models::GstreamerCaps {
         match &self.video_src {
-            printnanny_asyncapi_models::VideoSource::Camera(camera) => {
-                (*camera.selected_caps).clone()
-            }
+            VideoSource::CSI(camera) => (camera.caps).clone(),
+            VideoSource::USB(camera) => (camera.caps).clone(),
+
             _ => todo!(
                 "PrintNannyCameraSettings.get_caps is not implemented for VideoSource: {:?}",
                 self.video_src
@@ -375,17 +375,16 @@ impl Default for PrintNannyCameraSettings {
             hls_playlist_root,
         };
 
-        let video_src =
-            printnanny_asyncapi_models::VideoSource::Camera(printnanny_asyncapi_models::Camera {
-                available_caps: vec![CameraVideoSource::default_caps()],
-                selected_caps: Box::new(CameraVideoSource::default_caps()),
-                device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
-                label: "imx219".into(),
-                index: 0,
-                src_type: Box::new(printnanny_asyncapi_models::CameraSourceType::Csi),
-            });
+        let video_src = VideoSource::CSI(CameraVideoSource {
+            index: 0,
+            device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
+            label: "imx219".into(),
+            caps: CameraVideoSource::default_caps(),
+        });
 
         let detection = printnanny_asyncapi_models::PrintNannyDetectionSettings {
+            graphs: true,
+            overlay: true,
             nats_server_uri: "nats://127.0.0.1:4223".into(),
             label_file: "/usr/share/printnanny/model/labels.txt".into(),
             model_file: "/usr/share/printnanny/model/model.tflite".into(),
@@ -417,7 +416,35 @@ impl From<printnanny_asyncapi_models::PrintNannyCameraSettings> for PrintNannyCa
             video_framerate: obj.video_framerate,
             detection: *obj.detection,
             hls: *obj.hls,
-            video_src: *obj.video_src,
+            video_src: (*obj.video_src).into(),
+        }
+    }
+}
+
+impl From<VideoSource> for printnanny_asyncapi_models::VideoSource {
+    fn from(obj: VideoSource) -> printnanny_asyncapi_models::VideoSource {
+        match &obj {
+            VideoSource::CSI(camera) => printnanny_asyncapi_models::VideoSource::Camera(
+                printnanny_asyncapi_models::Camera {
+                    selected_caps: Box::new(camera.caps.clone()),
+                    src_type: Box::new(printnanny_asyncapi_models::CameraSourceType::Csi),
+                    index: camera.index,
+                    label: camera.label.clone(),
+                    device_name: camera.device_name.clone(),
+                    available_caps: camera.list_available_caps(),
+                },
+            ),
+            VideoSource::USB(camera) => printnanny_asyncapi_models::VideoSource::Camera(
+                printnanny_asyncapi_models::Camera {
+                    selected_caps: Box::new(camera.caps.clone()),
+                    src_type: Box::new(printnanny_asyncapi_models::CameraSourceType::Usb),
+                    index: camera.index,
+                    label: camera.label.clone(),
+                    device_name: camera.device_name.clone(),
+                    available_caps: camera.list_available_caps(),
+                },
+            ),
+            _ => todo!(),
         }
     }
 }
@@ -431,7 +458,7 @@ impl From<PrintNannyCameraSettings> for printnanny_asyncapi_models::PrintNannyCa
             video_framerate: obj.video_framerate,
             detection: Box::new(obj.detection),
             hls: Box::new(obj.hls),
-            video_src: Box::new(obj.video_src),
+            video_src: Box::new(obj.video_src.into()),
         }
     }
 }
@@ -508,7 +535,12 @@ impl From<&ArgMatches> for PrintNannyCameraSettings {
             .expect("--nats-server-uri is required")
             .into();
 
+        let graphs: bool = args.is_present("graphs");
+        let overlay: bool = args.is_present("overlay");
+
         let detection = printnanny_asyncapi_models::PrintNannyDetectionSettings {
+            overlay,
+            graphs,
             label_file,
             model_file,
             nats_server_uri,
