@@ -153,21 +153,23 @@ impl CameraVideoSource {
                     } else if devices.len() == 1 {
                         let device = devices.first().unwrap();
                         match device.caps() {
-                            Some(caps) => caps
-                                .into_iter()
-                                .map(|(s, _c)| {
-                                    let height = s.get("height").unwrap();
-                                    let width = s.get("width").unwrap();
-                                    let format = s.get("format").unwrap();
-                                    let media_type = s.get("media_type").unwrap();
-                                    printnanny_asyncapi_models::GstreamerCaps {
-                                        height,
-                                        width,
-                                        format,
-                                        media_type,
-                                    }
-                                })
-                                .collect(),
+                            Some(caps) => {
+                                debug!("Deserializing caps: {:#?}", caps);
+                                caps.into_iter()
+                                    .map(|(s, _c)| {
+                                        let height = s.get("height").unwrap();
+                                        let width = s.get("width").unwrap();
+                                        let format = s.get("format").unwrap();
+                                        let media_type = s.get("media_type").unwrap();
+                                        printnanny_asyncapi_models::GstreamerCaps {
+                                            height,
+                                            width,
+                                            format,
+                                            media_type,
+                                        }
+                                    })
+                                    .collect()
+                            }
                             None => vec![Self::default_caps()],
                         }
                     } else {
