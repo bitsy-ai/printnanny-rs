@@ -132,7 +132,8 @@ impl CameraVideoSource {
     }
 
     pub fn list_available_caps(&self) -> Vec<printnanny_asyncapi_models::GstreamerCaps> {
-        let get_factory = gst::DeviceProviderFactory::find(" libcameraprovider");
+        gst::init().unwrap();
+        let get_factory = gst::DeviceProviderFactory::find("libcameraprovider");
         if let Some(libcamera_device_provider_factory) = get_factory {
             match libcamera_device_provider_factory.get() {
                 Some(provider) => {
