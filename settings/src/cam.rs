@@ -1,7 +1,7 @@
 use std::process::{Command, Output};
 
 use clap::ArgMatches;
-use log::{debug, error};
+use log::{debug, error, warn};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -157,17 +157,28 @@ impl CameraVideoSource {
                                 debug!("Deserializing caps: {:#?}", caps);
                                 caps.into_iter()
                                     .map(|(s, _c)| {
-                                        let height = s.get("height").unwrap();
-                                        let width = s.get("width").unwrap();
-                                        let format = s.get("format").unwrap();
+                                        let height: i32 = match s.get("height") {
+                                            Ok(h) => Some(h),
+                                            Err(e) => {
+                                                warn!(
+                                                    "GstError parsing integer from height={:?}",
+                                                    &height
+                                                );
+                                                None
+                                            }
+                                        };
+                                        let width: i32 = s.get("width");
+                                        let format: String = s.get("format");
+
                                         let media_type = s.name().into();
-                                        printnanny_asyncapi_models::GstreamerCaps {
+                                        Ok(printnanny_asyncapi_models::GstreamerCaps {
                                             height,
                                             width,
                                             format,
                                             media_type,
-                                        }
+                                        })
                                     })
+                                    .flatten()
                                     .collect()
                             }
                             None => vec![Self::default_caps()],
