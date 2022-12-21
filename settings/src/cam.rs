@@ -12,6 +12,8 @@ use printnanny_dbus::zbus;
 
 use crate::error::PrintNannySettingsError;
 
+const DEFAULT_PIXEL_FORMAT: &str = "YUY2";
+
 #[derive(Debug, Clone, clap::ValueEnum, Deserialize, Serialize, PartialEq, Eq)]
 pub enum VideoSrcType {
     File,
@@ -134,7 +136,7 @@ impl CameraVideoSource {
     pub fn list_available_caps(&self) -> Vec<printnanny_asyncapi_models::GstreamerCaps> {
         gst::init().unwrap();
         let get_factory = gst::DeviceProviderFactory::find("libcameraprovider");
-        if let Some(libcamera_device_provider_factory) = get_factory {
+        let results = if let Some(libcamera_device_provider_factory) = get_factory {
             match libcamera_device_provider_factory.get() {
                 Some(provider) => {
                     let devices: Vec<gst::Device> = provider
@@ -219,7 +221,11 @@ impl CameraVideoSource {
             }
         } else {
             vec![Self::default_caps()]
-        }
+        };
+        results
+            .into_iter()
+            .filter(|caps| caps.format == DEFAULT_PIXEL_FORMAT)
+            .collect()
     }
 
     pub fn list_cameras_command_output() -> Result<Output, std::io::Error> {
