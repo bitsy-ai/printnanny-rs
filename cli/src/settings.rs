@@ -52,7 +52,14 @@ impl SettingsCommand {
                 let data = figment::providers::Serialized::global(key, &value);
                 let figment = figment.merge(data);
                 let config: PrintNannySettings = figment.extract()?;
-                config.try_save()?;
+                let content = config.to_toml_string()?;
+                let now = std::time::SystemTime::now();
+                config
+                    .save_and_commit(
+                        &content,
+                        Some(format!("PrintNannySettings.{} updated at {:?}", key, now)),
+                    )
+                    .await?;
             }
             Some(("show", args)) => {
                 let f: SettingsFormat = args.value_of_t("format").unwrap();
