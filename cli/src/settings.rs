@@ -14,7 +14,7 @@ impl SettingsCommand {
             Some(("clone", args)) => {
                 let dir = args.value_of("dir").map(PathBuf::from);
                 let settings = PrintNannySettings::new()?;
-                settings.init_local_git_repo(dir).await?;
+                settings.init_git_repo(dir, settings.git).await?;
             }
             Some(("get", args)) => {
                 let key = args.value_of("key");

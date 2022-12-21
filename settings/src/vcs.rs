@@ -3,12 +3,12 @@ use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 use git2::{DiffFormat, DiffOptions, Repository};
-use log::info;
+use log::{debug, info, warn};
 use printnanny_asyncapi_models::{SettingsApp, SettingsFile};
 use serde::{Deserialize, Serialize};
 
 use crate::error::VersionControlledSettingsError;
-use crate::printnanny::PrintNannySettings;
+use crate::printnanny::{GitSettings, PrintNannySettings};
 use crate::SettingsFormat;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -41,9 +41,49 @@ pub trait VersionControlledSettings {
         })
     }
 
+    fn config_git_repo(
+        &self,
+        repo: &git2::Repository,
+        git_settings: &GitSettings,
+    ) -> Result<(), git2::Error> {
+        let config = repo.config()?;
+        let mut localconfig = config.open_level(git2::ConfigLevel::Local)?;
+        localconfig.set_str("user.email", &git_settings.email)?;
+        localconfig.set_str("user.name", &git_settings.name)?;
+        localconfig.set_str("init.defaultBranch", &git_settings.default_branch)?;
+        Ok(())
+    }
+
+    fn init_git_repo(
+        &self,
+        target_dir: &PathBuf,
+        git_settings: &GitSettings,
+    ) -> Result<Repository, git2::Error> {
+        let repo = git2::Repository::clone(&git_settings.remote, target_dir)?;
+        self.config_git_repo(&repo, git_settings)?;
+        Ok(repo)
+    }
+
     fn get_git_repo(&self) -> Result<Repository, git2::Error> {
         let settings = PrintNannySettings::new().unwrap();
-        Repository::open(settings.paths.settings_dir)
+        match Repository::open(&settings.paths.settings_dir) {
+            Ok(repo) => {
+                debug!(
+                    "Found existing git repo: {}",
+                    settings.paths.settings_dir.display()
+                );
+                Ok(repo)
+            }
+            Err(e) => {
+                warn!(
+                    "Failed to open git repo with error={}, attempting to clone {} to {}",
+                    e,
+                    &settings.git.remote,
+                    settings.paths.settings_dir.display()
+                );
+                Ok(self.init_git_repo(&settings.paths.settings_dir, &settings.git)?)
+            }
+        }
     }
     fn git_diff(&self) -> Result<String, git2::Error> {
         let repo = self.get_git_repo()?;

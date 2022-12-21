@@ -1,7 +1,7 @@
 use std::process::{Command, Output};
 
 use clap::ArgMatches;
-use log::{debug, error, warn};
+use log::{debug, error};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 

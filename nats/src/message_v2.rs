@@ -389,10 +389,6 @@ impl NatsRequest {
     ) -> Result<NatsReply> {
         info!("Received request: {:#?}", request);
         let mut settings = PrintNannySettings::new()?;
-        match settings.init_local_git_repo(None).await {
-            Ok(_) => info!("Initialized printnanny-settings local git repo"),
-            Err(e) => debug!("Skipping local git repo init, {}", e),
-        };
 
         settings.camera = request.clone().into();
         let content = settings.to_toml_string()?;
@@ -783,10 +779,7 @@ mod tests {
         .unwrap();
         jail.set_env("PRINTNANNY_SETTINGS", "PrintNannySettingsTest.toml");
         let settings = PrintNannySettings::new().unwrap();
-        Runtime::new()
-            .unwrap()
-            .block_on(settings.init_local_git_repo(None))
-            .unwrap();
+        settings.get_git_repo().unwrap();
     }
 
     #[test]
