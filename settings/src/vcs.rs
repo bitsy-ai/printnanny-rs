@@ -233,10 +233,16 @@ pub trait VersionControlledSettings {
         content: &str,
         commit_msg: Option<String>,
     ) -> Result<(), VersionControlledSettingsError> {
+        // first, get repo (clone will run if repo is not present, which requires empty path)
+        self.get_git_repo()?;
+        // then run any pre-save hooks
         self.pre_save().await?;
+        // write settings file
         self.write_settings(content)?;
+        // commit changes
         self.git_add_all()?;
         self.git_commit(commit_msg)?;
+        // run post-save hooks
         self.post_save().await?;
         Ok(())
     }
