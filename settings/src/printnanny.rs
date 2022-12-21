@@ -134,34 +134,7 @@ impl PrintNannySettings {
 
         Ok(result)
     }
-    pub fn config_local_git_repo(
-        &self,
-        repo: &git2::Repository,
-    ) -> Result<(), PrintNannySettingsError> {
-        let config = repo.config()?;
-        let mut localconfig = config.open_level(git2::ConfigLevel::Local)?;
-        localconfig.set_str("user.email", &self.git.email)?;
-        localconfig.set_str("user.name", &self.git.name)?;
-        localconfig.set_str("init.defaultBranch", &self.git.default_branch)?;
-        Ok(())
-    }
 
-    pub async fn init_local_git_repo(
-        &self,
-        dir: Option<PathBuf>,
-    ) -> Result<(), PrintNannySettingsError> {
-        let target_dir = dir.unwrap_or_else(|| self.paths.settings_dir.clone());
-        let repo = git2::Repository::clone(&self.git.remote, &target_dir)?;
-        self.config_local_git_repo(&repo)?;
-        let settings_file = self.get_settings_file();
-        if !settings_file.exists() {
-            info!("Initializing {}", &settings_file.display());
-            let commit_msg = "initialize default printnanny.toml".to_string();
-            let content = self.to_toml_string()?;
-            self.save_and_commit(&content, Some(commit_msg)).await?;
-        }
-        Ok(())
-    }
     pub fn dashboard_url(&self) -> String {
         let hostname = sys_info::hostname().unwrap_or_else(|_| "printnanny".to_string());
         format!("http://{}.local/", hostname)
