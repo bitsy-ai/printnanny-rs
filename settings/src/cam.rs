@@ -154,31 +154,55 @@ impl CameraVideoSource {
                         let device = devices.first().unwrap();
                         match device.caps() {
                             Some(caps) => {
-                                debug!("Deserializing caps: {:#?}", caps);
                                 caps.into_iter()
-                                    .map(|(s, _c)| {
-                                        let height: i32 = match s.get("height") {
-                                            Ok(h) => Some(h),
-                                            Err(e) => {
-                                                warn!(
-                                                    "GstError parsing integer from height={:?}",
-                                                    &height
-                                                );
-                                                None
-                                            }
-                                        };
-                                        let width: i32 = s.get("width");
-                                        let format: String = s.get("format");
+                                    .filter_map(|(s, _c)| {
+                                        let height: Result<i32, gst::structure::GetError<_>> =
+                                            s.get("height");
+                                        let width: Result<i32, gst::structure::GetError<_>> =
+                                            s.get("width");
+                                        let format: Result<String, gst::structure::GetError<_>> =
+                                            s.get("format");
 
-                                        let media_type = s.name().into();
-                                        Ok(printnanny_asyncapi_models::GstreamerCaps {
-                                            height,
-                                            width,
-                                            format,
-                                            media_type,
-                                        })
+                                        if let (Ok(height), Ok(width), Ok(format)) =
+                                            (&height, &width, &format)
+                                        {
+                                            let media_type = s.name().into();
+                                            Some(printnanny_asyncapi_models::GstreamerCaps {
+                                                height: *height,
+                                                width: *width,
+                                                format: format.into(),
+                                                media_type,
+                                            })
+                                        } else {
+                                            match &height {
+                                                Ok(_) => (),
+                                                Err(e) => {
+                                                    error!(
+                                                        "Failed to parse i32 from caps height={:?} with error={}",
+                                                        &height, e
+                                                    );
+                                                }
+                                            };
+                                            match &width {
+                                                Ok(_) => (),
+                                                Err(e) => {
+                                                    error!(
+                                                        "Failed to parse i32 from caps width={:?} with error={}",
+                                                        &width, e
+                                                    );
+                                                }
+                                            };
+                                            match &format {
+                                                Ok(_) => (),
+                                                Err(e) =>
+                                                error!(
+                                                    "Failed to read caps format={:?} with error={}",
+                                                    &format, e
+                                                )
+                                            };
+                                            None
+                                        }
                                     })
-                                    .flatten()
                                     .collect()
                             }
                             None => vec![Self::default_caps()],
