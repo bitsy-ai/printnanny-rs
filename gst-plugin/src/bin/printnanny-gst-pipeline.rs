@@ -399,10 +399,6 @@ impl PipelineApp {
             .property("ssrc", boxes_ssrc)
             .build()?;
 
-        let box_udpsink_q2 = gst::ElementFactory::make("queue2")
-            .name("queue2__boxes_udpsink")
-            .build()?;
-
         let box_udpsink = gst::ElementFactory::make("udpsink")
             .name("udpsink__boxes")
             .property("port", overlay_udp_port)
@@ -421,7 +417,6 @@ impl PipelineApp {
             &box_h264encoder,
             &box_h264_capsfilter,
             &boxes_payloader,
-            &box_udpsink_q2,
             &box_udpsink,
         ];
 
