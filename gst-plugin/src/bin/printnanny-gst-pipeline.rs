@@ -658,7 +658,10 @@ fn run(pipeline: gst::Pipeline) -> Result<()> {
 impl From<&ArgMatches> for PipelineApp {
     fn from(args: &ArgMatches) -> Self {
         let settings = PrintNannyCameraSettings::from(args);
-        let tmp_dir = PathBuf::from(args.value_of("tmp_dir").unwrap_or("/tmp"));
+        let tmp_dir = PathBuf::from(
+            args.value_of("tmp_dir")
+                .unwrap_or("/var/run/printnanny-vision"),
+        );
         Self { settings, tmp_dir }
     }
 }
@@ -686,7 +689,7 @@ async fn main() {
             Arg::new("tmp_dir")
                 .long("tmp-dir")
                 .takes_value(true)
-                .default_value("/tmp")
+                .default_value("/var/run/printnanny-vision")
                 .help(
                     "Buffer to temporary directory",
                 ),
@@ -882,7 +885,10 @@ async fn main() {
             let settings = PrintNannySettings::from_toml(PathBuf::from(settings_file))
                 .expect("Failed to extract settings");
             info!("Pipeline settings: {:?}", settings);
-            let tmp_dir = PathBuf::from(args.value_of("tmp_dir").unwrap_or("/tmp"));
+            let tmp_dir = PathBuf::from(
+                args.value_of("tmp_dir")
+                    .unwrap_or("/var/run/printnanny-vision"),
+            );
 
             PipelineApp {
                 settings: settings.camera,
