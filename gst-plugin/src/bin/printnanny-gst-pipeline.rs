@@ -265,6 +265,17 @@ impl PipelineApp {
             .property_from_str("leaky", "2")
             .build()?;
 
+        // set a variable capsfilter
+        let leaky_capsfilter = gst::ElementFactory::make("capsfilter")
+            .name("capsfilter__leaky")
+            .build()?;
+        leaky_capsfilter.set_property(
+            "caps",
+            gst::Caps::builder("video/x-raw")
+                .field("framerate", "1/1")
+                .build(),
+        );
+
         let tensor_vconverter = gst::ElementFactory::make("videoconvert")
             .name("videoconvert__tflite_dim")
             .build()?;
