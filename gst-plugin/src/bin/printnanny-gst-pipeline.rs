@@ -423,6 +423,10 @@ impl PipelineApp {
             .property("option1", "printnanny_bb_dataframe_decoder")
             .build()?;
 
+        let df_agg_q = gst::ElementFactory::make("queue")
+            .name("queue__df_agg")
+            .build()?;
+
         let dataframe_agg = gst::ElementFactory::make("dataframe_agg")
             .name("dataframe_agg__df")
             .property("filter-threshold", nms_threshold as f32 / 100_f32)
@@ -436,6 +440,7 @@ impl PipelineApp {
         let df_elements = &[
             &df_decoder_q,
             &dataframe_decoder,
+            &df_agg_q,
             &dataframe_agg,
             &nats_sink,
         ];
