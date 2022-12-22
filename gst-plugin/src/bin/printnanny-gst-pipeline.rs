@@ -350,9 +350,6 @@ impl PipelineApp {
         let box_videoconverter = gst::ElementFactory::make("videoconvert")
             .name("videoconvert__boxes")
             .build()?;
-        let box_videorate = gst::ElementFactory::make("videorate")
-            .name("videorate__boxes")
-            .build()?;
         let raw_box_capsfilter = gst::ElementFactory::make("capsfilter")
             .name("capsfilter__boxes")
             .build()?;
@@ -413,7 +410,6 @@ impl PipelineApp {
             &box_decoder_q,
             &box_decoder,
             &box_videoconverter,
-            &box_videorate,
             &raw_box_capsfilter,
             &box_h264encoder,
             &box_h264_capsfilter,
