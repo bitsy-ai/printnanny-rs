@@ -266,9 +266,9 @@ impl PipelineApp {
 
         let tensor_q = gst::ElementFactory::make("queue")
             .name("queue__leaky")
-            .property("max-size-buffers", 2)
-            .property("flush-on-eos", 1)
-            .property("leaky", 2)
+            .property_from_str("max-size-buffers", "2")
+            .property_from_str("flush-on-eos", "true")
+            .property_from_str("leaky", "2")
             .build()?;
 
         let tensor_vconverter = gst::ElementFactory::make("videoconvert")
