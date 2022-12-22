@@ -79,11 +79,10 @@ impl PipelineApp {
 
         let pipeline = gst::Pipeline::new(Some(&pipeline_name));
 
-        let h264_queue = gst::ElementFactory::make("queue2")
-            .name("queue2__h264")
-            .property_from_str("max-size-time", "0")
-            .property_from_str("max-size-buffers", "0")
-            .property_from_str("max-size-bytes", "10485760") // ~ 10 MB
+        let h264_queue = gst::ElementFactory::make("queue")
+            .name("queue__h264")
+            .property_from_str("leaky", "2")
+            .property("silent", true)
             .build()?;
 
         let video_tee = gst::ElementFactory::make("tee")
