@@ -2,8 +2,8 @@
 .PHONY: install-fake-services uninstall-fake-services
 VERSION ?= latest
 TMPDIR ?= .tmp
-DEV_MACHINE ?= pn-debug
-DEV_USER ?= root
+DEV_MACHINE ?= pn-v0-5
+DEV_USER ?= pi
 
 PRINTNANNY_ADMIN_GROUP ?= printnanny-admin
 USER ?= $(shell whoami)
@@ -64,6 +64,11 @@ dev-build:
 	# ssh -o StrictHostKeyChecking=no $(DEV_USER)@$(DEV_MACHINE) "sudo cp ~/printnanny-cli /usr/bin/printnanny-cli"
 	# ssh -o StrictHostKeyChecking=no $(DEV_USER)@$(DEV_MACHINE) "sudo cp ~/printnanny-dash /usr/bin/printnanny-dash"
 	# ssh -o StrictHostKeyChecking=no $(DEV_USER)@$(DEV_MACHINE) "sudo systemctl start printnanny*"
+
+dev-gst-bin:
+	cross build --bin=printnanny-gst-pipeline --target=aarch64-unknown-linux-gnu
+	rsync --progress -e "ssh -o StrictHostKeyChecking=no" target/aarch64-unknown-linux-gnu/debug/printnanny-gst-pipeline $(DEV_USER)@$(DEV_MACHINE).local:~/printnanny-gst-pipeline
+
 
 gst-image:
 	docker build \
