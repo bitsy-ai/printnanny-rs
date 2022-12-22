@@ -51,6 +51,7 @@ struct ErrorValue(Arc<Mutex<Option<Error>>>);
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PipelineApp {
     settings: PrintNannyCameraSettings,
+    tmp_dir: PathBuf,
 }
 
 impl PipelineApp {
@@ -156,9 +157,10 @@ impl PipelineApp {
         // split h264-encoded video stream with a tee for compatibility with OctoPrint's webcam plugin
         // OctoPrint's WebRTC support is still experimental and is not compatible with Janus Gateway's signaling
         // Instead, write a ringbuffer of hls frames + playlist to disk (HTTP connection handled by nginx, outside of scope of this pipeline)
-
-        let rtp_queue = gst::ElementFactory::make("queue")
-            .name("queue__rtph264pay")
+        let rtp_tmp_template = format!("{}/queue2__rtph264pay", self.tmp_dir.display());
+        let rtp_queue = gst::ElementFactory::make("queue2")
+            .name("queue2__rtph264pay")
+            .property_from_str("temp-template", &rtp_tmp_template)
             .build()?;
 
         let insert_h264_sinks = |octoprint_compat: bool| -> Result<()> {
@@ -172,8 +174,11 @@ impl PipelineApp {
                         .name("tee__h264_video")
                         .build()?;
 
-                    let hls_queue = gst::ElementFactory::make("queue")
-                        .name("queue__hlssink")
+                    let hls_tmp_template =
+                        format!("{}/queue2__hlssink_XXXXXX", self.tmp_dir.display());
+                    let hls_queue = gst::ElementFactory::make("queue2")
+                        .name("queue2__hlssink")
+                        .property_from_str("temp-template", &hls_tmp_template)
                         .build()?;
 
                     let hls_sink = gst::ElementFactory::make("hlssink2")
@@ -652,7 +657,8 @@ fn run(pipeline: gst::Pipeline) -> Result<()> {
 impl From<&ArgMatches> for PipelineApp {
     fn from(args: &ArgMatches) -> Self {
         let settings = PrintNannyCameraSettings::from(args);
-        Self { settings }
+        let tmp_dir = PathBuf::from(args.value_of("tmp_dir").unwrap_or("/tmp"));
+        Self { settings, tmp_dir }
     }
 }
 
@@ -827,6 +833,15 @@ async fn main() {
                 .default_value("3")
                 .help(
                     "Channels value for tensor with shape: [Batch size, Height, Width, Channels]",
+                ),
+        )
+        .arg(
+            Arg::new("tmp_dir")
+                .long("tmp-dir")
+                .takes_value(true)
+                .default_value("/tmp")
+                .help(
+                    "Buffer to temporary directory",
                 ),
         )
         .arg(
