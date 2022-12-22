@@ -389,8 +389,8 @@ impl PipelineApp {
         box_h264_capsfilter.set_property(
             "caps",
             gst::Caps::builder("video/x-h264")
-                .field("level", "3")
-                .field("profile", "main")
+                .field("level", "4")
+                .field("profile", "baseline")
                 .build(),
         );
 
