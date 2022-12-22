@@ -51,6 +51,7 @@ struct ErrorValue(Arc<Mutex<Option<Error>>>);
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PipelineApp {
     settings: PrintNannyCameraSettings,
+    tmp_dir: PathBuf,
 }
 
 impl PipelineApp {
@@ -77,7 +78,12 @@ impl PipelineApp {
         let nats_server_uri = self.settings.detection.nats_server_uri.clone();
 
         let pipeline = gst::Pipeline::new(Some(&pipeline_name));
-        let h264_queue = gst::ElementFactory::make("queue").name("h264_q").build()?;
+
+        let h264_queue = gst::ElementFactory::make("queue")
+            .name("queue__h264")
+            .property_from_str("leaky", "2")
+            .property("silent", true)
+            .build()?;
 
         let video_tee = gst::ElementFactory::make("tee")
             .name("tee__inputvideo")
@@ -159,6 +165,7 @@ impl PipelineApp {
 
         let rtp_queue = gst::ElementFactory::make("queue")
             .name("queue__rtph264pay")
+            .property("silent", true)
             .build()?;
 
         let insert_h264_sinks = |octoprint_compat: bool| -> Result<()> {
@@ -174,6 +181,7 @@ impl PipelineApp {
 
                     let hls_queue = gst::ElementFactory::make("queue")
                         .name("queue__hlssink")
+                        .property("silent", true)
                         .build()?;
 
                     let hls_sink = gst::ElementFactory::make("hlssink2")
@@ -259,6 +267,8 @@ impl PipelineApp {
 
         let tensor_q = gst::ElementFactory::make("queue")
             .name("queue__leaky")
+            .property_from_str("max-size-buffers", "3")
+            .property_from_str("flush-on-eos", "true")
             .property_from_str("leaky", "2")
             .build()?;
 
@@ -306,13 +316,13 @@ impl PipelineApp {
             .name("tflite_output_tee")
             .build()?;
 
-        let tensor_rate = gst::ElementFactory::make("tensor_rate")
-            .property("throttle", true)
-            .property_from_str(
-                "framerate",
-                &format!("{}/1", &self.settings.detection.tensor_framerate),
-            )
-            .build()?;
+        // let tensor_rate = gst::ElementFactory::make("tensor_rate")
+        //     .property("throttle", true)
+        //     .property_from_str(
+        //         "framerate",
+        //         &format!("{}/1", &self.settings.detection.tensor_framerate),
+        //     )
+        //     .build()?;
 
         let tensor_pipeline_elements = &[
             &tensor_q,
@@ -323,7 +333,7 @@ impl PipelineApp {
             &tensor_transform,
             &tensor_capsfilter,
             &tensor_filter,
-            &tensor_rate,
+            // &tensor_rate,
             &tflite_output_tee,
         ];
         pipeline.add_many(tensor_pipeline_elements)?;
@@ -332,7 +342,9 @@ impl PipelineApp {
 
         let box_decoder_q = gst::ElementFactory::make("queue")
             .name("queue__box_decoder")
+            .property("silent", true)
             .build()?;
+
         let box_decoder = gst::ElementFactory::make("tensor_decoder")
             .name("tensor__decoder_boxes")
             .property_from_str("mode", "bounding_boxes")
@@ -377,8 +389,8 @@ impl PipelineApp {
         box_h264_capsfilter.set_property(
             "caps",
             gst::Caps::builder("video/x-h264")
-                .field("level", "3")
-                .field("profile", "main")
+                .field("level", "4")
+                .field("profile", "baseline")
                 .build(),
         );
 
@@ -389,10 +401,6 @@ impl PipelineApp {
             .property_from_str("aggregate-mode", "zero-latency")
             .property_from_str("pt", "96")
             .property("ssrc", boxes_ssrc)
-            .build()?;
-
-        let box_udpsink_q2 = gst::ElementFactory::make("queue2")
-            .name("queue2__boxes_udpsink")
             .build()?;
 
         let box_udpsink = gst::ElementFactory::make("udpsink")
@@ -413,7 +421,6 @@ impl PipelineApp {
             &box_h264encoder,
             &box_h264_capsfilter,
             &boxes_payloader,
-            &box_udpsink_q2,
             &box_udpsink,
         ];
 
@@ -652,7 +659,11 @@ fn run(pipeline: gst::Pipeline) -> Result<()> {
 impl From<&ArgMatches> for PipelineApp {
     fn from(args: &ArgMatches) -> Self {
         let settings = PrintNannyCameraSettings::from(args);
-        Self { settings }
+        let tmp_dir = PathBuf::from(
+            args.value_of("tmp_dir")
+                .unwrap_or("/var/run/printnanny-vision"),
+        );
+        Self { settings, tmp_dir }
     }
 }
 
@@ -674,6 +685,15 @@ async fn main() {
                 .short('v')
                 .multiple_occurrences(true)
                 .help("Sets the level of verbosity. Info: -v Debug: -vv Trace: -vvv"),
+        )
+        .arg(
+            Arg::new("tmp_dir")
+                .long("tmp-dir")
+                .takes_value(true)
+                .default_value("/var/run/printnanny-vision")
+                .help(
+                    "Buffer to temporary directory",
+                ),
         )
         .arg(
             Arg::new("settings")
@@ -866,8 +886,14 @@ async fn main() {
             let settings = PrintNannySettings::from_toml(PathBuf::from(settings_file))
                 .expect("Failed to extract settings");
             info!("Pipeline settings: {:?}", settings);
+            let tmp_dir = PathBuf::from(
+                args.value_of("tmp_dir")
+                    .unwrap_or("/var/run/printnanny-vision"),
+            );
+
             PipelineApp {
                 settings: settings.camera,
+                tmp_dir,
             }
         }
         None => PipelineApp::from(&args),
