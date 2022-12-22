@@ -51,6 +51,7 @@ struct ErrorValue(Arc<Mutex<Option<Error>>>);
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PipelineApp {
     settings: PrintNannyCameraSettings,
+    tmp_dir: PathBuf,
 }
 
 impl PipelineApp {
@@ -77,7 +78,12 @@ impl PipelineApp {
         let nats_server_uri = self.settings.detection.nats_server_uri.clone();
 
         let pipeline = gst::Pipeline::new(Some(&pipeline_name));
-        let h264_queue = gst::ElementFactory::make("queue").name("h264_q").build()?;
+
+        let h264_tmp_template = format!("{}/queue2__h264_XXXXXX", self.tmp_dir.display());
+        let h264_queue = gst::ElementFactory::make("queue2")
+            .name("queue2__h264")
+            .property_from_str("temp-template", &h264_tmp_template)
+            .build()?;
 
         let video_tee = gst::ElementFactory::make("tee")
             .name("tee__inputvideo")
@@ -652,7 +658,8 @@ fn run(pipeline: gst::Pipeline) -> Result<()> {
 impl From<&ArgMatches> for PipelineApp {
     fn from(args: &ArgMatches) -> Self {
         let settings = PrintNannyCameraSettings::from(args);
-        Self { settings }
+        let tmp_dir = PathBuf::from(args.value_of("tmp_dir").unwrap_or("/tmp"));
+        Self { settings, tmp_dir }
     }
 }
 
@@ -674,6 +681,15 @@ async fn main() {
                 .short('v')
                 .multiple_occurrences(true)
                 .help("Sets the level of verbosity. Info: -v Debug: -vv Trace: -vvv"),
+        )
+        .arg(
+            Arg::new("tmp_dir")
+                .long("tmp-dir")
+                .takes_value(true)
+                .default_value("/tmp")
+                .help(
+                    "Buffer to temporary directory",
+                ),
         )
         .arg(
             Arg::new("settings")
@@ -866,8 +882,11 @@ async fn main() {
             let settings = PrintNannySettings::from_toml(PathBuf::from(settings_file))
                 .expect("Failed to extract settings");
             info!("Pipeline settings: {:?}", settings);
+            let tmp_dir = PathBuf::from(args.value_of("tmp_dir").unwrap_or("/tmp"));
+
             PipelineApp {
                 settings: settings.camera,
+                tmp_dir,
             }
         }
         None => PipelineApp::from(&args),
