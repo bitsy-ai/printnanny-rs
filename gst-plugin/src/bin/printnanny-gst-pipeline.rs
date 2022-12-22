@@ -83,6 +83,7 @@ impl PipelineApp {
         let h264_queue = gst::ElementFactory::make("queue2")
             .name("queue2__h264")
             .property_from_str("temp-template", &h264_tmp_template)
+            .property_from_str("temp-remove", "true")
             .build()?;
 
         let video_tee = gst::ElementFactory::make("tee")
