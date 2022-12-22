@@ -316,13 +316,13 @@ impl PipelineApp {
             .name("tflite_output_tee")
             .build()?;
 
-        let tensor_rate = gst::ElementFactory::make("tensor_rate")
-            .property("throttle", true)
-            .property_from_str(
-                "framerate",
-                &format!("{}/1", &self.settings.detection.tensor_framerate),
-            )
-            .build()?;
+        // let tensor_rate = gst::ElementFactory::make("tensor_rate")
+        //     .property("throttle", true)
+        //     .property_from_str(
+        //         "framerate",
+        //         &format!("{}/1", &self.settings.detection.tensor_framerate),
+        //     )
+        //     .build()?;
 
         let tensor_pipeline_elements = &[
             &tensor_q,
@@ -333,7 +333,7 @@ impl PipelineApp {
             &tensor_transform,
             &tensor_capsfilter,
             &tensor_filter,
-            &tensor_rate,
+            // &tensor_rate,
             &tflite_output_tee,
         ];
         pipeline.add_many(tensor_pipeline_elements)?;
