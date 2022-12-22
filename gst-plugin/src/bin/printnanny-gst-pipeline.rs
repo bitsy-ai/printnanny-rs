@@ -51,7 +51,6 @@ struct ErrorValue(Arc<Mutex<Option<Error>>>);
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PipelineApp {
     settings: PrintNannyCameraSettings,
-    tmp_dir: PathBuf,
 }
 
 impl PipelineApp {
@@ -78,6 +77,7 @@ impl PipelineApp {
         let nats_server_uri = self.settings.detection.nats_server_uri.clone();
 
         let pipeline = gst::Pipeline::new(Some(&pipeline_name));
+        let h264_queue = gst::ElementFactory::make("queue").name("h264_q").build()?;
 
         let video_tee = gst::ElementFactory::make("tee")
             .name("tee__inputvideo")
@@ -156,10 +156,9 @@ impl PipelineApp {
         // split h264-encoded video stream with a tee for compatibility with OctoPrint's webcam plugin
         // OctoPrint's WebRTC support is still experimental and is not compatible with Janus Gateway's signaling
         // Instead, write a ringbuffer of hls frames + playlist to disk (HTTP connection handled by nginx, outside of scope of this pipeline)
-        let rtp_tmp_template = format!("{}/queue2__rtph264pay", self.tmp_dir.display());
-        let rtp_queue = gst::ElementFactory::make("queue2")
-            .name("queue2__rtph264pay")
-            .property_from_str("temp-template", &rtp_tmp_template)
+
+        let rtp_queue = gst::ElementFactory::make("queue")
+            .name("queue__rtph264pay")
             .build()?;
 
         let insert_h264_sinks = |octoprint_compat: bool| -> Result<()> {
@@ -173,11 +172,8 @@ impl PipelineApp {
                         .name("tee__h264_video")
                         .build()?;
 
-                    let hls_tmp_template =
-                        format!("{}/queue2__hlssink_XXXXXX", self.tmp_dir.display());
-                    let hls_queue = gst::ElementFactory::make("queue2")
-                        .name("queue2__hlssink")
-                        .property_from_str("temp-template", &hls_tmp_template)
+                    let hls_queue = gst::ElementFactory::make("queue")
+                        .name("queue__hlssink")
                         .build()?;
 
                     let hls_sink = gst::ElementFactory::make("hlssink2")
@@ -190,7 +186,7 @@ impl PipelineApp {
                         // &invideoscaler,
                         // &raw_video_capsfilter,
                         &video_tee,
-                        &rtp_queue,
+                        &h264_queue,
                         &invideoconverter,
                         &encoder,
                         &video_h264_capsfilter,
@@ -232,10 +228,11 @@ impl PipelineApp {
                         // &invideoscaler,
                         // &raw_video_capsfilter,
                         &video_tee,
-                        &rtp_queue,
+                        &h264_queue,
                         &invideoconverter,
                         &encoder,
                         &video_h264_capsfilter,
+                        &rtp_queue,
                         &video_payloader,
                         &video_udp_sink,
                     ];
@@ -264,17 +261,6 @@ impl PipelineApp {
             .name("queue__leaky")
             .property_from_str("leaky", "2")
             .build()?;
-
-        // set a variable capsfilter
-        let leaky_capsfilter = gst::ElementFactory::make("capsfilter")
-            .name("capsfilter__leaky")
-            .build()?;
-        leaky_capsfilter.set_property(
-            "caps",
-            gst::Caps::builder("video/x-raw")
-                .field("framerate", "1/1")
-                .build(),
-        );
 
         let tensor_vconverter = gst::ElementFactory::make("videoconvert")
             .name("videoconvert__tflite_dim")
@@ -347,7 +333,6 @@ impl PipelineApp {
         let box_decoder_q = gst::ElementFactory::make("queue")
             .name("queue__box_decoder")
             .build()?;
-
         let box_decoder = gst::ElementFactory::make("tensor_decoder")
             .name("tensor__decoder_boxes")
             .property_from_str("mode", "bounding_boxes")
@@ -359,6 +344,9 @@ impl PipelineApp {
             .build()?;
         let box_videoconverter = gst::ElementFactory::make("videoconvert")
             .name("videoconvert__boxes")
+            .build()?;
+        let box_videorate = gst::ElementFactory::make("videorate")
+            .name("videorate__boxes")
             .build()?;
         let raw_box_capsfilter = gst::ElementFactory::make("capsfilter")
             .name("capsfilter__boxes")
@@ -419,12 +407,13 @@ impl PipelineApp {
         let box_overlay_elements = &[
             &box_decoder_q,
             &box_decoder,
-            &box_udpsink_q2,
             &box_videoconverter,
+            &box_videorate,
             &raw_box_capsfilter,
             &box_h264encoder,
             &box_h264_capsfilter,
             &boxes_payloader,
+            &box_udpsink_q2,
             &box_udpsink,
         ];
 
@@ -432,10 +421,6 @@ impl PipelineApp {
             .name("tensor_decoder__df")
             .property("mode", "custom-code")
             .property("option1", "printnanny_bb_dataframe_decoder")
-            .build()?;
-
-        let df_agg_q = gst::ElementFactory::make("queue")
-            .name("queue__df_agg")
             .build()?;
 
         let dataframe_agg = gst::ElementFactory::make("dataframe_agg")
@@ -451,7 +436,6 @@ impl PipelineApp {
         let df_elements = &[
             &df_decoder_q,
             &dataframe_decoder,
-            &df_agg_q,
             &dataframe_agg,
             &nats_sink,
         ];
@@ -668,8 +652,7 @@ fn run(pipeline: gst::Pipeline) -> Result<()> {
 impl From<&ArgMatches> for PipelineApp {
     fn from(args: &ArgMatches) -> Self {
         let settings = PrintNannyCameraSettings::from(args);
-        let tmp_dir = PathBuf::from(args.value_of("tmp_dir").unwrap_or("/tmp"));
-        Self { settings, tmp_dir }
+        Self { settings }
     }
 }
 
@@ -847,15 +830,6 @@ async fn main() {
                 ),
         )
         .arg(
-            Arg::new("tmp_dir")
-                .long("tmp-dir")
-                .takes_value(true)
-                .default_value("/tmp")
-                .help(
-                    "Buffer to temporary directory",
-                ),
-        )
-        .arg(
             Arg::new("model_file")
                 .long("model-file")
                 .takes_value(true)
@@ -892,11 +866,8 @@ async fn main() {
             let settings = PrintNannySettings::from_toml(PathBuf::from(settings_file))
                 .expect("Failed to extract settings");
             info!("Pipeline settings: {:?}", settings);
-            let tmp_dir = PathBuf::from(args.value_of("tmp_dir").unwrap_or("/tmp"));
-
             PipelineApp {
                 settings: settings.camera,
-                tmp_dir,
             }
         }
         None => PipelineApp::from(&args),
