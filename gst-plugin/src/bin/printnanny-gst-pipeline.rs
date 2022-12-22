@@ -338,6 +338,7 @@ impl PipelineApp {
         let box_decoder_q = gst::ElementFactory::make("queue")
             .name("queue__box_decoder")
             .build()?;
+
         let box_decoder = gst::ElementFactory::make("tensor_decoder")
             .name("tensor__decoder_boxes")
             .property_from_str("mode", "bounding_boxes")
@@ -409,12 +410,12 @@ impl PipelineApp {
         let box_overlay_elements = &[
             &box_decoder_q,
             &box_decoder,
+            &box_udpsink_q2,
             &box_videoconverter,
             &raw_box_capsfilter,
             &box_h264encoder,
             &box_h264_capsfilter,
             &boxes_payloader,
-            &box_udpsink_q2,
             &box_udpsink,
         ];
 
