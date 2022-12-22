@@ -78,7 +78,6 @@ impl PipelineApp {
         let nats_server_uri = self.settings.detection.nats_server_uri.clone();
 
         let pipeline = gst::Pipeline::new(Some(&pipeline_name));
-        let h264_queue = gst::ElementFactory::make("queue").name("h264_q").build()?;
 
         let video_tee = gst::ElementFactory::make("tee")
             .name("tee__inputvideo")
@@ -191,7 +190,7 @@ impl PipelineApp {
                         // &invideoscaler,
                         // &raw_video_capsfilter,
                         &video_tee,
-                        &h264_queue,
+                        &rtp_queue,
                         &invideoconverter,
                         &encoder,
                         &video_h264_capsfilter,
@@ -233,11 +232,10 @@ impl PipelineApp {
                         // &invideoscaler,
                         // &raw_video_capsfilter,
                         &video_tee,
-                        &h264_queue,
+                        &rtp_queue,
                         &invideoconverter,
                         &encoder,
                         &video_h264_capsfilter,
-                        &rtp_queue,
                         &video_payloader,
                         &video_udp_sink,
                     ];
