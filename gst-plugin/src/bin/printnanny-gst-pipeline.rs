@@ -892,8 +892,11 @@ async fn main() {
             let settings = PrintNannySettings::from_toml(PathBuf::from(settings_file))
                 .expect("Failed to extract settings");
             info!("Pipeline settings: {:?}", settings);
+            let tmp_dir = PathBuf::from(args.value_of("tmp_dir").unwrap_or("/tmp"));
+
             PipelineApp {
                 settings: settings.camera,
+                tmp_dir,
             }
         }
         None => PipelineApp::from(&args),
