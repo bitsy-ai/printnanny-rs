@@ -83,6 +83,9 @@ impl PipelineApp {
         let h264_queue = gst::ElementFactory::make("queue2")
             .name("queue2__h264")
             .property_from_str("temp-template", &h264_tmp_template)
+            .property("max-size-time", "0")
+            .property("max-size-buffers", "0")
+            .property("max-size-bytes", "10485760") // ~ 10 MB
             .property("use-buffering", true)
             .build()?;
 
