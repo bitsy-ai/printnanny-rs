@@ -165,6 +165,7 @@ impl PipelineApp {
 
         let rtp_queue = gst::ElementFactory::make("queue")
             .name("queue__rtph264pay")
+            .property("silent", true)
             .build()?;
 
         let insert_h264_sinks = |octoprint_compat: bool| -> Result<()> {
@@ -180,6 +181,7 @@ impl PipelineApp {
 
                     let hls_queue = gst::ElementFactory::make("queue")
                         .name("queue__hlssink")
+                        .property("silent", true)
                         .build()?;
 
                     let hls_sink = gst::ElementFactory::make("hlssink2")
@@ -340,7 +342,9 @@ impl PipelineApp {
 
         let box_decoder_q = gst::ElementFactory::make("queue")
             .name("queue__box_decoder")
+            .property("silent", true)
             .build()?;
+
         let box_decoder = gst::ElementFactory::make("tensor_decoder")
             .name("tensor__decoder_boxes")
             .property_from_str("mode", "bounding_boxes")
