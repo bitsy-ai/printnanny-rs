@@ -405,7 +405,7 @@ impl Default for PrintNannyCameraSettings {
         let preview = false;
         let video_udp_port = 20001;
         let overlay_udp_port = 20002;
-        let video_framerate = 15;
+        let video_framerate = 24;
         let hls_enabled = None;
         let hls_segments = "/var/run/printnanny-hls/segment%05d.ts".into();
         let hls_playlist = "/var/run/printnanny-hls/playlist.m3u8".into();
@@ -431,7 +431,7 @@ impl Default for PrintNannyCameraSettings {
             nats_server_uri: "nats://127.0.0.1:4223".into(),
             label_file: "/usr/share/printnanny/model/labels.txt".into(),
             model_file: "/usr/share/printnanny/model/model.tflite".into(),
-            nms_threshold: 50,
+            nms_threshold: 66,
             tensor_batch_size: 40,
             tensor_height: 320,
             tensor_width: 320,
