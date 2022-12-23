@@ -184,6 +184,9 @@ impl From<SystemdUnit> for printnanny_asyncapi_models::SystemdUnit {
             SystemdActiveState::Deactivating => {
                 printnanny_asyncapi_models::SystemdUnitActiveState::Deactivating
             }
+            SystemdActiveState::Failed => {
+                printnanny_asyncapi_models::SystemdUnitActiveState::Failed
+            }
         };
 
         let load_state = match unit.load_state {
