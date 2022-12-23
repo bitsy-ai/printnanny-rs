@@ -44,6 +44,8 @@ pub enum SystemdActiveState {
     Activating,
     #[serde(rename = "deactivating")]
     Deactivating,
+    #[serde(rename = "failed")]
+    Failed,
     #[serde(rename = "inactive")]
     Inactive,
     #[serde(rename = "reloading")]
