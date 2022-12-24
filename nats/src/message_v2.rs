@@ -5,7 +5,7 @@ use std::time::SystemTime;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
-use log::info;
+use log::{error, info};
 use printnanny_settings::cam::CameraVideoSource;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -161,15 +161,25 @@ impl NatsRequest {
         let result = api_service
             .connect_cloud_account(request.api_url.clone(), request.api_token.clone())
             .await;
+
         let result = match result {
-            Ok(_) => NatsReply::PrintNannyCloudAuthReply(PrintNannyCloudAuthReply {
-                status_code: 200,
-                msg: format!("Success! Connected account: {}", request.email),
-            }),
-            Err(e) => NatsReply::PrintNannyCloudAuthReply(PrintNannyCloudAuthReply {
-                status_code: 403,
-                msg: format!("Error connecting account: {}", e),
-            }),
+            Ok(_) => {
+                info!(
+                    "Successfully connected PrintNanny Cloud account: {}",
+                    request.email
+                );
+                NatsReply::PrintNannyCloudAuthReply(PrintNannyCloudAuthReply {
+                    status_code: 200,
+                    msg: format!("Success! Connected account: {}", request.email),
+                })
+            }
+            Err(e) => {
+                error!("Failed to connect PrintNanny Cloud account, error: {}", e);
+                NatsReply::PrintNannyCloudAuthReply(PrintNannyCloudAuthReply {
+                    status_code: 403,
+                    msg: format!("Error connecting account: {}", e),
+                })
+            }
         };
         Ok(result)
     }
