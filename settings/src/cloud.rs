@@ -2,6 +2,7 @@ use std::fs;
 use std::{io::Write, path::Path};
 
 use file_lock::{FileLock, FileOptions};
+use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::printnanny::PrintNannySettings;
@@ -47,6 +48,7 @@ impl PrintNannyCloudData {
         is_blocking: bool,
     ) -> Result<(), PrintNannyCloudDataError> {
         let options = FileOptions::new().write(true).create(true).append(true);
+        info!("Attempting to lock state file {}", state_lock.display());
         let mut filelock = match FileLock::lock(state_lock, is_blocking, options) {
             Ok(lock) => lock,
             Err(err) => panic!("Error getting write lock: {}", err),
