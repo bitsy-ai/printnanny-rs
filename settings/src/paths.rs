@@ -3,10 +3,10 @@ use figment::providers::Env;
 use log::info;
 use serde;
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::{fs, io};
 use zip::ZipArchive;
 
 use super::error::PrintNannySettingsError;
@@ -53,7 +53,7 @@ impl Default for PrintNannyPaths {
 
 impl PrintNannyPaths {
     pub fn cloud(&self) -> PathBuf {
-        self.state_dir.join("cloud/PrintNannyCloudData.toml")
+        self.data().join("PrintNannyCloudData.toml")
     }
 
     // lock acquired when modifying persistent application data
@@ -95,15 +95,33 @@ impl PrintNannyPaths {
 
     // media (videos)
     pub fn video(&self) -> PathBuf {
-        self.data().join("video")
-    }
-
-    pub fn user_confd(&self) -> PathBuf {
-        self.settings_dir.clone()
+        self.state_dir.join("video")
     }
 
     pub fn license_zip(&self) -> PathBuf {
         self.creds().join("license.zip")
+    }
+
+    fn try_init(&self, dir: &Path) -> Result<(), io::Error> {
+        match dir.exists() {
+            true => {
+                info!("Skipping mkdir, already exists: {}", dir.display());
+                Ok(())
+            }
+            false => {
+                info!("Creating directory: {}", dir.display());
+                std::fs::create_dir_all(dir)
+            }
+        }
+    }
+
+    pub fn try_init_all(&self) -> Result<(), io::Error> {
+        let dirs = vec![self.creds(), self.data(), self.recovery(), self.video()];
+
+        for dir in dirs {
+            self.try_init(&dir)?;
+        }
+        Ok(())
     }
 
     pub fn try_load_nats_creds(&self) -> Result<String, std::io::Error> {

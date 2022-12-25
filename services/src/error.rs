@@ -10,7 +10,9 @@ use printnanny_settings::figment;
 use printnanny_settings::sys_info;
 use printnanny_settings::toml;
 
-use printnanny_settings::error::{PrintNannyCloudDataError, PrintNannySettingsError};
+use printnanny_settings::error::{
+    PrintNannyCloudDataError, PrintNannySettingsError, VersionControlledSettingsError,
+};
 
 #[derive(Error, Debug)]
 pub enum PrintNannyCamSettingsError {
@@ -109,6 +111,9 @@ pub enum ServiceError {
         detail: Option<String>,
         field: String,
     },
+
+    #[error(transparent)]
+    VersionControlledSettingsError(#[from] VersionControlledSettingsError),
 }
 
 #[derive(Error, Debug)]
