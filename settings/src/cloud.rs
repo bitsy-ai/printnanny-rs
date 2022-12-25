@@ -10,27 +10,15 @@ use crate::printnanny::PrintNannySettings;
 use super::error::PrintNannyCloudDataError;
 use printnanny_api_client::models;
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct PrintNannyApiConfig {
-    pub base_path: String,
-    pub bearer_access_token: Option<String>,
-}
-
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyCloudData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pi: Option<models::Pi>,
-    pub api: PrintNannyApiConfig,
 }
 
 impl Default for PrintNannyCloudData {
     fn default() -> Self {
-        // default to unauthenticated api config, until api creds are unpacked from seed archive
-        let api = PrintNannyApiConfig {
-            base_path: "https://printnanny.ai".into(),
-            bearer_access_token: None,
-        };
-        PrintNannyCloudData { api, pi: None }
+        PrintNannyCloudData { pi: None }
     }
 }
 
@@ -41,27 +29,17 @@ impl PrintNannyCloudData {
         Ok(result)
     }
 
-    pub fn save(
-        &self,
-        cloud: &Path,
-        state_lock: &Path,
-        is_blocking: bool,
-    ) -> Result<(), PrintNannyCloudDataError> {
-        let options = FileOptions::new().write(true).create(true).append(true);
-        info!("Attempting to lock state file {}", state_lock.display());
-        let mut filelock = match FileLock::lock(state_lock, is_blocking, options) {
-            Ok(lock) => lock,
-            Err(err) => panic!("Error getting write lock: {}", err),
-        };
+    pub fn save(&self, file: &Path) -> Result<(), PrintNannyCloudDataError> {
         let data = toml::ser::to_vec(self)?;
-
-        match filelock.file.write_all(&data) {
-            Ok(()) => Ok(()),
+        match fs::write(file, data) {
+            Ok(_) => Ok(()),
             Err(e) => Err(PrintNannyCloudDataError::WriteIOError {
-                path: cloud.display().to_string(),
+                path: file.display().to_string(),
                 error: e,
             }),
-        }
+        };
+        info!("Saved PrintNannyCloudData to {}", file.display());
+        Ok(())
     }
 
     pub fn try_check_cloud_data(&self) -> Result<(), PrintNannyCloudDataError> {
@@ -74,10 +52,10 @@ impl PrintNannyCloudData {
             }),
         }?;
 
-        match &state.api.bearer_access_token {
+        match &settings.cloud.api_bearer_access_token {
             Some(_) => Ok(()),
             None => Err(PrintNannyCloudDataError::SetupIncomplete {
-                path: "api.bearer_access_token".to_string(),
+                path: "cloud.api_bearer_access_token".to_string(),
             }),
         }?;
 

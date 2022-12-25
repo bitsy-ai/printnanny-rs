@@ -27,6 +27,22 @@ const DEFAULT_PRINTNANNY_SETTINGS_GIT_REMOTE: &str =
 const DEFAULT_PRINTNANNY_SETTINGS_GIT_EMAIL: &str = "robots@printnanny.ai";
 const DEFAULT_PRINTNANNY_SETTINGS_GIT_NAME: &str = "PrintNanny";
 
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct PrintNannyApiConfig {
+    pub api_base_path: String,
+    pub api_bearer_access_token: Option<String>,
+}
+
+impl Default for PrintNannyApiConfig {
+    fn default() -> Self {
+        // default to unauthenticated api config, until user connects their PrintNanny Cloud account
+        Self {
+            api_base_path: "https://printnanny.ai".into(),
+            api_bearer_access_token: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NatsConfig {
     pub uri: String,
@@ -38,26 +54,6 @@ impl Default for NatsConfig {
         Self {
             uri: "nats://localhost:4222".to_string(),
             require_tls: false,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PrintNannyCloudProxy {
-    pub hostname: String,
-    pub base_path: String,
-    pub url: String,
-}
-
-impl Default for PrintNannyCloudProxy {
-    fn default() -> Self {
-        let hostname = sys_info::hostname().unwrap_or_else(|_| "localhost".to_string());
-        let base_path = "/printnanny-cloud".into();
-        let url = format!("http://{}{}", hostname, base_path);
-        Self {
-            hostname,
-            base_path,
-            url,
         }
     }
 }
@@ -97,6 +93,7 @@ impl Default for GitSettings {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PrintNannySettings {
     pub camera: PrintNannyCameraSettings,
+    pub cloud: PrintNannyApiConfig,
     pub git: GitSettings,
     pub paths: PrintNannyPaths,
     pub klipper: KlipperSettings,
@@ -108,9 +105,9 @@ pub struct PrintNannySettings {
 impl Default for PrintNannySettings {
     fn default() -> Self {
         let git = GitSettings::default();
-
         Self {
             camera: PrintNannyCameraSettings::default(),
+            cloud: PrintNannyApiConfig::default(),
             paths: PrintNannyPaths::default(),
             klipper: KlipperSettings::default(),
             octoprint: OctoPrintSettings::default(),
@@ -378,7 +375,7 @@ mod tests {
             let figment = PrintNannySettings::figment().unwrap();
             let config: PrintNannySettings = figment.extract()?;
             assert_eq!(config.paths.data(), PathBuf::from("/var/lib/custom/data"));
-            assert_eq!(config.paths.user_confd(), PathBuf::from("/opt/printnanny/"));
+            assert_eq!(config.paths.settings_dir, PathBuf::from("/opt/printnanny/"));
 
             Ok(())
         });

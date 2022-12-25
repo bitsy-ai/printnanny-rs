@@ -49,26 +49,11 @@ impl ApiService {
     // args >> api_config.json >> anonymous api usage only
     pub fn new() -> Result<ApiService, ServiceError> {
         let settings = PrintNannySettings::new()?;
-        let cloud = settings.paths.cloud();
-        let state = match PrintNannyCloudData::load(&cloud) {
-            Ok(data) => data,
-            Err(e) => {
-                let defaults = PrintNannyCloudData::default();
-                warn!(
-                    "Failed to load {} with error {}, using PrintNannyCloudData::default() {:?}",
-                    cloud.display(),
-                    e,
-                    &defaults
-                );
-                defaults
-            }
-        };
-
         debug!("Initializing ApiService from settings: {:?}", settings);
 
         let reqwest = ReqwestConfig {
-            base_path: state.api.base_path.to_string(),
-            bearer_access_token: state.api.bearer_access_token,
+            base_path: settings.cloud.api_base_path.to_string(),
+            bearer_access_token: settings.cloud.api_bearer_access_token,
             ..ReqwestConfig::default()
         };
         Ok(Self {
@@ -85,14 +70,6 @@ impl ApiService {
         bearer_access_token: String,
     ) -> Result<(), ServiceError> {
         let cloud = self.settings.paths.cloud();
-        let state_lock = self.settings.paths.state_lock();
-
-        let mut state = PrintNannyCloudData::load(&cloud)?;
-        state.api.base_path = base_path;
-        state.api.bearer_access_token = Some(bearer_access_token);
-
-        state.save(&cloud, &state_lock, true)?;
-
         let mut api_service = ApiService::new()?;
 
         // sync data models
@@ -145,7 +122,7 @@ impl ApiService {
         Ok(accounts_api::accounts2fa_auth_token_create(&self.reqwest, req).await?)
     }
 
-    async fn _sync_pi_models(&self, pi: &models::Pi) -> Result<models::Pi, ServiceError> {
+    async fn sync_pi_models(&self, pi: &models::Pi) -> Result<models::Pi, ServiceError> {
         info!("Calling device_system_info_update_or_create()");
         let system_info = self.system_info_update_or_create(pi.id).await?;
         info!("Success! Updated SystemInfo model: {:?}", system_info);
@@ -164,49 +141,69 @@ impl ApiService {
         Ok(pi)
     }
 
+    async fn init_pi_model(&self) -> Result<models::Pi, ServiceError> {
+        warn!("Pi is not registered, attempting to register");
+        // TODO detect board, but for now only Raspberry Pi 4 is supported so
+        let _sbc = Some(models::SbcEnum::Rpi4);
+        let hostname = sys_info::hostname().unwrap_or_else(|_| "printnanny".to_string());
+
+        // TODO wireguard fqdn, but .local for now
+        let fqdn = Some(format!("{}.local", hostname));
+        let favorite = Some(true);
+        let setup_finished = Some(false);
+
+        let req = models::PiRequest {
+            sbc: Some(models::SbcEnum::Rpi4),
+            hostname: Some(hostname),
+            fqdn,
+            favorite,
+            setup_finished,
+        };
+        let pi = devices_api::pi_update_or_create(&self.reqwest, Some(req)).await?;
+        let pi = self.sync_pi_models(&pi).await?;
+        Ok(pi)
+    }
+
     // syncs Raspberry Pi data with PrintNanny Cloud
     // performs any necessary one-time setup tasks
     pub async fn sync(&mut self) -> Result<(), ServiceError> {
-        // verify pi is authenticated
-        let mut state = PrintNannyCloudData::load(&self.settings.paths.cloud())?;
+        // ensure directory structure exists
+        self.settings.paths.try_init_all()?;
 
-        match &state.pi {
-            Some(pi) => {
-                info!(
-                    "Pi is already registered, updating related models for {:?}",
-                    pi
-                );
+        // is there existing state to load?
+        let cloud_state_file = self.settings.paths.cloud();
+        match cloud_state_file.exists() {
+            true =>
+            // verify pi is authenticated
+            {
+                let mut state = PrintNannyCloudData::load(&self.settings.paths.cloud())?;
+                match &state.pi {
+                    Some(pi) => {
+                        info!(
+                            "Pi is already registered, updating related models for {:?}",
+                            pi
+                        );
 
-                let pi = self._sync_pi_models(pi).await?;
-                state.pi = Some(pi);
-            }
-            None => {
-                warn!("Pi is not registered, attempting to register");
-
-                // TODO detect board, but for now only Raspberry Pi 4 is supported so
-                let _sbc = Some(models::SbcEnum::Rpi4);
-                let hostname = sys_info::hostname().unwrap_or_else(|_| "printnanny".to_string());
-
-                // TODO wireguard fqdn, but .local for now
-                let fqdn = Some(format!("{}.local", hostname));
-                let favorite = Some(true);
-                let setup_finished = Some(false);
-
-                let req = models::PiRequest {
-                    sbc: Some(models::SbcEnum::Rpi4),
-                    hostname: Some(hostname),
-                    fqdn,
-                    favorite,
-                    setup_finished,
+                        let pi = self.sync_pi_models(pi).await?;
+                        state.pi = Some(pi);
+                    }
+                    None => {
+                        let pi = self.init_pi_model().await?;
+                        state.pi = Some(pi);
+                    }
                 };
-                let pi = devices_api::pi_update_or_create(&self.reqwest, Some(req)).await?;
-                let pi = self._sync_pi_models(&pi).await?;
-                state.pi = Some(pi);
+
+                state.save(&cloud_state_file)?;
+                Ok(())
             }
-        };
-        let cloud = self.settings.paths.cloud();
-        let state_lock = self.settings.paths.state_lock();
-        state.save(&cloud, &state_lock, true)?;
+            false => {
+                let mut state = PrintNannyCloudData::default();
+                let pi = self.init_pi_model().await?;
+                state.pi = Some(pi);
+                state.save(&cloud_state_file)?;
+            }
+        }
+
         Ok(())
     }
 
