@@ -1,4 +1,5 @@
 use log::{debug, info, warn};
+use printnanny_settings::vcs::VersionControlledSettings;
 use std::collections::HashMap;
 use std::fs::File;
 use std::future::Future;
@@ -52,8 +53,8 @@ impl ApiService {
         debug!("Initializing ApiService from settings: {:?}", settings);
 
         let reqwest = ReqwestConfig {
-            base_path: settings.cloud.api_base_path.to_string(),
-            bearer_access_token: settings.cloud.api_bearer_access_token,
+            base_path: settings.cloud.api_base_path.clone(),
+            bearer_access_token: settings.cloud.api_bearer_access_token.clone(),
             ..ReqwestConfig::default()
         };
         Ok(Self {
@@ -66,15 +67,26 @@ impl ApiService {
 
     pub async fn connect_cloud_account(
         &self,
-        base_path: String,
-        bearer_access_token: String,
+        api_base_path: String,
+        api_bearer_access_token: String,
     ) -> Result<(), ServiceError> {
-        let cloud = self.settings.paths.cloud();
+        let mut settings = PrintNannySettings::new()?;
+        settings.cloud.api_base_path = api_base_path;
+        settings.cloud.api_bearer_access_token = Some(api_bearer_access_token);
+        let content = settings.to_toml_string()?;
+        settings
+            .save_and_commit(
+                &content,
+                Some("Updated PrintNanny Cloud API auth".to_string()),
+            )
+            .await?;
+
+        let cloud_state_file = self.settings.paths.cloud();
         let mut api_service = ApiService::new()?;
 
         // sync data models
         api_service.sync().await?;
-        let mut state = PrintNannyCloudData::load(&self.settings.paths.cloud())?;
+        let mut state = PrintNannyCloudData::load(&cloud_state_file)?;
         let pi_id = state.pi.unwrap().id;
         // download credential and device identity bundled in license.zip
         api_service.pi_download_license(pi_id).await?;
@@ -90,11 +102,7 @@ impl ApiService {
         api_service.pi_partial_update(pi_id, req).await?;
         let pi = api_service.pi_retrieve(pi_id).await?;
         state.pi = Some(pi);
-        state.save(
-            &self.settings.paths.cloud(),
-            &self.settings.paths.state_lock(),
-            true,
-        )?;
+        state.save(&cloud_state_file)?;
         Ok(())
     }
 
@@ -194,7 +202,6 @@ impl ApiService {
                 };
 
                 state.save(&cloud_state_file)?;
-                Ok(())
             }
             false => {
                 let mut state = PrintNannyCloudData::default();
@@ -202,7 +209,7 @@ impl ApiService {
                 state.pi = Some(pi);
                 state.save(&cloud_state_file)?;
             }
-        }
+        };
 
         Ok(())
     }

@@ -1,7 +1,6 @@
 use std::fs;
-use std::{io::Write, path::Path};
+use std::path::Path;
 
-use file_lock::{FileLock, FileOptions};
 use log::info;
 use serde::{Deserialize, Serialize};
 
@@ -37,7 +36,7 @@ impl PrintNannyCloudData {
                 path: file.display().to_string(),
                 error: e,
             }),
-        };
+        }?;
         info!("Saved PrintNannyCloudData to {}", file.display());
         Ok(())
     }

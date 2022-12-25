@@ -110,7 +110,7 @@ impl PrintNannyPaths {
             }
             false => {
                 info!("Creating directory: {}", dir.display());
-                std::fs::create_dir_all(&dir)
+                std::fs::create_dir_all(dir)
             }
         }
     }
