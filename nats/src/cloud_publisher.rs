@@ -87,30 +87,6 @@ impl CloudEventPublisher {
                     ),
             )
             .subcommand(
-                Command::new(subjects::SUBJECT_OCTOPRINT_CLIENT)
-                    .arg(
-                        Arg::new("event_type")
-                            .long("event-type")
-                            .takes_value(true)
-                            .value_parser(value_parser!(models::OctoPrintClientStatusType)),
-                    )
-                    .arg(
-                        Arg::new("format")
-                            .short('f')
-                            .long("format")
-                            .takes_value(true)
-                            .value_parser(value_parser!(PayloadFormat))
-                            .default_value("json")
-                            .help("Payload format"),
-                    )
-                    .arg(
-                        Arg::new("payload")
-                            .long("payload")
-                            .takes_value(true)
-                            .help("UTF-8 encoded JSON payload"),
-                    ),
-            )
-            .subcommand(
                 Command::new(subjects::SUBJECT_OCTOPRINT_PRINTER_STATUS)
                     .arg(
                         Arg::new("event_type")
@@ -511,39 +487,6 @@ impl CloudEventPublisher {
                     ),
                 );
                 self.publish_pi_event(&subject, &payload).await
-            }
-            // begin octoprint subject handlers
-            // pi.{pi_id}.octoprint.client
-            (subjects::SUBJECT_OCTOPRINT_CLIENT, subargs) => {
-                let payload = subargs
-                    .get_one::<String>("payload")
-                    .expect("--payload is required");
-                let payload =
-                    serde_json::from_str::<models::OctoPrintClientStatusPayloadRequest>(payload)?;
-                let octoprint_server = self
-                    .state
-                    .pi
-                    .as_ref()
-                    .expect("Failed to read PrintNannySettings.cloud.pi")
-                    .octoprint_server
-                    .as_ref()
-                    .expect("Failed to read PrintNannySettings.cloud.pi.octoprint_server")
-                    .id;
-                let event_type = self
-                    .args
-                    .get_one::<models::OctoPrintClientStatusType>("event_type")
-                    .expect("Invalid event_type");
-                let (subject, payload) = (
-                    format!("pi.{pi_id}.octoprint.client", pi_id = pi_id), 
-                    PolymorphicOctoPrintEventRequest::OctoPrintClientStatusRequest(
-                        models::polymorphic_octo_print_event_request::OctoPrintClientStatusRequest{
-                        payload: Box::new(payload),
-                        pi: pi_id,
-                        event_type: *event_type,
-                        octoprint_server,
-                    })
-                );
-                self.publish_octoprint_event(&subject, &payload).await
             }
             // pi.{pi_id}.octoprint.client
             (subjects::SUBJECT_OCTOPRINT_PRINT_JOB, subargs) => {
