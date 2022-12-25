@@ -158,7 +158,7 @@ impl ApiService {
         // TODO wireguard fqdn, but .local for now
         let fqdn = Some(format!("{}.local", hostname));
         let favorite = Some(true);
-        let setup_finished = Some(false);
+        let setup_finished = Some(true);
 
         let req = models::PiRequest {
             sbc: Some(models::SbcEnum::Rpi4),
