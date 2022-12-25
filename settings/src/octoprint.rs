@@ -15,7 +15,7 @@ use crate::vcs::VersionControlledSettings;
 use crate::SettingsFormat;
 
 pub const OCTOPRINT_INSTALL_DIR: &str = "/home/printnanny/.octoprint";
-pub const OCTOPRINT_VENV: &str = "/home/printnanny/octoprint.venv";
+pub const OCTOPRINT_VENV: &str = "/home/printnanny/octoprint-venv";
 pub const DEFAULT_OCTOPRINT_SETTINGS_FILE: &str =
     "/home/printnanny/.config/printnanny/settings/octoprint/octoprint.yaml";
 
