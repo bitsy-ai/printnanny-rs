@@ -29,6 +29,9 @@ pub enum PrintNannyCloudDataError {
     SetupIncomplete { path: String },
 
     #[error(transparent)]
+    SerdeJson(#[from] serde_json::Error),
+
+    #[error(transparent)]
     TomlSerError(#[from] toml::ser::Error),
     #[error(transparent)]
     TomlDeError(#[from] toml::de::Error),

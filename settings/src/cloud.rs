@@ -29,7 +29,7 @@ impl PrintNannyCloudData {
     }
 
     pub fn save(&self, file: &Path) -> Result<(), PrintNannyCloudDataError> {
-        let data = toml::ser::to_vec(self)?;
+        let data = serde_json::to_string_pretty(&self)?;
         match fs::write(file, data) {
             Ok(_) => Ok(()),
             Err(e) => Err(PrintNannyCloudDataError::WriteIOError {

@@ -53,7 +53,7 @@ impl Default for PrintNannyPaths {
 
 impl PrintNannyPaths {
     pub fn cloud(&self) -> PathBuf {
-        self.data().join("PrintNannyCloudData.toml")
+        self.data().join("PrintNannyCloudData.json")
     }
 
     // lock acquired when modifying persistent application data
