@@ -73,11 +73,11 @@ pub fn system_info() -> Result<SystemInfo, ServiceError> {
 
     let mut bootfs_used: i64 = 0;
     let mut bootfs_size: i64 = 0;
-    let bootfs_mountpoint = PathBuf::from("/dev/mmcblk0p1");
+    let bootfs_mountpoint = PathBuf::from("/boot");
 
     let mut datafs_used: i64 = 0;
     let mut datafs_size: i64 = 0;
-    let datafs_mountpoint = PathBuf::from("/dev/mmcblk0p4");
+    let datafs_mountpoint = PathBuf::from("/data");
 
     let mut rootfs_used: i64 = 0;
     let mut rootfs_size: i64 = 0;
