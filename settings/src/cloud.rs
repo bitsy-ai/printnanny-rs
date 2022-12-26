@@ -82,7 +82,7 @@ impl PrintNannyCloudData {
                 error: e,
             }),
         }?;
-        let state: PrintNannyCloudData = toml::de::from_str(&state_str)?;
+        let state: PrintNannyCloudData = serde_json::from_str(&state_str)?;
         Ok(state)
     }
 }
