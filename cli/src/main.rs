@@ -88,8 +88,8 @@ async fn main() -> Result<()> {
                 .default_value("janus.plugin.echotest,janus.plugin.streaming")
                     ))
         
-        // cloud-data show|sync
-        .subcommand(Command::new("cloud-data")
+        // cloud show|sync
+        .subcommand(Command::new("cloud")
             .author(crate_authors!())
             .about(crate_description!())
             .version(GIT_VERSION)
@@ -272,7 +272,7 @@ async fn main() -> Result<()> {
         Some(("settings", subm)) => {
             SettingsCommand::handle(subm).await?;
         },
-        Some(("cloud-data", subm)) => {
+        Some(("cloud", subm)) => {
             CloudDataCommand::handle(subm).await?;
         },
 
