@@ -61,6 +61,7 @@ impl FromStr for SystemdActiveState {
             "active" => Ok(SystemdActiveState::Active),
             "activating" => Ok(SystemdActiveState::Activating),
             "deactivating" => Ok(SystemdActiveState::Deactivating),
+            "failed" => Ok(SystemdActiveState::Failed),
             "inactive" => Ok(SystemdActiveState::Inactive),
             "reloading" => Ok(SystemdActiveState::Reloading),
             "loaded" => Ok(SystemdActiveState::Loaded),
