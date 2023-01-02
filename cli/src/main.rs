@@ -56,6 +56,11 @@ async fn main() -> Result<()> {
                 .help("Output format")
             )     
         ))
+        .subcommand(Command::new("crash-report")
+            .author(crate_authors!())
+            .about("Submit a crash report via PrintNanny Cloud API")
+            .version(GIT_VERSION) 
+        )
 
         // dash
         .subcommand(Command::new("dash")
