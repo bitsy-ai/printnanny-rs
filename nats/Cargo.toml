@@ -37,7 +37,7 @@ futures = "0.3"
 futures-util = "0.3.25"        # Common utilities and extension traits for the futures-rs library. 
 git-version = "0.3"
 log = "0.4"
-printnanny-api-client = "0.118.0"
+printnanny-api-client = "0.118.1"
 printnanny-dbus = { path = "../dbus", version = "^0.3"}
 printnanny-settings = { path = "../settings", version = "^0.3"}
 printnanny-services = {path = "../services", version = "^0.31.0"}

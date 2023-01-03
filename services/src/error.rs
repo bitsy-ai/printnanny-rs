@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 use printnanny_api_client::apis::accounts_api;
+use printnanny_api_client::apis::crash_reports_api;
 use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::apis::Error as ApiError;
@@ -44,6 +45,9 @@ pub enum ServiceError {
     JsonSerError(#[from] serde_json::Error),
     #[error(transparent)]
     TomlSerError(#[from] toml::ser::Error),
+
+    #[error(transparent)]
+    CrashReportsCreateError(#[from] ApiError<crash_reports_api::CrashReportsCreateError>),
 
     #[error(transparent)]
     PisRetrieveError(#[from] ApiError<devices_api::PisRetrieveError>),
