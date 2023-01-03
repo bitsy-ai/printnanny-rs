@@ -4,10 +4,12 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::future::Future;
 use std::io::BufReader;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde;
 use serde_json;
+use tempfile::NamedTempFile;
+
 // settings modules
 use printnanny_settings::cloud::PrintNannyCloudData;
 use printnanny_settings::error::PrintNannySettingsError;
@@ -17,13 +19,17 @@ use printnanny_settings::sys_info;
 
 use printnanny_api_client::apis::accounts_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
+use printnanny_api_client::apis::crash_reports_api;
 use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::models;
 
+use crate::cpuinfo::RpiCpuInfo;
+use crate::crash_report::write_crash_report_zip;
 use crate::error::ServiceError;
 use crate::file::open;
 use crate::metadata;
+use crate::os_release::OsRelease;
 
 #[derive(Debug, Clone)]
 pub struct ApiService {
@@ -104,6 +110,41 @@ impl ApiService {
         state.pi = Some(pi);
         state.save(&cloud_state_file)?;
         Ok(())
+    }
+
+    pub async fn crash_report_create(
+        &self,
+        email: Option<&str>,
+        browser_version: Option<&str>,
+        browser_logs: Option<PathBuf>,
+    ) -> Result<models::CrashReport, ServiceError> {
+        let file = NamedTempFile::new()?;
+        let (file, filename) = &file.keep()?;
+        warn!("Wrote crash report logs to {}", filename.display());
+
+        write_crash_report_zip(file)?;
+        let rpi_cpuinfo = RpiCpuInfo::new()?;
+        let serial = rpi_cpuinfo.serial;
+
+        let os_release = OsRelease::new()?;
+
+        let pi = self.pi.as_ref().map(|pi| pi.id);
+
+        let user = self.user.as_ref().map(|user| user.id);
+
+        let result = crash_reports_api::crash_reports_create(
+            &self.reqwest,
+            email,
+            Some(&os_release.version),
+            Some(filename.to_path_buf()),
+            browser_version,
+            browser_logs,
+            serial.as_deref(),
+            user,
+            pi,
+        )
+        .await?;
+        Ok(result)
     }
 
     pub async fn auth_user_retreive(&self) -> Result<models::User, ServiceError> {

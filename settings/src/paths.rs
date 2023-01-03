@@ -214,4 +214,18 @@ impl PrintNannyPaths {
 
         Ok(())
     }
+
+    pub fn crash_report_paths(&self) -> Vec<PathBuf> {
+        vec![
+            PathBuf::from("/var/log/syslog"),
+            PathBuf::from("/var/log/cloud-init.log"),
+            PathBuf::from("/var/log/nginx/access.log"),
+            PathBuf::from("/var/log/nginx/error.log"),
+            PathBuf::from("/var/log/octoprint/"),
+            PathBuf::from("/var/log/klipper/"),
+            PathBuf::from("/var/log/moonraker/"),
+            PathBuf::from("/etc/issue"),
+            PathBuf::from("/etc/os-release"),
+        ]
+    }
 }
