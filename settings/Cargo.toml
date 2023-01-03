@@ -10,7 +10,7 @@ description = "Utilities for interacting with PrintNanny settings"
 rust-version = "1.63"
 
 [dependencies]
-printnanny-api-client = "0.118.2"
+printnanny-api-client = "0.118.4"
 async-trait = "0.1"
 bytes = "1"
 gst = { package = "gstreamer", features = ["v1_20"], version = "0.19" }

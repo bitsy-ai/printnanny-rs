@@ -3105,9 +3105,9 @@ checksum = "c6fa0831dd7cc608c38a5e323422a0077678fa5744aa2be4ad91c4ece8eec8d5"
 
 [[package]]
 name = "printnanny-api-client"
-version = "0.118.2"
+version = "0.118.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbf3956c4d69598bd497e0ef3f2ce572a19fbf47b76638b8bc6f6cf23c11cea7"
+checksum = "e6676adcc12af218847941e9fce14fa04290941095e9b328e6d4140bc836e6f7"
 dependencies = [
  "bytes",
  "clap",
@@ -3117,7 +3117,6 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "tokio",
- "tokio-util",
  "url",
 ]
 
