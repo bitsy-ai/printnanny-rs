@@ -262,7 +262,7 @@ async fn main() -> Result<()> {
         },
         Some(("crash-report", _)) => {
             let api_service = ApiService::new()?;
-            let report = api_service.crash_report_create(None, None, None, None, None).await?;
+            let report = api_service.crash_report_create(None, None, None, None, None, None).await?;
             let report_json = serde_json::to_string_pretty(&report)?;
             println!("Submitted crash report:");
             println!("{}", report_json);

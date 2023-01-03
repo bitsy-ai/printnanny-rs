@@ -114,6 +114,7 @@ impl ApiService {
 
     pub async fn crash_report_create(
         &self,
+        description: Option<&str>,
         email: Option<&str>,
         browser_version: Option<&str>,
         browser_logs: Option<PathBuf>,
@@ -136,6 +137,7 @@ impl ApiService {
 
         let result = crash_reports_api::crash_reports_create(
             &self.reqwest,
+            description,
             email,
             Some(&os_release.version),
             Some(filename.to_path_buf()),
