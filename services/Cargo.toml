@@ -41,7 +41,7 @@ tokio = { version = "1.21", features = ["full", "rt-multi-thread", "rt"] }
 tokio-util = { version="0.7", features = ["codec"] }
 tokio-serde = { version="0.8", features = ["json"] }
 warp = "0.3"
-zip = { version = "0.6.2", default-features = false }
+zip = { version = "0.6.2", default-features = false, features=["zstd"] }
 
 [dev-dependencies]
 assert_cmd = "2.0.2"

@@ -5176,6 +5176,7 @@ dependencies = [
  "byteorder",
  "crc32fast",
  "crossbeam-utils",
+ "zstd",
 ]
 
 [[package]]

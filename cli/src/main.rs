@@ -14,6 +14,7 @@ use printnanny_nats::cloud_publisher::DEFAULT_NATS_CLOUD_PUBLISHER_APP_NAME;
 use printnanny_nats::subscriber::{ DEFAULT_NATS_EDGE_APP_NAME, NatsSubscriber};
 use printnanny_nats::message_v2::{NatsReply, NatsRequest};
 use printnanny_nats::cloud_worker::DEFAULT_NATS_CLOUD_APP_NAME;
+use printnanny_services::printnanny_api::ApiService;
 use printnanny_settings::{SettingsFormat};
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_cli::settings::{SettingsCommand};
@@ -258,6 +259,13 @@ async fn main() -> Result<()> {
     match app_m.subcommand() {
         Some(("cam", sub_m)) => {
             CameraCommand::handle(sub_m)?;
+        },
+        Some(("crash-report", _)) => {
+            let api_service = ApiService::new()?;
+            let report = api_service.crash_report_create(None, None, None).await?;
+            let report_json = serde_json::to_string_pretty(&report)?;
+            println!("Submitted crash report:");
+            println!("{}", report_json);
         },
         Some(("nats-publisher", sub_m)) => {
             let app = printnanny_nats::cloud_publisher::CloudEventPublisher::new(sub_m)?;

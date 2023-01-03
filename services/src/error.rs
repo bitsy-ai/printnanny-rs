@@ -95,6 +95,9 @@ pub enum ServiceError {
     FingerprintError { path: PathBuf, stderr: String },
 
     #[error(transparent)]
+    PersistError(#[from] tempfile::PersistError),
+
+    #[error(transparent)]
     ProcError(#[from] procfs::ProcError),
 
     #[error(transparent)]

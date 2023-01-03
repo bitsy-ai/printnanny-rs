@@ -28,9 +28,7 @@ pub fn machine_id() -> io::Result<String> {
 
 pub fn write_crash_report_zip(file: &File) -> Result<(), PrintNannySettingsError> {
     let mut zip = zip::ZipWriter::new(file);
-    let options = FileOptions::default()
-        .compression_method(zip::CompressionMethod::ZSTD)
-        .unix_permissions(0o755);
+    let options = FileOptions::default().unix_permissions(0o755);
 
     let settings = PrintNannySettings::new()?;
     let mut buffer = Vec::new();
@@ -57,7 +55,7 @@ pub fn write_crash_report_zip(file: &File) -> Result<(), PrintNannySettingsError
                         buffer.clear();
                     }
                     Err(e) => {
-                        error!("Failed to read DirEntry={:#?} error={}", &dir_file, e)
+                        error!("Failed to read DirEntry={:#?} error={}", &dir_file, e);
                     }
                 }
             }
@@ -72,11 +70,13 @@ pub fn write_crash_report_zip(file: &File) -> Result<(), PrintNannySettingsError
                     buffer.clear();
                 }
                 Err(e) => {
-                    error!("Failed to read file={} error={}", path.display(), e)
+                    error!("Failed to read file={} error={}", path.display(), e);
                 }
             }
         }
     }
+
+    zip.finish()?;
 
     Ok(())
 }

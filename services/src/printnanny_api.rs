@@ -119,13 +119,14 @@ impl ApiService {
         browser_logs: Option<PathBuf>,
     ) -> Result<models::CrashReport, ServiceError> {
         let file = NamedTempFile::new()?;
-        write_crash_report_zip(file.as_file())?;
+        let (file, filename) = &file.keep()?;
+        warn!("Wrote crash report logs to {}", filename.display());
+
+        write_crash_report_zip(file)?;
         let rpi_cpuinfo = RpiCpuInfo::new()?;
         let serial = rpi_cpuinfo.serial;
 
         let os_release = OsRelease::new()?;
-
-        let os_logs = file.path();
 
         let pi = self.pi.as_ref().map(|pi| pi.id);
 
@@ -135,7 +136,7 @@ impl ApiService {
             &self.reqwest,
             email,
             Some(&os_release.version),
-            Some(os_logs.to_path_buf()),
+            Some(filename.to_path_buf()),
             browser_version,
             browser_logs,
             serial.as_deref(),
