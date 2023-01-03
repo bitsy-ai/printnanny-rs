@@ -117,6 +117,8 @@ impl ApiService {
         email: Option<&str>,
         browser_version: Option<&str>,
         browser_logs: Option<PathBuf>,
+        related_crash_report: Option<&str>,
+        posthog_session: Option<&str>,
     ) -> Result<models::CrashReport, ServiceError> {
         let file = NamedTempFile::new()?;
         let (file, filename) = &file.keep()?;
@@ -140,8 +142,10 @@ impl ApiService {
             browser_version,
             browser_logs,
             serial.as_deref(),
+            posthog_session,
             user,
             pi,
+            related_crash_report,
         )
         .await?;
         Ok(result)
