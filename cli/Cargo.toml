@@ -12,7 +12,7 @@ repository = "https://github.com/bitsy-ai/printnanny-rs.git"
 printnanny-dbus = { path = "../dbus", version = "^0.3"}
 printnanny-services = {path = "../services", version = "^0.31.0"}
 printnanny-nats = {path = "../nats", version = "^0.31.0"}
-printnanny-api-client = "0.119.1"
+printnanny-api-client = "0.119.3"
 printnanny-settings = { path = "../settings", version = "^0.3"}
 
 figment = { version = "0.10", features = ["env", "json", "toml"] }
