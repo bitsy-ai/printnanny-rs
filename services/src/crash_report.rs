@@ -10,8 +10,42 @@ use zip::write::FileOptions;
 
 use printnanny_settings::printnanny::PrintNannySettings;
 
+fn netstat_routes() -> io::Result<Vec<u8>> {
+    let output = Command::new("netstat").args(["--routes"]).output()?;
+    Ok(output.stdout)
+}
+
+fn netstat_statistics() -> io::Result<Vec<u8>> {
+    let output = Command::new("netstat").args(["--statistics"]).output()?;
+    Ok(output.stdout)
+}
+
+fn netstat_groups() -> io::Result<Vec<u8>> {
+    let output = Command::new("netstat").args(["--groups"]).output()?;
+    Ok(output.stdout)
+}
+
+fn ifconfig() -> io::Result<Vec<u8>> {
+    let output = Command::new("ifconfig").args(["-a", "-v"]).output()?;
+    Ok(output.stdout)
+}
+
 fn disk_usage() -> io::Result<Vec<u8>> {
     let output = Command::new("df").args(["-hT", "--all"]).output()?;
+    Ok(output.stdout)
+}
+
+fn systemd_networkd_logs() -> io::Result<Vec<u8>> {
+    let output = Command::new("journalctl")
+        .args(["-u", "systemd-networkd.service", "--no-pager"])
+        .output()?;
+    Ok(output.stdout)
+}
+
+fn systemd_avahi_daemon_logs() -> io::Result<Vec<u8>> {
+    let output = Command::new("journalctl")
+        .args(["-u", "avahi-daemon.service", "--no-pager"])
+        .output()?;
     Ok(output.stdout)
 }
 
@@ -40,6 +74,24 @@ pub fn write_crash_report_zip(file: &File) -> Result<(), PrintNannySettingsError
     // list failed systemd units
     zip.start_file("failed_systemd_units.txt", options)?;
     zip.write_all(&list_failed_units()?)?;
+
+    zip.start_file("netstat_routes.txt", options)?;
+    zip.write_all(&netstat_routes()?)?;
+
+    zip.start_file("netstat_groups.txt", options)?;
+    zip.write_all(&netstat_groups()?)?;
+
+    zip.start_file("netstat_statistics.txt", options)?;
+    zip.write_all(&netstat_statistics()?)?;
+
+    zip.start_file("ifconfig.txt", options)?;
+    zip.write_all(&ifconfig()?)?;
+
+    zip.start_file("systemd-networkd.service.log", options)?;
+    zip.write_all(&systemd_networkd_logs()?)?;
+
+    zip.start_file("avahi-daemon.service.log", options)?;
+    zip.write_all(&systemd_avahi_daemon_logs()?)?;
 
     for path in settings.paths.crash_report_paths() {
         // read all files in directory
