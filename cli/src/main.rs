@@ -60,7 +60,13 @@ async fn main() -> Result<()> {
         .subcommand(Command::new("crash-report")
             .author(crate_authors!())
             .about("Submit a crash report via PrintNanny Cloud API")
-            .version(GIT_VERSION) 
+            .version(GIT_VERSION)
+            .arg(Arg::new("id")
+                .takes_value(true)
+                .long("id")
+                .short('i')
+                .help("Provide an id to attach system logs to a specific report")
+            ) 
         )
 
         // dash
@@ -260,9 +266,14 @@ async fn main() -> Result<()> {
         Some(("cam", sub_m)) => {
             CameraCommand::handle(sub_m)?;
         },
-        Some(("crash-report", _)) => {
+        Some(("crash-report", sub_m)) => {
+            let id = sub_m.value_of("id");
             let api_service = ApiService::new()?;
-            let report = api_service.crash_report_create(None, None, None, None, None, None).await?;
+
+            let report = match id {
+                Some(id) => api_service.crash_report_update(id).await,
+                None => api_service.crash_report_create(None, None, None, None, None, None).await
+            }?;
             let report_json = serde_json::to_string_pretty(&report)?;
             println!("Submitted crash report:");
             println!("{}", report_json);

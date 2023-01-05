@@ -1,4 +1,4 @@
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 use printnanny_settings::vcs::VersionControlledSettings;
 use std::collections::HashMap;
 use std::fs::File;
@@ -123,11 +123,17 @@ impl ApiService {
     ) -> Result<models::CrashReport, ServiceError> {
         let file = NamedTempFile::new()?;
         let (file, filename) = &file.keep()?;
-        warn!("Wrote crash report logs to {}", filename.display());
 
         write_crash_report_zip(file)?;
-        let rpi_cpuinfo = RpiCpuInfo::new()?;
-        let serial = rpi_cpuinfo.serial;
+        warn!("Wrote crash report logs to {}", filename.display());
+
+        let serial = match RpiCpuInfo::new() {
+            Ok(rpi_cpuinfo) => rpi_cpuinfo.serial,
+            Err(e) => {
+                error!("Failed to read RpiCpuInfo");
+                None
+            }
+        };
 
         let os_release = OsRelease::new()?;
 
@@ -162,8 +168,13 @@ impl ApiService {
         write_crash_report_zip(file)?;
         warn!("Wrote crash report logs to {}", filename.display());
 
-        let rpi_cpuinfo = RpiCpuInfo::new()?;
-        let serial = rpi_cpuinfo.serial;
+        let serial = match RpiCpuInfo::new() {
+            Ok(rpi_cpuinfo) => rpi_cpuinfo.serial,
+            Err(e) => {
+                error!("Failed to read RpiCpuInfo");
+                None
+            }
+        };
 
         let pi = self.pi.as_ref().map(|pi| pi.id);
 
