@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use log::info;
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 
 use crate::printnanny::PrintNannySettings;
@@ -23,8 +23,14 @@ impl Default for PrintNannyCloudData {
 
 impl PrintNannyCloudData {
     pub fn new() -> Result<PrintNannyCloudData, PrintNannyCloudDataError> {
-        let settings = PrintNannySettings::new().unwrap();
-        let result = Self::load(&settings.paths.cloud())?;
+        let settings = PrintNannySettings::new()?
+        let result = match Self::load(&settings.paths.cloud()){
+            Ok(r) => r,
+            Err(e) => {
+                error!("Error loading PrintNannyCloudData: {}", e);
+                PrintNannyCloudData::default()
+            }
+        };
         Ok(result)
     }
 
