@@ -226,7 +226,10 @@ impl ApiService {
     }
 
     async fn sync_pi_models(&self, pi: &models::Pi) -> Result<models::Pi, ServiceError> {
-        info!("Calling device_system_info_update_or_create()");
+        info!(
+            "Synchronizing models for Pi with id={}: device_system_info_update_or_create()",
+            pi.id
+        );
         let system_info = self.system_info_update_or_create(pi.id).await?;
         info!("Success! Updated SystemInfo model: {:?}", system_info);
         match &pi.octoprint_server {
@@ -263,6 +266,7 @@ impl ApiService {
             setup_finished,
         };
         let pi = devices_api::pi_update_or_create(&self.reqwest, Some(req)).await?;
+        info!("Success! Registered Pi: {:#?}", pi);
         let pi = self.sync_pi_models(&pi).await?;
         Ok(pi)
     }
