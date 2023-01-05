@@ -154,6 +154,42 @@ impl ApiService {
         Ok(result)
     }
 
+    pub async fn crash_report_update(&self, id: &str) -> Result<models::CrashReport, ServiceError> {
+        let os_release = OsRelease::new()?;
+        let file = NamedTempFile::new()?;
+        let (file, filename) = &file.keep()?;
+
+        write_crash_report_zip(file)?;
+        warn!("Wrote crash report logs to {}", filename.display());
+
+        let rpi_cpuinfo = RpiCpuInfo::new()?;
+        let serial = rpi_cpuinfo.serial;
+
+        let pi = self.pi.as_ref().map(|pi| pi.id);
+
+        let user = self.user.as_ref().map(|user| user.id);
+
+        let result = crash_reports_api::crash_reports_partial_update(
+            &self.reqwest,
+            id,
+            None,
+            None,
+            Some(&os_release.version),
+            Some(filename.to_path_buf()),
+            None,
+            None,
+            serial.as_deref(),
+            None,
+            None,
+            None,
+            user,
+            pi,
+        )
+        .await?;
+
+        Ok(result)
+    }
+
     pub async fn auth_user_retreive(&self) -> Result<models::User, ServiceError> {
         Ok(accounts_api::accounts_user_retrieve(&self.reqwest).await?)
     }
