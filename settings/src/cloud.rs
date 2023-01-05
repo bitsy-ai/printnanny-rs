@@ -75,6 +75,7 @@ impl PrintNannyCloudData {
     }
 
     pub fn load(cloud: &Path) -> Result<PrintNannyCloudData, PrintNannyCloudDataError> {
+        info!("Loading PrintNannyCloudData from {}", cloud.display());
         let state_str = match fs::read_to_string(cloud) {
             Ok(d) => Ok(d),
             Err(e) => Err(PrintNannyCloudDataError::ReadIOError {

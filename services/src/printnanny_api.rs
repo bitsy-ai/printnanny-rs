@@ -279,7 +279,7 @@ impl ApiService {
             true =>
             // verify pi is authenticated
             {
-                let mut state = PrintNannyCloudData::load(&self.settings.paths.cloud())?;
+                let mut state = PrintNannyCloudData::load(&cloud_state_file)?;
                 match &state.pi {
                     Some(pi) => {
                         info!(

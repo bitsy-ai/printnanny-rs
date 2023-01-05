@@ -34,7 +34,7 @@ impl Default for PrintNannyPaths {
         let settings_dir: PathBuf = DEFAULT_PRINTNANNY_SETTINGS_DIR.into();
         // /var/run/ is a temporary runtime directory, cleared after each boot
         let run_dir: PathBuf = "/var/run/printnanny".into();
-        // /var/lib is a persistent state directory, mounted as a r/w overlay fs. Application state is stored here and is preserved between upgrades.
+        // /home persistent state directory, mounted as a r/w overlay fs. Application state is stored here and is preserved between upgrades.
         let state_dir: PathBuf = DEFAULT_PRINTNANNY_DATA_DIR.into();
 
         let issue_txt: PathBuf = "/etc/issue".into();
