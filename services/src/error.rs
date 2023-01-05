@@ -50,6 +50,11 @@ pub enum ServiceError {
     CrashReportsCreateError(#[from] ApiError<crash_reports_api::CrashReportsCreateError>),
 
     #[error(transparent)]
+    CrashReportsPartialUpdateError(
+        #[from] ApiError<crash_reports_api::CrashReportsPartialUpdateError>,
+    ),
+
+    #[error(transparent)]
     PisRetrieveError(#[from] ApiError<devices_api::PisRetrieveError>),
 
     #[error(transparent)]

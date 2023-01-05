@@ -12,15 +12,15 @@ use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::printnanny_asyncapi_models;
 use printnanny_dbus::printnanny_asyncapi_models::{
-    CamerasLoadReply, DeviceInfoLoadReply, PrintNannyCameraSettings, PrintNannyCloudAuthReply,
-    PrintNannyCloudAuthRequest, SettingsApp, SettingsFile, SettingsFileApplyReply,
-    SettingsFileApplyRequest, SettingsFileLoadReply, SettingsFileRevertReply,
-    SettingsFileRevertRequest, SystemdManagerDisableUnitsReply, SystemdManagerEnableUnitsReply,
-    SystemdManagerGetUnitFileStateReply, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
-    SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply,
-    SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest,
-    SystemdManagerUnitFilesRequest, SystemdUnitChange, SystemdUnitChangeState,
-    SystemdUnitFileState,
+    CamerasLoadReply, CrashReportOsLogsReply, CrashReportOsLogsRequest, DeviceInfoLoadReply,
+    PrintNannyCameraSettings, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp,
+    SettingsFile, SettingsFileApplyReply, SettingsFileApplyRequest, SettingsFileLoadReply,
+    SettingsFileRevertReply, SettingsFileRevertRequest, SystemdManagerDisableUnitsReply,
+    SystemdManagerEnableUnitsReply, SystemdManagerGetUnitFileStateReply,
+    SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
+    SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
+    SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdManagerUnitFilesRequest,
+    SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState,
 };
 
 use printnanny_dbus::zbus;
@@ -50,6 +50,10 @@ pub enum NatsRequest {
     // pi.{pi_id}.cameras.load
     #[serde(rename = "pi.{pi_id}.cameras.load")]
     CameraLoadRequest,
+
+    // pi.{pi_id}.crash_reports.os
+    #[serde(rename = "pi.{pi_id}.crash_reports.os")]
+    CrashReportOsLogsRequest(CrashReportOsLogsRequest),
 
     // pi.{pi_id}.device_info.load
     #[serde(rename = "pi.{pi_id}.device_info.load")]
@@ -96,6 +100,10 @@ pub enum NatsReply {
     // pi.{pi_id}.cameras.load
     #[serde(rename = "pi.{pi_id}.cameras.load")]
     CameraLoadReply(CamerasLoadReply),
+
+    // pi.{pi_id}.crash_reports.os
+    #[serde(rename = "pi.{pi_id}.crash_reports.os")]
+    CrashReportOsLogsReply(CrashReportOsLogsReply),
 
     // pi.{pi_id}.device_info.load
     #[serde(rename = "pi.{pi_id}.device_info.load")]
@@ -182,6 +190,18 @@ impl NatsRequest {
             }
         };
         Ok(result)
+    }
+
+    pub async fn handle_crash_report(
+        &self,
+        request: &CrashReportOsLogsRequest,
+    ) -> Result<NatsReply> {
+        let api_service = ApiService::new()?;
+        let result = api_service.crash_report_update(&request.id).await?;
+        Ok(NatsReply::CrashReportOsLogsReply(CrashReportOsLogsReply {
+            id: result.id,
+            updated_dt: result.updated_dt,
+        }))
     }
 
     pub fn handle_cameras_load(&self) -> Result<NatsReply> {
@@ -650,6 +670,7 @@ impl NatsRequestHandler for NatsRequest {
 
     fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Request> {
         match subject_pattern {
+            "pi.{pi_id}.crash_reports.os" => Ok(NatsRequest::CrashReportOsLogsRequest),
             "pi.{pi_id}.cameras.load" => Ok(NatsRequest::CameraLoadRequest),
             "pi.{pi_id}.device_info.load" => Ok(NatsRequest::DeviceInfoLoadRequest),
             "pi.{pi_id}.settings.printnanny.cloud.auth" => {
@@ -714,6 +735,10 @@ impl NatsRequestHandler for NatsRequest {
         let reply = match self {
             // pi.{pi_id}.cameras.load
             NatsRequest::CameraLoadRequest => self.handle_cameras_load()?,
+            // "pi.{pi_id}.crash_reports.os"
+            NatsRequest::CrashReportOsLogsRequest(request) => {
+                self.handle_crash_report(request).await?
+            }
             // pi.{pi_id}.device_info.load
             NatsRequest::DeviceInfoLoadRequest => self.handle_device_info_load().await?,
 
