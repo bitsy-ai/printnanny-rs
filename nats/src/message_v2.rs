@@ -670,7 +670,9 @@ impl NatsRequestHandler for NatsRequest {
 
     fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Request> {
         match subject_pattern {
-            "pi.{pi_id}.crash_reports.os" => Ok(NatsRequest::CrashReportOsLogsRequest),
+            "pi.{pi_id}.crash_reports.os" => Ok(NatsRequest::CrashReportOsLogsRequest(
+                serde_json::from_slice::<CrashReportOsLogsRequest>(payload.as_ref())?,
+            )),
             "pi.{pi_id}.cameras.load" => Ok(NatsRequest::CameraLoadRequest),
             "pi.{pi_id}.device_info.load" => Ok(NatsRequest::DeviceInfoLoadRequest),
             "pi.{pi_id}.settings.printnanny.cloud.auth" => {
