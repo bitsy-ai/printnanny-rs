@@ -33,7 +33,6 @@ use crate::os_release::OsRelease;
 
 #[derive(Debug, Clone)]
 pub struct ApiService {
-    pub reqwest: ReqwestConfig,
     pub settings: PrintNannySettings,
     pub pi: Option<models::Pi>,
     pub user: Option<models::User>,
@@ -58,29 +57,30 @@ impl ApiService {
         let settings = PrintNannySettings::new()?;
         debug!("Initializing ApiService from settings: {:?}", settings);
 
-        let reqwest = ReqwestConfig {
-            base_path: settings.cloud.api_base_path.clone(),
-            bearer_access_token: settings.cloud.api_bearer_access_token.clone(),
-            ..ReqwestConfig::default()
-        };
         Ok(Self {
-            reqwest,
             settings,
             pi: None,
             user: None,
         })
     }
 
+    fn reqwest_config(&self) -> ReqwestConfig {
+        ReqwestConfig {
+            base_path: self.settings.cloud.api_base_path.clone(),
+            bearer_access_token: self.settings.cloud.api_bearer_access_token.clone(),
+            ..ReqwestConfig::default()
+        }
+    }
+
     pub async fn connect_cloud_account(
-        &self,
+        mut self,
         api_base_path: String,
         api_bearer_access_token: String,
-    ) -> Result<(), ServiceError> {
-        let mut settings = PrintNannySettings::new()?;
-        settings.cloud.api_base_path = api_base_path;
-        settings.cloud.api_bearer_access_token = Some(api_bearer_access_token);
-        let content = settings.to_toml_string()?;
-        settings
+    ) -> Result<Self, ServiceError> {
+        self.settings.cloud.api_base_path = api_base_path;
+        self.settings.cloud.api_bearer_access_token = Some(api_bearer_access_token);
+        let content = self.settings.to_toml_string()?;
+        self.settings
             .save_and_commit(
                 &content,
                 Some("Updated PrintNanny Cloud API auth".to_string()),
@@ -88,14 +88,13 @@ impl ApiService {
             .await?;
 
         let cloud_state_file = self.settings.paths.cloud();
-        let mut api_service = ApiService::new()?;
 
         // sync data models
-        api_service.sync().await?;
+        self.sync().await?;
         let mut state = PrintNannyCloudData::load(&cloud_state_file)?;
         let pi_id = state.pi.unwrap().id;
         // download credential and device identity bundled in license.zip
-        api_service.pi_download_license(pi_id).await?;
+        self.pi_download_license(pi_id).await?;
         // mark setup complete
         let req = models::PatchedPiRequest {
             setup_finished: Some(true),
@@ -105,11 +104,11 @@ impl ApiService {
             fqdn: None,
             favorite: None,
         };
-        api_service.pi_partial_update(pi_id, req).await?;
-        let pi = api_service.pi_retrieve(pi_id).await?;
+        self.pi_partial_update(pi_id, req).await?;
+        let pi = self.pi_retrieve(pi_id).await?;
         state.pi = Some(pi);
         state.save(&cloud_state_file)?;
-        Ok(())
+        Ok(self)
     }
 
     pub async fn crash_report_create(
@@ -142,7 +141,7 @@ impl ApiService {
         let user = self.user.as_ref().map(|user| user.id);
 
         let result = crash_reports_api::crash_reports_create(
-            &self.reqwest,
+            &self.reqwest_config(),
             description,
             email,
             Some(&os_release.version),
@@ -181,7 +180,7 @@ impl ApiService {
         let user = self.user.as_ref().map(|user| user.id);
 
         let result = crash_reports_api::crash_reports_partial_update(
-            &self.reqwest,
+            &self.reqwest_config(),
             id,
             None,
             None,
@@ -202,7 +201,7 @@ impl ApiService {
     }
 
     pub async fn auth_user_retreive(&self) -> Result<models::User, ServiceError> {
-        Ok(accounts_api::accounts_user_retrieve(&self.reqwest).await?)
+        Ok(accounts_api::accounts_user_retrieve(&self.reqwest_config()).await?)
     }
 
     pub async fn auth_email_create(
@@ -210,7 +209,7 @@ impl ApiService {
         email: String,
     ) -> Result<models::EmailAuth, ServiceError> {
         let req = models::EmailAuthRequest { email };
-        Ok(accounts_api::accounts2fa_auth_email_create(&self.reqwest, req).await?)
+        Ok(accounts_api::accounts2fa_auth_email_create(&self.reqwest_config(), req).await?)
     }
     pub async fn auth_token_validate(
         &self,
@@ -222,7 +221,7 @@ impl ApiService {
             token: token.to_string(),
             mobile: None,
         };
-        Ok(accounts_api::accounts2fa_auth_token_create(&self.reqwest, req).await?)
+        Ok(accounts_api::accounts2fa_auth_token_create(&self.reqwest_config(), req).await?)
     }
 
     async fn sync_pi_models(&self, pi: &models::Pi) -> Result<models::Pi, ServiceError> {
@@ -265,7 +264,7 @@ impl ApiService {
             favorite,
             setup_finished,
         };
-        let pi = devices_api::pi_update_or_create(&self.reqwest, Some(req)).await?;
+        let pi = devices_api::pi_update_or_create(&self.reqwest_config(), Some(req)).await?;
         info!("Success! Registered Pi: {:#?}", pi);
         let pi = self.sync_pi_models(&pi).await?;
         Ok(pi)
@@ -314,7 +313,7 @@ impl ApiService {
     }
 
     pub async fn pi_retrieve(&self, pi_id: i32) -> Result<models::Pi, ServiceError> {
-        let res = devices_api::pis_retrieve(&self.reqwest, pi_id).await?;
+        let res = devices_api::pis_retrieve(&self.reqwest_config(), pi_id).await?;
         Ok(res)
     }
 
@@ -323,12 +322,12 @@ impl ApiService {
         pi_id: i32,
         req: models::PatchedPiRequest,
     ) -> Result<models::Pi, ServiceError> {
-        let res = devices_api::pis_partial_update(&self.reqwest, pi_id, Some(req)).await?;
+        let res = devices_api::pis_partial_update(&self.reqwest_config(), pi_id, Some(req)).await?;
         Ok(res)
     }
 
     pub async fn pi_download_license(&self, pi_id: i32) -> Result<(), ServiceError> {
-        let res = devices_api::pis_license_zip_retrieve(&self.reqwest, pi_id).await?;
+        let res = devices_api::pis_license_zip_retrieve(&self.reqwest_config(), pi_id).await?;
         self.settings.paths.write_license_zip(res)?;
         self.settings.paths.unpack_license()?;
         Ok(())
@@ -363,7 +362,8 @@ impl ApiService {
             uptime: system_info.uptime,
         };
         info!("device_system_info_update_or_create request {:?}", request);
-        let res = devices_api::system_info_update_or_create(&self.reqwest, pi, request).await?;
+        let res =
+            devices_api::system_info_update_or_create(&self.reqwest_config(), pi, request).await?;
         Ok(res)
     }
 
@@ -389,9 +389,12 @@ impl ApiService {
             "Sending request {:?} to octoprint_server_update_or_create",
             req
         );
-        let res =
-            octoprint_api::octoprint_partial_update(&self.reqwest, octoprint_server.id, Some(req))
-                .await?;
+        let res = octoprint_api::octoprint_partial_update(
+            &self.reqwest_config(),
+            octoprint_server.id,
+            Some(req),
+        )
+        .await?;
         Ok(res)
     }
 
