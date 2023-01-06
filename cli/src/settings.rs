@@ -13,8 +13,12 @@ impl SettingsCommand {
         let config: PrintNannySettings = PrintNannySettings::new()?;
         match sub_m.subcommand() {
             Some(("clone", args)) => {
-                let dir = args.value_of("dir").map(PathBuf::from).unwrap();
                 let settings = PrintNannySettings::new()?;
+
+                let dir = args
+                    .value_of("dir")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| settings.paths.settings_dir.clone());
                 settings.init_git_repo(&dir, &settings.git)?;
             }
             Some(("get", args)) => {
