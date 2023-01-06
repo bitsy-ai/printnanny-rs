@@ -88,14 +88,13 @@ impl ApiService {
             .await?;
 
         let cloud_state_file = self.settings.paths.cloud();
-        let mut api_service = ApiService::new()?;
 
         // sync data models
-        api_service.sync().await?;
+        self.sync().await?;
         let mut state = PrintNannyCloudData::load(&cloud_state_file)?;
         let pi_id = state.pi.unwrap().id;
         // download credential and device identity bundled in license.zip
-        api_service.pi_download_license(pi_id).await?;
+        self.pi_download_license(pi_id).await?;
         // mark setup complete
         let req = models::PatchedPiRequest {
             setup_finished: Some(true),
@@ -105,11 +104,11 @@ impl ApiService {
             fqdn: None,
             favorite: None,
         };
-        api_service.pi_partial_update(pi_id, req).await?;
-        let pi = api_service.pi_retrieve(pi_id).await?;
+        self.pi_partial_update(pi_id, req).await?;
+        let pi = self.pi_retrieve(pi_id).await?;
         state.pi = Some(pi);
         state.save(&cloud_state_file)?;
-        Ok(api_service)
+        Ok(self)
     }
 
     pub async fn crash_report_create(
