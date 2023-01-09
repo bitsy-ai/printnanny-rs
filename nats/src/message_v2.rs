@@ -151,12 +151,24 @@ impl NatsRequest {
         let issue = fs::read_to_string(settings.paths.issue_txt)?;
         let os_release = fs::read_to_string(settings.paths.os_release)?;
 
+        let ifaddrs = nix::ifaddrs::getifaddrs()?
+            .map(
+                |v| printnanny_settings::printnanny_asyncapi_models::NetworkInterfaceAddress {
+                    interface_name: v.interface_name,
+                    flags: v.flags.bits(),
+                    address: v.address.map(|v| v.to_string()),
+                    netmask: v.netmask.map(|v| v.to_string()),
+                    destination: v.destination.map(|v| v.to_string()),
+                    broadcast: v.broadcast.map(|v| v.to_string()),
+                },
+            )
+            .collect();
+
         Ok(NatsReply::DeviceInfoLoadReply(DeviceInfoLoadReply {
             issue,
             os_release,
             printnanny_cli_version: "".into(), // TODO
-            tailscale_address_ipv4: None,      // TODO
-            tailscale_address_ipv6: None,      // TODO
+            ifaddrs,
         }))
     }
 

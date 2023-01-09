@@ -2498,6 +2498,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nix"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46a58d1d356c6597d08cde02c2f09d785b09e28711837b1ed667dc652c08a694"
+dependencies = [
+ "bitflags",
+ "cfg-if",
+ "libc",
+ "memoffset 0.7.1",
+ "pin-utils",
+ "static_assertions",
+]
+
+[[package]]
 name = "nkeys"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3122,9 +3136,9 @@ dependencies = [
 
 [[package]]
 name = "printnanny-asyncapi-models"
-version = "0.1.51"
+version = "0.1.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2ad2c392edddee2fa045acee1a8be01330e4b7ee8276c5ee851faf4ed8141e5"
+checksum = "9d01a03a8ec5df745e1041d2e8fede5a0b38f96e63d29c6cfc603e585c2046dd"
 dependencies = [
  "serde 1.0.148",
  "serde_json",
@@ -3220,6 +3234,7 @@ dependencies = [
  "futures-util",
  "git-version",
  "log",
+ "nix 0.26.1",
  "printnanny-api-client",
  "printnanny-dbus",
  "printnanny-services",
