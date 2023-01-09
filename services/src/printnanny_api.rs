@@ -101,7 +101,6 @@ impl ApiService {
             // None values are skipped by serde serializer
             sbc: None,
             hostname: None,
-            fqdn: None,
             favorite: None,
         };
         self.pi_partial_update(pi_id, req).await?;
@@ -252,15 +251,12 @@ impl ApiService {
         let _sbc = Some(models::SbcEnum::Rpi4);
         let hostname = sys_info::hostname().unwrap_or_else(|_| "printnanny".to_string());
 
-        // TODO wireguard fqdn, but .local for now
-        let fqdn = Some(format!("{}.local", hostname));
         let favorite = Some(true);
         let setup_finished = Some(true);
 
         let req = models::PiRequest {
             sbc: Some(models::SbcEnum::Rpi4),
             hostname: Some(hostname),
-            fqdn,
             favorite,
             setup_finished,
         };
