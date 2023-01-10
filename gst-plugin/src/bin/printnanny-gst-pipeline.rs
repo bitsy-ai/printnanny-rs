@@ -89,7 +89,10 @@ impl PipelineApp {
             .name("tee__inputvideo")
             .build()?;
 
+        let keyunit_interval = self.settings.video_framerate;
+
         let encoder = match gst::ElementFactory::make("v4l2h264enc")
+            .property("min-force-key-unit-interval", keyunit_interval as u64)
             .property_from_str("extra-controls", "controls,repeat_sequence_header=1")
             .build()
         {
@@ -185,12 +188,13 @@ impl PipelineApp {
                         .build()?;
 
                     let hls_sink = gst::ElementFactory::make("hlssink2")
-                        .property_from_str("playlist-length", "0") // playlist is infinite
+                        .property("playlist-length", "0") // playlist is infinite
                         .property_from_str("max-files", "5") // save 5 files before deleting old files
-                        .property_from_str("target-duration", "2") // target duration of segment/file
+                        .property("target-duration", self.settings.video_framerate as u8) // target duration of segment/file
                         .property("location", &self.settings.hls.hls_segments)
                         .property("playlist-location", &self.settings.hls.hls_playlist)
                         .property("playlist-root", &self.settings.hls.hls_playlist_root)
+                        .property("send-keyframe-requests", false) // v4l2h264enc min-force-key-unit-interval will send key frames in regular intervals
                         .build()?;
                     let h264_video_elements = &[
                         // &invideorate,
@@ -376,6 +380,8 @@ impl PipelineApp {
         );
 
         let box_h264encoder = match gst::ElementFactory::make("v4l2h264enc")
+            .property_from_str("output-io-mode", "mmap")
+            .property_from_str("capture-io-mode", "mmap")
             .property_from_str("extra-controls", "controls,repeat_sequence_header=1")
             .build()
         {
