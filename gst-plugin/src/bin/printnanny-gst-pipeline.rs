@@ -178,13 +178,13 @@ impl PipelineApp {
                         .build()?;
 
                     let hls_sink = gst::ElementFactory::make("hlssink2")
-                        .property_from_str("playlist-length", "4") // 
-                        .property_from_str("max-files", "8") // save 5 files before deleting old files
+                        .property_from_str("playlist-length", "36") // 
+                        .property_from_str("max-files", "36") // save 10 files before deleting old files
                         .property_from_str("target-duration", "1") // target duration of segment/file
                         .property("location", &self.settings.hls.hls_segments)
                         .property("playlist-location", &self.settings.hls.hls_playlist)
                         .property("playlist-root", &self.settings.hls.hls_playlist_root)
-                        .property("send-keyframe-requests", false) // v4l2h264enc min-force-key-unit-interval will send key frames in regular intervals
+                        .property("send-keyframe-requests", true) // v4l2h264enc min-force-key-unit-interval will send key frames in regular intervals
                         .build()?;
                     let h264_video_elements = &[
                         &video_tee,
