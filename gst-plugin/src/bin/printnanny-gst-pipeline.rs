@@ -185,7 +185,7 @@ impl PipelineApp {
                         .build()?;
 
                     let hls_sink = gst::ElementFactory::make("hlssink2")
-                        .property("playlist-length", 0) // playlist is infinite
+                        .property_from_str("playlist-length", "0") // playlist is infinite
                         .property("max-files", 5) // save 5 files before deleting old files
                         .property("target-duration", 2) // target duration of segment/file
                         .property("location", &self.settings.hls.hls_segments)
