@@ -103,6 +103,9 @@ impl PipelineApp {
             }
         };
 
+        let parser = gst::ElementFactory::make("h264parse")
+            .property_from_str("config-interval", "1").build()?;
+
         let video_h264_capsfilter = gst::ElementFactory::make("capsfilter")
             .name("capsfilter__video_h264_level")
             .build()?;
@@ -153,19 +156,6 @@ impl PipelineApp {
             }
         };
 
-        // TODO: move videorate / videoscale into File/URI pipelines only
-        // let invideorate = gst::ElementFactory::make("videorate")
-        //     .name("videorate__input")
-        //     .build()?;
-
-        // let invideoscaler = gst::ElementFactory::make("videoscale")
-        //     .name("videoscale__input")
-        //     .build()?;
-
-        // split h264-encoded video stream with a tee for compatibility with OctoPrint's webcam plugin
-        // OctoPrint's WebRTC support is still experimental and is not compatible with Janus Gateway's signaling
-        // Instead, write a ringbuffer of hls frames + playlist to disk (HTTP connection handled by nginx, outside of scope of this pipeline)
-
         let rtp_queue = gst::ElementFactory::make("queue")
             .name("queue__rtph264pay")
             .property("silent", true)
@@ -197,13 +187,11 @@ impl PipelineApp {
                         .property("send-keyframe-requests", false) // v4l2h264enc min-force-key-unit-interval will send key frames in regular intervals
                         .build()?;
                     let h264_video_elements = &[
-                        // &invideorate,
-                        // &invideoscaler,
-                        // &raw_video_capsfilter,
                         &video_tee,
                         &h264_queue,
                         &invideoconverter,
                         &encoder,
+                        &parser,
                         &video_h264_capsfilter,
                         &h264_tee,
                     ];
@@ -378,6 +366,8 @@ impl PipelineApp {
                 .framerate(video_framerate.into())
                 .build(),
         );
+        let box_parser = gst::ElementFactory::make("h264parse")
+            .property_from_str("config-interval", "1").build()?;
 
         let box_h264encoder = match gst::ElementFactory::make("v4l2h264enc")
             .property_from_str("output-io-mode", "mmap")
@@ -428,6 +418,7 @@ impl PipelineApp {
             &box_videorate,
             &raw_box_capsfilter,
             &box_h264encoder,
+            &box_parser,
             &box_h264_capsfilter,
             &boxes_payloader,
             &box_udpsink,
