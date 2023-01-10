@@ -188,9 +188,9 @@ impl PipelineApp {
                         .build()?;
 
                     let hls_sink = gst::ElementFactory::make("hlssink2")
-                        .property("playlist-length", 0_u8) // playlist is infinite
-                        .property("max-files", 5_u8) // save 5 files before deleting old files
-                        .property("target-duration", self.settings.video_framerate as u8) // target duration of segment/file
+                        .property_from_str("playlist-length", 0_u32) // playlist is infinite
+                        .property("max-files", 0_u32) // save 5 files before deleting old files
+                        .property("target-duration", self.settings.video_framerate as u32) // target duration of segment/file
                         .property("location", &self.settings.hls.hls_segments)
                         .property("playlist-location", &self.settings.hls.hls_playlist)
                         .property("playlist-root", &self.settings.hls.hls_playlist_root)
