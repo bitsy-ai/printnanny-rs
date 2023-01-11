@@ -48,6 +48,8 @@ macro_rules! map_keys {
             if $item.starts_with($pat) {
                 $field = parse_line($item, $pat.len()).into();
                 continue;
+            } else {
+                $field = "unknown".into();
             }
         )+
     }};
