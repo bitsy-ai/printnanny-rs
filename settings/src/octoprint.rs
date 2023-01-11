@@ -3,7 +3,7 @@ use std::process::Command;
 
 use async_trait::async_trait;
 use figment::providers::Env;
-use log::{debug, info};
+use log::{debug, info, error};
 use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::zbus;
@@ -109,12 +109,7 @@ pub fn parse_pip_list_json(stdout: &str) -> Result<Vec<PipPackage>, PrintNannySe
 pub fn parse_python_version(stdout: &str) -> Option<String> {
     stdout
         .split_once(' ')
-        .map(|(_, version)| version.to_string())
-}
-
-// parse output of:
-// $ pip --version
-// pip 22.0.2 from /usr/lib/python3/dist-packages/pip (python 3.10)
+        .map(|(_, version)| version.to_string())}
 pub fn parse_pip_version(stdout: &str) -> Option<String> {
     let split = stdout.split(' ').nth(1);
     split.map(|v| v.to_string())
@@ -127,16 +122,13 @@ impl OctoPrintSettings {
 
     pub fn pip_version(&self) -> Result<Option<String>, PrintNannySettingsError> {
         let python_path = self.python_path();
-        let msg = format!("{:?} -m pip --version failed", &python_path);
         let output = Command::new(&python_path)
             .arg("-m")
             .arg("pip")
             .arg("--version")
-            .output()
-            .expect(&msg);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        match output.status.success() {
-            true => {
+            .output();
+        match output {
+            Ok (output) => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let result = parse_pip_version(&stdout);
                 debug!(
@@ -145,16 +137,10 @@ impl OctoPrintSettings {
                 );
                 Ok(result)
             }
-            false => {
-                let code = output.status.code();
-                let stderr = String::from_utf8_lossy(&output.stderr).into();
-                let stdout = stdout.into();
-                Err(PrintNannySettingsError::CommandError {
-                    cmd: msg,
-                    stdout,
-                    stderr,
-                    code,
-                })
+            Err(e) => {
+                let msg = format!("{:?} -m pip --version failed with error={}", &python_path, e);
+                error!("{}", &msg);
+                Ok(None)
             }
         }
     }
@@ -168,10 +154,10 @@ impl OctoPrintSettings {
             .arg("--include-editable") // handle dev environment, where pip install -e . is used for plugin setup
             .arg("--format")
             .arg("json")
-            .output()?;
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        match output.status.success() {
-            true => {
+            .output();
+        match output {
+            Ok (output) =>  {
+                let stdout = String::from_utf8_lossy(&output.stdout);
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let result = parse_pip_list_json(&stdout)?;
                 debug!(
@@ -180,97 +166,83 @@ impl OctoPrintSettings {
                 );
                 Ok(result)
             }
-            false => {
-                let cmd = format!(
-                    "{:?} -m pip list --include-editable --format json",
-                    &python_path
-                );
-                let code = output.status.code();
-                let stderr = String::from_utf8_lossy(&output.stderr).into();
-                let stdout = stdout.into();
-                Err(PrintNannySettingsError::CommandError {
-                    cmd,
-                    stdout,
-                    stderr,
-                    code,
-                })
+            Err(e) => {
+                let msg = format!(
+                    "{} -m pip list --include-editable --format json failed with error={}",
+                    &python_path.display(), e
+                );                 
+                error!("{}", &msg);
+                Ok(vec![])
             }
+        
         }
     }
 
     pub fn python_version(&self) -> Result<Option<String>, PrintNannySettingsError> {
         let python_path = self.python_path();
-        let msg = format!("{:?} --version failed", &python_path);
         let output = Command::new(&python_path)
             .arg("--version")
-            .output()
-            .expect(&msg);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        match output.status.success() {
-            true => {
+            .output();
+        match output {
+            Ok (output) =>  {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let result = parse_python_version(&stdout);
                 debug!("Parsed python_version in {:?} {:?}", &python_path, &result);
                 Ok(result)
             }
-            false => {
-                let cmd = format!("{:?} --version", &python_path);
-                let code = output.status.code();
-                let stderr = String::from_utf8_lossy(&output.stderr).into();
-                let stdout = stdout.into();
-                Err(PrintNannySettingsError::CommandError {
-                    cmd,
-                    stdout,
-                    stderr,
-                    code,
-                })
+            Err(e) => {
+                debug!("Failed to parse {} --version with error={}", &python_path.display(), &e);
+                Ok(None)
             }
+        
         }
+        
     }
 
     pub fn octoprint_version(
         &self,
         packages: &[PipPackage],
-    ) -> Result<String, PrintNannySettingsError> {
+    ) -> Option<String> {
         let python_path = self.python_path();
 
         let v: Vec<&PipPackage> = packages.iter().filter(|p| p.name == "OctoPrint").collect();
-        let result = match v.first() {
-            Some(p) => Ok(p.version.clone()),
-            None => Err(PrintNannySettingsError::OctoPrintServerConfigError {
-                field: "octoprint_version".into(),
-                detail: None,
-            }),
-        }?;
-        debug!(
-            "Parsed octoprint_version {:?} in venv {:?} ",
-            &result, &python_path
-        );
-        Ok(result)
+        match v.first() {
+            Some(p) => {
+                debug!(
+                    "Parsed octoprint_version {:?} in venv {:?} ",
+                    &p, &python_path
+                );
+                Some(p.version.clone())},
+            None => {
+                error!("Failed to parse octoprint version from pip output");
+                None
+            },
+        }
     }
 
     pub fn printnanny_plugin_version(
         &self,
         packages: &[PipPackage],
-    ) -> Result<Option<String>, PrintNannySettingsError> {
+    ) -> Option<String> {
         let python_path = self.python_path();
 
         let v: Vec<&PipPackage> = packages
             .iter()
             .filter(|p| p.name == "OctoPrint-Nanny")
             .collect();
-        let result = match v.first() {
-            Some(p) => Ok(p.version.clone()),
-            None => Err(PrintNannySettingsError::OctoPrintServerConfigError {
-                field: "printnanny_plugin_version".into(),
-                detail: None,
-            }),
-        }?;
-        debug!(
-            "Parsed printnnny_plugin_version {:?} in venv {:?} ",
-            &result, python_path
-        );
-        Ok(Some(result))
+       match v.first() {
+            Some(p) => {
+                debug!(
+                    "Parsed printnnny_plugin_version {:?} in venv {:?} ",
+                    &p, python_path
+                );
+                Some(p.version.clone())
+            },
+            None => {
+                error!("Failed to parse octoprint-nanny plugin version with pip");
+                None
+            },
+        }
     }
 }
 

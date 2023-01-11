@@ -94,7 +94,7 @@ impl ApiService {
         let mut state = PrintNannyCloudData::load(&cloud_state_file)?;
         let pi_id = state.pi.unwrap().id;
         // download credential and device identity bundled in license.zip
-        self.pi_download_license(pi_id).await?;
+        self.pi_download_license(pi_id, false).await?;
         // mark setup complete
         let req = models::PatchedPiRequest {
             setup_finished: Some(true),
@@ -128,7 +128,7 @@ impl ApiService {
         let serial = match RpiCpuInfo::new() {
             Ok(rpi_cpuinfo) => rpi_cpuinfo.serial,
             Err(e) => {
-                error!("Failed to read RpiCpuInfo");
+                error!("Failed to read RpiCpuInfo with error={}", e);
                 None
             }
         };
@@ -169,7 +169,7 @@ impl ApiService {
         let serial = match RpiCpuInfo::new() {
             Ok(rpi_cpuinfo) => rpi_cpuinfo.serial,
             Err(e) => {
-                error!("Failed to read RpiCpuInfo");
+                error!("Failed to read RpiCpuInfo with error={}", e);
                 None
             }
         };
@@ -322,10 +322,10 @@ impl ApiService {
         Ok(res)
     }
 
-    pub async fn pi_download_license(&self, pi_id: i32) -> Result<(), ServiceError> {
+    pub async fn pi_download_license(&self, pi_id: i32, backup: bool) -> Result<(), ServiceError> {
         let res = devices_api::pis_license_zip_retrieve(&self.reqwest_config(), pi_id).await?;
-        self.settings.paths.write_license_zip(res)?;
-        self.settings.paths.unpack_license()?;
+        self.settings.paths.write_license_zip(res, backup)?;
+        self.settings.paths.unpack_license(backup)?;
         Ok(())
     }
 
@@ -371,8 +371,8 @@ impl ApiService {
         let pip_version = helper.pip_version()?;
         let python_version = helper.python_version()?;
         let pip_packages = helper.pip_packages()?;
-        let octoprint_version = helper.octoprint_version(&pip_packages)?.into();
-        let printnanny_plugin_version = helper.printnanny_plugin_version(&pip_packages)?;
+        let octoprint_version = helper.octoprint_version(&pip_packages);
+        let printnanny_plugin_version = helper.printnanny_plugin_version(&pip_packages);
         let req = models::PatchedOctoPrintServerRequest {
             octoprint_version,
             pip_version,
