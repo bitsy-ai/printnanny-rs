@@ -180,7 +180,6 @@ impl OctoPrintSettings {
 
     pub fn python_version(&self) -> Result<Option<String>, PrintNannySettingsError> {
         let python_path = self.python_path();
-        let msg = format!("{:?} --version failed", &python_path);
         let output = Command::new(&python_path)
             .arg("--version")
             .output();
