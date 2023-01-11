@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use figment::providers::Env;
-use log::info;
+use log::{warn, info};
 use serde;
 use serde::{Deserialize, Serialize};
 use std::io::Read;
@@ -130,7 +130,7 @@ impl PrintNannyPaths {
 
     // unpack license to credentials dir (defaults to /etc/printnanny/creds)
     // returns a Vector of unzipped file PathBuf
-    pub fn unpack_license(&self) -> Result<[(String, PathBuf); 1], PrintNannySettingsError> {
+    pub fn unpack_license(&self, backup: bool) -> Result<[(String, PathBuf); 1], PrintNannySettingsError> {
         let license_zip = self.license_zip();
         let file = match std::fs::File::open(&license_zip) {
             Ok(f) => Ok(f),
@@ -151,7 +151,15 @@ impl PrintNannyPaths {
         for (filename, dest) in results.iter() {
             // if target file already fails and --force flag not passed
             if dest.exists() {
-                self.backup_file(dest)?;
+                match backup {
+                    true => {
+                        self.backup_file(dest)?;
+
+                    },
+                    false => {
+                        warn!("{} already exists and backup=false, overwriting without backup", &dest.display());
+                    }
+                }
             }
             // read filename from archive
             let file = archive.by_name(filename);
@@ -202,12 +210,17 @@ impl PrintNannyPaths {
         Ok(new_filepath)
     }
 
-    pub fn write_license_zip(&self, b: Bytes) -> Result<(), PrintNannySettingsError> {
+    pub fn write_license_zip(&self, b: Bytes, backup: bool) -> Result<(), PrintNannySettingsError> {
         let filename = self.license_zip();
 
         // if license.zip already exists, back up existing file before overwriting
         if filename.exists() {
-            self.backup_file(&filename)?;
+            match backup {
+                true => {self.backup_file(&filename)?;},
+                false => {
+                    warn!("{} already exists and backup=false, overwriting without backup", filename.display());
+                }
+            }
         }
 
         fs::write(filename, b)?;

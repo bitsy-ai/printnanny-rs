@@ -94,7 +94,7 @@ impl ApiService {
         let mut state = PrintNannyCloudData::load(&cloud_state_file)?;
         let pi_id = state.pi.unwrap().id;
         // download credential and device identity bundled in license.zip
-        self.pi_download_license(pi_id).await?;
+        self.pi_download_license(pi_id, false).await?;
         // mark setup complete
         let req = models::PatchedPiRequest {
             setup_finished: Some(true),
@@ -322,10 +322,10 @@ impl ApiService {
         Ok(res)
     }
 
-    pub async fn pi_download_license(&self, pi_id: i32) -> Result<(), ServiceError> {
+    pub async fn pi_download_license(&self, pi_id: i32, backup: bool) -> Result<(), ServiceError> {
         let res = devices_api::pis_license_zip_retrieve(&self.reqwest_config(), pi_id).await?;
-        self.settings.paths.write_license_zip(res)?;
-        self.settings.paths.unpack_license()?;
+        self.settings.paths.write_license_zip(res, backup)?;
+        self.settings.paths.unpack_license(backup)?;
         Ok(())
     }
 
