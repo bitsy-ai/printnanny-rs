@@ -184,7 +184,7 @@ impl PipelineApp {
                         .property("location", &self.settings.hls.hls_segments)
                         .property("playlist-location", &self.settings.hls.hls_playlist)
                         .property("playlist-root", &self.settings.hls.hls_playlist_root)
-                        .property("send-keyframe-requests", true) // v4l2h264enc min-force-key-unit-interval will send key frames in regular intervals
+                        .property("send-keyframe-requests", false) // v4l2h264enc min-force-key-unit-interval will send key frames in regular intervals
                         .build()?;
                     let h264_video_elements = &[
                         &video_tee,
