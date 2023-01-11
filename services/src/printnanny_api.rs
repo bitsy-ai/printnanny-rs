@@ -128,7 +128,7 @@ impl ApiService {
         let serial = match RpiCpuInfo::new() {
             Ok(rpi_cpuinfo) => rpi_cpuinfo.serial,
             Err(e) => {
-                error!("Failed to read RpiCpuInfo");
+                error!("Failed to read RpiCpuInfo with error={}", e);
                 None
             }
         };
@@ -169,7 +169,7 @@ impl ApiService {
         let serial = match RpiCpuInfo::new() {
             Ok(rpi_cpuinfo) => rpi_cpuinfo.serial,
             Err(e) => {
-                error!("Failed to read RpiCpuInfo");
+                error!("Failed to read RpiCpuInfo with error={}", e);
                 None
             }
         };
@@ -371,8 +371,8 @@ impl ApiService {
         let pip_version = helper.pip_version()?;
         let python_version = helper.python_version()?;
         let pip_packages = helper.pip_packages()?;
-        let octoprint_version = helper.octoprint_version(&pip_packages)?.into();
-        let printnanny_plugin_version = helper.printnanny_plugin_version(&pip_packages)?;
+        let octoprint_version = helper.octoprint_version(&pip_packages);
+        let printnanny_plugin_version = helper.printnanny_plugin_version(&pip_packages);
         let req = models::PatchedOctoPrintServerRequest {
             octoprint_version,
             pip_version,

@@ -138,7 +138,7 @@ impl OctoPrintSettings {
                 Ok(result)
             }
             Err(e) => {
-                let msg = format!("{:?} -m pip --version failed", &python_path);
+                let msg = format!("{:?} -m pip --version failed with error={}", &python_path, e);
                 error!("{}", &msg);
                 Ok(None)
             }
@@ -183,74 +183,67 @@ impl OctoPrintSettings {
         let msg = format!("{:?} --version failed", &python_path);
         let output = Command::new(&python_path)
             .arg("--version")
-            .output()
-            .expect(&msg);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        match output.status.success() {
-            true => {
+            .output();
+        match output {
+            Ok (output) =>  {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let result = parse_python_version(&stdout);
                 debug!("Parsed python_version in {:?} {:?}", &python_path, &result);
                 Ok(result)
             }
-            false => {
-                let cmd = format!("{:?} --version", &python_path);
-                let code = output.status.code();
-                let stderr = String::from_utf8_lossy(&output.stderr).into();
-                let stdout = stdout.into();
-                Err(PrintNannySettingsError::CommandError {
-                    cmd,
-                    stdout,
-                    stderr,
-                    code,
-                })
+            Err(e) => {
+                debug!("Failed to parse {} --version with error={}", &python_path.display(), &e);
+                Ok(None)
             }
+        
         }
+        
     }
 
     pub fn octoprint_version(
         &self,
         packages: &[PipPackage],
-    ) -> Result<String, PrintNannySettingsError> {
+    ) -> Option<String> {
         let python_path = self.python_path();
 
         let v: Vec<&PipPackage> = packages.iter().filter(|p| p.name == "OctoPrint").collect();
-        let result = match v.first() {
-            Some(p) => Ok(p.version.clone()),
-            None => Err(PrintNannySettingsError::OctoPrintServerConfigError {
-                field: "octoprint_version".into(),
-                detail: None,
-            }),
-        }?;
-        debug!(
-            "Parsed octoprint_version {:?} in venv {:?} ",
-            &result, &python_path
-        );
-        Ok(result)
+        match v.first() {
+            Some(p) => {
+                debug!(
+                    "Parsed octoprint_version {:?} in venv {:?} ",
+                    &p, &python_path
+                );
+                Some(p.version.clone())},
+            None => {
+                error!("Failed to parse octoprint version from pip output");
+                None
+            },
+        }
     }
 
     pub fn printnanny_plugin_version(
         &self,
         packages: &[PipPackage],
-    ) -> Result<Option<String>, PrintNannySettingsError> {
+    ) -> Option<String> {
         let python_path = self.python_path();
 
         let v: Vec<&PipPackage> = packages
             .iter()
             .filter(|p| p.name == "OctoPrint-Nanny")
             .collect();
-        let result = match v.first() {
-            Some(p) => Ok(p.version.clone()),
-            None => Err(PrintNannySettingsError::OctoPrintServerConfigError {
-                field: "printnanny_plugin_version".into(),
-                detail: None,
-            }),
-        }?;
-        debug!(
-            "Parsed printnnny_plugin_version {:?} in venv {:?} ",
-            &result, python_path
-        );
-        Ok(Some(result))
+       match v.first() {
+            Some(p) => {
+                debug!(
+                    "Parsed printnnny_plugin_version {:?} in venv {:?} ",
+                    &p, python_path
+                );
+                Some(p.version.clone())
+            },
+            None => {
+                error!("Failed to parse octoprint-nanny plugin version with pip");
+                None
+            },
+        }
     }
 }
 
