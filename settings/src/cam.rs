@@ -356,12 +356,6 @@ impl From<printnanny_asyncapi_models::VideoSource> for VideoSource {
     }
 }
 
-// hls_enabled has 3 possible states:
-// 1) Detect enabled/disabled based on enabled systemd services, indicated by None value
-//  detect_hls_http_enabled() will be called
-//
-// 2) and 3) Explicitly enabled/disabled, indicated by Some(bool)
-// Some(bool) -> bool
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyCameraSettings {
     pub preview: bool,
