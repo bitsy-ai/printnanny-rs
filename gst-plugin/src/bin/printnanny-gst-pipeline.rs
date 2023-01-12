@@ -252,12 +252,8 @@ impl PipelineApp {
         };
 
         match self.settings.hls.hls_enabled {
-            Some(true) => insert_h264_sinks(true)?,
-            Some(false) => insert_h264_sinks(false)?,
-            None => match self.settings.detect_hls_http_enabled().await? {
-                true => insert_h264_sinks(true)?,
-                false => insert_h264_sinks(false)?,
-            },
+            true => insert_h264_sinks(true)?,
+            false => insert_h264_sinks(false)?,
         };
 
         let tensor_q = gst::ElementFactory::make("queue")
@@ -575,7 +571,7 @@ impl PipelineApp {
     pub async fn create_pipeline(&self) -> Result<gst::Pipeline, Error> {
         gst::init()?;
 
-        let pipeline = match &self.settings.video_src {
+        let pipeline = match &self.settings.camera {
             VideoSource::CSI(camera) => self.make_libcamera_pipeline(camera).await?,
             VideoSource::USB(camera) => self.make_libcamera_pipeline(camera).await?,
             VideoSource::Uri(video) => self.make_uri_pipeline(video).await?,

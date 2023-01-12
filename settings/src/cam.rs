@@ -320,37 +320,25 @@ impl From<&CameraVideoSource> for printnanny_asyncapi_models::camera::Camera {
     }
 }
 
-impl From<printnanny_asyncapi_models::VideoSource> for VideoSource {
-    fn from(obj: printnanny_asyncapi_models::VideoSource) -> VideoSource {
-        match obj {
-            printnanny_asyncapi_models::VideoSource::Camera(camera) => match *camera.src_type {
-                printnanny_asyncapi_models::CameraSourceType::Csi => {
-                    VideoSource::CSI(CameraVideoSource {
-                        caps: *camera.selected_caps,
-                        index: camera.index,
-                        device_name: camera.device_name,
-                        label: camera.label,
-                    })
-                }
-                printnanny_asyncapi_models::CameraSourceType::Usb => {
-                    VideoSource::USB(CameraVideoSource {
-                        caps: *camera.selected_caps,
+impl From<printnanny_asyncapi_models::Camera> for VideoSource {
+    fn from(camera: printnanny_asyncapi_models::Camera) -> VideoSource {
+        match *camera.src_type {
+            printnanny_asyncapi_models::CameraSourceType::Csi => {
+                VideoSource::CSI(CameraVideoSource {
+                    caps: *camera.selected_caps,
+                    index: camera.index,
+                    device_name: camera.device_name,
+                    label: camera.label,
+                })
+            }
+            printnanny_asyncapi_models::CameraSourceType::Usb => {
+                VideoSource::USB(CameraVideoSource {
+                    caps: *camera.selected_caps,
 
-                        index: camera.index,
-                        device_name: camera.device_name,
-                        label: camera.label,
-                    })
-                }
-            },
-            printnanny_asyncapi_models::VideoSource::PlaybackVideo(video) => {
-                match *video.src_type {
-                    printnanny_asyncapi_models::PlaybackSourceType::File => {
-                        VideoSource::File(MediaVideoSource { uri: video.uri })
-                    }
-                    printnanny_asyncapi_models::PlaybackSourceType::Uri => {
-                        VideoSource::Uri(MediaVideoSource { uri: video.uri })
-                    }
-                }
+                    index: camera.index,
+                    device_name: camera.device_name,
+                    label: camera.label,
+                })
             }
         }
     }
@@ -367,7 +355,7 @@ pub struct PrintNannyCameraSettings {
 
     // complex types last, otherwise serde will raise TomlSerError(ValueAfterTable)
     pub detection: printnanny_asyncapi_models::PrintNannyDetectionSettings,
-    pub video_src: VideoSource,
+    pub camera: VideoSource,
     pub hls: printnanny_asyncapi_models::HlsSettings,
 }
 
@@ -384,13 +372,13 @@ impl PrintNannyCameraSettings {
     }
 
     pub fn get_caps(&self) -> printnanny_asyncapi_models::GstreamerCaps {
-        match &self.video_src {
+        match &self.camera {
             VideoSource::CSI(camera) => (camera.caps).clone(),
             VideoSource::USB(camera) => (camera.caps).clone(),
 
             _ => todo!(
                 "PrintNannyCameraSettings.get_caps is not implemented for VideoSource: {:?}",
-                self.video_src
+                self.camera
             ),
         }
     }
@@ -416,7 +404,7 @@ impl Default for PrintNannyCameraSettings {
             hls_playlist_root,
         };
 
-        let video_src = VideoSource::CSI(CameraVideoSource {
+        let camera = VideoSource::CSI(CameraVideoSource {
             index: 0,
             device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
             label: "imx219".into(),
@@ -437,7 +425,7 @@ impl Default for PrintNannyCameraSettings {
         };
 
         Self {
-            video_src,
+            camera,
             video_framerate,
             video_udp_port,
             overlay_udp_port,
@@ -461,25 +449,23 @@ impl From<printnanny_asyncapi_models::PrintNannyCameraSettings> for PrintNannyCa
             video_framerate: obj.video_framerate,
             detection: *obj.detection,
             hls: *obj.hls,
-            video_src: (*obj.video_src).into(),
+            camera: (*obj.camera).into(),
         }
     }
 }
 
-impl From<VideoSource> for printnanny_asyncapi_models::VideoSource {
-    fn from(obj: VideoSource) -> printnanny_asyncapi_models::VideoSource {
+impl From<VideoSource> for  printnanny_asyncapi_models::Camera {
+    fn from(obj: VideoSource) -> printnanny_asyncapi_models::Camera {
         match &obj {
-            VideoSource::CSI(camera) => printnanny_asyncapi_models::VideoSource::Camera(
-                printnanny_asyncapi_models::Camera {
+            VideoSource::CSI(camera) => printnanny_asyncapi_models::Camera {
                     selected_caps: Box::new(camera.caps.clone()),
                     src_type: Box::new(printnanny_asyncapi_models::CameraSourceType::Csi),
                     index: camera.index,
                     label: camera.label.clone(),
                     device_name: camera.device_name.clone(),
                     available_caps: camera.list_available_caps(),
-                },
-            ),
-            VideoSource::USB(camera) => printnanny_asyncapi_models::VideoSource::Camera(
+            },
+            VideoSource::USB(camera) => 
                 printnanny_asyncapi_models::Camera {
                     selected_caps: Box::new(camera.caps.clone()),
                     src_type: Box::new(printnanny_asyncapi_models::CameraSourceType::Usb),
@@ -488,7 +474,7 @@ impl From<VideoSource> for printnanny_asyncapi_models::VideoSource {
                     device_name: camera.device_name.clone(),
                     available_caps: camera.list_available_caps(),
                 },
-            ),
+    
             _ => todo!(),
         }
     }
@@ -505,7 +491,7 @@ impl From<PrintNannyCameraSettings> for printnanny_asyncapi_models::PrintNannyCa
             video_framerate: obj.video_framerate,
             detection: Box::new(obj.detection),
             hls: Box::new(obj.hls),
-            video_src: Box::new(obj.video_src.into()),
+            camera: Box::new(obj.camera.into()),
         }
     }
 }
