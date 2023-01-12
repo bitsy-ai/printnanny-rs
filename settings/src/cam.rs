@@ -362,6 +362,8 @@ pub struct PrintNannyCameraSettings {
     pub overlay_udp_port: i32,
     pub video_udp_port: i32,
     pub video_framerate: i32,
+    pub record_video: bool,
+    pub cloud_backup: bool,
 
     // complex types last, otherwise serde will raise TomlSerError(ValueAfterTable)
     pub detection: printnanny_asyncapi_models::PrintNannyDetectionSettings,
@@ -396,11 +398,13 @@ impl PrintNannyCameraSettings {
 
 impl Default for PrintNannyCameraSettings {
     fn default() -> Self {
+        let record_video = true;
+        let cloud_backup = true;
         let preview = false;
         let video_udp_port = 20001;
         let overlay_udp_port = 20002;
         let video_framerate = 24;
-        let hls_enabled = None;
+        let hls_enabled = true;
         let hls_segments = "/var/run/printnanny-hls/segment%05d.ts".into();
         let hls_playlist = "/var/run/printnanny-hls/playlist.m3u8".into();
         let hls_playlist_root = "/printnanny-hls/".into();
@@ -440,6 +444,8 @@ impl Default for PrintNannyCameraSettings {
             preview,
             hls,
             detection,
+            record_video,
+            cloud_backup,
         }
     }
 }
@@ -447,6 +453,8 @@ impl Default for PrintNannyCameraSettings {
 impl From<printnanny_asyncapi_models::PrintNannyCameraSettings> for PrintNannyCameraSettings {
     fn from(obj: printnanny_asyncapi_models::PrintNannyCameraSettings) -> PrintNannyCameraSettings {
         PrintNannyCameraSettings {
+            record_video: obj.record_video,
+            cloud_backup: obj.cloud_backup,
             overlay_udp_port: obj.overlay_udp_port,
             video_udp_port: obj.video_udp_port,
             preview: obj.preview,
@@ -489,6 +497,8 @@ impl From<VideoSource> for printnanny_asyncapi_models::VideoSource {
 impl From<PrintNannyCameraSettings> for printnanny_asyncapi_models::PrintNannyCameraSettings {
     fn from(obj: PrintNannyCameraSettings) -> printnanny_asyncapi_models::PrintNannyCameraSettings {
         printnanny_asyncapi_models::PrintNannyCameraSettings {
+            cloud_backup: obj.cloud_backup,
+            record_video: obj.record_video,
             overlay_udp_port: obj.overlay_udp_port,
             video_udp_port: obj.video_udp_port,
             preview: obj.preview,
@@ -588,10 +598,7 @@ impl From<&ArgMatches> for PrintNannyCameraSettings {
             tensor_framerate,
         };
 
-        let hls_enabled = match args.is_present("hls_http_enabled") {
-            true => Some(true),
-            false => None,
-        };
+        let hls_enabled = args.is_present("hls_http_enabled");
 
         let hls = printnanny_asyncapi_models::HlsSettings {
             hls_enabled,
