@@ -158,7 +158,6 @@ impl OctoPrintSettings {
         match output {
             Ok (output) =>  {
                 let stdout = String::from_utf8_lossy(&output.stdout);
-                let stdout = String::from_utf8_lossy(&output.stdout);
                 let result = parse_pip_list_json(&stdout)?;
                 debug!(
                     "Found pip_packages for python at {:?} {:?}",

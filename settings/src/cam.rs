@@ -512,7 +512,7 @@ impl From<PrintNannyCameraSettings> for printnanny_asyncapi_models::PrintNannyCa
 
 impl From<&ArgMatches> for PrintNannyCameraSettings {
     fn from(args: &ArgMatches) -> Self {
-        let video_height: i32 = args
+        let _video_height: i32 = args
             .value_of_t::<i32>("video_height")
             .expect("--video-height must be an integer");
 
@@ -520,7 +520,7 @@ impl From<&ArgMatches> for PrintNannyCameraSettings {
             .value_of_t::<i32>("video_framerate")
             .expect("--video-framerate must be an integer");
 
-        let video_width: i32 = args
+        let _video_width: i32 = args
             .value_of_t::<i32>("video_width")
             .expect("--video-width must be an integer");
 
