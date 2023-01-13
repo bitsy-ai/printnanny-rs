@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{error::PrintNannySettingsError, printnanny::PrintNannySettings};
 
 use super::error::PrintNannyCloudDataError;
-use printnanny_api_client::models;
+use printnanny_api_client::models::{self, OctoPrintServer};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyCloudData {
@@ -32,6 +32,21 @@ impl PrintNannyCloudData {
             }
         };
         Ok(result)
+    }
+
+    pub fn octoprint_server(&self) -> Result<OctoPrintServer, PrintNannyCloudDataError> {
+        match &self.pi {
+            Some(pi) => match &pi.octoprint_server {
+                Some(octoprint_server) => {
+                    let result = octoprint_server.clone();
+                    Ok(*result)
+                }
+                None => Err(PrintNannyCloudDataError::SetupIncomplete {
+                    path: "pi.octoprint_server".into(),
+                }),
+            },
+            None => Err(PrintNannyCloudDataError::SetupIncomplete { path: "pi".into() }),
+        }
     }
 
     pub fn save(&self, file: &Path) -> Result<(), PrintNannyCloudDataError> {

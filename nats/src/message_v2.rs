@@ -20,7 +20,7 @@ use printnanny_dbus::printnanny_asyncapi_models::{
     SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
     SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
     SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdManagerUnitFilesRequest,
-    SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState,
+    SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState, WebrtcRecordingFileNameReply,
 };
 
 use printnanny_dbus::zbus;
@@ -30,6 +30,7 @@ use printnanny_settings::git2;
 use printnanny_settings::printnanny::PrintNannySettings;
 use printnanny_settings::vcs::VersionControlledSettings;
 
+use printnanny_services::file::new_video_filename;
 use printnanny_services::printnanny_api::ApiService;
 
 #[async_trait]
@@ -147,7 +148,7 @@ pub enum NatsReply {
     SystemdManagerStopUnitReply(SystemdManagerStopUnitReply),
 
     #[serde(rename = "pi.{pi_id}.webrtc.recording.file_name")]
-    WebrtcRecordingFileNameReply,
+    WebrtcRecordingFileNameReply(WebrtcRecordingFileNameReply),
 }
 
 impl NatsRequest {
@@ -676,6 +677,16 @@ impl NatsRequest {
             SystemdManagerStopUnitReply {
                 job: job.to_string(),
                 unit: Box::new(unit),
+            },
+        ))
+    }
+
+    async fn handle_webrtc_recording_file_name_request(&self) -> Result<NatsReply> {
+        let recording = new_video_filename().await?;
+        Ok(NatsReply::WebrtcRecordingFileNameReply(
+            WebrtcRecordingFileNameReply {
+                file_name: recording.path.display().to_string(),
+                ts: recording.ts.to_string(),
             },
         ))
     }

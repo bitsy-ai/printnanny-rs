@@ -126,6 +126,11 @@ pub enum ServiceError {
 
     #[error(transparent)]
     VersionControlledSettingsError(#[from] VersionControlledSettingsError),
+
+    #[error(transparent)]
+    ReqwestError(#[from] reqwest::Error),
+    #[error(transparent)]
+    UrlParseError(#[from] url::ParseError),
 }
 
 #[derive(Error, Debug)]
