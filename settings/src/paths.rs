@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use figment::providers::Env;
-use log::{warn, info};
+use log::{info, warn};
 use serde;
 use serde::{Deserialize, Serialize};
 use std::io::Read;
@@ -130,7 +130,10 @@ impl PrintNannyPaths {
 
     // unpack license to credentials dir (defaults to /etc/printnanny/creds)
     // returns a Vector of unzipped file PathBuf
-    pub fn unpack_license(&self, backup: bool) -> Result<[(String, PathBuf); 1], PrintNannySettingsError> {
+    pub fn unpack_license(
+        &self,
+        backup: bool,
+    ) -> Result<[(String, PathBuf); 1], PrintNannySettingsError> {
         let license_zip = self.license_zip();
         let file = match std::fs::File::open(&license_zip) {
             Ok(f) => Ok(f),
@@ -154,10 +157,12 @@ impl PrintNannyPaths {
                 match backup {
                     true => {
                         self.backup_file(dest)?;
-
-                    },
+                    }
                     false => {
-                        warn!("{} already exists and backup=false, overwriting without backup", &dest.display());
+                        warn!(
+                            "{} already exists and backup=false, overwriting without backup",
+                            &dest.display()
+                        );
                     }
                 }
             }
@@ -216,9 +221,14 @@ impl PrintNannyPaths {
         // if license.zip already exists, back up existing file before overwriting
         if filename.exists() {
             match backup {
-                true => {self.backup_file(&filename)?;},
+                true => {
+                    self.backup_file(&filename)?;
+                }
                 false => {
-                    warn!("{} already exists and backup=false, overwriting without backup", filename.display());
+                    warn!(
+                        "{} already exists and backup=false, overwriting without backup",
+                        filename.display()
+                    );
                 }
             }
         }
