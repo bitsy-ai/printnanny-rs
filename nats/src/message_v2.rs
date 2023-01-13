@@ -92,6 +92,9 @@ pub enum NatsRequest {
     SystemdManagerStartUnitRequest(SystemdManagerStartUnitRequest),
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
     SystemdManagerStopUnitRequest(SystemdManagerStopUnitRequest),
+
+    #[serde(rename = "pi.{pi_id}.webrtc.recording.file_name")]
+    WebrtcRecordingFileNameRequest,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -142,6 +145,9 @@ pub enum NatsReply {
     SystemdManagerStartUnitReply(SystemdManagerStartUnitReply),
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
     SystemdManagerStopUnitReply(SystemdManagerStopUnitReply),
+
+    #[serde(rename = "pi.{pi_id}.webrtc.recording.file_name")]
+    WebrtcRecordingFileNameReply,
 }
 
 impl NatsRequest {
@@ -796,6 +802,9 @@ impl NatsRequestHandler for NatsRequest {
             }
             NatsRequest::SystemdManagerStopUnitRequest(request) => {
                 self.handle_stop_unit_request(request).await?
+            }
+            NatsRequest::WebrtcRecordingFileNameRequest => {
+                self.handle_webrtc_recording_file_name_request().await?
             }
         };
 
