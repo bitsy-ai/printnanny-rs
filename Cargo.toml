@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "cli",
+    "db",
     "dbus",
     "gst-plugin",
     "settings",

@@ -931,13 +931,13 @@ dependencies = [
  "ipnetwork",
  "libc",
  "libsqlite3-sys",
- "num-bigint 0.2.6",
+ "num-bigint 0.4.3",
  "num-integer",
  "num-traits 0.2.15",
  "r2d2",
  "serde_json",
  "time 0.3.17",
- "uuid 0.8.2",
+ "uuid 1.2.2",
 ]
 
 [[package]]
@@ -3247,6 +3247,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "printnanny-edge-db"
+version = "0.1.0"
+dependencies = [
+ "diesel",
+]
+
+[[package]]
 name = "printnanny-gst-plugin"
 version = "0.5.0"
 dependencies = [
@@ -3291,7 +3298,6 @@ dependencies = [
  "bytes",
  "chrono",
  "clap",
- "diesel",
  "env_logger",
  "figment",
  "futures",
