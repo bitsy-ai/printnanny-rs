@@ -1,1 +1,6 @@
--- Your SQL goes here
+CREATE TABLE video_recordings (
+  id blob(16) PRIMARY KEY NOT NULL,
+  file_name VARCHAR NOT NULL,
+  ts INTEGER NOT NULL,
+  backup_done BOOLEAN NOT NULL DEFAULT FALSE
+)

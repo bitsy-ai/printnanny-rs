@@ -1,5 +1,6 @@
 pub mod cpuinfo;
 pub mod crash_report;
+pub mod db;
 pub mod error;
 pub mod file;
 pub mod janus;
