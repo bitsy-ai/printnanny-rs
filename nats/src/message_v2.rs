@@ -755,6 +755,9 @@ impl NatsRequestHandler for NatsRequest {
                     serde_json::from_slice::<SystemdManagerStopUnitRequest>(payload.as_ref())?,
                 ))
             }
+            "pi.{pi_id}.webrtc.recording.file_name" => {
+                Ok(NatsRequest::WebrtcRecordingFileNameRequest)
+            }
             _ => Err(anyhow!(
                 "NATS message handler not implemented for subject pattern {}",
                 subject_pattern
