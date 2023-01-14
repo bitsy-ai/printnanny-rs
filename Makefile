@@ -26,16 +26,16 @@ settings:
 images:
 	docker build \
 		-f tools/docker/aarch64-unknown-linux-gnu.Dockerfile \
-		-t bitsyai/cross:aarch64-unknown-linux-gnu-22.04 tools
-	docker push bitsyai/cross:aarch64-unknown-linux-gnu-22.04
+		-t bitsyai/cross-rs:aarch64-unknown-linux-gnu-22.04 tools
+	docker push bitsyai/cross-rs:aarch64-unknown-linux-gnu-22.04
 	docker build \
 		-f tools/docker/armv7-unknown-linux-gnueabihf.Dockerfile \
-		-t bitsyai/cross:armv7-unknown-linux-gnueabihf-22.04 tools
-	docker push bitsyai/cross:armv7-unknown-linux-gnueabihf-22.04
+		-t bitsyai/cross-rs:armv7-unknown-linux-gnueabihf-22.04 tools
+	docker push bitsyai/cross-rs:armv7-unknown-linux-gnueabihf-22.04
 	docker build \
 		-f tools/docker/x86_64-unknown-linux-gnu.Dockerfile \
-		-t bitsyai/cross:x86_64-unknown-linux-gnu-22.04 tools
-	docker push bitsyai/cross:x86_64-unknown-linux-gnu-22.04
+		-t bitsyai/cross-rs:x86_64-unknown-linux-gnu-22.04 tools
+	docker push bitsyai/cross-rs:x86_64-unknown-linux-gnu-22.04
 
 patch:
 	cargo release patch --workspace --execute --tag
