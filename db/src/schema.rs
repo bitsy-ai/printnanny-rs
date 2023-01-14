@@ -3,7 +3,8 @@
 diesel::table! {
     video_recordings (id) {
         id -> Binary,
-        file_name -> Text,
+        recording_file_name -> Text,
+        gcode_file_name -> Nullable<Text>,
         ts -> Integer,
         backup_done -> Bool,
     }
