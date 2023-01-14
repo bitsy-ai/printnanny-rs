@@ -868,8 +868,8 @@ mod tests {
         )
     }
 
-    #[test(tokio::test)]
-    async fn test_handle_webrtc_recording_file_name_request() {
+    #[test_log::test]
+    fn test_handle_webrtc_recording_file_name_request() {
         figment::Jail::expect_with(|jail| {
             // init git repo in jail tmp dir
             make_settings_repo(jail);
