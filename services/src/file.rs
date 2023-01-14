@@ -27,6 +27,8 @@ pub struct VideoRecording {
 
 pub async fn new_video_filename() -> Result<VideoRecording, ServiceError> {
     let settings = PrintNannySettings::new()?;
+
+    // is octoprint api key set?
     // is octoprint running a job?
     let octoprint_current_job_filename = octoprint::octoprint_get_current_job_filename().await?;
     match octoprint_current_job_filename {
