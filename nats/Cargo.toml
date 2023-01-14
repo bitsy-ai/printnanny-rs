@@ -32,6 +32,8 @@ async-trait = "0.1.58"
 bytes = "1.2"
 chrono = "0.4.22"
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
+diesel = { version = "2.0.0", features = ["sqlite", "extras"] }
+
 env_logger = "0.9"
 futures = "0.3"
 futures-util = "0.3.25"        # Common utilities and extension traits for the futures-rs library. 
