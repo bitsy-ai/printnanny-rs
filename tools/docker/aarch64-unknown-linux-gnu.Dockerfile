@@ -52,6 +52,6 @@ RUN apt-get update && apt-get install --assume-yes --upgrade \
     nnstreamer:arm64 \
     nnstreamer-tensorflow2-lite:arm64 \
     nnstreamer-dev:arm64 \
-    sqlite3:arm64 libsqlite3-0:arm64
+    sqlite3:arm64 libsqlite3-0:arm64 libsqlite3-dev:arm64
 
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs build-essential gcc g++ make
