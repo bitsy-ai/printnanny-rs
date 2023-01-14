@@ -683,6 +683,7 @@ impl NatsRequest {
 
     async fn handle_webrtc_recording_file_name_request(&self) -> Result<NatsReply> {
         let recording = new_video_filename().await?;
+        info!("Generated next recording name: {:?}", recording);
         Ok(NatsReply::WebrtcRecordingFileNameReply(
             WebrtcRecordingFileNameReply {
                 file_name: recording.path.display().to_string(),
@@ -865,6 +866,25 @@ mod tests {
             subject,
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.GetUnit"
         )
+    }
+
+    #[test_log::test]
+    fn test_handle_webrtc_recording_file_name_request() {
+        figment::Jail::expect_with(|jail| {
+            // init git repo in jail tmp dir
+            make_settings_repo(jail);
+
+            let request = NatsRequest::WebrtcRecordingFileNameRequest;
+
+            let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
+
+            if let NatsReply::WebrtcRecordingFileNameReply(reply) = reply {
+                assert!(reply.file_name.contains("camera"));
+            } else {
+                panic!("Expected NatsReply::WebrtcRecordingFileNameReply");
+            }
+            Ok(())
+        });
     }
 
     #[test(tokio::test)]
