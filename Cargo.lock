@@ -3251,6 +3251,7 @@ name = "printnanny-edge-db"
 version = "0.1.0"
 dependencies = [
  "diesel",
+ "printnanny-settings",
 ]
 
 [[package]]

@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 diesel = { version = "2.0.0", features = ["sqlite", "extras"] }
+printnanny-settings = { path = "../settings", version = "^0.4"}
