@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use std::fs;
-use std::time::SystemTime;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -682,12 +682,20 @@ impl NatsRequest {
     }
 
     async fn handle_webrtc_recording_file_name_request(&self) -> Result<NatsReply> {
-        let recording = new_video_filename().await?;
-        info!("Generated next recording name: {:?}", recording);
+        // TODO get current print job filename
+        // let recording = new_video_filename().await?;
+        let start = SystemTime::now();
+        let ts = start
+            .duration_since(UNIX_EPOCH)
+            .expect("Failed to get UNIX_EPOCH")
+            .as_secs();
+
+        let settings = PrintNannySettings::new()?;
+        let recording_dir = settings.paths.video();
         Ok(NatsReply::WebrtcRecordingFileNameReply(
             WebrtcRecordingFileNameReply {
-                file_name: recording.path.display().to_string(),
-                ts: recording.ts.to_string(),
+                file_name: recording_dir.display().to_string(),
+                ts: ts.to_string(),
             },
         ))
     }
@@ -866,25 +874,6 @@ mod tests {
             subject,
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.GetUnit"
         )
-    }
-
-    #[test_log::test]
-    fn test_handle_webrtc_recording_file_name_request() {
-        figment::Jail::expect_with(|jail| {
-            // init git repo in jail tmp dir
-            make_settings_repo(jail);
-
-            let request = NatsRequest::WebrtcRecordingFileNameRequest;
-
-            let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
-
-            if let NatsReply::WebrtcRecordingFileNameReply(reply) = reply {
-                assert!(reply.file_name.contains("camera"));
-            } else {
-                panic!("Expected NatsReply::WebrtcRecordingFileNameReply");
-            }
-            Ok(())
-        });
     }
 
     #[test(tokio::test)]

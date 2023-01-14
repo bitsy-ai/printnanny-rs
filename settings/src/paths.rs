@@ -69,6 +69,10 @@ impl PrintNannyPaths {
         ))
     }
 
+    pub fn db(&self) -> PathBuf {
+        self.state_dir.join("db.sqlite")
+    }
+
     // secrets, keys, credentials dir
     pub fn creds(&self) -> PathBuf {
         self.state_dir.join("creds")
