@@ -97,8 +97,12 @@ impl ApiService {
         self.sync().await?;
         let mut state = PrintNannyCloudData::load(&cloud_state_file)?;
         let pi_id = state.pi.unwrap().id;
-        // download credential and device identity bundled in license.zip
-        self.pi_download_license(pi_id, false).await?;
+
+        // download license
+        if !self.settings.paths.license_zip().exists() {
+            // download credential and device identity bundled in license.zip
+            self.pi_download_license(pi_id, false).await?;
+        }
         // mark setup complete
         let req = models::PatchedPiRequest {
             setup_finished: Some(true),
@@ -107,6 +111,7 @@ impl ApiService {
             hostname: None,
             favorite: None,
         };
+
         self.pi_partial_update(pi_id, req).await?;
         let pi = self.pi_retrieve(pi_id).await?;
         state.pi = Some(pi);
