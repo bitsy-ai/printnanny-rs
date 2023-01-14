@@ -170,7 +170,7 @@ impl PrintNannySettings {
                 }
             }
             Err(_) => {
-                warn!(
+                debug!(
                     "PRINTNANNY_SETTINGS not set. Initializing from PrintNannyCloudConfig::default()"
                 );
                 Ok(())

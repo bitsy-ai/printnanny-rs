@@ -77,15 +77,19 @@ impl ApiService {
         api_base_path: String,
         api_bearer_access_token: String,
     ) -> Result<Self, ServiceError> {
+        let previous = self.settings.clone();
         self.settings.cloud.api_base_path = api_base_path;
         self.settings.cloud.api_bearer_access_token = Some(api_bearer_access_token);
-        let content = self.settings.to_toml_string()?;
-        self.settings
-            .save_and_commit(
-                &content,
-                Some("Updated PrintNanny Cloud API auth".to_string()),
-            )
-            .await?;
+        if previous != self.settings {
+            warn!("Change in PrintNannySettings detected, commiting changes");
+            let content = self.settings.to_toml_string()?;
+            self.settings
+                .save_and_commit(
+                    &content,
+                    Some("Updated PrintNanny Cloud API auth".to_string()),
+                )
+                .await?;
+        }
 
         let cloud_state_file = self.settings.paths.cloud();
 
@@ -278,7 +282,13 @@ impl ApiService {
             true =>
             // verify pi is authenticated
             {
-                let mut state = PrintNannyCloudData::load(&cloud_state_file)?;
+                let mut state = match PrintNannyCloudData::load(&cloud_state_file) {
+                    Ok(data) => data,
+                    Err(e) => {
+                        error!("Error loading PrintNannyCloudData: {}", e);
+                        PrintNannyCloudData::default()
+                    }
+                };
                 match &state.pi {
                     Some(pi) => {
                         info!(
