@@ -49,8 +49,10 @@ where
         + DeserializeOwned
         + Debug
         + NatsRequestHandler<Request = Request>
-        + NatsRequestHandler<Reply = Reply>,
-    Reply: Serialize + DeserializeOwned + Debug,
+        + NatsRequestHandler<Reply = Reply>
+        + std::marker::Sync
+        + std::marker::Send,
+    Reply: Serialize + DeserializeOwned + Debug + std::marker::Sync,
 {
     pub fn clap_command(app_name: Option<String>) -> Command<'static> {
         let app_name = app_name.unwrap_or_else(|| DEFAULT_NATS_EDGE_APP_NAME.to_string());
@@ -112,7 +114,6 @@ where
             _response: PhantomData,
         }
     }
-
     pub async fn subscribe_nats_subject(&self) -> Result<()> {
         let mut nats_client: Option<async_nats::Client> = None;
         while nats_client.is_none() {
@@ -136,30 +137,38 @@ where
             "Listening on {} where subject={}",
             &self.nats_server_uri, &self.subject
         );
-        while let Some(message) = subscriber.next().await {
-            debug!("Received NATS Message: {:?}", message);
 
+        while let Some(message) = subscriber.next().await {
             let subject_pattern =
                 Request::replace_subject_pattern(&message.subject, &self.hostname, "{pi_id}");
             debug!(
                 "Extracted subject_pattern {} from subject {} using hostname {}",
                 &subject_pattern, &message.subject, &self.hostname
             );
-            let request = Request::deserialize_payload(&subject_pattern, &message.payload)?;
-
-            match message.reply {
-                Some(reply_inbox) => {
-                    let payload = match request.handle().await {
-                        Ok(r) => serde_json::to_vec(&r)?,
-                        Err(e) => {
-                            let r = RequestErrorMsg {
-                                error: e.to_string(),
-                                subject_pattern,
-                                request,
-                            };
-                            serde_json::to_vec(&r)?
-                        }
-                    };
+            let reply = tokio::spawn(async move {
+                let request = Request::deserialize_payload(&subject_pattern, &message.payload)?;
+                debug!("Received NATS Message: {:?}", message);
+                match message.reply {
+                    Some(reply_inbox) => {
+                        let payload = match request.handle().await {
+                            Ok(r) => serde_json::to_vec(&r)?,
+                            Err(e) => {
+                                let r = RequestErrorMsg {
+                                    error: e.to_string(),
+                                    subject_pattern,
+                                    request,
+                                };
+                                serde_json::to_vec(&r)?
+                            }
+                        };
+                        Ok(Some((reply_inbox, payload)))
+                    }
+                    None => Ok::<Option<(String, Vec<u8>)>, NatsError>(None),
+                }
+            })
+            .await??;
+            match reply {
+                Some((reply_inbox, payload)) => {
                     match nats_client.publish(reply_inbox, payload.into()).await {
                         Ok(_) => Ok(()),
                         Err(e) => Err(NatsError::PublishError {

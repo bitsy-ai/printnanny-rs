@@ -142,6 +142,12 @@ pub enum NatsError {
 
     #[error("Nats PublishError {error}")]
     PublishError { error: String },
+
+    #[error(transparent)]
+    SerdeJsonError(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    AnyhowError(#[from] anyhow::Error),
 }
 
 #[derive(Error, Debug)]
