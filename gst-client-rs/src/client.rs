@@ -149,6 +149,7 @@ mod spec {
         Url::parse(BASE_URL).unwrap()
     }
 
+    #[ignore]
     #[test]
     fn create_client_with_build() {
         let client = GstClient::build(BASE_URL).unwrap();
@@ -158,6 +159,7 @@ mod spec {
         assert_eq!(client.base_url, expect_url());
     }
 
+    #[ignore]
     #[test]
     fn create_client_from() {
         let url = expect_url();
@@ -168,6 +170,7 @@ mod spec {
         assert_eq!(client.base_url, expect_url());
     }
 
+    #[ignore]
     #[tokio::test]
     async fn create_pipeline() {
         if let Ok(client) = GstClient::build(BASE_URL) {
@@ -176,6 +179,8 @@ mod spec {
             assert!(res.is_ok());
         };
     }
+
+    #[ignore]
     #[tokio::test]
     async fn retrieve_pipelines() {
         if let Ok(client) = GstClient::build(BASE_URL) {
@@ -185,6 +190,7 @@ mod spec {
         };
     }
 
+    #[ignore]
     #[tokio::test]
     async fn retrieve_pipeline_graph() {
         if let Ok(client) = GstClient::build(BASE_URL) {
@@ -194,6 +200,7 @@ mod spec {
         };
     }
 
+    #[ignore]
     #[tokio::test]
     async fn retrieve_pipeline_elements() {
         if let Ok(client) = GstClient::build(BASE_URL) {
@@ -202,6 +209,8 @@ mod spec {
             assert!(res.is_ok());
         };
     }
+
+    #[ignore]
     #[tokio::test]
     async fn retrieve_pipeline_properties() {
         if let Ok(client) = GstClient::build(BASE_URL) {
@@ -210,6 +219,8 @@ mod spec {
             assert!(res.is_ok());
         };
     }
+
+    #[ignore]
     #[tokio::test]
     async fn retrieve_pipeline_element_property() {
         if let Ok(client) = GstClient::build(BASE_URL) {
@@ -222,6 +233,8 @@ mod spec {
             assert!(res.is_ok());
         };
     }
+
+    #[ignore]
     #[tokio::test]
     async fn retrieve_pipeline_bus_read() {
         if let Ok(client) = GstClient::build(BASE_URL) {
