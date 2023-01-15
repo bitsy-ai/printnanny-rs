@@ -939,13 +939,13 @@ mod tests {
             // apply a settings change
             let settings = PrintNannySettings::new().unwrap();
             let mut modified = settings.camera.clone();
-            modified.hls.hls_enabled = false;
+            modified.hls_enabled = false;
 
             let request = NatsRequest::CameraSettingsFileApplyRequest(modified.clone().into());
             let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
 
             if let NatsReply::CameraSettingsFileApplyReply(reply) = reply {
-                assert_eq!(reply.hls.hls_enabled, false);
+                assert_eq!(reply.hls_enabled, false);
                 let settings = PrintNannySettings::new().unwrap();
                 assert_eq!(settings.camera.hls.hls_enabled, false);
             } else {
