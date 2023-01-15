@@ -11,7 +11,7 @@ use zip::write::FileOptions;
 use printnanny_settings::printnanny::PrintNannySettings;
 
 fn netstat_routes() -> io::Result<Vec<u8>> {
-    let output = Command::new("netstat").args(["--routes"]).output()?;
+    let output = Command::new("netstat").args(["--route"]).output()?;
     Ok(output.stdout)
 }
 
