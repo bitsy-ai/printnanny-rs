@@ -2,7 +2,6 @@ use gst_client::reqwest;
 use gst_client::GstClient;
 use log::info;
 
-use printnanny_settings::cam::PrintNannyCameraSettings;
 use printnanny_settings::{
     cam::CameraVideoSource, cam::VideoSource, printnanny::PrintNannySettings, SettingsFormat,
 };
@@ -16,15 +15,15 @@ pub fn gst_client_address(args: &clap::ArgMatches) -> String {
 }
 
 pub struct PrintNannyPipelineFactory {
-    address: String,
-    port: i32,
+    pub address: String,
+    pub port: i32,
     client: GstClient,
 }
 
 impl PrintNannyPipelineFactory {
     pub fn new(address: String, port: i32) -> Self {
         let uri = Self::uri(&address, port);
-        let client = GstClient::build(&uri).expect("Failed to build GstClient");
+        let client = GstClient::build(uri).expect("Failed to build GstClient");
 
         Self {
             address,
@@ -207,8 +206,8 @@ impl PrintNannyPipelineFactory {
         let snapshot_pipeline_name = "snapshot";
         let snapshot_pipeline = self
             .make_jpeg_snapshot_pipeline(
-                &snapshot_pipeline_name,
-                &camera_pipeline_name,
+                snapshot_pipeline_name,
+                camera_pipeline_name,
                 &settings.camera.snapshot_location,
             )
             .await?;
@@ -281,6 +280,7 @@ impl PrintNannyPipelineFactory {
         camera_pipeline.play().await?;
         snapshot_pipeline.play().await?;
         h264_pipeline.play().await?;
+        hls_pipeline.play().await?;
         rtp_pipeline.play().await?;
         inference_pipeline.play().await?;
         bb_pipeline.play().await?;
