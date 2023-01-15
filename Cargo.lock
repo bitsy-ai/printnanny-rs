@@ -3292,6 +3292,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "printnanny-gst-pipelines"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "gst-client",
+ "log",
+ "printnanny-settings",
+]
+
+[[package]]
 name = "printnanny-gst-plugin"
 version = "0.5.0"
 dependencies = [
@@ -3303,7 +3313,6 @@ dependencies = [
  "env_logger",
  "git-version",
  "glob",
- "gst-client",
  "gst-plugin-version-helper",
  "gstreamer",
  "gstreamer-app",

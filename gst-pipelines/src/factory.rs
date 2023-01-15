@@ -3,16 +3,10 @@ use gst_client::GstClient;
 use log::info;
 
 use printnanny_settings::{
-    cam::CameraVideoSource, cam::VideoSource, printnanny::PrintNannySettings, SettingsFormat,
+    cam::CameraVideoSource, cam::VideoSource, printnanny::PrintNannySettings
 };
 
 use anyhow::Result;
-
-pub fn gst_client_address(args: &clap::ArgMatches) -> String {
-    let address = args.value_of("http-address").unwrap();
-    let port = args.value_of("http-port").unwrap();
-    format!("http://{address}:{port}")
-}
 
 pub struct PrintNannyPipelineFactory {
     pub address: String,

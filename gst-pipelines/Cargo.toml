@@ -1,0 +1,16 @@
+[package]
+description = "PrintNanny Gstreamer Pipelines"
+name = "printnanny-gst-pipelines"
+version = "0.1.0"
+edition = "2021"
+authors = ["Leigh Johnson <leigh@printnanny.ai>"]
+license-file = "../LICENSE"
+rust-version = "1.63"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1"                                   # Flexible concrete Error type built on std::error::Error
+gst-client = { path = "../gst-client-rs" }
+printnanny-settings = { package="printnanny-settings", version = "^0.4", path="../settings" }
+log = "0.4"                  # A lightweight logging facade for Rust 
