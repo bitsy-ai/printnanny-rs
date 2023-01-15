@@ -160,7 +160,6 @@ impl ApiService {
             posthog_session,
             status,
             None,
-            user,
             pi,
         )
         .await?;
@@ -185,8 +184,6 @@ impl ApiService {
 
         let pi = self.pi.as_ref().map(|pi| pi.id);
 
-        let user = self.user.as_ref().map(|user| user.id);
-
         let result = crash_reports_api::crash_reports_partial_update(
             &self.reqwest_config(),
             id,
@@ -200,7 +197,6 @@ impl ApiService {
             None,
             None,
             None,
-            user,
             pi,
         )
         .await?;
