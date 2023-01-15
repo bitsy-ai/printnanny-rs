@@ -353,10 +353,17 @@ pub struct PrintNannyCameraSettings {
     pub record_video: bool,
     pub cloud_backup: bool,
 
+    pub hls_segments: String,
+    pub hls_playlist: String,
+    pub hls_playlist_root: String,
+    pub hls_enabled: bool,
+
+    pub snapshot_enabled: bool,
+    pub snapshot_location: String,
+
     // complex types last, otherwise serde will raise TomlSerError(ValueAfterTable)
     pub detection: printnanny_asyncapi_models::PrintNannyDetectionSettings,
     pub camera: VideoSource,
-    pub hls: printnanny_asyncapi_models::HlsSettings,
 }
 
 impl PrintNannyCameraSettings {
@@ -392,17 +399,13 @@ impl Default for PrintNannyCameraSettings {
         let video_udp_port = 20001;
         let overlay_udp_port = 20002;
         let video_framerate = 24;
+
+        let snapshot_enabled = true;
+        let snapshot_location = "/var/run/printnanny-snapshot/%d.jpeg".into();
         let hls_enabled = true;
         let hls_segments = "/var/run/printnanny-hls/segment%05d.ts".into();
         let hls_playlist = "/var/run/printnanny-hls/playlist.m3u8".into();
         let hls_playlist_root = "/printnanny-hls/".into();
-
-        let hls = printnanny_asyncapi_models::HlsSettings {
-            hls_enabled,
-            hls_segments,
-            hls_playlist,
-            hls_playlist_root,
-        };
 
         let camera = VideoSource::CSI(CameraVideoSource {
             index: 0,
@@ -430,7 +433,12 @@ impl Default for PrintNannyCameraSettings {
             video_udp_port,
             overlay_udp_port,
             preview,
-            hls,
+            hls_enabled,
+            hls_segments,
+            hls_playlist,
+            hls_playlist_root,
+            snapshot_enabled,
+            snapshot_location,
             detection,
             record_video,
             cloud_backup,
@@ -454,27 +462,26 @@ impl From<printnanny_asyncapi_models::PrintNannyCameraSettings> for PrintNannyCa
     }
 }
 
-impl From<VideoSource> for  printnanny_asyncapi_models::Camera {
+impl From<VideoSource> for printnanny_asyncapi_models::Camera {
     fn from(obj: VideoSource) -> printnanny_asyncapi_models::Camera {
         match &obj {
             VideoSource::CSI(camera) => printnanny_asyncapi_models::Camera {
-                    selected_caps: Box::new(camera.caps.clone()),
-                    src_type: Box::new(printnanny_asyncapi_models::CameraSourceType::Csi),
-                    index: camera.index,
-                    label: camera.label.clone(),
-                    device_name: camera.device_name.clone(),
-                    available_caps: camera.list_available_caps(),
+                selected_caps: Box::new(camera.caps.clone()),
+                src_type: Box::new(printnanny_asyncapi_models::CameraSourceType::Csi),
+                index: camera.index,
+                label: camera.label.clone(),
+                device_name: camera.device_name.clone(),
+                available_caps: camera.list_available_caps(),
             },
-            VideoSource::USB(camera) => 
-                printnanny_asyncapi_models::Camera {
-                    selected_caps: Box::new(camera.caps.clone()),
-                    src_type: Box::new(printnanny_asyncapi_models::CameraSourceType::Usb),
-                    index: camera.index,
-                    label: camera.label.clone(),
-                    device_name: camera.device_name.clone(),
-                    available_caps: camera.list_available_caps(),
-                },
-    
+            VideoSource::USB(camera) => printnanny_asyncapi_models::Camera {
+                selected_caps: Box::new(camera.caps.clone()),
+                src_type: Box::new(printnanny_asyncapi_models::CameraSourceType::Usb),
+                index: camera.index,
+                label: camera.label.clone(),
+                device_name: camera.device_name.clone(),
+                available_caps: camera.list_available_caps(),
+            },
+
             _ => todo!(),
         }
     }
