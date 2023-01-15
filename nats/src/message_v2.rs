@@ -691,10 +691,10 @@ impl NatsRequest {
             .as_secs();
 
         let settings = PrintNannySettings::new()?;
-        let recording_dir = settings.paths.video();
+        let recording_file = settings.paths.video().join(format!("{}.mjr", ts));
         Ok(NatsReply::WebrtcRecordingFileNameReply(
             WebrtcRecordingFileNameReply {
-                file_name: recording_dir.display().to_string(),
+                file_name: recording_file.display().to_string(),
                 ts: ts.to_string(),
             },
         ))
