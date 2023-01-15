@@ -12,26 +12,6 @@
 //!
 //! Create new client for `http://127.0.0.1:5000` host
 //! ```
-//! use gst_client::GstClient;
-//!
-//! let client = GstClient::default();
-//! ```
-//!
-//! Create client for specific address
-//! ```
-//! use gst_client::GstClient;
-//!
-//! let client = GstClient::build("http://127.0.0.1:5000").unwrap();
-//! ```
-//!
-//! Perform operations with Pipeline
-//!
-//! ```
-//! use gst_client::GstClient;
-//!
-//! let client = GstClient::default();
-//! let new_pipeline = client.pipeline("new-pipeline").create("playbin").unwrap();
-//! ```
 //! [1]: https://developer.ridgerun.com/wiki/index.php/GStreamer_Daemon
 //! [2]: https://developer.ridgerun.com/wiki/index.php/GStreamer_Daemon_-_C_API
 //! [`GstClient`]: client::GstClient
