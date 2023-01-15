@@ -40,12 +40,14 @@ impl PrintNannyPipelineFactory {
         let camera_pipeline = client.pipeline(pipeline_name);
 
         match camera_pipeline.create(format!(
-            "libcamerasrc camera-name={camera_name} ! capsfilter caps=video/x-raw,format=(string){pixel_format},width=(int){width},height=(int){height},framerate=(fraction){framerate}/1",
+            "libcamerasrc camera-name={camera_name} \
+            ! capsfilter caps=video/x-raw,format=(string){pixel_format},width=(int){width},height=(int){height},framerate=(fraction){framerate}/1 \
+            ! interpipesink name={pipeline_name} sync=false",
             camera_name=camera.device_name,
             pixel_format=camera.caps.format,
             width=camera.caps.width,
             height=camera.caps.height,
-            framerate=settings.camera.video_framerate
+            framerate=settings.camera.video_framerate,
         ))
         .await {
             Ok(result) => {
