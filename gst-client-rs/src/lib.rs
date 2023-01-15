@@ -30,7 +30,7 @@
 //! use gst_client::GstClient;
 //!
 //! let client = GstClient::default();
-//! let new_pipeline = client.pipeline("new-pipeline").create("playbin")?;
+//! let new_pipeline = client.pipeline("new-pipeline").create("playbin").unwrap();
 //! ```
 //! [1]: https://developer.ridgerun.com/wiki/index.php/GStreamer_Daemon
 //! [2]: https://developer.ridgerun.com/wiki/index.php/GStreamer_Daemon_-_C_API
