@@ -908,6 +908,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive_more"
+version = "0.99.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fb810d30a7c1953f91334de7244731fc3f3c10d7fe163338a35b9f640960321"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "dialoguer"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1569,6 +1580,21 @@ dependencies = [
  "glib-sys",
  "libc",
  "system-deps",
+]
+
+[[package]]
+name = "gst-client"
+version = "0.1.2"
+dependencies = [
+ "derive_more",
+ "mime",
+ "mime_serde_shim",
+ "reqwest",
+ "serde 1.0.148",
+ "serde_json",
+ "serde_repr",
+ "tokio",
+ "url",
 ]
 
 [[package]]
@@ -2356,6 +2382,16 @@ checksum = "4192263c238a5f0d0c6bfd21f336a313a4ce1c450542449ca191bb657b4642ef"
 dependencies = [
  "mime",
  "unicase",
+]
+
+[[package]]
+name = "mime_serde_shim"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab9c5b33b135e34aab675cef7f678c688b30740ba299d75e3a8c0af89b5d5cea"
+dependencies = [
+ "mime",
+ "serde 1.0.148",
 ]
 
 [[package]]
@@ -3199,9 +3235,9 @@ dependencies = [
 
 [[package]]
 name = "printnanny-asyncapi-models"
-version = "0.2.8"
+version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "130ad2b51342e75d235b86da888edce9459007cd74dc4d164e4c6aa87cd914bb"
+checksum = "6e6d8ccf159715b6dc0d7acc18e5b9aafc58070210d8bfe31b8dfe7633d9081b"
 dependencies = [
  "serde 1.0.148",
  "serde_json",
@@ -3220,6 +3256,7 @@ dependencies = [
  "log",
  "printnanny-api-client",
  "printnanny-dbus",
+ "printnanny-gst-plugin",
  "printnanny-nats",
  "printnanny-services",
  "printnanny-settings",
@@ -3266,6 +3303,7 @@ dependencies = [
  "env_logger",
  "git-version",
  "glob",
+ "gst-client",
  "gst-plugin-version-helper",
  "gstreamer",
  "gstreamer-app",
@@ -4802,6 +4840,7 @@ dependencies = [
  "form_urlencoded",
  "idna",
  "percent-encoding",
+ "serde 1.0.148",
 ]
 
 [[package]]

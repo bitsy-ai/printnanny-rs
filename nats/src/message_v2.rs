@@ -30,7 +30,6 @@ use printnanny_settings::git2;
 use printnanny_settings::printnanny::PrintNannySettings;
 use printnanny_settings::vcs::VersionControlledSettings;
 
-use printnanny_services::file::new_video_filename;
 use printnanny_services::printnanny_api::ApiService;
 
 #[async_trait]
@@ -940,15 +939,15 @@ mod tests {
             // apply a settings change
             let settings = PrintNannySettings::new().unwrap();
             let mut modified = settings.camera.clone();
-            modified.hls.hls_enabled = false;
+            modified.hls_enabled = false;
 
             let request = NatsRequest::CameraSettingsFileApplyRequest(modified.clone().into());
             let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
 
             if let NatsReply::CameraSettingsFileApplyReply(reply) = reply {
-                assert_eq!(reply.hls.hls_enabled, false);
+                assert_eq!(reply.hls_enabled, false);
                 let settings = PrintNannySettings::new().unwrap();
-                assert_eq!(settings.camera.hls.hls_enabled, false);
+                assert_eq!(settings.camera.hls_enabled, false);
             } else {
                 panic!("Expected NatsReply::CameraSettingsFileApplyReply")
             }
