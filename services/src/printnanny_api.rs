@@ -145,9 +145,6 @@ impl ApiService {
         let os_release = OsRelease::new()?;
 
         let pi = self.pi.as_ref().map(|pi| pi.id);
-
-        let user = self.user.as_ref().map(|user| user.id);
-
         let result = crash_reports_api::crash_reports_create(
             &self.reqwest_config(),
             description,

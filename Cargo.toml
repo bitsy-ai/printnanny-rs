@@ -4,6 +4,7 @@ members = [
     "db",
     "dbus",
     "gst-client-rs",
+    "gst-pipelines",
     "gst-plugin",
     "settings",
     "services",

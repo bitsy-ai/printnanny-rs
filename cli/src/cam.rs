@@ -3,7 +3,7 @@ use std::io::Write;
 
 use anyhow::{Ok, Result};
 
-use printnanny_gst_plugin::factory::PrintNannyPipelineFactory;
+use printnanny_gst_pipelines::factory::PrintNannyPipelineFactory;
 use printnanny_settings::{cam::CameraVideoSource, SettingsFormat};
 
 pub struct CameraCommand;

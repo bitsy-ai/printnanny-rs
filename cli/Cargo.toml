@@ -14,7 +14,7 @@ printnanny-services = {path = "../services", version = "^0.32.0"}
 printnanny-nats = {path = "../nats", version = "^0.32.0"}
 printnanny-api-client = "0.124.1"
 printnanny-settings = { path = "../settings", version = "^0.4"}
-printnanny-gst-plugin = { path = "../gst-plugin", version = "^0.5", package="printnanny-gst-plugin"}
+printnanny-gst-pipelines = { path = "../gst-pipelines", version = "^0.1", package="printnanny-gst-pipelines"}
 
 figment = { version = "0.10", features = ["env", "json", "toml"] }
 anyhow = { version = "1", features = ["backtrace"] }
