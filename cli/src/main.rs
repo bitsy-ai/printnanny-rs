@@ -55,7 +55,43 @@ async fn main() -> Result<()> {
                 .possible_values(SettingsFormat::possible_values())
                 .default_value("json")
                 .help("Output format")
-            )     
+            ))
+            .subcommand(Command::new("start-pipelines")
+                .author(crate_authors!())
+                .about(crate_description!())
+                .version(GIT_VERSION)
+                .about("Start all PrintNanny Vision pipelines")      
+                .arg(
+                    Arg::new("http-address")
+                    .takes_value(true)
+                    .long("http-address")
+                    .default_value("127.0.0.1")
+                    .help("Attach to the server through a given address"))
+                .arg(
+                        Arg::new("http-port")
+                        .takes_value(true)
+                        .long("http-port")
+                        .default_value("5001")
+                        .help("Attach to the server through a given port")
+            ))
+            .subcommand(Command::new("list-pipelines")
+                .author(crate_authors!())
+                .about(crate_description!())
+                .version(GIT_VERSION)
+                .about("List all PrintNanny Vision pipelines")      
+                .arg(
+                    Arg::new("http-address")
+                    .takes_value(true)
+                    .long("http-address")
+                    .default_value("127.0.0.1")
+                    .help("Attach to the server through a given address"))
+                .arg(
+                        Arg::new("http-port")
+                        .takes_value(true)
+                        .long("http-port")
+                        .default_value("5001")
+                        .help("Attach to the server through a given port")
+            )    
         ))
         .subcommand(Command::new("crash-report")
             .author(crate_authors!())
@@ -264,7 +300,7 @@ async fn main() -> Result<()> {
 
     match app_m.subcommand() {
         Some(("cam", sub_m)) => {
-            CameraCommand::handle(sub_m)?;
+            CameraCommand::handle(sub_m).await?;
         },
         Some(("crash-report", sub_m)) => {
             let id = sub_m.value_of("id");

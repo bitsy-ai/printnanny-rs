@@ -13,6 +13,9 @@ PRINTNANNY_WEBAPP_WORKSPACE ?= $(HOME)/projects/octoprint-nanny-webapp
 $(TMPDIR):
 	mkdir -p $(TMPDIR)
 
+gstd:
+	/usr/local/bin/gstd --enable-http-protocol --http-address=0.0.0.0 --http-port=5000
+
 test:
 	cargo test --workspace --all-features  
 

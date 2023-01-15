@@ -30,7 +30,6 @@ use printnanny_settings::git2;
 use printnanny_settings::printnanny::PrintNannySettings;
 use printnanny_settings::vcs::VersionControlledSettings;
 
-use printnanny_services::file::new_video_filename;
 use printnanny_services::printnanny_api::ApiService;
 
 #[async_trait]

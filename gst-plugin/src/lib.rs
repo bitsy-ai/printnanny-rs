@@ -4,6 +4,7 @@ mod dataframe_filesink;
 mod nats_sink;
 
 pub mod error;
+pub mod factory;
 pub mod ipc;
 pub mod nnstreamer;
 pub mod tensor;

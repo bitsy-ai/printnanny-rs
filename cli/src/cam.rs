@@ -2,12 +2,17 @@ use std::io;
 use std::io::Write;
 
 use anyhow::{Ok, Result};
-use printnanny_settings::{cam::CameraVideoSource, SettingsFormat};
+use log::info;
+
+use printnanny_gst_plugin::factory::PrintNannyPipelineFactory;
+use printnanny_settings::{
+    cam::CameraVideoSource, cam::VideoSource, printnanny::PrintNannySettings, SettingsFormat,
+};
 
 pub struct CameraCommand;
 
 impl CameraCommand {
-    pub fn handle(args: &clap::ArgMatches) -> Result<()> {
+    fn list(args: &clap::ArgMatches) -> Result<()> {
         let output = CameraVideoSource::from_libcamera_list()?;
         let f: SettingsFormat = args.value_of_t("format").unwrap();
 
@@ -19,5 +24,21 @@ impl CameraCommand {
         io::stdout().write_all(&v)?;
 
         Ok(())
+    }
+
+    async fn start_pipelines(args: &clap::ArgMatches) -> Result<()> {
+        let address = args.value_of("http-address").unwrap();
+        let port: i32 = args.value_of_t("http-port").unwrap();
+        let factory = PrintNannyPipelineFactory::new(address.into(), port);
+        factory.start_pipelines().await?;
+        Ok(())
+    }
+    pub async fn handle(args: &clap::ArgMatches) -> Result<()> {
+        match args.subcommand() {
+            Some(("list", args)) => Self::list(args),
+            Some(("start-pipelines", args)) => Self::start_pipelines(args).await,
+
+            _ => unimplemented!(),
+        }
     }
 }
