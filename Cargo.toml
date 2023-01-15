@@ -3,6 +3,7 @@ members = [
     "cli",
     "db",
     "dbus",
+    "gst-client-rs",
     "gst-plugin",
     "settings",
     "services",
