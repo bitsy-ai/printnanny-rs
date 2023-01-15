@@ -947,7 +947,7 @@ mod tests {
             if let NatsReply::CameraSettingsFileApplyReply(reply) = reply {
                 assert_eq!(reply.hls_enabled, false);
                 let settings = PrintNannySettings::new().unwrap();
-                assert_eq!(settings.camera.hls.hls_enabled, false);
+                assert_eq!(settings.camera.hls_enabled, false);
             } else {
                 panic!("Expected NatsReply::CameraSettingsFileApplyReply")
             }
