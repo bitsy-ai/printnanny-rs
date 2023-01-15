@@ -104,7 +104,8 @@ impl PipelineApp {
         };
 
         let parser = gst::ElementFactory::make("h264parse")
-            .property_from_str("config-interval", "1").build()?;
+            .property_from_str("config-interval", "1")
+            .build()?;
 
         let video_h264_capsfilter = gst::ElementFactory::make("capsfilter")
             .name("capsfilter__video_h264_level")
@@ -166,7 +167,7 @@ impl PipelineApp {
                 true => {
                     warn!(
                         "octoprint compatibility enabled, writing hls segments/playlist to {} {}",
-                        &self.settings.hls.hls_segments, &self.settings.hls.hls_playlist
+                        &self.settings.hls_segments, &self.settings.hls_playlist
                     );
                     let h264_tee = gst::ElementFactory::make("tee")
                         .name("tee__h264_video")
@@ -178,12 +179,12 @@ impl PipelineApp {
                         .build()?;
 
                     let hls_sink = gst::ElementFactory::make("hlssink2")
-                        .property_from_str("playlist-length", "8") // 
+                        .property_from_str("playlist-length", "8") //
                         .property_from_str("max-files", "10") // save 10 files before deleting old files
                         .property_from_str("target-duration", "1") // target duration of segment/file
-                        .property("location", &self.settings.hls.hls_segments)
-                        .property("playlist-location", &self.settings.hls.hls_playlist)
-                        .property("playlist-root", &self.settings.hls.hls_playlist_root)
+                        .property("location", &self.settings.hls_segments)
+                        .property("playlist-location", &self.settings.hls_playlist)
+                        .property("playlist-root", &self.settings.hls_playlist_root)
                         .property("send-keyframe-requests", false) // v4l2h264enc min-force-key-unit-interval will send key frames in regular intervals
                         .build()?;
                     let h264_video_elements = &[
@@ -251,7 +252,7 @@ impl PipelineApp {
             }
         };
 
-        match self.settings.hls.hls_enabled {
+        match self.settings.hls_enabled {
             true => insert_h264_sinks(true)?,
             false => insert_h264_sinks(false)?,
         };
@@ -363,7 +364,8 @@ impl PipelineApp {
                 .build(),
         );
         let box_parser = gst::ElementFactory::make("h264parse")
-            .property_from_str("config-interval", "1").build()?;
+            .property_from_str("config-interval", "1")
+            .build()?;
 
         let box_h264encoder = match gst::ElementFactory::make("v4l2h264enc")
             .property_from_str("output-io-mode", "mmap")

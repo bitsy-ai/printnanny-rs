@@ -401,7 +401,7 @@ impl Default for PrintNannyCameraSettings {
         let video_framerate = 24;
 
         let snapshot_enabled = true;
-        let snapshot_location = "/var/run/printnanny-snapshot/%d.jpeg".into();
+        let snapshot_location = "/var/run/printnanny-snapshot/%d.jpg".into();
         let hls_enabled = true;
         let hls_segments = "/var/run/printnanny-hls/segment%05d.ts".into();
         let hls_playlist = "/var/run/printnanny-hls/playlist.m3u8".into();
@@ -456,7 +456,12 @@ impl From<printnanny_asyncapi_models::PrintNannyCameraSettings> for PrintNannyCa
             preview: obj.preview,
             video_framerate: obj.video_framerate,
             detection: *obj.detection,
-            hls: *obj.hls,
+            hls_enabled: obj.hls_enabled,
+            hls_playlist: obj.hls_playlist,
+            hls_playlist_root: obj.hls_playlist_root,
+            hls_segments: obj.hls_segments,
+            snapshot_enabled: obj.snapshot_enabled,
+            snapshot_location: obj.snapshot_location,
             camera: (*obj.camera).into(),
         }
     }
@@ -497,7 +502,12 @@ impl From<PrintNannyCameraSettings> for printnanny_asyncapi_models::PrintNannyCa
             preview: obj.preview,
             video_framerate: obj.video_framerate,
             detection: Box::new(obj.detection),
-            hls: Box::new(obj.hls),
+            hls_enabled: obj.hls_enabled,
+            hls_playlist: obj.hls_playlist,
+            hls_playlist_root: obj.hls_playlist_root,
+            hls_segments: obj.hls_segments,
+            snapshot_enabled: obj.snapshot_enabled,
+            snapshot_location: obj.snapshot_location,
             camera: Box::new(obj.camera.into()),
         }
     }
@@ -593,20 +603,16 @@ impl From<&ArgMatches> for PrintNannyCameraSettings {
 
         let hls_enabled = args.is_present("hls_http_enabled");
 
-        let hls = printnanny_asyncapi_models::HlsSettings {
-            hls_enabled,
-            hls_segments,
-            hls_playlist,
-            hls_playlist_root,
-        };
-
         Self {
             detection,
             preview,
             video_framerate,
             video_udp_port,
             overlay_udp_port,
-            hls,
+            hls_enabled,
+            hls_segments,
+            hls_playlist,
+            hls_playlist_root,
             ..Default::default()
         }
     }
