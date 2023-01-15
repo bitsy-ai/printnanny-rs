@@ -21,7 +21,7 @@
 //! ```
 //! use gst_client::GstClient;
 //!
-//! let client = GstClient::build("http://127.0.0.1:5000")?;
+//! let client = GstClient::build("http://127.0.0.1:5000").unwrap();
 //! ```
 //!
 //! Perform operations with Pipeline
