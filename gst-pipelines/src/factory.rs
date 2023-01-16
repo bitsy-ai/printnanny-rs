@@ -230,8 +230,6 @@ impl PrintNannyPipelineFactory {
         let detection_settings = *settings.video_stream.detection;
 
         let camera_pipeline_name = "camera";
-
-        
         let camera_pipeline = self
             .make_camera_pipeline(camera_pipeline_name, &camera)
             .await?;
