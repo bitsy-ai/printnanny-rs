@@ -1,6 +1,6 @@
 use gst_client::reqwest;
 use gst_client::GstClient;
-use log::info;
+use log::{error, info};
 
 use printnanny_settings::printnanny::PrintNannySettings;
 use printnanny_settings::printnanny_asyncapi_models::CameraSettings;
@@ -33,22 +33,29 @@ impl PrintNannyPipelineFactory {
         pipeline_name: &str,
         description: &str,
     ) -> Result<gst_client::resources::Pipeline> {
+        info!(
+            "Creating {} pipeline with description: {}",
+            pipeline_name, &description
+        );
         let pipeline = self.client.pipeline(pipeline_name);
         match pipeline.create(description).await {
             Ok(result) => {
                 info!("Created camera pipeline: {:?}", result);
                 Ok(())
             }
-            Err(e) => match e {
-                gst_client::Error::BadStatus(code) => match code {
-                    reqwest::StatusCode::CONFLICT => {
-                        info!("Pipeline with name={} already exists", pipeline_name);
-                        Ok(())
-                    }
+            Err(e) => {
+                error!("Error creating pipeline name={} error={}", pipeline_name, e);
+                match e {
+                    gst_client::Error::BadStatus(code) => match code {
+                        reqwest::StatusCode::CONFLICT => {
+                            info!("Pipeline with name={} already exists", pipeline_name);
+                            Ok(())
+                        }
+                        _ => Err(e),
+                    },
                     _ => Err(e),
-                },
-                _ => Err(e),
-            },
+                }
+            }
         }?;
         Ok(pipeline)
     }
