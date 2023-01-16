@@ -35,12 +35,13 @@ impl PipelineElement {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn property(&self, property: &str) -> Result<gstd_types::Response, Error> {
+        let url = self.client.base_url.join(&format!(
+            "pipelines/{}/elements/{}/properties/{property}",
+            self.pipeline.name, self.name
+        )).map_err(Error::IncorrectApiUrl)?;
         let resp = self
             .client
-            .get(&format!(
-                "pipelines/{}/elements/{}/properties/{property}",
-                self.pipeline.name, self.name
-            ))
+            .get(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -57,13 +58,14 @@ impl PipelineElement {
         property: &str,
         value: &str,
     ) -> Result<gstd_types::Response, Error> {
+        let url = self.client.base_url.join(&format!(
+            "pipelines/{}/elements/\
+        {}/properties/{property}?name={value}",
+            self.pipeline.name, self.name
+        )).map_err(Error::IncorrectApiUrl)?;
         let resp = self
             .client
-            .put(&format!(
-                "pipelines/{}/elements/\
-            {}/properties/{property}?name={value}",
-                self.pipeline.name, self.name
-            ))
+            .put(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -77,13 +79,14 @@ impl PipelineElement {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn signal_connect(&self, signal: &str) -> Result<gstd_types::Response, Error> {
+        let url = self.client.base_url.join(&format!(
+            "pipelines/{}/\
+        elements/{}/signals/{signal}/callback",
+            self.pipeline.name, self.name
+        )).map_err(Error::IncorrectApiUrl)?;
         let resp = self
             .client
-            .get(&format!(
-                "pipelines/{}/\
-            elements/{}/signals/{signal}/callback",
-                self.pipeline.name, self.name
-            ))
+            .get(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -97,13 +100,14 @@ impl PipelineElement {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn signal_disconnect(&self, signal: &str) -> Result<gstd_types::Response, Error> {
+        let url = self.client.base_url.join(&format!(
+            "pipelines/{}/\
+        elements/{}/signals/{signal}/disconnect",
+            self.pipeline.name, self.name
+        )).map_err(Error::IncorrectApiUrl)?;
         let resp = self
             .client
-            .get(&format!(
-                "pipelines/{}/\
-            elements/{}/signals/{signal}/disconnect",
-                self.pipeline.name, self.name
-            ))
+            .get(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -124,13 +128,14 @@ impl PipelineElement {
         signal: &str,
         timeout: &str,
     ) -> Result<gstd_types::Response, Error> {
+        let url = self.client.base_url.join(&format!(
+            "pipelines/{}/\
+        elements/{}/signals/{signal}/timeout?name={timeout}",
+            self.pipeline.name, self.name
+        )).map_err(Error::IncorrectApiUrl)?;
         let resp = self
             .client
-            .put(&format!(
-                "pipelines/{}/\
-            elements/{}/signals/{signal}/timeout?name={timeout}",
-                self.pipeline.name, self.name
-            ))
+            .put(url)
             .await?;
         self.client.process_resp(resp).await
     }
