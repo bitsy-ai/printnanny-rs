@@ -537,14 +537,14 @@ mod tests {
             jail.create_file(
                 filename,
                 r#"
-                [camera.detection]
+                [video_stream.detection]
                 tensor_framerate = 1
                 "#,
             )?;
 
             let settings =
                 PrintNannySettings::from_toml(PathBuf::from(output).join(filename)).unwrap();
-            assert_eq!(settings.camera.detection.tensor_framerate, 1);
+            assert_eq!(settings.video_stream.detection.tensor_framerate, 1);
 
             Ok(())
         });

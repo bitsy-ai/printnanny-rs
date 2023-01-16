@@ -2,10 +2,8 @@ use gst_client::reqwest;
 use gst_client::GstClient;
 use log::info;
 
+use printnanny_settings::printnanny::PrintNannySettings;
 use printnanny_settings::printnanny_asyncapi_models::CameraSettings;
-use printnanny_settings::{
-    cam::CameraVideoSource, cam::VideoSource, printnanny::PrintNannySettings,
-};
 
 use anyhow::Result;
 

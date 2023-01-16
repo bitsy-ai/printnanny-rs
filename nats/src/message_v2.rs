@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use std::fs;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -891,7 +891,7 @@ mod tests {
             let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
             if let NatsReply::CameraSettingsFileLoadReply(reply) = reply {
                 let expected: printnanny_asyncapi_models::VideoStreamSettings =
-                    settings.camera.into();
+                    settings.video_stream.into();
                 assert_eq!(expected, reply)
             }
             Ok(())
@@ -907,16 +907,16 @@ mod tests {
 
             // apply a settings change
             let settings = PrintNannySettings::new().unwrap();
-            let mut modified = settings.camera.clone();
-            modified.hls_enabled = false;
+            let mut modified = settings.video_stream.clone();
+            modified.hls.enabled = false;
 
             let request = NatsRequest::CameraSettingsFileApplyRequest(modified.clone().into());
             let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
 
             if let NatsReply::CameraSettingsFileApplyReply(reply) = reply {
-                assert_eq!(reply.hls_enabled, false);
+                assert_eq!(reply.hls.enabled, false);
                 let settings = PrintNannySettings::new().unwrap();
-                assert_eq!(settings.camera.hls_enabled, false);
+                assert_eq!(settings.video_stream.hls.enabled, false);
             } else {
                 panic!("Expected NatsReply::CameraSettingsFileApplyReply")
             }
