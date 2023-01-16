@@ -146,7 +146,7 @@ impl PrintNannyPipelineFactory {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false \
-            ! hlssink2 paylist-length=8 max-files=10 target-duration=1 location={hls_segments_location} playlist-location={hls_playlist_location} playlist-root={hls_playlist_root} send-keyframe-requests=false");
+            ! hlssink2 playlist-length=8 max-files=10 target-duration=1 location={hls_segments_location} playlist-location={hls_playlist_location} playlist-root={hls_playlist_root} send-keyframe-requests=false");
         self.make_pipeline(pipeline_name, &description).await
     }
 
@@ -230,6 +230,8 @@ impl PrintNannyPipelineFactory {
         let detection_settings = *settings.video_stream.detection;
 
         let camera_pipeline_name = "camera";
+
+        
         let camera_pipeline = self
             .make_camera_pipeline(camera_pipeline_name, &camera)
             .await?;
