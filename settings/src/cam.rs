@@ -8,8 +8,6 @@ use serde::{Deserialize, Serialize};
 use gst::prelude::DeviceExt;
 use gst::prelude::DeviceProviderExtManual;
 
-use printnanny_dbus::zbus;
-
 use crate::error::PrintNannySettingsError;
 
 const DEFAULT_PIXEL_FORMAT: &str = "YUY2";
@@ -344,129 +342,6 @@ impl From<printnanny_asyncapi_models::Camera> for VideoSource {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
-pub struct PrintNannyCameraSettings {
-    pub preview: bool,
-    pub overlay_udp_port: i32,
-    pub video_udp_port: i32,
-    pub video_framerate: i32,
-    pub record_video: bool,
-    pub cloud_backup: bool,
-
-    pub hls_segments: String,
-    pub hls_playlist: String,
-    pub hls_playlist_root: String,
-    pub hls_enabled: bool,
-
-    pub snapshot_enabled: bool,
-    pub snapshot_location: String,
-
-    // complex types last, otherwise serde will raise TomlSerError(ValueAfterTable)
-    pub detection: printnanny_asyncapi_models::PrintNannyDetectionSettings,
-    pub camera: VideoSource,
-}
-
-impl PrintNannyCameraSettings {
-    pub async fn detect_hls_http_enabled(&self) -> Result<bool, zbus::Error> {
-        let connection = zbus::Connection::system().await?;
-        let proxy = printnanny_dbus::zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
-        let unit_path = proxy
-            .get_unit_file_state("octoprint.service".into())
-            .await?;
-
-        let result = &unit_path == "enabled";
-        Ok(result)
-    }
-
-    pub fn get_caps(&self) -> printnanny_asyncapi_models::GstreamerCaps {
-        match &self.camera {
-            VideoSource::CSI(camera) => (camera.caps).clone(),
-            VideoSource::USB(camera) => (camera.caps).clone(),
-
-            _ => todo!(
-                "PrintNannyCameraSettings.get_caps is not implemented for VideoSource: {:?}",
-                self.camera
-            ),
-        }
-    }
-}
-
-impl Default for PrintNannyCameraSettings {
-    fn default() -> Self {
-        let record_video = true;
-        let cloud_backup = true;
-        let preview = false;
-        let video_udp_port = 20001;
-        let overlay_udp_port = 20002;
-        let video_framerate = 24;
-
-        let snapshot_enabled = true;
-        let snapshot_location = "/var/run/printnanny-snapshot/%d.jpg".into();
-        let hls_enabled = true;
-        let hls_segments = "/var/run/printnanny-hls/segment%05d.ts".into();
-        let hls_playlist = "/var/run/printnanny-hls/playlist.m3u8".into();
-        let hls_playlist_root = "/printnanny-hls/".into();
-
-        let camera = VideoSource::CSI(CameraVideoSource {
-            index: 0,
-            device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
-            label: "imx219".into(),
-            caps: CameraVideoSource::default_caps(),
-        });
-
-        let detection = printnanny_asyncapi_models::PrintNannyDetectionSettings {
-            graphs: true,
-            overlay: true,
-            nats_server_uri: "nats://127.0.0.1:4223".into(),
-            label_file: "/usr/share/printnanny/model/labels.txt".into(),
-            model_file: "/usr/share/printnanny/model/model.tflite".into(),
-            nms_threshold: 66,
-            tensor_batch_size: 40,
-            tensor_height: 320,
-            tensor_width: 320,
-            tensor_framerate: 2,
-        };
-
-        Self {
-            camera,
-            video_framerate,
-            video_udp_port,
-            overlay_udp_port,
-            preview,
-            hls_enabled,
-            hls_segments,
-            hls_playlist,
-            hls_playlist_root,
-            snapshot_enabled,
-            snapshot_location,
-            detection,
-            record_video,
-            cloud_backup,
-        }
-    }
-}
-
-impl From<printnanny_asyncapi_models::PrintNannyCameraSettings> for PrintNannyCameraSettings {
-    fn from(obj: printnanny_asyncapi_models::PrintNannyCameraSettings) -> PrintNannyCameraSettings {
-        PrintNannyCameraSettings {
-            record_video: obj.record_video,
-            cloud_backup: obj.cloud_backup,
-            overlay_udp_port: obj.overlay_udp_port,
-            video_udp_port: obj.video_udp_port,
-            preview: obj.preview,
-            video_framerate: obj.video_framerate,
-            detection: *obj.detection,
-            hls_enabled: obj.hls_enabled,
-            hls_playlist: obj.hls_playlist,
-            hls_playlist_root: obj.hls_playlist_root,
-            hls_segments: obj.hls_segments,
-            snapshot_enabled: obj.snapshot_enabled,
-            snapshot_location: obj.snapshot_location,
-            camera: (*obj.camera).into(),
-        }
-    }
-}
-
 impl From<VideoSource> for printnanny_asyncapi_models::Camera {
     fn from(obj: VideoSource) -> printnanny_asyncapi_models::Camera {
         match &obj {
@@ -492,128 +367,101 @@ impl From<VideoSource> for printnanny_asyncapi_models::Camera {
     }
 }
 
-impl From<PrintNannyCameraSettings> for printnanny_asyncapi_models::PrintNannyCameraSettings {
-    fn from(obj: PrintNannyCameraSettings) -> printnanny_asyncapi_models::PrintNannyCameraSettings {
-        printnanny_asyncapi_models::PrintNannyCameraSettings {
-            cloud_backup: obj.cloud_backup,
-            record_video: obj.record_video,
-            overlay_udp_port: obj.overlay_udp_port,
-            video_udp_port: obj.video_udp_port,
-            preview: obj.preview,
-            video_framerate: obj.video_framerate,
-            detection: Box::new(obj.detection),
-            hls_enabled: obj.hls_enabled,
-            hls_playlist: obj.hls_playlist,
-            hls_playlist_root: obj.hls_playlist_root,
-            hls_segments: obj.hls_segments,
-            snapshot_enabled: obj.snapshot_enabled,
-            snapshot_location: obj.snapshot_location,
-            camera: Box::new(obj.camera.into()),
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct VideoStreamSettings {
+    #[serde(rename = "camera")]
+    pub camera: Box<printnanny_asyncapi_models::CameraSettings>,
+    #[serde(rename = "detection")]
+    pub detection: Box<printnanny_asyncapi_models::DetectionSettings>,
+    #[serde(rename = "hls")]
+    pub hls: Box<printnanny_asyncapi_models::HlsSettings>,
+    #[serde(rename = "recording")]
+    pub recording: Box<printnanny_asyncapi_models::RecordingSettings>,
+    #[serde(rename = "rtp")]
+    pub rtp: Box<printnanny_asyncapi_models::RtpSettings>,
+    #[serde(rename = "snapshot")]
+    pub snapshot: Box<printnanny_asyncapi_models::SnapshotSettings>,
+}
+
+impl From<VideoStreamSettings> for printnanny_asyncapi_models::VideoStreamSettings {
+    fn from(obj: VideoStreamSettings) -> printnanny_asyncapi_models::VideoStreamSettings {
+        printnanny_asyncapi_models::VideoStreamSettings {
+            camera: obj.camera,
+            detection: obj.detection,
+            hls: obj.hls,
+            recording: obj.recording,
+            snapshot: obj.snapshot,
+            rtp: obj.rtp,
         }
     }
 }
 
-impl From<&ArgMatches> for PrintNannyCameraSettings {
-    fn from(args: &ArgMatches) -> Self {
-        let _video_height: i32 = args
-            .value_of_t::<i32>("video_height")
-            .expect("--video-height must be an integer");
+impl From<printnanny_asyncapi_models::VideoStreamSettings> for VideoStreamSettings {
+    fn from(obj: printnanny_asyncapi_models::VideoStreamSettings) -> VideoStreamSettings {
+        VideoStreamSettings {
+            camera: obj.camera,
+            detection: obj.detection,
+            hls: obj.hls,
+            recording: obj.recording,
+            snapshot: obj.snapshot,
+            rtp: obj.rtp,
+        }
+    }
+}
 
-        let video_framerate: i32 = args
-            .value_of_t::<i32>("video_framerate")
-            .expect("--video-framerate must be an integer");
+impl Default for VideoStreamSettings {
+    fn default() -> Self {
+        let camera = Box::new(printnanny_asyncapi_models::CameraSettings {
+            width: 640,
+            height: 480,
+            framerate: 16,
+            device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
+            label: "Raspberry Pi imx219".into(),
+        });
 
-        let _video_width: i32 = args
-            .value_of_t::<i32>("video_width")
-            .expect("--video-width must be an integer");
+        let detection = Box::new(printnanny_asyncapi_models::DetectionSettings {
+            graphs: true,
+            overlay: true,
+            nats_server_uri: "nats://127.0.0.1:4223".into(),
+            label_file: "/usr/share/printnanny/model/labels.txt".into(),
+            model_file: "/usr/share/printnanny/model/model.tflite".into(),
+            nms_threshold: 66,
+            tensor_batch_size: 40,
+            tensor_height: 320,
+            tensor_width: 320,
+            tensor_framerate: 2,
+        });
 
-        let video_udp_port: i32 = args
-            .value_of_t("video_udp_port")
-            .expect("--video-udp-port must be an integer");
+        let hls = Box::new(printnanny_asyncapi_models::HlsSettings {
+            enabled: true,
+            segments: "/var/run/printnanny-hls/segment%05d.ts".into(),
+            playlist: "/var/run/printnanny-hls/playlist.m3u8".into(),
+            playlist_root: "/printnanny-hls/".into(),
+        });
 
-        let overlay_udp_port: i32 = args
-            .value_of_t("overlay_udp_port")
-            .expect("--overlay-udp-port must be an integer");
+        let recording = Box::new(printnanny_asyncapi_models::RecordingSettings {
+            path: "/home/printnanny/.local/share/printnanny/video".into(),
+            auto_start: true,
+            cloud_sync: true,
+        });
 
-        let label_file = args
-            .value_of("label_file")
-            .expect("--label-file is required")
-            .into();
-        let model_file = args
-            .value_of("model_file")
-            .expect("--model-file is required")
-            .into();
-        let tensor_batch_size: i32 = args
-            .value_of_t::<i32>("tensor_batch_size")
-            .expect("--tensor-batch-size must be an integer");
+        let rtp = Box::new(printnanny_asyncapi_models::RtpSettings {
+            video_udp_port: 20001,
+            overlay_udp_port: 20002,
+        });
 
-        let tensor_height: i32 = args
-            .value_of_t::<i32>("tensor_height")
-            .expect("--tensor-height must be an integer");
-
-        let tensor_width: i32 = args
-            .value_of_t::<i32>("tensor_width")
-            .expect("--tensor-width must be an integer");
-
-        let tensor_framerate: i32 = args
-            .value_of_t::<i32>("tensor_framerate")
-            .expect("--tensor-framerate must be an integer");
-
-        let nms_threshold: i32 = args
-            .value_of_t::<i32>("nms_threshold")
-            .expect("--nms-threshold must be an integer");
-
-        let preview = args.is_present("preview");
-
-        let hls_segments: String = args
-            .value_of("hls_segments")
-            .expect("--hls-segments is required")
-            .into();
-
-        let hls_playlist: String = args
-            .value_of("hls_playlist")
-            .expect("--hls-playlist is required")
-            .into();
-
-        let hls_playlist_root: String = args
-            .value_of("hls_playlist_root")
-            .expect("--hls-playlist-root is required")
-            .into();
-
-        let nats_server_uri: String = args
-            .value_of("nats_server_uri")
-            .expect("--nats-server-uri is required")
-            .into();
-
-        let graphs: bool = args.is_present("graphs");
-        let overlay: bool = args.is_present("overlay");
-
-        let detection = printnanny_asyncapi_models::PrintNannyDetectionSettings {
-            overlay,
-            graphs,
-            label_file,
-            model_file,
-            nats_server_uri,
-            nms_threshold,
-            tensor_batch_size,
-            tensor_height,
-            tensor_width,
-            tensor_framerate,
-        };
-
-        let hls_enabled = args.is_present("hls_http_enabled");
+        let snapshot = Box::new(printnanny_asyncapi_models::SnapshotSettings {
+            path: "/var/run/printnanny-snapshot/%d.jpg".into(),
+            enabled: true,
+        });
 
         Self {
+            camera,
             detection,
-            preview,
-            video_framerate,
-            video_udp_port,
-            overlay_udp_port,
-            hls_enabled,
-            hls_segments,
-            hls_playlist,
-            hls_playlist_root,
-            ..Default::default()
+            hls,
+            recording,
+            rtp,
+            snapshot,
         }
     }
 }
