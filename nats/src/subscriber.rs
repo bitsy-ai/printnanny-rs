@@ -27,7 +27,7 @@ where
     nats_server_uri: String,
     hostname: String,
     require_tls: bool,
-    workers: u32,
+    workers: usize,
     nats_creds: Option<PathBuf>,
     _request: PhantomData<Request>,
     _response: PhantomData<Reply>,
@@ -79,7 +79,7 @@ where
                 Arg::new("workers")
                     .long("workers")
                     .takes_value(true)
-                    .default("8"),
+                    .default_value("8"),
             )
             .arg(
                 Arg::new("socket")
@@ -110,7 +110,7 @@ where
 
         let system_hostname = sys_info::hostname().unwrap_or_else(|_| "localhost".into());
         let hostname = args.value_of("hostname").unwrap_or(&system_hostname).into();
-        let workers: u32 = args.value_of_t("workers").unwrap_or(8);
+        let workers: usize = args.value_of_t("workers").unwrap_or(8);
         Self {
             hostname,
             subject: subject.to_string(),
