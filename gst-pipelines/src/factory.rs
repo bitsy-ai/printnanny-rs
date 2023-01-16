@@ -10,19 +10,13 @@ use anyhow::Result;
 pub struct PrintNannyPipelineFactory {
     pub address: String,
     pub port: i32,
-    client: GstClient,
+    pub uri: String,
 }
 
 impl PrintNannyPipelineFactory {
     pub fn new(address: String, port: i32) -> Self {
         let uri = Self::uri(&address, port);
-        let client = GstClient::build(uri).expect("Failed to build GstClient");
-
-        Self {
-            address,
-            port,
-            client,
-        }
+        Self { address, port, uri }
     }
     fn uri(address: &str, port: i32) -> String {
         format!("http://{}:{}", address, port)
@@ -37,7 +31,8 @@ impl PrintNannyPipelineFactory {
             "Creating {} pipeline with description: {}",
             pipeline_name, &description
         );
-        let pipeline = self.client.pipeline(pipeline_name);
+        let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
+        let pipeline = client.pipeline(pipeline_name);
         match pipeline.create(description).await {
             Ok(result) => {
                 info!("Created camera pipeline: {:?}", result);
@@ -199,6 +194,7 @@ impl PrintNannyPipelineFactory {
         let camera_pipeline = self
             .make_camera_pipeline(camera_pipeline_name, &camera)
             .await?;
+        camera_pipeline.play().await?;
 
         if snapshot_settings.enabled {
             let snapshot_pipeline_name = "snapshot";
@@ -216,6 +212,7 @@ impl PrintNannyPipelineFactory {
         let h264_pipeline = self
             .make_h264_pipeline(h264_pipeline_name, camera_pipeline_name, &camera.framerate)
             .await?;
+        h264_pipeline.play().await?;
 
         if hls_settings.enabled {
             let hls_pipeline_name = "hls";
@@ -239,6 +236,7 @@ impl PrintNannyPipelineFactory {
                 rtp_settings.video_udp_port,
             )
             .await?;
+        rtp_pipeline.play().await?;
 
         let inference_pipeline_name = "tflite_inference";
         let inference_pipeline = self
@@ -250,6 +248,7 @@ impl PrintNannyPipelineFactory {
                 &detection_settings.model_file,
             )
             .await?;
+        inference_pipeline.play().await?;
 
         let bb_pipeline_name = "bounding_boxes";
         let bb_pipeline = self
@@ -265,6 +264,7 @@ impl PrintNannyPipelineFactory {
                 rtp_settings.overlay_udp_port,
             )
             .await?;
+        bb_pipeline.play().await?;
 
         let df_pipeline_name = "df";
         let df_pipeline = self
@@ -276,11 +276,6 @@ impl PrintNannyPipelineFactory {
             )
             .await?;
 
-        camera_pipeline.play().await?;
-        h264_pipeline.play().await?;
-        rtp_pipeline.play().await?;
-        inference_pipeline.play().await?;
-        bb_pipeline.play().await?;
         df_pipeline.play().await?;
 
         Ok(())
