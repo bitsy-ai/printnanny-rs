@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use std::fs;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -13,14 +13,14 @@ use serde::{Deserialize, Serialize};
 use printnanny_dbus::printnanny_asyncapi_models;
 use printnanny_dbus::printnanny_asyncapi_models::{
     CamerasLoadReply, CrashReportOsLogsReply, CrashReportOsLogsRequest, DeviceInfoLoadReply,
-    PrintNannyCameraSettings, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp,
-    SettingsFile, SettingsFileApplyReply, SettingsFileApplyRequest, SettingsFileLoadReply,
+    PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp, SettingsFile,
+    SettingsFileApplyReply, SettingsFileApplyRequest, SettingsFileLoadReply,
     SettingsFileRevertReply, SettingsFileRevertRequest, SystemdManagerDisableUnitsReply,
     SystemdManagerEnableUnitsReply, SystemdManagerGetUnitFileStateReply,
     SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
     SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
     SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdManagerUnitFilesRequest,
-    SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState, WebrtcRecordingFileNameReply,
+    SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState, VideoStreamSettings,
 };
 
 use printnanny_dbus::zbus;
@@ -70,7 +70,7 @@ pub enum NatsRequest {
     SettingsFileRevertRequest(SettingsFileRevertRequest),
 
     #[serde(rename = "pi.{pi_id}.settings.camera.apply")]
-    CameraSettingsFileApplyRequest(PrintNannyCameraSettings),
+    CameraSettingsFileApplyRequest(VideoStreamSettings),
     #[serde(rename = "pi.{pi_id}.settings.camera.load")]
     CameraSettingsFileLoadRequest,
 
@@ -92,9 +92,6 @@ pub enum NatsRequest {
     SystemdManagerStartUnitRequest(SystemdManagerStartUnitRequest),
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
     SystemdManagerStopUnitRequest(SystemdManagerStopUnitRequest),
-
-    #[serde(rename = "pi.{pi_id}.webrtc.recording.file_name")]
-    WebrtcRecordingFileNameRequest,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -123,9 +120,9 @@ pub enum NatsReply {
     SettingsFileRevertReply(SettingsFileRevertReply),
 
     #[serde(rename = "pi.{pi_id}.settings.camera.apply")]
-    CameraSettingsFileApplyReply(PrintNannyCameraSettings),
+    CameraSettingsFileApplyReply(VideoStreamSettings),
     #[serde(rename = "pi.{pi_id}.settings.camera.load")]
-    CameraSettingsFileLoadReply(PrintNannyCameraSettings),
+    CameraSettingsFileLoadReply(VideoStreamSettings),
 
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
@@ -145,9 +142,6 @@ pub enum NatsReply {
     SystemdManagerStartUnitReply(SystemdManagerStartUnitReply),
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.StopUnit")]
     SystemdManagerStopUnitReply(SystemdManagerStopUnitReply),
-
-    #[serde(rename = "pi.{pi_id}.webrtc.recording.file_name")]
-    WebrtcRecordingFileNameReply(WebrtcRecordingFileNameReply),
 }
 
 impl NatsRequest {
@@ -427,24 +421,24 @@ impl NatsRequest {
     pub async fn handle_camera_settings_load(&self) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
         Ok(NatsReply::CameraSettingsFileLoadReply(
-            settings.camera.into(),
+            settings.video_stream.into(),
         ))
     }
 
     pub async fn handle_camera_settings_apply(
         &self,
-        request: &PrintNannyCameraSettings,
+        request: &VideoStreamSettings,
     ) -> Result<NatsReply> {
         info!("Received request: {:#?}", request);
         let mut settings = PrintNannySettings::new()?;
 
-        settings.camera = request.clone().into();
+        settings.video_stream = request.clone().into();
         let content = settings.to_toml_string()?;
         let ts = SystemTime::now();
         let commit_msg = format!("Updated PrintNannySettings.camera @ {ts:?}");
         settings.save_and_commit(&content, Some(commit_msg)).await?;
         Ok(NatsReply::CameraSettingsFileApplyReply(
-            settings.camera.into(),
+            settings.video_stream.into(),
         ))
     }
 
@@ -679,25 +673,6 @@ impl NatsRequest {
             },
         ))
     }
-
-    async fn handle_webrtc_recording_file_name_request(&self) -> Result<NatsReply> {
-        // TODO get current print job filename
-        // let recording = new_video_filename().await?;
-        let start = SystemTime::now();
-        let ts = start
-            .duration_since(UNIX_EPOCH)
-            .expect("Failed to get UNIX_EPOCH")
-            .as_secs();
-
-        let settings = PrintNannySettings::new()?;
-        let recording_file = settings.paths.video().join(format!("{}.mjr", ts));
-        Ok(NatsReply::WebrtcRecordingFileNameReply(
-            WebrtcRecordingFileNameReply {
-                file_name: recording_file.display().to_string(),
-                ts: ts.to_string(),
-            },
-        ))
-    }
 }
 
 #[async_trait]
@@ -725,7 +700,7 @@ impl NatsRequestHandler for NatsRequest {
                 serde_json::from_slice::<SettingsFileRevertRequest>(payload.as_ref())?,
             )),
             "pi.{pi_id}.settings.camera.apply" => Ok(NatsRequest::CameraSettingsFileApplyRequest(
-                serde_json::from_slice::<PrintNannyCameraSettings>(payload.as_ref())?,
+                serde_json::from_slice::<VideoStreamSettings>(payload.as_ref())?,
             )),
             "pi.{pi_id}.settings.camera.load" => Ok(NatsRequest::CameraSettingsFileLoadRequest),
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit" => {
@@ -762,9 +737,6 @@ impl NatsRequestHandler for NatsRequest {
                 Ok(NatsRequest::SystemdManagerStopUnitRequest(
                     serde_json::from_slice::<SystemdManagerStopUnitRequest>(payload.as_ref())?,
                 ))
-            }
-            "pi.{pi_id}.webrtc.recording.file_name" => {
-                Ok(NatsRequest::WebrtcRecordingFileNameRequest)
             }
             _ => Err(anyhow!(
                 "NATS message handler not implemented for subject pattern {}",
@@ -824,9 +796,6 @@ impl NatsRequestHandler for NatsRequest {
             }
             NatsRequest::SystemdManagerStopUnitRequest(request) => {
                 self.handle_stop_unit_request(request).await?
-            }
-            NatsRequest::WebrtcRecordingFileNameRequest => {
-                self.handle_webrtc_recording_file_name_request().await?
             }
         };
 
@@ -921,8 +890,8 @@ mod tests {
 
             let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
             if let NatsReply::CameraSettingsFileLoadReply(reply) = reply {
-                let expected: printnanny_asyncapi_models::PrintNannyCameraSettings =
-                    settings.camera.into();
+                let expected: printnanny_asyncapi_models::VideoStreamSettings =
+                    settings.video_stream.into();
                 assert_eq!(expected, reply)
             }
             Ok(())
@@ -938,16 +907,16 @@ mod tests {
 
             // apply a settings change
             let settings = PrintNannySettings::new().unwrap();
-            let mut modified = settings.camera.clone();
-            modified.hls_enabled = false;
+            let mut modified = settings.video_stream.clone();
+            modified.hls.enabled = false;
 
             let request = NatsRequest::CameraSettingsFileApplyRequest(modified.clone().into());
             let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
 
             if let NatsReply::CameraSettingsFileApplyReply(reply) = reply {
-                assert_eq!(reply.hls_enabled, false);
+                assert_eq!(reply.hls.enabled, false);
                 let settings = PrintNannySettings::new().unwrap();
-                assert_eq!(settings.camera.hls_enabled, false);
+                assert_eq!(settings.video_stream.hls.enabled, false);
             } else {
                 panic!("Expected NatsReply::CameraSettingsFileApplyReply")
             }

@@ -6,13 +6,13 @@ use async_trait::async_trait;
 use figment::providers::{Env, Format, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
-use log::{debug, error, info, warn};
+use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
-use crate::cam::PrintNannyCameraSettings;
+use crate::cam::VideoStreamSettings;
 use crate::error::{PrintNannySettingsError, VersionControlledSettingsError};
 use crate::klipper::KlipperSettings;
 use crate::mainsail::MainsailSettings;
@@ -92,7 +92,7 @@ impl Default for GitSettings {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PrintNannySettings {
-    pub camera: PrintNannyCameraSettings,
+    pub video_stream: VideoStreamSettings,
     pub cloud: PrintNannyApiConfig,
     pub git: GitSettings,
     pub paths: PrintNannyPaths,
@@ -105,8 +105,9 @@ pub struct PrintNannySettings {
 impl Default for PrintNannySettings {
     fn default() -> Self {
         let git = GitSettings::default();
+        let video_stream = VideoStreamSettings::default();
+
         Self {
-            camera: PrintNannyCameraSettings::default(),
             cloud: PrintNannyApiConfig::default(),
             paths: PrintNannyPaths::default(),
             klipper: KlipperSettings::default(),
@@ -114,6 +115,7 @@ impl Default for PrintNannySettings {
             moonraker: MoonrakerSettings::default(),
             mainsail: MainsailSettings::default(),
             git,
+            video_stream,
         }
     }
 }
@@ -535,14 +537,14 @@ mod tests {
             jail.create_file(
                 filename,
                 r#"
-                [camera.detection]
+                [video_stream.detection]
                 tensor_framerate = 1
                 "#,
             )?;
 
             let settings =
                 PrintNannySettings::from_toml(PathBuf::from(output).join(filename)).unwrap();
-            assert_eq!(settings.camera.detection.tensor_framerate, 1);
+            assert_eq!(settings.video_stream.detection.tensor_framerate, 1);
 
             Ok(())
         });

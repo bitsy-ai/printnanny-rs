@@ -2,9 +2,8 @@ use gst_client::reqwest;
 use gst_client::GstClient;
 use log::info;
 
-use printnanny_settings::{
-    cam::CameraVideoSource, cam::VideoSource, printnanny::PrintNannySettings
-};
+use printnanny_settings::printnanny::PrintNannySettings;
+use printnanny_settings::printnanny_asyncapi_models::CameraSettings;
 
 use anyhow::Result;
 
@@ -57,17 +56,17 @@ impl PrintNannyPipelineFactory {
     async fn make_camera_pipeline(
         &self,
         pipeline_name: &str,
-        camera: &CameraVideoSource,
-        framerate: i32,
+        camera: &CameraSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
-            ! capsfilter caps=video/x-raw,format=(string){pixel_format},width=(int){width},height=(int){height},framerate=(fraction){framerate}/1 \
+            ! capsfilter caps=video/x-raw,width=(int){width},height=(int){height},framerate=(fraction){framerate}/1 \
             ! interpipesink name={pipeline_name} sync=false",
             camera_name=camera.device_name,
-            pixel_format=camera.caps.format,
-            width=camera.caps.width,
-            height=camera.caps.height,
+            // pixel_format=camera.caps.
+            width=camera.width,
+            height=camera.height,
+            framerate=camera.framerate
         );
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -182,56 +181,55 @@ impl PrintNannyPipelineFactory {
 
     pub async fn start_pipelines(&self) -> Result<()> {
         let settings = PrintNannySettings::new()?;
-        let camera = match &settings.camera.camera {
-            VideoSource::CSI(camera) => camera,
-            VideoSource::USB(camera) => camera,
-            _ => unimplemented!(),
-        };
+        let snapshot_settings = *settings.video_stream.snapshot;
+        let camera = *settings.video_stream.camera;
+        let hls_settings = *settings.video_stream.hls;
+        let rtp_settings = *settings.video_stream.rtp;
+
+        let detection_settings = *settings.video_stream.detection;
 
         let camera_pipeline_name = "camera";
         let camera_pipeline = self
-            .make_camera_pipeline(
-                camera_pipeline_name,
-                camera,
-                settings.camera.video_framerate,
-            )
+            .make_camera_pipeline(camera_pipeline_name, &camera)
             .await?;
 
-        let snapshot_pipeline_name = "snapshot";
-        let snapshot_pipeline = self
-            .make_jpeg_snapshot_pipeline(
-                snapshot_pipeline_name,
-                camera_pipeline_name,
-                &settings.camera.snapshot_location,
-            )
-            .await?;
+        if snapshot_settings.enabled {
+            let snapshot_pipeline_name = "snapshot";
+            let snapshot_pipeline = self
+                .make_jpeg_snapshot_pipeline(
+                    snapshot_pipeline_name,
+                    camera_pipeline_name,
+                    &snapshot_settings.path,
+                )
+                .await?;
+            snapshot_pipeline.play().await?;
+        }
 
         let h264_pipeline_name = "h264";
         let h264_pipeline = self
-            .make_h264_pipeline(
-                h264_pipeline_name,
-                camera_pipeline_name,
-                &settings.camera.video_framerate,
-            )
+            .make_h264_pipeline(h264_pipeline_name, camera_pipeline_name, &camera.framerate)
             .await?;
 
-        let hls_pipeline_name = "hls";
-        let hls_pipeline = self
-            .make_hls_pipeline(
-                hls_pipeline_name,
-                h264_pipeline_name,
-                &settings.camera.hls_segments,
-                &settings.camera.hls_playlist,
-                &settings.camera.hls_playlist_root,
-            )
-            .await?;
+        if hls_settings.enabled {
+            let hls_pipeline_name = "hls";
+            let hls_pipeline = self
+                .make_hls_pipeline(
+                    hls_pipeline_name,
+                    h264_pipeline_name,
+                    &hls_settings.segments,
+                    &hls_settings.playlist,
+                    &hls_settings.playlist_root,
+                )
+                .await?;
+            hls_pipeline.play().await?;
+        }
 
         let rtp_pipeline_name = "rtp";
         let rtp_pipeline = self
             .make_rtp_pipeline(
                 rtp_pipeline_name,
                 h264_pipeline_name,
-                settings.camera.video_udp_port,
+                rtp_settings.video_udp_port,
             )
             .await?;
 
@@ -240,9 +238,9 @@ impl PrintNannyPipelineFactory {
             .make_inference_pipeline(
                 inference_pipeline_name,
                 camera_pipeline_name,
-                settings.camera.detection.tensor_width,
-                settings.camera.detection.tensor_height,
-                &settings.camera.detection.model_file,
+                detection_settings.tensor_width,
+                detection_settings.tensor_height,
+                &detection_settings.model_file,
             )
             .await?;
 
@@ -251,13 +249,13 @@ impl PrintNannyPipelineFactory {
             .make_bounding_box_pipeline(
                 bb_pipeline_name,
                 inference_pipeline_name,
-                settings.camera.detection.nms_threshold,
-                camera.caps.width,
-                camera.caps.height,
-                settings.camera.detection.tensor_width,
-                settings.camera.detection.tensor_height,
-                &settings.camera.detection.label_file,
-                settings.camera.overlay_udp_port,
+                detection_settings.nms_threshold,
+                camera.width,
+                camera.height,
+                detection_settings.tensor_width,
+                detection_settings.tensor_height,
+                &detection_settings.label_file,
+                rtp_settings.overlay_udp_port,
             )
             .await?;
 
@@ -266,15 +264,13 @@ impl PrintNannyPipelineFactory {
             .make_df_pipeline(
                 df_pipeline_name,
                 inference_pipeline_name,
-                settings.camera.detection.nms_threshold,
-                &settings.camera.detection.nats_server_uri,
+                detection_settings.nms_threshold,
+                &detection_settings.nats_server_uri,
             )
             .await?;
 
         camera_pipeline.play().await?;
-        snapshot_pipeline.play().await?;
         h264_pipeline.play().await?;
-        hls_pipeline.play().await?;
         rtp_pipeline.play().await?;
         inference_pipeline.play().await?;
         bb_pipeline.play().await?;
