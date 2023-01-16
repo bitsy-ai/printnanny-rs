@@ -11,7 +11,6 @@ use crate::{
     resources::{bus::PipelineBus, element::PipelineElement},
     Error, GstClient,
 };
-use std::fmt::Display;
 
 /// Performs requests to `pipelines/` endpoint
 #[derive(Debug, Clone)]
@@ -285,7 +284,7 @@ impl Pipeline {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn delete(&self) -> Result<gstd_types::Response, Error> {
-        let mut url = self.client.base_url.join(&format!("pipelines")).map_err(Error::IncorrectApiUrl)?;
+        let mut url = self.client.base_url.join("pipelines").map_err(Error::IncorrectApiUrl)?;
         url.query_pairs_mut()
             .append_pair("name", &self.name);
         let resp = self
