@@ -183,48 +183,6 @@ where
                 }
             })
             .await;
-
-        // while let Some(message) = subscriber.next().await {
-        //     let subject_pattern =
-        //         Request::replace_subject_pattern(&message.subject, &self.hostname, "{pi_id}");
-        //     debug!(
-        //         "Extracted subject_pattern {} from subject {} using hostname {}",
-        //         &subject_pattern, &message.subject, &self.hostname
-        //     );
-        //     let reply = tokio::spawn(async move {
-        //         let request = Request::deserialize_payload(&subject_pattern, &message.payload)?;
-        //         debug!("Received NATS Message: {:?}", message);
-        //         match message.reply {
-        //             Some(reply_inbox) => {
-        //                 let payload = match request.handle().await {
-        //                     Ok(r) => serde_json::to_vec(&r)?,
-        //                     Err(e) => {
-        //                         let r = RequestErrorMsg {
-        //                             error: e.to_string(),
-        //                             subject_pattern,
-        //                             request,
-        //                         };
-        //                         serde_json::to_vec(&r)?
-        //                     }
-        //                 };
-        //                 Ok(Some((reply_inbox, payload)))
-        //             }
-        //             None => Ok::<Option<(String, Vec<u8>)>, NatsError>(None),
-        //         }
-        //     })
-        //     .await??;
-        //     match reply {
-        //         Some((reply_inbox, payload)) => {
-        //             match nats_client.publish(reply_inbox, payload.into()).await {
-        //                 Ok(_) => Ok(()),
-        //                 Err(e) => Err(NatsError::PublishError {
-        //                     error: e.to_string(),
-        //                 }),
-        //             }
-        //         }
-        //         None => Ok(()),
-        //     }?;
-        // }
         Ok(())
     }
     // FIFO buffer flush
