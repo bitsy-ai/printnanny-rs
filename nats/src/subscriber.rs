@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::{crate_authors, Arg, ArgMatches, Command};
 use futures::stream::StreamExt;
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, Duration};
@@ -27,6 +27,7 @@ where
     nats_server_uri: String,
     hostname: String,
     require_tls: bool,
+    workers: u32,
     nats_creds: Option<PathBuf>,
     _request: PhantomData<Request>,
     _response: PhantomData<Reply>,
@@ -75,6 +76,12 @@ where
             .arg(Arg::new("hostname").long("hostname").takes_value(true))
             .arg(Arg::new("nats_creds").long("nats-creds").takes_value(true))
             .arg(
+                Arg::new("workers")
+                    .long("workers")
+                    .takes_value(true)
+                    .default("8"),
+            )
+            .arg(
                 Arg::new("socket")
                     .long("socket")
                     .takes_value(true)
@@ -103,13 +110,14 @@ where
 
         let system_hostname = sys_info::hostname().unwrap_or_else(|_| "localhost".into());
         let hostname = args.value_of("hostname").unwrap_or(&system_hostname).into();
-
+        let workers: u32 = args.value_of_t("workers").unwrap_or(8);
         Self {
             hostname,
             subject: subject.to_string(),
             nats_server_uri: nats_server_uri.to_string(),
             nats_creds,
             require_tls,
+            workers,
             _request: PhantomData,
             _response: PhantomData,
         }
@@ -132,53 +140,91 @@ where
             self.subject, nats_client
         );
         let nats_client = nats_client.unwrap();
-        let mut subscriber = nats_client.subscribe(self.subject.clone()).await.unwrap();
+        let subscriber = nats_client.subscribe(self.subject.clone()).await.unwrap();
         warn!(
             "Listening on {} where subject={}",
             &self.nats_server_uri, &self.subject
         );
 
-        while let Some(message) = subscriber.next().await {
-            let subject_pattern =
-                Request::replace_subject_pattern(&message.subject, &self.hostname, "{pi_id}");
-            debug!(
-                "Extracted subject_pattern {} from subject {} using hostname {}",
-                &subject_pattern, &message.subject, &self.hostname
-            );
-            let reply = tokio::spawn(async move {
-                let request = Request::deserialize_payload(&subject_pattern, &message.payload)?;
-                debug!("Received NATS Message: {:?}", message);
-                match message.reply {
-                    Some(reply_inbox) => {
-                        let payload = match request.handle().await {
-                            Ok(r) => serde_json::to_vec(&r)?,
-                            Err(e) => {
-                                let r = RequestErrorMsg {
-                                    error: e.to_string(),
-                                    subject_pattern,
-                                    request,
-                                };
-                                serde_json::to_vec(&r)?
+        subscriber
+            .for_each_concurrent(self.workers, |message| async {
+                let subject_pattern =
+                    Request::replace_subject_pattern(&message.subject, &self.hostname, "{pi_id}");
+                debug!(
+                    "Extracted subject_pattern {} from subject {} using hostname {}",
+                    &subject_pattern, &message.subject, &self.hostname
+                );
+                match Request::deserialize_payload(&subject_pattern, &message.payload) {
+                    Ok(request) => {
+                        debug!("Received NATS Message: {:?}", message);
+                        if let Some(reply_inbox) = message.reply {
+                            let payload = match request.handle().await {
+                                Ok(r) => serde_json::to_vec(&r).unwrap(),
+                                Err(e) => {
+                                    let r = RequestErrorMsg {
+                                        error: e.to_string(),
+                                        subject_pattern,
+                                        request,
+                                    };
+                                    serde_json::to_vec(&r).unwrap()
+                                }
+                            };
+                            match &nats_client.publish(reply_inbox, payload.into()).await {
+                                Ok(_) => (),
+                                Err(e) => {
+                                    error!("Error publishing msg: {}", e);
+                                }
                             }
-                        };
-                        Ok(Some((reply_inbox, payload)))
+                        }
                     }
-                    None => Ok::<Option<(String, Vec<u8>)>, NatsError>(None),
+                    Err(e) => {
+                        error!("Error deserializing NATS message: {}", e);
+                    }
                 }
             })
-            .await??;
-            match reply {
-                Some((reply_inbox, payload)) => {
-                    match nats_client.publish(reply_inbox, payload.into()).await {
-                        Ok(_) => Ok(()),
-                        Err(e) => Err(NatsError::PublishError {
-                            error: e.to_string(),
-                        }),
-                    }
-                }
-                None => Ok(()),
-            }?;
-        }
+            .await;
+
+        // while let Some(message) = subscriber.next().await {
+        //     let subject_pattern =
+        //         Request::replace_subject_pattern(&message.subject, &self.hostname, "{pi_id}");
+        //     debug!(
+        //         "Extracted subject_pattern {} from subject {} using hostname {}",
+        //         &subject_pattern, &message.subject, &self.hostname
+        //     );
+        //     let reply = tokio::spawn(async move {
+        //         let request = Request::deserialize_payload(&subject_pattern, &message.payload)?;
+        //         debug!("Received NATS Message: {:?}", message);
+        //         match message.reply {
+        //             Some(reply_inbox) => {
+        //                 let payload = match request.handle().await {
+        //                     Ok(r) => serde_json::to_vec(&r)?,
+        //                     Err(e) => {
+        //                         let r = RequestErrorMsg {
+        //                             error: e.to_string(),
+        //                             subject_pattern,
+        //                             request,
+        //                         };
+        //                         serde_json::to_vec(&r)?
+        //                     }
+        //                 };
+        //                 Ok(Some((reply_inbox, payload)))
+        //             }
+        //             None => Ok::<Option<(String, Vec<u8>)>, NatsError>(None),
+        //         }
+        //     })
+        //     .await??;
+        //     match reply {
+        //         Some((reply_inbox, payload)) => {
+        //             match nats_client.publish(reply_inbox, payload.into()).await {
+        //                 Ok(_) => Ok(()),
+        //                 Err(e) => Err(NatsError::PublishError {
+        //                     error: e.to_string(),
+        //                 }),
+        //             }
+        //         }
+        //         None => Ok(()),
+        //     }?;
+        // }
         Ok(())
     }
     // FIFO buffer flush
