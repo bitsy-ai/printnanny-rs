@@ -28,7 +28,8 @@ impl Debug {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn enable(&self) -> Result<gstd_types::Response, Error> {
-        let resp = self.client.put("debug/enable?name=true").await?;
+        let url = self.client.base_url.join("debug/enable?name=true").map_err(Error::IncorrectApiUrl)?;
+        let resp = self.client.put(url).await?;
         self.client.process_resp(resp).await
     }
 
@@ -40,7 +41,8 @@ impl Debug {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn disable(&self) -> Result<gstd_types::Response, Error> {
-        let resp = self.client.put("debug/enable?name=false").await?;
+        let url = self.client.base_url.join("debug/enable?name=false").map_err(Error::IncorrectApiUrl)?;
+        let resp = self.client.put(url).await?;
         self.client.process_resp(resp).await
     }
 
@@ -53,7 +55,8 @@ impl Debug {
     /// See [`Error`] for details.
     pub async fn reset(&self, value: bool) -> Result<gstd_types::Response, Error> {
         let val = if value { "true" } else { "false" };
-        let resp = self.client.put(&format!("debug/reset?name={val}")).await?;
+        let url = self.client.base_url.join(&format!("debug/reset?name={val}")).map_err(Error::IncorrectApiUrl)?;
+        let resp = self.client.put(url).await?;
         self.client.process_resp(resp).await
     }
     /// Performs `PUT debug/threshold?name={value}`
@@ -64,9 +67,10 @@ impl Debug {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn threshold(&self, value: &str) -> Result<gstd_types::Response, Error> {
+        let url = self.client.base_url.join(&format!("debug/threshold?name={value}")).map_err(Error::IncorrectApiUrl)?;
         let resp = self
             .client
-            .put(&format!("debug/threshold?name={value}"))
+            .put(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -78,7 +82,8 @@ impl Debug {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn enable_color(&self) -> Result<gstd_types::Response, Error> {
-        let resp = self.client.put("debug/color?name=true").await?;
+        let url = self.client.base_url.join("debug/color?name=true").map_err(Error::IncorrectApiUrl)?;
+        let resp = self.client.put(url).await?;
         self.client.process_resp(resp).await
     }
     /// Performs `PUT debug/color?name=false`
@@ -89,7 +94,8 @@ impl Debug {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn disable_color(&self) -> Result<gstd_types::Response, Error> {
-        let resp = self.client.put("debug/color?name=false").await?;
+        let url = self.client.base_url.join("debug/color?name=false").map_err(Error::IncorrectApiUrl)?;
+        let resp = self.client.put(url).await?;
         self.client.process_resp(resp).await
     }
 }

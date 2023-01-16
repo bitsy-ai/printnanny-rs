@@ -30,33 +30,33 @@ impl GstClient {
         })
     }
 
-    pub(crate) async fn get(&self, url: &str) -> Result<Response, Error> {
+    pub(crate) async fn get(&self, url: reqwest::Url) -> Result<Response, Error> {
         self.http_client
-            .get(self.base_url.join(url).map_err(Error::IncorrectApiUrl)?)
+            .get(url)
             .send()
             .await
             .map_err(Error::RequestFailed)
     }
 
-    pub(crate) async fn post(&self, url: &str) -> Result<Response, Error> {
+    pub(crate) async fn post(&self, url: reqwest::Url) -> Result<Response, Error> {
         self.http_client
-            .post(self.base_url.join(url).map_err(Error::IncorrectApiUrl)?)
+            .post(url)
             .send()
             .await
             .map_err(Error::RequestFailed)
     }
 
-    pub(crate) async fn put(&self, url: &str) -> Result<Response, Error> {
+    pub(crate) async fn put(&self,url: reqwest::Url) -> Result<Response, Error> {
         self.http_client
-            .put(self.base_url.join(url).map_err(Error::IncorrectApiUrl)?)
+            .put(url)
             .send()
             .await
             .map_err(Error::RequestFailed)
     }
 
-    pub(crate) async fn delete(&self, url: &str) -> Result<Response, Error> {
+    pub(crate) async fn delete(&self, url: reqwest::Url) -> Result<Response, Error> {
         self.http_client
-            .delete(self.base_url.join(url).map_err(Error::IncorrectApiUrl)?)
+            .delete(url)
             .send()
             .await
             .map_err(Error::RequestFailed)
@@ -86,7 +86,8 @@ impl GstClient {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn pipelines(&self) -> Result<gstd_types::Response, Error> {
-        let resp = self.get("pipelines").await?;
+        let url = self.base_url.join("pipelines").map_err(Error::IncorrectApiUrl)?;
+        let resp = self.get(url).await?;
         self.process_resp(resp).await
     }
     /// Operate with [`GStreamer Daemon`][1] pipelines.
@@ -116,7 +117,7 @@ impl Default for GstClient {
     fn default() -> Self {
         Self {
             http_client: Client::new(),
-            base_url: Url::parse("http://127.0.0.1:5000").unwrap(),
+            base_url: Url::parse("http://127.0.0.1:5001").unwrap(),
         }
     }
 }

@@ -41,17 +41,18 @@ impl Pipeline {
     ///
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
-    pub async fn create<S: Into<String>>(
+    pub async fn create(
         &self,
-        description: S,
+        description: &str,
     ) -> Result<gstd_types::Response, Error> {
+        let mut url = self.client.base_url.join("pipelines").map_err(Error::IncorrectApiUrl)?;
+        url.query_pairs_mut()
+            .append_pair("name", &self.name)
+            .append_pair("description", description);
+
         let resp = self
             .client
-            .post(&format!(
-                "pipelines?name={}&description={}",
-                self.name,
-                description.into()
-            ))
+            .post(url)
             .await?;
 
         // println!("{}", resp.json().await.unwrap());
@@ -67,9 +68,11 @@ impl Pipeline {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn graph(&self) -> Result<gstd_types::Response, Error> {
+        let url = self.client.base_url.join(&format!("pipelines/{}/graph", &self.name)).map_err(Error::IncorrectApiUrl)?;
+
         let resp = self
             .client
-            .get(&format!("pipelines/{}/graph", self.name))
+            .get(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -81,9 +84,10 @@ impl Pipeline {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn elements(&self) -> Result<gstd_types::Response, Error> {
+        let url = self.client.base_url.join(&format!("pipelines/{}/elements", &self.name)).map_err(Error::IncorrectApiUrl)?;
         let resp = self
             .client
-            .get(&format!("pipelines/{}/elements", self.name))
+            .get(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -96,9 +100,10 @@ impl Pipeline {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn properties(&self) -> Result<gstd_types::Response, Error> {
+        let url = self.client.base_url.join(&format!("pipelines/{}/properties", &self.name)).map_err(Error::IncorrectApiUrl)?;
         let resp = self
             .client
-            .get(&format!("pipelines/{}/properties", self.name))
+            .get(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -129,13 +134,17 @@ impl Pipeline {
     ///
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
-    pub async fn emit_event<S: Into<String> + Display>(
+    pub async fn emit_event(
         &self,
-        name: S,
+        event_name: &str,
     ) -> Result<gstd_types::Response, Error> {
+        let mut url = self.client.base_url.join(&format!("pipelines/{}/event", &self.name)).map_err(Error::IncorrectApiUrl)?;
+        url.query_pairs_mut()
+            .append_pair("name", event_name);
+
         let resp = self
             .client
-            .post(&format!("pipelines/{}/event?name={name}", self.name))
+            .post(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -148,9 +157,12 @@ impl Pipeline {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn emit_event_eos(&self) -> Result<gstd_types::Response, Error> {
+        let mut url = self.client.base_url.join(&format!("pipelines/{}/event", &self.name)).map_err(Error::IncorrectApiUrl)?;
+        url.query_pairs_mut()
+            .append_pair("name", "eos");
         let resp = self
             .client
-            .post(&format!("pipelines/{}/event?name=eos", self.name))
+            .post(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -163,9 +175,13 @@ impl Pipeline {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn emit_event_flush_start(&self) -> Result<gstd_types::Response, Error> {
+        let mut url = self.client.base_url.join(&format!("pipelines/{}/event", &self.name)).map_err(Error::IncorrectApiUrl)?;
+        url.query_pairs_mut()
+            .append_pair("name", "flush_start");
+
         let resp = self
             .client
-            .post(&format!("pipelines/{}/event?name=flush_start", self.name))
+            .post(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -178,9 +194,13 @@ impl Pipeline {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn emit_event_flush_stop(&self) -> Result<gstd_types::Response, Error> {
+        let mut url = self.client.base_url.join(&format!("pipelines/{}/event", &self.name)).map_err(Error::IncorrectApiUrl)?;
+        url.query_pairs_mut()
+            .append_pair("name", "flush_stop");
+
         let resp = self
             .client
-            .post(&format!("pipelines/{}/event?name=flush_stop", self.name))
+            .post(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -192,9 +212,13 @@ impl Pipeline {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn play(&self) -> Result<gstd_types::Response, Error> {
+        let mut url = self.client.base_url.join(&format!("pipelines/{}/state", &self.name)).map_err(Error::IncorrectApiUrl)?;
+        url.query_pairs_mut()
+            .append_pair("name", "playing");
+
         let resp = self
             .client
-            .put(&format!("pipelines/{}/state?name=playing", self.name))
+            .put(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -206,9 +230,12 @@ impl Pipeline {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn pause(&self) -> Result<gstd_types::Response, Error> {
+        let mut url = self.client.base_url.join(&format!("pipelines/{}/state", &self.name)).map_err(Error::IncorrectApiUrl)?;
+        url.query_pairs_mut()
+            .append_pair("name", "paused");
         let resp = self
             .client
-            .put(&format!("pipelines/{}/state?name=paused", self.name))
+            .put(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -220,9 +247,13 @@ impl Pipeline {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn stop(&self) -> Result<gstd_types::Response, Error> {
+        let mut url = self.client.base_url.join(&format!("pipelines/{}/state", &self.name)).map_err(Error::IncorrectApiUrl)?;
+
+        url.query_pairs_mut()
+            .append_pair("name", "stop");
         let resp = self
             .client
-            .put(&format!("pipelines/{}/state?name=stop", self.name))
+            .put(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -235,15 +266,18 @@ impl Pipeline {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn set_verbose(&self, value: bool) -> Result<gstd_types::Response, Error> {
+        let mut url = self.client.base_url.join(&format!("pipelines/{}/verbose", &self.name)).map_err(Error::IncorrectApiUrl)?;
         let val = if value { "true" } else { "false" };
+        url.query_pairs_mut()
+            .append_pair("name", val);
         let resp = self
             .client
-            .put(&format!("pipelines/{}/verbose?name={val}", self.name))
+            .put(url)
             .await?;
         self.client.process_resp(resp).await
     }
 
-    /// Performs `DELETE pipelines/{name}/`
+    /// Performs `DELETE /pipelines?name={name}`
     /// API request, returning the parsed [`gstd_types::Response`]
     ///
     /// # Errors
@@ -251,9 +285,12 @@ impl Pipeline {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn delete(&self) -> Result<gstd_types::Response, Error> {
+        let mut url = self.client.base_url.join(&format!("pipelines")).map_err(Error::IncorrectApiUrl)?;
+        url.query_pairs_mut()
+            .append_pair("name", &self.name);
         let resp = self
             .client
-            .delete(&format!("pipelines?name={}", self.name))
+            .delete(url)
             .await?;
         self.client.process_resp(resp).await
     }

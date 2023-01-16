@@ -30,9 +30,10 @@ impl PipelineBus {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn read(&self) -> Result<gstd_types::Response, Error> {
+        let url = self.client.base_url.join(&format!("pipelines/{}/bus/message", self.pipeline.name)).map_err(Error::IncorrectApiUrl)?;
         let resp = self
             .client
-            .get(&format!("pipelines/{}/bus/message", self.pipeline.name))
+            .get(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -44,12 +45,14 @@ impl PipelineBus {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn set_timeout(&self, time_ns: i32) -> Result<gstd_types::Response, Error> {
-        let resp = self
-            .client
-            .put(&format!(
+        let url = self.client.base_url.join(&format!(
                 "pipelines/{}/bus/timeout?name={time_ns}",
                 self.pipeline.name
-            ))
+            )).map_err(Error::IncorrectApiUrl)?;
+
+        let resp = self
+            .client
+            .put(url)
             .await?;
         self.client.process_resp(resp).await
     }
@@ -61,12 +64,14 @@ impl PipelineBus {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn set_filter(&self, filter: &str) -> Result<gstd_types::Response, Error> {
-        let resp = self
-            .client
-            .put(&format!(
+        let url = self.client.base_url.join(&format!(
                 "pipelines/{}/bus/types?name={filter}",
                 self.pipeline.name
-            ))
+            )).map_err(Error::IncorrectApiUrl)?;
+
+        let resp = self
+            .client
+            .put(url)
             .await?;
         self.client.process_resp(resp).await
     }
