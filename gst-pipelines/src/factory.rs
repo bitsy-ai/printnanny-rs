@@ -85,7 +85,7 @@ impl PrintNannyPipelineFactory {
         filesink_location: &str,
     ) -> Result<gst_client::resources::Pipeline> {
         let description = format!("interpipesrc name={pipeline_name} listen-to={listen_to} accept-events=false accept-eos-event=false enable-sync=false allow-renegotiation=false num-buffers=2 leaky-type=2 \
-            ! v4l2jpegenc ! multifilesink max-files=2 location=\"{filesink_location}\"");
+            ! v4l2jpegenc ! multifilesink max-files=2 location={filesink_location}");
         self.make_pipeline(pipeline_name, &description).await
     }
 
