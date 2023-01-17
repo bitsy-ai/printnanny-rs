@@ -344,6 +344,9 @@ impl PrintNannyPipelineFactory {
         //     hls_pipeline.play().await?;
         // }
 
+        camera_pipeline.pausee().await?;
+        h264_pipeline.pause().await?;
+        rtp_pipeline.pause().await?;
 
         camera_pipeline.play().await?;
         h264_pipeline.play().await?;
