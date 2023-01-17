@@ -5,9 +5,11 @@ pub mod enums;
 pub mod schema;
 pub mod video_recording;
 
+pub use diesel;
+
 use printnanny_settings::printnanny::PrintNannySettings;
 
-pub fn establish_connection() -> SqliteConnection {
+pub fn establish_sqlite_connection() -> SqliteConnection {
     let settings = PrintNannySettings::new().expect("Failed to initialize PrintNannySettings");
     let database_path = settings.paths.db();
     SqliteConnection::establish(&database_path.display().to_string())

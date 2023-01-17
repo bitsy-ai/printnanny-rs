@@ -10,11 +10,14 @@ use serde;
 use serde_json;
 use tempfile::NamedTempFile;
 
+// edge db
+use printnanny_edge_db;
+use printnanny_edge_db::schema::printnanny_cloud_api_config;
+
 // settings modules
 use printnanny_settings::cloud::PrintNannyCloudData;
 use printnanny_settings::error::PrintNannySettingsError;
 use printnanny_settings::printnanny::PrintNannySettings;
-
 use printnanny_settings::sys_info;
 
 use printnanny_api_client::apis::accounts_api;
@@ -80,6 +83,18 @@ impl ApiService {
         let previous = self.settings.clone();
         self.settings.cloud.api_base_path = api_base_path;
         self.settings.cloud.api_bearer_access_token = Some(api_bearer_access_token);
+
+        let connection = printnanny_edge_db::establish_sqlite_connection();
+
+        printnanny_edge_db::diesel::insert_or_ignore_into(printnanny_cloud_api_config)
+            .values((
+                bearer_access_token.eq(&api_bearer_access_token),
+                base_url.eq(&api_base_path),
+            ))
+            .execute(connection)?;
+
+        info!("Updated printnanny_cloud_api_config sqlite record");
+
         if previous != self.settings {
             warn!("Change in PrintNannySettings detected, commiting changes");
             let content = self.settings.to_toml_string()?;

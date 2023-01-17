@@ -26,6 +26,7 @@ parking_lot = "0.12.1"                  # More compact and efficient implementat
 printnanny-api-client = "0.124.4"
 printnanny-dbus = { path = "../dbus", version = "^0.4"}
 printnanny-settings = { path = "../settings", version = "^0.4"}
+printnanny-edge-db = { path = "../db", version = "^0.1" }
 procfs = "0.12"
 rustls = "0.19"
 tokio-rustls = "0.22"

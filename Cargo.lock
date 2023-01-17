@@ -3411,6 +3411,7 @@ dependencies = [
  "predicates 2.1.4",
  "printnanny-api-client",
  "printnanny-dbus",
+ "printnanny-edge-db",
  "printnanny-settings",
  "procfs",
  "rand 0.8.5",
