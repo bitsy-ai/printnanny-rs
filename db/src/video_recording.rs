@@ -5,7 +5,7 @@ use crate::enums::Status;
 use crate::schema::video_recordings;
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable, Identifiable)]
-#[table_name = "video_recordings"]
+#[diesel(table_name = video_recordings)]
 pub struct VideoRecording {
     pub id: String,
     pub recording_status: Status,
@@ -19,7 +19,7 @@ pub struct VideoRecording {
 }
 
 #[derive(Insertable)]
-#[table_name = "video_recordings"]
+#[diesel(table_name = video_recordings)]
 pub struct NewVideoRecording<'a> {
     pub id: &'a str,
     pub recording_file_name: &'a str,
@@ -27,7 +27,7 @@ pub struct NewVideoRecording<'a> {
 }
 
 #[derive(AsChangeset)]
-#[table_name = "video_recordings"]
+#[diesel(table_name = video_recordings)]
 pub struct UpdateVideoRecording<'a> {
     pub recording_status: Option<&'a str>,
     pub recording_start: Option<Option<&'a u64>>,

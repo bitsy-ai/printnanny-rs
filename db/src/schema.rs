@@ -22,6 +22,17 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::*;
 
+    printnanny_cloud_api_config (user_id) {
+        user_id -> Nullable<Integer>,
+        base_url -> Text,
+        bearer_access_token -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::*;
+
     user (id) {
         id -> Nullable<Integer>,
         email -> Text,
@@ -49,6 +60,7 @@ diesel::table! {
 
 diesel::allow_tables_to_appear_in_same_query!(
     pi,
+    printnanny_cloud_api_config,
     user,
     video_recordings,
 );

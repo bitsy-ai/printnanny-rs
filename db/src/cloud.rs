@@ -3,6 +3,7 @@ use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
 use crate::schema::pi;
+use crate::schema::printnanny_cloud_api_config;
 use crate::schema::user;
 use printnanny_api_client;
 
@@ -26,7 +27,7 @@ impl From<printnanny_api_client::models::SbcEnum> for SbcEnum {
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable, Identifiable)]
-#[table_name = "pi"]
+#[diesel(table_name = pi)]
 pub struct Pi {
     pub id: i32,
     pub last_boot: Option<String>,
@@ -108,7 +109,7 @@ impl From<PreferredDnsType> for printnanny_api_client::models::PreferredDnsType 
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable, Identifiable)]
-#[table_name = "user"]
+#[diesel(table_name = user)]
 pub struct User {
     pub email: String,
     pub id: i32,
@@ -130,8 +131,8 @@ impl From<printnanny_api_client::models::User> for User {
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable, Identifiable)]
-#[table_name = "printnanny_cloud_api_config"]
-#[primary_key = "user_id"]
+#[diesel(table_name = printnanny_cloud_api_config)]
+#[diesel(primary_key(user_id))]
 pub struct PrintNannyCloudApiConfig {
     pub user_id: i32,
     pub base_url: String,
