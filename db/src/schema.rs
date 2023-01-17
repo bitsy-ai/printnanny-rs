@@ -11,7 +11,7 @@ diesel::table! {
 diesel::table! {
     pi (id) {
         id -> Nullable<Integer>,
-        last_boot -> Text,
+        last_boot -> Nullable<Text>,
         hostname -> Text,
         sbc -> Text,
         created_dt -> Text,
