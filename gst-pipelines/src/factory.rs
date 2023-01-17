@@ -72,7 +72,6 @@ impl PrintNannyPipelineFactory {
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
             ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate}/1,format={format} \
-            ! v4l2convert \
             ! interpipesink name={interpipesink} sync=false",
             camera_name=camera.device_name,
             width=camera.width,
@@ -115,9 +114,10 @@ impl PrintNannyPipelineFactory {
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=true is-live=true allow-renegotiation=false  \
             ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate}/1,format={format} \
+            ! v4l2convert \
             ! v4l2h264enc min-force-key-unit-interval={framerate} extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
-            ! capsfilter caps=video/x-h264,level=3,profile=main \
+            ! capsfilter caps=video/x-h264,level=4,profile=main \
             ! interpipesink name={interpipesink} sync=false",
             width=camera.width,
             height=camera.height,
