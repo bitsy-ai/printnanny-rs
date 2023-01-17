@@ -71,7 +71,7 @@ impl PrintNannyPipelineFactory {
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
-            ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate}/1,format=YUY2 \
+            ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate}/1 \
             ! v4l2convert \
             ! interpipesink name={interpipesink} sync=false",
             camera_name=camera.device_name,
@@ -93,7 +93,7 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=2 leaky-type=2 \
-            ! capsfilter caps=video/x-raw,width={width},height={height},format=YUY2 \
+            ! capsfilter caps=video/x-raw,width={width},height={height} \
             ! v4l2jpegenc ! multifilesink max-files=2 location={filesink_location}",
             width=camera.width,
             height=camera.height,
