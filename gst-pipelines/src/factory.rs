@@ -107,7 +107,7 @@ impl PrintNannyPipelineFactory {
         &self,
         pipeline_name: &str,
         listen_to: &str,
-        framerate: &i32,
+        camera: &CameraSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
@@ -118,7 +118,12 @@ impl PrintNannyPipelineFactory {
             ! v4l2h264enc min-force-key-unit-interval={framerate} extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
             ! capsfilter caps=video/x-h264,level=3,profile=main \
-            ! interpipesink name={interpipesink} sync=false");
+            ! interpipesink name={interpipesink} sync=false",
+            width=camera.width,
+            height=camera.height,
+            format=camera.format
+            framerate=camera.framerate
+        );
         self.make_pipeline(pipeline_name, &description).await
     }
 
@@ -262,7 +267,7 @@ impl PrintNannyPipelineFactory {
             .await?;
         let h264_pipeline_name = "h264";
         let h264_pipeline = self
-            .make_h264_pipeline(h264_pipeline_name, camera_pipeline_name, &camera.framerate)
+            .make_h264_pipeline(h264_pipeline_name, camera_pipeline_name, &camera)
             .await?;
         let rtp_pipeline_name = "rtp";
         let rtp_pipeline = self
