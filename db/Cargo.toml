@@ -8,6 +8,6 @@ edition = "2021"
 [dependencies]
 diesel = { version = "2.0.0", features = ["sqlite", "extras"] }
 diesel-derive-enum = { version = "2.0.0-rc.0", features = ["sqlite"] }
-printnanny-api-client = "0.124.1"    # Official Print Nanny Rust API Client
+printnanny-api-client = "0.124.4"    # Official Print Nanny Rust API Client
 printnanny-settings = { path = "../settings", version = "^0.4"}
 serde = { version = "1", features = ["derive"] }

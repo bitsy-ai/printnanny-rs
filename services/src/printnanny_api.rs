@@ -253,12 +253,12 @@ impl ApiService {
         let _sbc = Some(models::SbcEnum::Rpi4);
         let hostname = sys_info::hostname().unwrap_or_else(|_| "printnanny".to_string());
 
-        let favorite = Some(true);
-        let setup_finished = Some(true);
+        let favorite = true;
+        let setup_finished = true;
 
         let req = models::PiRequest {
-            sbc: Some(models::SbcEnum::Rpi4),
-            hostname: Some(hostname),
+            sbc: models::SbcEnum::Rpi4,
+            hostname,
             favorite,
             setup_finished,
         };

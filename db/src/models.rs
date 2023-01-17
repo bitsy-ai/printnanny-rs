@@ -42,6 +42,12 @@ pub enum SbcEnum {
     Rpi4,
 }
 
+impl Default for SbcEnum {
+    fn default() -> Self {
+        SbcEnum::Rpi4
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable)]
 pub struct PiUrls {
     pub id: i32,
@@ -55,19 +61,19 @@ pub struct PiUrls {
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable)]
 pub struct Pi {
     pub id: i32,
-    pub last_boot: String,
+    pub last_boot: Option<String>,
     pub hostname: String,
     pub sbc: SbcEnum,
     pub created_dt: String,
 }
 
-impl From<printnanny_api_client::Pi> for Pi {
+impl From<printnanny_api_client::models::Pi> for Pi {
     fn from(obj: printnanny_api_client::models::Pi) -> Pi {
         Pi {
             id: obj.id,
             last_boot: obj.last_boot,
             hostname: obj.hostname,
-            sbc: obj.sbc,
+            sbc: obj.sbc.to_string(),
             created_dt: obj.created_dt,
         }
     }
@@ -81,7 +87,13 @@ pub enum PreferredDnsType {
     Tailscale,
 }
 
-impl From<printnanny_api_client::PreferredDnsType> for PreferredDnsType {
+impl Default for PreferredDnsType {
+    fn default() -> Self {
+        PreferredDnsType::Multicast
+    }
+}
+
+impl From<printnanny_api_client::models::PreferredDnsType> for PreferredDnsType {
     fn from(obj: printnanny_api_client::models::PreferredDnsType) -> PreferredDnsType {
         match obj {
             printnanny_api_client::models::PreferredDnsType::Multicast => {
@@ -89,6 +101,19 @@ impl From<printnanny_api_client::PreferredDnsType> for PreferredDnsType {
             }
             printnanny_api_client::models::PreferredDnsType::Tailscale => {
                 PreferredDnsType::Tailscale
+            }
+        }
+    }
+}
+
+impl From<PreferredDnsType> for printnanny_api_client::models::PreferredDnsType {
+    fn from(obj: PreferredDnsType) -> printnanny_api_client::models::PreferredDnsType {
+        match obj {
+            PreferredDnsType::Multicast => {
+                printnanny_api_client::models::PreferredDnsType::Multicast
+            }
+            PreferredDnsType::Tailscale => {
+                printnanny_api_client::models::PreferredDnsType::Tailscale
             }
         }
     }
@@ -106,7 +131,10 @@ impl From<printnanny_api_client::models::NetworkSettings> for NetworkSettings {
         NetworkSettings {
             id: obj.id,
             updated_dt: obj.updated_dt,
-            preferred_dns: obj.preferred_dns.into(),
+            preferred_dns: match obj.preferred_dns {
+                Some(d) => d.into(),
+                None => PreferredDnsType::default(),
+            },
         }
     }
 }

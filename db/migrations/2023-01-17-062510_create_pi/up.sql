@@ -1,6 +1,6 @@
 CREATE TABLE pi (
   id INTEGER PRIMARY KEY,
-  last_boot VARCHAR NOT NULL,
+  last_boot VARCHAR,
   hostname VARCHAR NOT NULL,
   sbc VARCHAR NOT NULL,
   created_dt VARCHAR NOT NULL
