@@ -168,7 +168,7 @@ impl PrintNannyPipelineFactory {
             ! tensor_converter \
             ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1 \
             ! capsfilter caps=other/tensors,format=static \
-            ! tensor-filter framework=tensorflow2-lite model={tflite_model_file} \
+            ! tensor_filter framework=tensorflow2-lite model={tflite_model_file} \
             ! interpipesink name={interpipesink} sync=false");
         self.make_pipeline(pipeline_name, &description).await
     }
