@@ -1,5 +1,7 @@
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
+pub mod models;
+pub mod schema;
 
 use printnanny_settings::printnanny::PrintNannySettings;
 
