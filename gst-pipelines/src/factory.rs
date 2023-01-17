@@ -88,7 +88,6 @@ impl PrintNannyPipelineFactory {
         listen_to: &str,
         filesink_location: &str,
     ) -> Result<gst_client::resources::Pipeline> {
-
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
 
@@ -103,7 +102,6 @@ impl PrintNannyPipelineFactory {
         listen_to: &str,
         framerate: &i32,
     ) -> Result<gst_client::resources::Pipeline> {
-
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
@@ -123,7 +121,6 @@ impl PrintNannyPipelineFactory {
         listen_to: &str,
         port: i32,
     ) -> Result<gst_client::resources::Pipeline> {
-
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
 
@@ -141,7 +138,6 @@ impl PrintNannyPipelineFactory {
         hls_playlist_location: &str,
         hls_playlist_root: &str,
     ) -> Result<gst_client::resources::Pipeline> {
-
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
 
@@ -158,7 +154,6 @@ impl PrintNannyPipelineFactory {
         tensor_height: i32,
         tflite_model_file: &str,
     ) -> Result<gst_client::resources::Pipeline> {
-
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
@@ -185,7 +180,6 @@ impl PrintNannyPipelineFactory {
         tflite_label_file: &str,
         port: i32,
     ) -> Result<gst_client::resources::Pipeline> {
-
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
 
@@ -215,7 +209,7 @@ impl PrintNannyPipelineFactory {
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false \
             ! tensor_decoder mode=custom-code option1=printnanny_bb_dataframe_decoder \
-            ! dataframe_agg filter-threshold={nms_threshold} output-type=json |
+            ! dataframe_agg filter-threshold={nms_threshold} output-type=json \
             ! nats_sink nats-address={nats_server_uri}");
         self.make_pipeline(pipeline_name, &description).await
     }
