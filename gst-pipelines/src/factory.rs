@@ -141,7 +141,18 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false \
+        // use time-based segment format for rtp and hls pipelines
+        // format              : The format of the segment events and seek
+        // flags: readable, writable
+        // Enum "GstFormat" Default: 2, "bytes"
+        //    (0): undefined        - GST_FORMAT_UNDEFINED
+        //    (1): default          - GST_FORMAT_DEFAULT
+        //    (2): bytes            - GST_FORMAT_BYTES
+        //    (3): time             - GST_FORMAT_TIME
+        //    (4): buffers          - GST_FORMAT_BUFFERS
+        //    (5): percent          - GST_FORMAT_PERCENT
+
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false format=3 \
             ! hlssink2 playlist-length=8 max-files=10 target-duration=1 location={hls_segments_location} playlist-location={hls_playlist_location} playlist-root={hls_playlist_root} send-keyframe-requests=false");
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -183,7 +194,18 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false \
+        // use time-based segment format for rtp and hls pipelines
+        // format              : The format of the segment events and seek
+        // flags: readable, writable
+        // Enum "GstFormat" Default: 2, "bytes"
+        //    (0): undefined        - GST_FORMAT_UNDEFINED
+        //    (1): default          - GST_FORMAT_DEFAULT
+        //    (2): bytes            - GST_FORMAT_BYTES
+        //    (3): time             - GST_FORMAT_TIME
+        //    (4): buffers          - GST_FORMAT_BUFFERS
+        //    (5): percent          - GST_FORMAT_PERCENT
+
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false format=3 \
             ! tensor_decoder mode=bounding_boxes option1=mobilenet-ssd-postprocess option2={tflite_label_file} option3=0:1:2:3,{nms_threshold} option4={video_width}:{video_height} option5={tensor_width}:{tensor_height} \
             ! videoconvert \
             ! v4l2h264enc output-io-mode=mmap capture-io-mode=mmap extra-controls=controls,repeat_sequence_header=1 \
