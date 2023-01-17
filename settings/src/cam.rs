@@ -118,7 +118,7 @@ impl CameraVideoSource {
     pub fn default_caps() -> printnanny_asyncapi_models::GstreamerCaps {
         printnanny_asyncapi_models::GstreamerCaps {
             media_type: "video/x-raw".into(),
-            format: "YUY2".into(),
+            format: "NV21".into(),
             width: 640,
             height: 480,
         }
