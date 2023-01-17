@@ -266,78 +266,78 @@ impl PrintNannyPipelineFactory {
             )
             .await?;
 
-        let inference_pipeline_name = "tflite_inference";
-        let inference_pipeline = self
-            .make_inference_pipeline(
-                inference_pipeline_name,
-                camera_pipeline_name,
-                detection_settings.tensor_width,
-                detection_settings.tensor_height,
-                &detection_settings.model_file,
-            )
-            .await?;
+        // let inference_pipeline_name = "tflite_inference";
+        // let inference_pipeline = self
+        //     .make_inference_pipeline(
+        //         inference_pipeline_name,
+        //         camera_pipeline_name,
+        //         detection_settings.tensor_width,
+        //         detection_settings.tensor_height,
+        //         &detection_settings.model_file,
+        //     )
+        //     .await?;
 
-        let bb_pipeline_name = "bounding_boxes";
-        let bb_pipeline = self
-            .make_bounding_box_pipeline(
-                bb_pipeline_name,
-                inference_pipeline_name,
-                detection_settings.nms_threshold,
-                camera.width,
-                camera.height,
-                detection_settings.tensor_width,
-                detection_settings.tensor_height,
-                &detection_settings.label_file,
-                rtp_settings.overlay_udp_port,
-            )
-            .await?;
+        // let bb_pipeline_name = "bounding_boxes";
+        // let bb_pipeline = self
+        //     .make_bounding_box_pipeline(
+        //         bb_pipeline_name,
+        //         inference_pipeline_name,
+        //         detection_settings.nms_threshold,
+        //         camera.width,
+        //         camera.height,
+        //         detection_settings.tensor_width,
+        //         detection_settings.tensor_height,
+        //         &detection_settings.label_file,
+        //         rtp_settings.overlay_udp_port,
+        //     )
+        //     .await?;
 
-        let df_pipeline_name = "df";
-        let df_pipeline = self
-            .make_df_pipeline(
-                df_pipeline_name,
-                inference_pipeline_name,
-                detection_settings.nms_threshold,
-                &detection_settings.nats_server_uri,
-            )
-            .await?;
-
-
-        if snapshot_settings.enabled {
-            let snapshot_pipeline_name = "snapshot";
-            let snapshot_pipeline = self
-                .make_jpeg_snapshot_pipeline(
-                    snapshot_pipeline_name,
-                    camera_pipeline_name,
-                    &snapshot_settings.path,
-                    &camera
-                )
-                .await?;
-            snapshot_pipeline.play().await?;
-        }
+        // let df_pipeline_name = "df";
+        // let df_pipeline = self
+        //     .make_df_pipeline(
+        //         df_pipeline_name,
+        //         inference_pipeline_name,
+        //         detection_settings.nms_threshold,
+        //         &detection_settings.nats_server_uri,
+        //     )
+        //     .await?;
 
 
-        if hls_settings.enabled {
-            let hls_pipeline_name = "hls";
-            let hls_pipeline = self
-                .make_hls_pipeline(
-                    hls_pipeline_name,
-                    h264_pipeline_name,
-                    &hls_settings.segments,
-                    &hls_settings.playlist,
-                    &hls_settings.playlist_root,
-                )
-                .await?;
-            hls_pipeline.play().await?;
-        }
+        // if snapshot_settings.enabled {
+        //     let snapshot_pipeline_name = "snapshot";
+        //     let snapshot_pipeline = self
+        //         .make_jpeg_snapshot_pipeline(
+        //             snapshot_pipeline_name,
+        //             camera_pipeline_name,
+        //             &snapshot_settings.path,
+        //             &camera
+        //         )
+        //         .await?;
+        //     snapshot_pipeline.play().await?;
+        // }
+
+
+        // if hls_settings.enabled {
+        //     let hls_pipeline_name = "hls";
+        //     let hls_pipeline = self
+        //         .make_hls_pipeline(
+        //             hls_pipeline_name,
+        //             h264_pipeline_name,
+        //             &hls_settings.segments,
+        //             &hls_settings.playlist,
+        //             &hls_settings.playlist_root,
+        //         )
+        //         .await?;
+        //     hls_pipeline.play().await?;
+        // }
 
 
         camera_pipeline.play().await?;
         h264_pipeline.play().await?;
         rtp_pipeline.play().await?;
-        inference_pipeline.play().await?;
-        bb_pipeline.play().await?;
-        df_pipeline.play().await?;
+        // inference_pipeline.play().await?;
+        // bb_pipeline.play().await?;
+        // df_pipeline.play().await?;
 
         Ok(())
     }
