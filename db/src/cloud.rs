@@ -24,32 +24,33 @@ impl From<printnanny_api_client::models::SbcEnum> for SbcEnum {
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable)]
-pub struct PiUrls {
-    pub id: i32,
-    pub moonraker_api: String,
-    pub mission_control: String,
-    pub octoprint: String,
-    pub swupdate: String,
-    pub syncthing: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable)]
 pub struct Pi {
     pub id: i32,
     pub last_boot: Option<String>,
     pub hostname: String,
     pub sbc: SbcEnum,
     pub created_dt: String,
+    pub moonraker_api_url: String,
+    pub mission_control_url: String,
+    pub octoprint_url: String,
+    pub swupdate_url: String,
+    pub syncthing_url: String,
 }
 
 impl From<printnanny_api_client::models::Pi> for Pi {
     fn from(obj: printnanny_api_client::models::Pi) -> Pi {
+        let urls = *obj.urls;
         Pi {
             id: obj.id,
             last_boot: obj.last_boot,
             hostname: obj.hostname,
             sbc: obj.sbc.into(),
             created_dt: obj.created_dt,
+            moonraker_api_url: urls.moonraker_api,
+            mission_control_url: urls.mission_control,
+            octoprint_url: urls.octoprint,
+            swupdate_url: urls.swupdate,
+            syncthing_url: urls.syncthing,
         }
     }
 }

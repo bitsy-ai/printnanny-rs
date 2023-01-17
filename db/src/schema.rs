@@ -21,20 +21,11 @@ diesel::table! {
         hostname -> Text,
         sbc -> Text,
         created_dt -> Text,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::*;
-
-    pi_urls (id) {
-        id -> Nullable<Integer>,
-        moonraker_api -> Text,
-        mission_control -> Text,
-        octoprint -> Text,
-        swupdate -> Text,
-        syncthing -> Text,
+        moonraker_api_url -> Text,
+        mission_control_url -> Text,
+        octoprint_url -> Text,
+        swupdate_url -> Text,
+        syncthing_url -> Text,
     }
 }
 
@@ -70,7 +61,6 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     network_settings,
     pi,
-    pi_urls,
     user,
     video_recordings,
 );
