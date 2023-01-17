@@ -3,6 +3,8 @@
 
 [print_schema]
 file = "src/schema.rs"
+import_types = ["diesel::sql_types::*", "crate::enums::*"]   # <- note the extra import
+
 
 [migrations_directory]
 dir = "migrations"

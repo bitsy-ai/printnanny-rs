@@ -1,41 +1,8 @@
 use diesel::prelude::*;
-use diesel::{AsExpression, FromSqlRow};
 use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
 use printnanny_api_client;
-
-#[derive(Debug)]
-pub struct EnumError {
-    msg: String,
-    status: u16,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, DbEnum)]
-pub enum Status {
-    Pending,
-    InProgress,
-    Done,
-}
-
-impl Default for Status {
-    fn default() -> Self {
-        Status::Pending
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable)]
-pub struct VideoRecording {
-    pub id: String,
-    pub recording_status: Status,
-    pub recording_start: Option<u64>,
-    pub recording_end: Option<u64>,
-    pub recording_file_name: String,
-    pub gcode_file_name: Option<String>,
-    pub cloud_sync_status: Status,
-    pub cloud_sync_start: Option<u64>,
-    pub cloud_sync_end: Option<u64>,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Deserialize, Serialize)]
 pub enum SbcEnum {

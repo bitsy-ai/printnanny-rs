@@ -1,7 +1,9 @@
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
-pub mod models;
+pub mod cloud;
+pub mod enums;
 pub mod schema;
+pub mod video_recording;
 
 use printnanny_settings::printnanny::PrintNannySettings;
 

@@ -40,7 +40,7 @@ diesel::table! {
 
 diesel::table! {
     video_recordings (id) {
-        id -> Binary,
+        id -> Text,
         recording_status -> Text,
         recording_start -> Nullable<Integer>,
         recording_end -> Nullable<Integer>,

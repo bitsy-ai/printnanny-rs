@@ -1,5 +1,5 @@
 CREATE TABLE video_recordings (
-  id blob(16) PRIMARY KEY NOT NULL,
+  id VARCHAR PRIMARY KEY NOT NULL,
   recording_status VARCHAR NOT NULL,
   recording_start INTEGER,
   recording_end INTEGER,
