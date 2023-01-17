@@ -2,6 +2,8 @@ use diesel::prelude::*;
 use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
+use crate::schema::pi;
+use crate::schema::user;
 use printnanny_api_client;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Deserialize, Serialize)]
@@ -23,7 +25,8 @@ impl From<printnanny_api_client::models::SbcEnum> for SbcEnum {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable)]
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable, Identifiable)]
+#[table_name = "pi"]
 pub struct Pi {
     pub id: i32,
     pub last_boot: Option<String>,
@@ -35,11 +38,19 @@ pub struct Pi {
     pub octoprint_url: String,
     pub swupdate_url: String,
     pub syncthing_url: String,
+    pub preferred_dns: PreferredDnsType,
 }
 
 impl From<printnanny_api_client::models::Pi> for Pi {
     fn from(obj: printnanny_api_client::models::Pi) -> Pi {
         let urls = *obj.urls;
+        let preferred_dns = match obj.network_settings {
+            Some(network_settings) => match network_settings.preferred_dns {
+                Some(result) => result.into(),
+                None => PreferredDnsType::Multicast,
+            },
+            None => PreferredDnsType::Multicast,
+        };
         Pi {
             id: obj.id,
             last_boot: obj.last_boot,
@@ -51,6 +62,7 @@ impl From<printnanny_api_client::models::Pi> for Pi {
             octoprint_url: urls.octoprint,
             swupdate_url: urls.swupdate,
             syncthing_url: urls.syncthing,
+            preferred_dns,
         }
     }
 }
@@ -95,27 +107,8 @@ impl From<PreferredDnsType> for printnanny_api_client::models::PreferredDnsType 
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable)]
-pub struct NetworkSettings {
-    pub id: i32,
-    pub updated_dt: String,
-    pub preferred_dns: PreferredDnsType,
-}
-
-impl From<printnanny_api_client::models::NetworkSettings> for NetworkSettings {
-    fn from(obj: printnanny_api_client::models::NetworkSettings) -> NetworkSettings {
-        NetworkSettings {
-            id: obj.id,
-            updated_dt: obj.updated_dt,
-            preferred_dns: match obj.preferred_dns {
-                Some(d) => d.into(),
-                None => PreferredDnsType::default(),
-            },
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable)]
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable, Identifiable)]
+#[table_name = "user"]
 pub struct User {
     pub email: String,
     pub id: i32,
@@ -136,8 +129,11 @@ impl From<printnanny_api_client::models::User> for User {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable)]
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable, Identifiable)]
+#[table_name = "printnanny_cloud_api_config"]
+#[primary_key = "user_id"]
 pub struct PrintNannyCloudApiConfig {
+    pub user_id: i32,
     pub base_url: String,
     pub bearer_access_token: Option<String>,
 }

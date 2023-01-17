@@ -4,17 +4,6 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::*;
 
-    network_settings (id) {
-        id -> Nullable<Integer>,
-        updated_dt -> Text,
-        preferred_dns -> Text,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::*;
-
     pi (id) {
         id -> Nullable<Integer>,
         last_boot -> Nullable<Text>,
@@ -59,7 +48,6 @@ diesel::table! {
 }
 
 diesel::allow_tables_to_appear_in_same_query!(
-    network_settings,
     pi,
     user,
     video_recordings,
