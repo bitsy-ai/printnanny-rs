@@ -91,7 +91,7 @@ impl PrintNannyPipelineFactory {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false num-buffers=2 leaky-type=2 \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false max-buffers=2 leaky-type=2 \
             ! v4l2jpegenc ! multifilesink max-files=2 location={filesink_location}");
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -169,7 +169,7 @@ impl PrintNannyPipelineFactory {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false num-buffers=2 leaky-type=2 \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false max-buffers=2 leaky-type=2 \
             ! videoconvert ! videoscale ! capsfilter caps=video/x-raw,format=RGB,width={tensor_width},height={tensor_height} \
             ! tensor_converter \
             ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1 \
