@@ -952,11 +952,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "diesel-enum"
-version = "0.1.0"
+name = "diesel-derive-enum"
+version = "2.0.0-rc.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d273018d979b8e14451bcbf4709e6b0f9f1c41b68a5bacbf56d647f7a1a1b06"
+checksum = "5f28fc9f5bf184ebc58ad9105dede024981e2303fe878a0fe16557f3a979064a"
 dependencies = [
+ "heck 0.4.0",
  "proc-macro2",
  "quote",
  "syn",
@@ -3299,9 +3300,10 @@ name = "printnanny-edge-db"
 version = "0.1.0"
 dependencies = [
  "diesel",
- "diesel-enum",
+ "diesel-derive-enum",
  "printnanny-api-client",
  "printnanny-settings",
+ "serde 1.0.148",
 ]
 
 [[package]]

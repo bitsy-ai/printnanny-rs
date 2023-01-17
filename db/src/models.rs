@@ -1,5 +1,9 @@
 use diesel::prelude::*;
-use diesel_enum::DbEnum;
+use diesel::{AsExpression, FromSqlRow};
+use diesel_derive_enum::DbEnum;
+use serde::{Deserialize, Serialize};
+
+use printnanny_api_client;
 
 #[derive(Debug)]
 pub struct EnumError {
@@ -7,19 +11,22 @@ pub struct EnumError {
     status: u16,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow, DbEnum)]
-#[sql_type = "VarChar"]
-#[error_fn = "EnumError::not_found"]
-#[error_type = "EnumError"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, DbEnum)]
 pub enum Status {
     Pending,
     InProgress,
     Done,
 }
 
+impl Default for Status {
+    fn default() -> Self {
+        Status::Pending
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable)]
 pub struct VideoRecording {
-    pub id: diesel::sql_types::Uuid,
+    pub id: String,
     pub recording_status: Status,
     pub recording_start: Option<u64>,
     pub recording_end: Option<u64>,
@@ -30,10 +37,7 @@ pub struct VideoRecording {
     pub cloud_sync_end: Option<u64>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow, DbEnum)]
-#[sql_type = "VarChar"]
-#[error_fn = "EnumError::not_found"]
-#[error_type = "EnumError"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Deserialize, Serialize)]
 pub enum SbcEnum {
     Rpi4,
 }
@@ -58,7 +62,7 @@ pub struct Pi {
 }
 
 impl From<printnanny_api_client::Pi> for Pi {
-    fn from(obj: printnanny_asyncapi_models::Pi) -> Pi {
+    fn from(obj: printnanny_api_client::models::Pi) -> Pi {
         Pi {
             id: obj.id,
             last_boot: obj.last_boot,
@@ -69,10 +73,7 @@ impl From<printnanny_api_client::Pi> for Pi {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow, DbEnum)]
-#[sql_type = "VarChar"]
-#[error_fn = "EnumError::not_found"]
-#[error_type = "EnumError"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Deserialize, Serialize)]
 pub enum PreferredDnsType {
     #[serde(rename = "multicast")]
     Multicast,
@@ -81,10 +82,14 @@ pub enum PreferredDnsType {
 }
 
 impl From<printnanny_api_client::PreferredDnsType> for PreferredDnsType {
-    fn from(obj: printnanny_asyncapi_models::PreferredDnsType) -> PreferredDnsType {
+    fn from(obj: printnanny_api_client::models::PreferredDnsType) -> PreferredDnsType {
         match obj {
-            printnanny_asyncapi_models::PreferredDnsType::Multicast => PreferredDnsType::Multicast,
-            printnanny_asyncapi_models::PreferredDnsType::Tailscale => PreferredDnsType::Tailscale,
+            printnanny_api_client::models::PreferredDnsType::Multicast => {
+                PreferredDnsType::Multicast
+            }
+            printnanny_api_client::models::PreferredDnsType::Tailscale => {
+                PreferredDnsType::Tailscale
+            }
         }
     }
 }
@@ -96,8 +101,8 @@ pub struct NetworkSettings {
     pub preferred_dns: PreferredDnsType,
 }
 
-impl From<printnanny_api_client::NetworkSettings> for NetworkSettings {
-    fn from(obj: printnanny_asyncapi_models::NetworkSettings) -> NetworkSettings {
+impl From<printnanny_api_client::models::NetworkSettings> for NetworkSettings {
+    fn from(obj: printnanny_api_client::models::NetworkSettings) -> NetworkSettings {
         NetworkSettings {
             id: obj.id,
             updated_dt: obj.updated_dt,
@@ -116,13 +121,19 @@ pub struct User {
     pub last_name: Option<String>,
 }
 
-impl From<printnanny_api_client::User> for User {
-    fn from(obj: printnanny_asyncapi_models::User) -> User {
-        NetworkSettings {
+impl From<printnanny_api_client::models::User> for User {
+    fn from(obj: printnanny_api_client::models::User) -> User {
+        User {
             id: obj.id,
             email: obj.email,
             first_name: obj.first_name,
             last_name: obj.last_name,
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable)]
+pub struct PrintNannyCloudApiConfig {
+    pub base_url: String,
+    pub bearer_access_token: Option<String>,
 }
