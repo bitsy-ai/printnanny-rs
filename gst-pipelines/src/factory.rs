@@ -91,7 +91,7 @@ impl PrintNannyPipelineFactory {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false num-buffers=2 leaky-type=2 \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false max-buffers=2 leaky-type=2 format=3 do-timestamp=true \
             ! v4l2jpegenc ! multifilesink max-files=2 location={filesink_location}");
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -106,11 +106,11 @@ impl PrintNannyPipelineFactory {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false format=3 do-timestamp=true \
             ! v4l2convert \
             ! v4l2h264enc min-force-key-unit-interval={framerate} extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
-            ! capsfilter caps=video/x-h264,level=(string)3,profile=(string)main \
+            ! capsfilter caps=video/x-h264,level=3,profile=main \
             ! interpipesink name={interpipesink} sync=false");
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -124,7 +124,7 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false format=3 do-timestamp=true \
             ! rtph264pay config-interval=1 aggregate-mode=zero-latency pt=96 \
             ! udpsink port={port}");
         self.make_pipeline(pipeline_name, &description).await
@@ -169,7 +169,7 @@ impl PrintNannyPipelineFactory {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false num-buffers=2 leaky-type=2 \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false max-buffers=2 leaky-type=2 format=3 do-timestamp=true \
             ! videoconvert ! videoscale ! capsfilter caps=video/x-raw,format=RGB,width={tensor_width},height={tensor_height} \
             ! tensor_converter \
             ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1 \
@@ -229,7 +229,7 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false format=3 do-timestamp=true \
             ! tensor_decoder mode=custom-code option1=printnanny_bb_dataframe_decoder \
             ! dataframe_agg filter-threshold={nms_threshold} output-type=json \
             ! nats_sink nats-address={nats_server_uri}");
