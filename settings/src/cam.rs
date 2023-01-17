@@ -416,6 +416,7 @@ impl Default for VideoStreamSettings {
             height: 480,
             framerate: 16,
             device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
+            format: "NV21".into(),
             label: "Raspberry Pi imx219".into(),
         });
 
