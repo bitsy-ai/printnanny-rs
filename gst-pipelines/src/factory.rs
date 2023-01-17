@@ -75,7 +75,6 @@ impl PrintNannyPipelineFactory {
             ! v4l2convert \
             ! interpipesink name={interpipesink} sync=false",
             camera_name=camera.device_name,
-            // pixel_format=camera.caps.
             width=camera.width,
             height=camera.height,
             framerate=camera.framerate
@@ -88,12 +87,17 @@ impl PrintNannyPipelineFactory {
         pipeline_name: &str,
         listen_to: &str,
         filesink_location: &str,
+        camera: &CameraSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=2 leaky-type=2 format=3 \
-            ! v4l2jpegenc ! multifilesink max-files=2 location={filesink_location}");
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=2 leaky-type=2 \
+            ! capsfilter caps=video/x-raw,width={width},height={height},format=YUY2 \
+            ! v4l2jpegenc ! multifilesink max-files=2 location={filesink_location}",
+            width=camera.width,
+            height=camera.height,
+        );
         self.make_pipeline(pipeline_name, &description).await
     }
 
@@ -249,40 +253,10 @@ impl PrintNannyPipelineFactory {
         let camera_pipeline = self
             .make_camera_pipeline(camera_pipeline_name, &camera)
             .await?;
-        camera_pipeline.play().await?;
-
-        if snapshot_settings.enabled {
-            let snapshot_pipeline_name = "snapshot";
-            let snapshot_pipeline = self
-                .make_jpeg_snapshot_pipeline(
-                    snapshot_pipeline_name,
-                    camera_pipeline_name,
-                    &snapshot_settings.path,
-                )
-                .await?;
-            snapshot_pipeline.play().await?;
-        }
-
         let h264_pipeline_name = "h264";
         let h264_pipeline = self
             .make_h264_pipeline(h264_pipeline_name, camera_pipeline_name, &camera.framerate)
             .await?;
-        h264_pipeline.play().await?;
-
-        if hls_settings.enabled {
-            let hls_pipeline_name = "hls";
-            let hls_pipeline = self
-                .make_hls_pipeline(
-                    hls_pipeline_name,
-                    h264_pipeline_name,
-                    &hls_settings.segments,
-                    &hls_settings.playlist,
-                    &hls_settings.playlist_root,
-                )
-                .await?;
-            hls_pipeline.play().await?;
-        }
-
         let rtp_pipeline_name = "rtp";
         let rtp_pipeline = self
             .make_rtp_pipeline(
@@ -291,7 +265,6 @@ impl PrintNannyPipelineFactory {
                 rtp_settings.video_udp_port,
             )
             .await?;
-        rtp_pipeline.play().await?;
 
         let inference_pipeline_name = "tflite_inference";
         let inference_pipeline = self
@@ -303,7 +276,6 @@ impl PrintNannyPipelineFactory {
                 &detection_settings.model_file,
             )
             .await?;
-        inference_pipeline.play().await?;
 
         let bb_pipeline_name = "bounding_boxes";
         let bb_pipeline = self
@@ -319,7 +291,6 @@ impl PrintNannyPipelineFactory {
                 rtp_settings.overlay_udp_port,
             )
             .await?;
-        bb_pipeline.play().await?;
 
         let df_pipeline_name = "df";
         let df_pipeline = self
@@ -331,6 +302,41 @@ impl PrintNannyPipelineFactory {
             )
             .await?;
 
+
+        if snapshot_settings.enabled {
+            let snapshot_pipeline_name = "snapshot";
+            let snapshot_pipeline = self
+                .make_jpeg_snapshot_pipeline(
+                    snapshot_pipeline_name,
+                    camera_pipeline_name,
+                    &snapshot_settings.path,
+                    &camera
+                )
+                .await?;
+            snapshot_pipeline.play().await?;
+        }
+
+
+        if hls_settings.enabled {
+            let hls_pipeline_name = "hls";
+            let hls_pipeline = self
+                .make_hls_pipeline(
+                    hls_pipeline_name,
+                    h264_pipeline_name,
+                    &hls_settings.segments,
+                    &hls_settings.playlist,
+                    &hls_settings.playlist_root,
+                )
+                .await?;
+            hls_pipeline.play().await?;
+        }
+
+
+        camera_pipeline.play().await?;
+        h264_pipeline.play().await?;
+        rtp_pipeline.play().await?;
+        inference_pipeline.play().await?;
+        bb_pipeline.play().await?;
         df_pipeline.play().await?;
 
         Ok(())
