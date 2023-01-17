@@ -3,9 +3,11 @@
 diesel::table! {
     video_recordings (id) {
         id -> Binary,
+        recording_start -> Nullable<Integer>,
+        recording_end -> Nullable<Integer>,
         recording_file_name -> Text,
         gcode_file_name -> Nullable<Text>,
-        ts -> Integer,
-        backup_done -> Bool,
+        cloud_sync_start -> Nullable<Integer>,
+        cloud_sync_end -> Nullable<Integer>,
     }
 }
