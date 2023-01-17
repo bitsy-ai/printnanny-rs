@@ -262,7 +262,7 @@ impl ApiService {
             favorite,
             setup_finished,
         };
-        let pi = devices_api::pi_update_or_create(&self.reqwest_config(), Some(req)).await?;
+        let pi = devices_api::pi_update_or_create(&self.reqwest_config(), req).await?;
         info!("Success! Registered Pi: {:#?}", pi);
         let pi = self.sync_pi_models(&pi).await?;
         Ok(pi)

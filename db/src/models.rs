@@ -48,6 +48,14 @@ impl Default for SbcEnum {
     }
 }
 
+impl From<printnanny_api_client::models::SbcEnum> for SbcEnum {
+    fn from(obj: printnanny_api_client::models::SbcEnum) -> SbcEnum {
+        match obj {
+            printnanny_api_client::models::SbcEnum::Rpi4 => SbcEnum::Rpi4,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable)]
 pub struct PiUrls {
     pub id: i32,
@@ -73,7 +81,7 @@ impl From<printnanny_api_client::models::Pi> for Pi {
             id: obj.id,
             last_boot: obj.last_boot,
             hostname: obj.hostname,
-            sbc: obj.sbc.to_string(),
+            sbc: obj.sbc.into(),
             created_dt: obj.created_dt,
         }
     }
