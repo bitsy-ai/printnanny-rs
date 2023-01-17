@@ -110,7 +110,7 @@ impl PrintNannyPipelineFactory {
             ! v4l2convert \
             ! v4l2h264enc min-force-key-unit-interval={framerate} extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
-            ! capsfilter caps=video/x-h264,level=(string)3,profile=(string)main \
+            ! capsfilter caps=video/x-h264,level=3,profile=main \
             ! interpipesink name={interpipesink} sync=false");
         self.make_pipeline(pipeline_name, &description).await
     }
