@@ -4,6 +4,6 @@ CREATE TABLE video_recordings (
   recording_end INTEGER,
   recording_file_name VARCHAR NOT NULL,
   gcode_file_name VARCHAR,
-  cloud_sync_start INTEGER NOT NULL,
-  cloud_sync_end INTEGER NOT NULL
+  cloud_sync_start INTEGER,
+  cloud_sync_end INTEGER
 )

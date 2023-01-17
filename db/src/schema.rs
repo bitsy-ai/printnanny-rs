@@ -7,7 +7,7 @@ diesel::table! {
         recording_end -> Nullable<Integer>,
         recording_file_name -> Text,
         gcode_file_name -> Nullable<Text>,
-        cloud_sync_start -> Integer,
-        cloud_sync_end -> Integer,
+        cloud_sync_start -> Nullable<Integer>,
+        cloud_sync_end -> Nullable<Integer>,
     }
 }
