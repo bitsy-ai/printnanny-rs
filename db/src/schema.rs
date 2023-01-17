@@ -22,10 +22,9 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::*;
 
-    printnanny_cloud_api_config (user_id) {
-        user_id -> Nullable<Integer>,
+    printnanny_cloud_api_config (bearer_access_token) {
+        bearer_access_token -> Text,
         base_url -> Text,
-        bearer_access_token -> Nullable<Text>,
     }
 }
 

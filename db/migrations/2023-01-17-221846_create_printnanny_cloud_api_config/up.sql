@@ -1,5 +1,4 @@
 CREATE TABLE printnanny_cloud_api_config (
-  user_id INTEGER PRIMARY KEY,
-  base_url VARCHAR NOT NULL,
-  bearer_access_token VARCHAR
+  bearer_access_token VARCHAR PRIMARY KEY NOT NULL,
+  base_url VARCHAR NOT NULL
 )

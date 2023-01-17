@@ -132,9 +132,8 @@ impl From<printnanny_api_client::models::User> for User {
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable, Identifiable)]
 #[diesel(table_name = printnanny_cloud_api_config)]
-#[diesel(primary_key(user_id))]
+#[diesel(primary_key(bearer_access_token))]
 pub struct PrintNannyCloudApiConfig {
-    pub user_id: i32,
     pub base_url: String,
-    pub bearer_access_token: Option<String>,
+    pub bearer_access_token: String,
 }
