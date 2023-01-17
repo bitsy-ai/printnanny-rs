@@ -3300,6 +3300,7 @@ version = "0.1.0"
 dependencies = [
  "diesel",
  "diesel-enum",
+ "printnanny-api-client",
  "printnanny-settings",
 ]
 
