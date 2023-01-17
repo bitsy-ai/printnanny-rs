@@ -71,13 +71,14 @@ impl PrintNannyPipelineFactory {
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
-            ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate}/1 \
+            ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate}/1,format={format} \
             ! v4l2convert \
             ! interpipesink name={interpipesink} sync=false",
             camera_name=camera.device_name,
             width=camera.width,
             height=camera.height,
-            framerate=camera.framerate
+            framerate=camera.framerate,
+            format=camera.format
         );
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -93,10 +94,11 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=2 leaky-type=2 \
-            ! capsfilter caps=video/x-raw,width={width},height={height} \
+            ! capsfilter caps=video/x-raw,width={width},height={height},format={format} \
             ! v4l2jpegenc ! multifilesink max-files=2 location={filesink_location}",
             width=camera.width,
             height=camera.height,
+            format=camera.format
         );
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -173,8 +175,10 @@ impl PrintNannyPipelineFactory {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
 
+        let format = "RGB"; // model expects pixel data to be in RGB format
+
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=2 leaky-type=2 \
-            ! videoconvert ! videoscale ! capsfilter caps=video/x-raw,format=RGB,width={tensor_width},height={tensor_height} \
+            ! videoconvert ! videoscale ! capsfilter caps=video/x-raw,format={format},width={tensor_width},height={tensor_height} \
             ! tensor_converter \
             ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1 \
             ! capsfilter caps=other/tensors,format=static \
@@ -190,6 +194,7 @@ impl PrintNannyPipelineFactory {
         nms_threshold: i32,
         video_width: i32,
         video_height: i32,
+        format: &str,
         tensor_width: i32,
         tensor_height: i32,
         tflite_label_file: &str,
@@ -211,6 +216,7 @@ impl PrintNannyPipelineFactory {
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
             ! tensor_decoder mode=bounding_boxes option1=mobilenet-ssd-postprocess option2={tflite_label_file} option3=0:1:2:3,{nms_threshold} option4={video_width}:{video_height} option5={tensor_width}:{tensor_height} \
+            ! capsfilter caps=video/x-raw,width={video_width},height={video_height},format={format} \
             ! videoconvert \
             ! v4l2h264enc output-io-mode=mmap capture-io-mode=mmap extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
@@ -285,6 +291,7 @@ impl PrintNannyPipelineFactory {
         //         detection_settings.nms_threshold,
         //         camera.width,
         //         camera.height,
+        //         camera.format,
         //         detection_settings.tensor_width,
         //         detection_settings.tensor_height,
         //         &detection_settings.label_file,

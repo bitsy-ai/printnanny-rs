@@ -118,7 +118,7 @@ impl CameraVideoSource {
     pub fn default_caps() -> printnanny_asyncapi_models::GstreamerCaps {
         printnanny_asyncapi_models::GstreamerCaps {
             media_type: "video/x-raw".into(),
-            format: "YUY2".into(),
+            format: "NV21".into(),
             width: 640,
             height: 480,
         }
@@ -416,6 +416,7 @@ impl Default for VideoStreamSettings {
             height: 480,
             framerate: 16,
             device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
+            format: "NV21".into(),
             label: "Raspberry Pi imx219".into(),
         });
 
