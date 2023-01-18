@@ -69,9 +69,10 @@ impl PrintNannyPipelineFactory {
         camera: &CameraSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
+        let colorimetry = "bt709";
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
-            ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate}/1,format={format} \
+            ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate}/1,format={format},colorimetry={colorimetry} \
             ! interpipesink name={interpipesink} sync=false",
             camera_name=camera.device_name,
             width=camera.width,
@@ -112,12 +113,15 @@ impl PrintNannyPipelineFactory {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
 
+        let colorimetry = "bt709";
+
+
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=false  \
-            ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate}/1,format={format} \
+            ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate}/1,format={format},colorimetry={colorimetry} \
             ! v4l2convert \
-            ! v4l2h264enc min-force-key-unit-interval={framerate} extra-controls=controls,repeat_sequence_header=1 \
+            ! v4l2h264enc min-force-key-unit-interval={framerate} extra-controls='controls,repeat_sequence_header=1' \
             ! h264parse \
-            ! capsfilter caps=video/x-h264,level=4,profile=main \
+            ! capssetter caps='video/x-h264,colorimetry={colorimetry},level=(string)4' \
             ! interpipesink name={interpipesink} sync=false",
             width=camera.width,
             height=camera.height,
