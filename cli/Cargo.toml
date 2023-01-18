@@ -10,6 +10,7 @@ repository = "https://github.com/bitsy-ai/printnanny-rs.git"
 
 [dependencies]
 printnanny-dbus = { path = "../dbus", version = "^0.4"}
+printnanny-edge-db = { path = "../db", version = "^0.1" }
 printnanny-services = {path = "../services", version = "^0.32.0"}
 printnanny-nats = {path = "../nats", version = "^0.32.0"}
 printnanny-api-client = "0.124.4"

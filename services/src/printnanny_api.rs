@@ -268,9 +268,8 @@ impl ApiService {
             setup_finished,
         };
         let pi = devices_api::pi_update_or_create(&self.reqwest_config(), req).await?;
-        let pi_id = pi.id;
         info!("Success! Registered Pi: {:#?}", &pi);
-        printnanny_edge_db::cloud::Pi::insert(pi.clone().into());
+        printnanny_edge_db::cloud::Pi::insert(pi.clone().into())?;
         let pi = self.sync_pi_models(pi.into()).await?;
         Ok(pi)
     }

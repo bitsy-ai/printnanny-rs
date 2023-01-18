@@ -256,7 +256,7 @@ impl NatsCloudWorker {
         Ok(Self {
             socket: config.paths.events_socket(),
             subscribe_subject,
-            nats_server_uri: nats_app.nats_server_uri.clone(),
+            nats_server_uri: nats_app.nats_server_uri,
             nats_creds,
             require_tls,
         })
