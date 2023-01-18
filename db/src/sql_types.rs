@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use printnanny_api_client;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, DbEnum, SqlType)]
-#[diesel(sqlite_type(name = "SbcEnum"))]
 pub enum SbcEnum {
     Rpi4,
 }
@@ -27,8 +26,6 @@ impl From<printnanny_api_client::models::SbcEnum> for SbcEnum {
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, DbEnum, Debug, SqlType)]
-#[diesel(sqlite_type(name = "PreferredDnsType"))]
-#[diesel(table_name = pi)]
 pub enum PreferredDnsType {
     #[serde(rename = "multicast")]
     Multicast,
@@ -69,8 +66,6 @@ impl From<PreferredDnsType> for printnanny_api_client::models::PreferredDnsType 
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, DbEnum, SqlType)]
-#[diesel(sqlite_type(name = "RecordingStatus"))]
-#[diesel(table_name = video_recordings)]
 pub enum RecordingStatus {
     Pending,
     InProgress,
