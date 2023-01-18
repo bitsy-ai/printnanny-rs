@@ -1,5 +1,4 @@
 use diesel::prelude::*;
-use diesel::sql_types::SqlType;
 use serde::{Deserialize, Serialize};
 
 use crate::schema::video_recordings;

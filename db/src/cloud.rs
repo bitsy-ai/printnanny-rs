@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use log::info;
 
-use crate::schema;
+use crate::schema::pis;
 use crate::sql_types::*;
 
 use crate::connection::establish_sqlite_connection;
@@ -11,7 +11,7 @@ use crate::connection::establish_sqlite_connection;
 #[derive(
     Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable, Identifiable, Insertable,
 )]
-#[diesel(table_name = schema::pi)]
+#[diesel(table_name = pis)]
 pub struct Pi {
     pub id: i32,
     pub last_boot: Option<String>,
@@ -29,7 +29,7 @@ pub struct Pi {
 }
 
 #[derive(Clone, Debug, PartialEq, AsChangeset)]
-#[diesel(table_name = schema::pi)]
+#[diesel(table_name = pis)]
 pub struct UpdatePi<'a> {
     pub last_boot: Option<&'a str>,
     pub hostname: Option<&'a str>,
@@ -140,26 +140,24 @@ impl From<printnanny_api_client::models::Pi> for Pi {
 // }
 
 impl Pi {
-    pub fn get() -> Result<Pi, diesel::result::Error> {
+    pub fn get() -> Result<(), diesel::result::Error> {
         let mut connection = establish_sqlite_connection();
-        let result = schema::pi::dsl::pi
-            .order_by(schema::pi::dsl::id)
-            .first(&mut connection)
-            .load::<Pi>?;
-        Ok(result)
+        let result = pis::dsl::pis.order_by(pis::id).first(&mut connection)?;
+        info!("printnanny_edge_db::cloud::Pi get {:#?}", &result);
+        Ok(())
     }
     pub fn insert(row: Pi) -> Result<(), diesel::result::Error> {
         let mut connection = establish_sqlite_connection();
 
-        let updated = diesel::insert_into(schema::pi::dsl::pi)
+        let updated = diesel::insert_into(pis::dsl::pis)
             .values(row)
             .execute(&mut connection)?;
-        info!("printnanny_edge_db::cloud::Pi created {}", updated);
+        info!("printnanny_edge_db::cloud::Pi created {}", &updated);
         Ok(())
     }
     pub fn update(row: Pi, changeset: UpdatePi) -> Result<(), diesel::result::Error> {
         let mut connection = establish_sqlite_connection();
-        let result = diesel::update(schema::pi::find(pi.id))
+        let result = diesel::update(pis::table.filter(pis::id.eq(row.id)))
             .set(changeset)
             .execute(&mut connection)?;
         info!("printnanny_edge_db::cloud::Pi updated {}", &result);

@@ -1,4 +1,4 @@
-CREATE TABLE pi (
+CREATE TABLE pis (
   id INTEGER PRIMARY KEY,
   last_boot VARCHAR,
   hostname VARCHAR NOT NULL,

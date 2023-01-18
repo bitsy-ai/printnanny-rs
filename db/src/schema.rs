@@ -4,7 +4,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::sql_types::*;
 
-    pi (id) {
+    pis (id) {
         id -> Nullable<Integer>,
         last_boot -> Nullable<Text>,
         hostname -> Text,
@@ -25,7 +25,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::sql_types::*;
 
-    user (id) {
+    users (id) {
         id -> Nullable<Integer>,
         email -> Text,
         first_name -> Nullable<Text>,
@@ -39,15 +39,15 @@ diesel::table! {
 
     video_recordings (id) {
         id -> Text,
-        recording_status -> RecordingStatusMapping,
+        recording_status ->  RecordingStatusMapping,
         recording_start -> Nullable<BigInt>,
         recording_end -> Nullable<BigInt>,
         recording_file_name -> Text,
         gcode_file_name -> Nullable<Text>,
-        cloud_sync_status -> RecordingStatusMapping,
+        cloud_sync_status ->RecordingStatusMapping,
         cloud_sync_start -> Nullable<BigInt>,
         cloud_sync_end -> Nullable<BigInt>,
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(pi, user, video_recordings,);
+diesel::allow_tables_to_appear_in_same_query!(pis, users, video_recordings,);

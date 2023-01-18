@@ -1,1 +1,1 @@
-DROP TABLE pi
+DROP TABLE pis

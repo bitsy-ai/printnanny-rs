@@ -8,6 +8,7 @@ use printnanny_api_client;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, DbEnum, SqlType)]
 pub enum SbcEnum {
+    #[serde(rename = "rpi4")]
     Rpi4,
 }
 
@@ -67,8 +68,11 @@ impl From<PreferredDnsType> for printnanny_api_client::models::PreferredDnsType 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, DbEnum, SqlType)]
 pub enum RecordingStatus {
+    #[serde(rename = "pending")]
     Pending,
+    #[serde(rename = "inprogress")]
     InProgress,
+    #[serde(rename = "done")]
     Done,
 }
 
