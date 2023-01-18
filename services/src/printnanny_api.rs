@@ -77,15 +77,16 @@ impl ApiService {
         api_base_path: String,
         api_bearer_access_token: String,
     ) -> Result<Self, ServiceError> {
-        let previous = self.api_config;
+        let mut settings = PrintNannySettings::new()?;
+
         info!("Updated printnanny_cloud_api_config sqlite record");
-        if self.api_config.api_bearer_access_token != Some(api_bearer_access_token) {
-            self.api_config.api_base_path = api_bearer_access_token.clone();
-            self.api_config.api_bearer_access_token = Some(api_bearer_access_token.clone());
+        let api_bearer_access_token = Some(api_bearer_access_token);
+        if self.api_config.api_bearer_access_token != api_bearer_access_token {
+            self.api_config.api_base_path = api_base_path.clone();
+            self.api_config.api_bearer_access_token = api_bearer_access_token.clone();
             warn!("connect_cloud_account saving new api_bearer_access_token");
-            let mut settings = PrintNannySettings::new()?;
             settings.cloud.api_base_path = api_base_path;
-            settings.cloud.api_bearer_access_token = Some(api_bearer_access_token);
+            settings.cloud.api_bearer_access_token = api_bearer_access_token;
             let content = settings.to_toml_string()?;
             settings
                 .save_and_commit(
@@ -97,11 +98,10 @@ impl ApiService {
 
         // sync data models
         self.sync().await?;
-        let mut state = PrintNannyCloudData::load(&cloud_state_file)?;
-        let pi_id = state.pi.unwrap().id;
+        let pi_id = printnanny_edge_db::cloud::Pi::get_id()?;
 
         // download license
-        if !self.settings.paths.license_zip().exists() {
+        if settings.paths.license_zip().exists() {
             // download credential and device identity bundled in license.zip
             self.pi_download_license(pi_id, false).await?;
         }
@@ -113,11 +113,7 @@ impl ApiService {
             hostname: None,
             favorite: None,
         };
-
         self.pi_partial_update(pi_id, req).await?;
-        let pi = self.pi_retrieve(pi_id).await?;
-        state.pi = Some(pi);
-        state.save(&cloud_state_file)?;
         Ok(self)
     }
 
@@ -237,10 +233,10 @@ impl ApiService {
         );
         let system_info = self.system_info_update_or_create(edge_pi.id).await?;
         info!("Success! Updated SystemInfo model: {:?}", system_info);
-        match &pi.octoprint_server_id {
+        match &edge_pi.octoprint_server_id {
             Some(octoprint_server_id) => {
                 let octoprint_server = self
-                    .octoprint_server_update(octoprint_server_id, edge_pi.id)
+                    .octoprint_server_update(octoprint_server_id, &edge_pi.id)
                     .await?;
                 info!(
                     "Success! Updated OctoPrintServer model: {:?}",
@@ -250,8 +246,10 @@ impl ApiService {
             None => (),
         }
 
-        let pi = self.pi_retrieve(pi_id).await?;
-        printnanny_edge_db::cloud::Pi::update(pi.into());
+        let pi = self.pi_retrieve(edge_pi.id).await?;
+        let pi_id = pi.id.clone();
+        let changeset: printnanny_edge_db::cloud::UpdatePi = pi.clone().into();
+        printnanny_edge_db::cloud::Pi::update(pi_id, changeset);
         Ok(pi)
     }
 
@@ -272,22 +270,22 @@ impl ApiService {
         };
         let pi = devices_api::pi_update_or_create(&self.reqwest_config(), req).await?;
         let pi_id = pi.id;
-        printnanny_edge_db::cloud::Pi::insert(pi.into());
-        info!("Success! Registered Pi: {:#?}", pi);
-        let pi = self.sync_pi_models(pi_id).await?;
+        info!("Success! Registered Pi: {:#?}", &pi);
+        printnanny_edge_db::cloud::Pi::insert(pi.clone().into());
+        let pi = self.sync_pi_models(pi.into()).await?;
         Ok(pi)
     }
 
     // syncs Raspberry Pi data with PrintNanny Cloud
     // performs any necessary one-time setup tasks
-    pub async fn sync(&mut self) -> Result<(), ServiceError> {
+    pub async fn sync(&mut self) -> Result<printnanny_api_client::models::Pi, ServiceError> {
         match printnanny_edge_db::cloud::Pi::get() {
             Ok(pi_sqlite) => self.sync_pi_models(pi_sqlite).await,
             Err(e) => match e {
                 // if edge Pi model isn't found, initialize
                 printnanny_edge_db::diesel::result::Error::NotFound => self.init_pi_model().await,
                 // re-raise all other errors
-                _ => Err(e),
+                _ => Err(ServiceError::SqliteDBError(e)),
             },
         }
 
@@ -348,9 +346,10 @@ impl ApiService {
     }
 
     pub async fn pi_download_license(&self, pi_id: i32, backup: bool) -> Result<(), ServiceError> {
+        let settings = PrintNannySettings::new()?;
         let res = devices_api::pis_license_zip_retrieve(&self.reqwest_config(), pi_id).await?;
-        self.settings.paths.write_license_zip(res, backup)?;
-        self.settings.paths.unpack_license(backup)?;
+        settings.paths.write_license_zip(res, backup)?;
+        settings.paths.unpack_license(backup)?;
         Ok(())
     }
 
@@ -390,10 +389,11 @@ impl ApiService {
 
     pub async fn octoprint_server_update(
         &self,
-        octoprint_server_id: i32,
-        pi_id: i32,
+        octoprint_server_id: &i32,
+        pi_id: &i32,
     ) -> Result<models::OctoPrintServer, ServiceError> {
-        let helper = &self.settings.octoprint;
+        let settings = PrintNannySettings::new()?;
+        let helper = &settings.octoprint;
         let pip_version = helper.pip_version()?;
         let python_version = helper.python_version()?;
         let pip_packages = helper.pip_packages()?;
@@ -404,7 +404,7 @@ impl ApiService {
             pip_version,
             printnanny_plugin_version,
             python_version,
-            pi: Some(pi_id),
+            pi: Some(*pi_id),
             ..models::PatchedOctoPrintServerRequest::new()
         };
         debug!(
@@ -413,7 +413,7 @@ impl ApiService {
         );
         let res = octoprint_api::octoprint_partial_update(
             &self.reqwest_config(),
-            octoprint_server.id,
+            *octoprint_server_id,
             Some(req),
         )
         .await?;

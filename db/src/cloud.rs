@@ -29,18 +29,53 @@ pub struct Pi {
 
 #[derive(Clone, Debug, PartialEq, AsChangeset)]
 #[diesel(table_name = pis)]
-pub struct UpdatePi<'a> {
-    pub last_boot: Option<&'a str>,
-    pub hostname: Option<&'a str>,
-    pub created_dt: Option<&'a str>,
-    pub moonraker_api_url: Option<&'a str>,
-    pub mission_control_url: Option<&'a str>,
-    pub octoprint_url: Option<&'a str>,
-    pub swupdate_url: Option<&'a str>,
-    pub syncthing_url: Option<&'a str>,
+pub struct UpdatePi {
+    pub last_boot: Option<String>,
+    pub hostname: Option<String>,
+    pub created_dt: Option<String>,
+    pub moonraker_api_url: Option<String>,
+    pub mission_control_url: Option<String>,
+    pub octoprint_url: Option<String>,
+    pub swupdate_url: Option<String>,
+    pub syncthing_url: Option<String>,
     pub preferred_dns: Option<String>,
     pub octoprint_server_id: Option<i32>,
     pub system_info_id: Option<i32>,
+}
+
+impl From<printnanny_api_client::models::Pi> for UpdatePi {
+    fn from(obj: printnanny_api_client::models::Pi) -> UpdatePi {
+        let urls = *obj.urls;
+        let preferred_dns = match obj.network_settings {
+            Some(network_settings) => match network_settings.preferred_dns {
+                Some(result) => result.into(),
+                None => printnanny_api_client::models::PreferredDnsType::Multicast,
+            },
+            None => printnanny_api_client::models::PreferredDnsType::Multicast,
+        }
+        .to_string();
+        let octoprint_server_id = match obj.octoprint_server {
+            Some(octoprint_server) => Some(octoprint_server.id),
+            None => None,
+        };
+        let system_info_id = match obj.system_info {
+            Some(system_info) => Some(system_info.id),
+            None => None,
+        };
+        UpdatePi {
+            last_boot: obj.last_boot,
+            hostname: None,
+            created_dt: None,
+            moonraker_api_url: Some(urls.moonraker_api),
+            mission_control_url: Some(urls.mission_control),
+            octoprint_url: Some(urls.octoprint),
+            swupdate_url: Some(urls.swupdate),
+            syncthing_url: Some(urls.syncthing),
+            preferred_dns: Some(preferred_dns),
+            octoprint_server_id,
+            system_info_id,
+        }
+    }
 }
 
 impl From<printnanny_api_client::models::Pi> for Pi {
@@ -137,15 +172,20 @@ impl From<printnanny_api_client::models::Pi> for Pi {
 // }
 
 impl Pi {
-    pub fn get() -> Result<(), diesel::result::Error> {
+    pub fn get_id() -> Result<i32, diesel::result::Error> {
+        use crate::schema::pis::dsl::*;
+        let connection = &mut establish_sqlite_connection();
+        let result: i32 = pis.select(id).first(connection)?;
+        Ok(result)
+    }
+    pub fn get() -> Result<Pi, diesel::result::Error> {
         use crate::schema::pis::dsl::*;
 
         let connection = &mut establish_sqlite_connection();
         let result: Pi = pis.order_by(id).first::<Pi>(connection)?;
-
         // let result = pis.order_by(id).first(&mut connection)?;
         info!("printnanny_edge_db::cloud::Pi get {:#?}", &result);
-        Ok(())
+        Ok(result)
     }
     pub fn insert(row: Pi) -> Result<(), diesel::result::Error> {
         let mut connection = establish_sqlite_connection();
@@ -156,9 +196,9 @@ impl Pi {
         info!("printnanny_edge_db::cloud::Pi created {}", &updated);
         Ok(())
     }
-    pub fn update(row: Pi, changeset: UpdatePi) -> Result<(), diesel::result::Error> {
+    pub fn update(pi_id: i32, changeset: UpdatePi) -> Result<(), diesel::result::Error> {
         let mut connection = establish_sqlite_connection();
-        let result = diesel::update(pis::table.filter(pis::id.eq(row.id)))
+        let result = diesel::update(pis::table.filter(pis::id.eq(pi_id)))
             .set(changeset)
             .execute(&mut connection)?;
         info!("printnanny_edge_db::cloud::Pi updated {}", &result);
