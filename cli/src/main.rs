@@ -105,6 +105,11 @@ async fn main() -> Result<()> {
             ) 
         )
 
+        .subcommand(Command::new("init")
+            .author(crate_authors!())
+            .about("Initialize PrintNanny OS")
+            .version(GIT_VERSION))
+
         // dash
         .subcommand(Command::new("dash")
             .author(crate_authors!())

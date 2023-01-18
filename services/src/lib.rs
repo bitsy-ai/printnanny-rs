@@ -8,4 +8,5 @@ pub mod octoprint;
 
 pub mod os_release;
 pub mod printnanny_api;
+pub mod setup;
 pub mod swupdate;

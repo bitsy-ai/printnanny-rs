@@ -3301,6 +3301,7 @@ version = "0.1.0"
 dependencies = [
  "diesel",
  "diesel-derive-enum",
+ "log",
  "printnanny-api-client",
  "printnanny-settings",
  "serde 1.0.148",
