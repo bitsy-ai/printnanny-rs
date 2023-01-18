@@ -5,6 +5,9 @@ use serde::{Deserialize, Serialize};
 use crate::schema::pi;
 use crate::schema::printnanny_cloud_api_config;
 use crate::schema::user;
+
+use crate::connection::establish_sqlite_connection;
+
 use printnanny_api_client;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Deserialize, Serialize)]
@@ -40,6 +43,27 @@ pub struct Pi {
     pub swupdate_url: String,
     pub syncthing_url: String,
     pub preferred_dns: PreferredDnsType,
+
+    pub octoprint_server_id: i32,
+    pub system_info_id: i32,
+}
+
+impl Pi {
+    pub fn insert_ignore(
+        base_url: &str,
+        bearer_access_token: &str,
+    ) -> Result<(), diesel::result::Error> {
+        let mut connection = establish_sqlite_connection();
+
+        diesel::insert_or_ignore_into(printnanny_cloud_api_config::table)
+            .values((
+                printnanny_cloud_api_config::dsl::bearer_access_token.eq(bearer_access_token),
+                printnanny_cloud_api_config::dsl::base_url.eq(base_url),
+            ))
+            .execute(&mut connection)?;
+
+        Ok(())
+    }
 }
 
 impl From<printnanny_api_client::models::Pi> for Pi {
@@ -130,10 +154,28 @@ impl From<printnanny_api_client::models::User> for User {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable, Identifiable)]
-#[diesel(table_name = printnanny_cloud_api_config)]
-#[diesel(primary_key(bearer_access_token))]
-pub struct PrintNannyCloudApiConfig {
-    pub base_url: String,
-    pub bearer_access_token: String,
-}
+// #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable, Identifiable)]
+// #[diesel(table_name = printnanny_cloud_api_config)]
+// pub struct PrintNannyCloudApi {
+//     pub id: i32,
+//     pub base_url: String,
+//     pub bearer_access_token: Option<String>,
+// }
+
+// impl PrintNannyCloudApiConfig {
+//     pub fn insert_ignore(
+//         base_url: &str,
+//         bearer_access_token: &str,
+//     ) -> Result<(), diesel::result::Error> {
+//         let mut connection = establish_sqlite_connection();
+
+//         diesel::insert_or_ignore_into(printnanny_cloud_api_config::table)
+//             .values((
+//                 printnanny_cloud_api_config::dsl::bearer_access_token.eq(bearer_access_token),
+//                 printnanny_cloud_api_config::dsl::base_url.eq(base_url),
+//             ))
+//             .execute(&mut connection)?;
+
+//         Ok(())
+//     }
+// }

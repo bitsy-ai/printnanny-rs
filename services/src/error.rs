@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 use thiserror::Error;
 
+use printnanny_edge_db::diesel;
+
 use printnanny_api_client::apis::accounts_api;
 use printnanny_api_client::apis::crash_reports_api;
 use printnanny_api_client::apis::devices_api;
@@ -131,6 +133,9 @@ pub enum ServiceError {
     ReqwestError(#[from] reqwest::Error),
     #[error(transparent)]
     UrlParseError(#[from] url::ParseError),
+
+    #[error(transparent)]
+    SqliteDBError(#[from] diesel::result::Error),
 }
 
 #[derive(Error, Debug)]

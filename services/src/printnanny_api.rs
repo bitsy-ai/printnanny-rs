@@ -11,13 +11,12 @@ use serde_json;
 use tempfile::NamedTempFile;
 
 // edge db
-use printnanny_edge_db;
-use printnanny_edge_db::schema::printnanny_cloud_api_config;
+// use printnanny_edge_db::cloud::PrintNannyCloudApiConfig;
 
 // settings modules
 use printnanny_settings::cloud::PrintNannyCloudData;
 use printnanny_settings::error::PrintNannySettingsError;
-use printnanny_settings::printnanny::PrintNannySettings;
+use printnanny_settings::printnanny::{PrintNannyApiConfig, PrintNannySettings};
 use printnanny_settings::sys_info;
 
 use printnanny_api_client::apis::accounts_api;
@@ -36,7 +35,7 @@ use crate::os_release::OsRelease;
 
 #[derive(Debug, Clone)]
 pub struct ApiService {
-    pub settings: PrintNannySettings,
+    pub api_config: PrintNannyApiConfig,
     pub pi: Option<models::Pi>,
     pub user: Option<models::User>,
 }
@@ -58,10 +57,8 @@ impl ApiService {
     // args >> api_config.json >> anonymous api usage only
     pub fn new() -> Result<ApiService, ServiceError> {
         let settings = PrintNannySettings::new()?;
-        debug!("Initializing ApiService from settings: {:?}", settings);
-
         Ok(Self {
-            settings,
+            api_config: settings.cloud,
             pi: None,
             user: None,
         })
@@ -69,8 +66,8 @@ impl ApiService {
 
     fn reqwest_config(&self) -> ReqwestConfig {
         ReqwestConfig {
-            base_path: self.settings.cloud.api_base_path.clone(),
-            bearer_access_token: self.settings.cloud.api_bearer_access_token.clone(),
+            base_path: self.api_config.api_base_path.clone(),
+            bearer_access_token: self.api_config.api_bearer_access_token.clone(),
             ..ReqwestConfig::default()
         }
     }
@@ -80,33 +77,28 @@ impl ApiService {
         api_base_path: String,
         api_bearer_access_token: String,
     ) -> Result<Self, ServiceError> {
-        let previous = self.settings.clone();
-        self.settings.cloud.api_base_path = api_base_path;
-        self.settings.cloud.api_bearer_access_token = Some(api_bearer_access_token);
+        let previous = self.api_config;
 
-        let connection = printnanny_edge_db::establish_sqlite_connection();
-
-        printnanny_edge_db::diesel::insert_or_ignore_into(printnanny_cloud_api_config)
-            .values((
-                bearer_access_token.eq(&api_bearer_access_token),
-                base_url.eq(&api_base_path),
-            ))
-            .execute(connection)?;
+        // self.settings.cloud.api_base_path = api_base_path;
+        // self.settings.cloud.api_bearer_access_token = Some(api_bearer_access_token);
 
         info!("Updated printnanny_cloud_api_config sqlite record");
 
-        if previous != self.settings {
-            warn!("Change in PrintNannySettings detected, commiting changes");
-            let content = self.settings.to_toml_string()?;
-            self.settings
+        if self.api_config.api_bearer_access_token != Some(api_bearer_access_token) {
+            self.api_config.api_base_path = api_bearer_access_token.clone();
+            self.api_config.api_bearer_access_token = Some(api_bearer_access_token.clone());
+            warn!("connect_cloud_account saving new api_bearer_access_token");
+            let mut settings = PrintNannySettings::new()?;
+            settings.cloud.api_base_path = api_base_path;
+            settings.cloud.api_bearer_access_token = Some(api_bearer_access_token);
+            let content = settings.to_toml_string()?;
+            settings
                 .save_and_commit(
                     &content,
                     Some("Updated PrintNanny Cloud API auth".to_string()),
                 )
                 .await?;
         }
-
-        let cloud_state_file = self.settings.paths.cloud();
 
         // sync data models
         self.sync().await?;
