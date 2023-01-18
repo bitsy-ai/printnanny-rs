@@ -1,6 +1,6 @@
 [package]
 name = "printnanny-edge-db"
-version = "0.2.0"
+version = "0.1.0"
 edition = "2021"
 license = "AGPL-3.0-or-later"
 rust-version = "1.63"
@@ -14,5 +14,5 @@ diesel = { version = "2.0.2", features = ["sqlite", "extras", "serde_json"] }
 diesel_migrations = "2.0.0"       # Migration management for diesel
 log = "0.4"
 printnanny-api-client = "0.124.4"    # Official Print Nanny Rust API Client
-printnanny-settings = { path = "../settings", version = "^0.6"}
+printnanny-settings = { path = "../settings", version = "^0.5"}
 serde = { version = "1", features = ["derive"] }

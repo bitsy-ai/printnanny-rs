@@ -12,5 +12,5 @@ rust-version = "1.63"
 [dependencies]
 anyhow = "1"                                   # Flexible concrete Error type built on std::error::Error
 gst-client = { package="gst-client-rs", path = "../gst-client-rs", version="0.2.0" }
-printnanny-settings = { package="printnanny-settings", version = "^0.6", path="../settings" }
+printnanny-settings = { package="printnanny-settings", version = "^0.5", path="../settings" }
 log = "0.4"                  # A lightweight logging facade for Rust 
