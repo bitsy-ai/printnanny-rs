@@ -1,0 +1,6 @@
+consolidate-commits = true
+consolidate-pushes = true
+allow-branch = ["main"]
+sign-commit = true
+shared-version = false
+dependent-version = "fix"
