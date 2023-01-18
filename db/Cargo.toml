@@ -2,6 +2,10 @@
 name = "printnanny-edge-db"
 version = "0.1.0"
 edition = "2021"
+license = "AGPL-3.0-or-later"
+rust-version = "1.63"
+authors = ["Leigh Johnson <leigh@printnanny.ai>"]
+description = "ORM library for PrintNanny SQLite (edge) database models"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
