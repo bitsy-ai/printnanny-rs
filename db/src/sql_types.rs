@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use printnanny_api_client;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, DbEnum, SqlType)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, DbEnum, SqlType)]
 #[diesel(sqlite_type(name = "SbcEnum"))]
 pub enum SbcEnum {
     Rpi4,
@@ -26,7 +26,7 @@ impl From<printnanny_api_client::models::SbcEnum> for SbcEnum {
     }
 }
 
-#[derive(PartialEq, Serialize, Deserialize, DbEnum, Debug, SqlType)]
+#[derive(Clone, PartialEq, Serialize, Deserialize, DbEnum, Debug, SqlType)]
 #[diesel(sqlite_type(name = "PreferredDnsType"))]
 #[diesel(table_name = pi)]
 pub enum PreferredDnsType {

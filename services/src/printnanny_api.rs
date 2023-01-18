@@ -227,16 +227,21 @@ impl ApiService {
         Ok(accounts_api::accounts2fa_auth_token_create(&self.reqwest_config(), req).await?)
     }
 
-    async fn sync_pi_models(&self, pi_id: i32) -> Result<models::Pi, ServiceError> {
+    async fn sync_pi_models(
+        &self,
+        edge_pi: printnanny_edge_db::cloud::Pi,
+    ) -> Result<models::Pi, ServiceError> {
         info!(
             "Synchronizing models for Pi with id={}: system_info_update_or_create()",
-            pi.id
+            edge_pi.id
         );
-        let system_info = self.system_info_update_or_create(pi_id).await?;
+        let system_info = self.system_info_update_or_create(edge_pi.id).await?;
         info!("Success! Updated SystemInfo model: {:?}", system_info);
-        match &pi.octoprint_server {
-            Some(octoprint_server) => {
-                let octoprint_server = self.octoprint_server_update(octoprint_server).await?;
+        match &pi.octoprint_server_id {
+            Some(octoprint_server_id) => {
+                let octoprint_server = self
+                    .octoprint_server_update(octoprint_server_id, edge_pi.id)
+                    .await?;
                 info!(
                     "Success! Updated OctoPrintServer model: {:?}",
                     octoprint_server
@@ -246,6 +251,7 @@ impl ApiService {
         }
 
         let pi = self.pi_retrieve(pi_id).await?;
+        printnanny_edge_db::cloud::Pi::update(pi.into());
         Ok(pi)
     }
 
@@ -266,7 +272,7 @@ impl ApiService {
         };
         let pi = devices_api::pi_update_or_create(&self.reqwest_config(), req).await?;
         let pi_id = pi.id;
-        printnanny_edge_db::cloud::Pi::upsert(pi.into());
+        printnanny_edge_db::cloud::Pi::insert(pi.into());
         info!("Success! Registered Pi: {:#?}", pi);
         let pi = self.sync_pi_models(pi_id).await?;
         Ok(pi)

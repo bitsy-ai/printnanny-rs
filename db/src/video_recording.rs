@@ -5,9 +5,8 @@ use serde::{Deserialize, Serialize};
 use crate::schema::video_recordings;
 use crate::sql_types::RecordingStatus;
 
-#[derive(
-    Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable, Identifiable, AsChangeset,
-)]
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable, Identifiable)]
+#[diesel(table_name = video_recordings)]
 pub struct VideoRecording {
     pub id: String,
     pub recording_status: RecordingStatus,
