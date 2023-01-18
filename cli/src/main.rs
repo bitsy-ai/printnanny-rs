@@ -15,6 +15,7 @@ use printnanny_nats::subscriber::{ DEFAULT_NATS_EDGE_APP_NAME, NatsSubscriber};
 use printnanny_nats::message_v2::{NatsReply, NatsRequest};
 use printnanny_nats::cloud_worker::DEFAULT_NATS_CLOUD_APP_NAME;
 use printnanny_services::printnanny_api::ApiService;
+use printnanny_services::setup::printnanny_os_init;
 use printnanny_settings::{SettingsFormat};
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_cli::settings::{SettingsCommand};
@@ -105,6 +106,11 @@ async fn main() -> Result<()> {
             ) 
         )
 
+        .subcommand(Command::new("init")
+            .author(crate_authors!())
+            .about("Initialize PrintNanny OS")
+            .version(GIT_VERSION))
+
         // dash
         .subcommand(Command::new("dash")
             .author(crate_authors!())
@@ -147,15 +153,7 @@ async fn main() -> Result<()> {
                 .author(crate_authors!())
                 .about(crate_description!())
                 .version(GIT_VERSION)
-                .about("Print PrintNannyCloudData to console")
-                .arg(Arg::new("format")
-                    .short('f')
-                    .long("format")
-                    .takes_value(true)
-                    .possible_values(SettingsFormat::possible_values())
-                    .default_value("json")
-                    .help("Output format")
-                )            
+                .about("Print printnanny_edge_db::cloud::Pi to console")            
             )
             .subcommand(Command::new("sync")
                 .author(crate_authors!())
@@ -314,6 +312,9 @@ async fn main() -> Result<()> {
             println!("Submitted crash report:");
             println!("{}", report_json);
         },
+        Some(("init", _sub_m)) => {
+            printnanny_os_init()?;
+        }
         Some(("nats-publisher", sub_m)) => {
             let app = printnanny_nats::cloud_publisher::CloudEventPublisher::new(sub_m)?;
             app.run().await?;

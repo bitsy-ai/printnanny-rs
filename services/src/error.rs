@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 use thiserror::Error;
 
+use printnanny_edge_db::diesel;
+
 use printnanny_api_client::apis::accounts_api;
 use printnanny_api_client::apis::crash_reports_api;
 use printnanny_api_client::apis::devices_api;
@@ -11,9 +13,7 @@ use printnanny_settings::figment;
 use printnanny_settings::sys_info;
 use printnanny_settings::toml;
 
-use printnanny_settings::error::{
-    PrintNannyCloudDataError, PrintNannySettingsError, VersionControlledSettingsError,
-};
+use printnanny_settings::error::{PrintNannySettingsError, VersionControlledSettingsError};
 
 #[derive(Error, Debug)]
 pub enum PrintNannyCamSettingsError {
@@ -115,9 +115,6 @@ pub enum ServiceError {
     #[error(transparent)]
     PrintNannySettingsError(#[from] PrintNannySettingsError),
 
-    #[error(transparent)]
-    PrintNannyCloudDataError(#[from] PrintNannyCloudDataError),
-
     #[error("Setup incomplete, failed to read {field:?} {detail:?}")]
     SetupIncomplete {
         detail: Option<String>,
@@ -131,6 +128,12 @@ pub enum ServiceError {
     ReqwestError(#[from] reqwest::Error),
     #[error(transparent)]
     UrlParseError(#[from] url::ParseError),
+
+    #[error(transparent)]
+    SqliteDBError(#[from] diesel::result::Error),
+
+    #[error("Error running diesel SQLIte migrations: {msg}")]
+    SQLiteMigrationError { msg: String },
 }
 
 #[derive(Error, Debug)]

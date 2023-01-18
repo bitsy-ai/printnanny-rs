@@ -1,5 +1,4 @@
 pub mod cam;
-pub mod cloud;
 pub mod error;
 pub mod klipper;
 pub mod mainsail;

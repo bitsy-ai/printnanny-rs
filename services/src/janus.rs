@@ -7,8 +7,7 @@ use std::collections::HashMap;
 use printnanny_settings::clap;
 use printnanny_settings::clap::ValueEnum;
 
-use printnanny_settings::cloud::PrintNannyCloudData;
-use printnanny_settings::error::PrintNannyCloudDataError;
+use printnanny_edge_db::janus::WebrtcEdgeServer;
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy, clap::ArgEnum)]
 pub enum JanusAdminEndpoint {
@@ -62,17 +61,7 @@ pub struct JanusAdminService {
 }
 
 pub async fn janus_admin_api_call(endpoint: JanusAdminEndpoint) -> Result<String> {
-    let state = PrintNannyCloudData::new()?;
-    let err = PrintNannyCloudDataError::SetupIncomplete {
-        path: "device.webrtc_edge".to_string(),
-    };
-    let janus_config = match state.pi {
-        Some(pi) => match pi.webrtc_edge {
-            Some(webrtc_edge) => Ok(webrtc_edge),
-            None => Err(err),
-        },
-        None => Err(err),
-    }?;
+    let janus_config = WebrtcEdgeServer::get()?;
 
     // transaction id
     let transaction: String = thread_rng()

@@ -10,11 +10,12 @@ use serde;
 use serde_json;
 use tempfile::NamedTempFile;
 
-// settings modules
-use printnanny_settings::cloud::PrintNannyCloudData;
-use printnanny_settings::error::PrintNannySettingsError;
-use printnanny_settings::printnanny::PrintNannySettings;
+// edge db
+// use printnanny_edge_db::cloud::PrintNannyCloudApiConfig;
 
+// settings modules
+use printnanny_settings::error::PrintNannySettingsError;
+use printnanny_settings::printnanny::{PrintNannyApiConfig, PrintNannySettings};
 use printnanny_settings::sys_info;
 
 use printnanny_api_client::apis::accounts_api;
@@ -33,7 +34,7 @@ use crate::os_release::OsRelease;
 
 #[derive(Debug, Clone)]
 pub struct ApiService {
-    pub settings: PrintNannySettings,
+    pub api_config: PrintNannyApiConfig,
     pub pi: Option<models::Pi>,
     pub user: Option<models::User>,
 }
@@ -55,10 +56,8 @@ impl ApiService {
     // args >> api_config.json >> anonymous api usage only
     pub fn new() -> Result<ApiService, ServiceError> {
         let settings = PrintNannySettings::new()?;
-        debug!("Initializing ApiService from settings: {:?}", settings);
-
         Ok(Self {
-            settings,
+            api_config: settings.cloud,
             pi: None,
             user: None,
         })
@@ -66,8 +65,8 @@ impl ApiService {
 
     fn reqwest_config(&self) -> ReqwestConfig {
         ReqwestConfig {
-            base_path: self.settings.cloud.api_base_path.clone(),
-            bearer_access_token: self.settings.cloud.api_bearer_access_token.clone(),
+            base_path: self.api_config.api_base_path.clone(),
+            bearer_access_token: self.api_config.api_bearer_access_token.clone(),
             ..ReqwestConfig::default()
         }
     }
@@ -77,13 +76,18 @@ impl ApiService {
         api_base_path: String,
         api_bearer_access_token: String,
     ) -> Result<Self, ServiceError> {
-        let previous = self.settings.clone();
-        self.settings.cloud.api_base_path = api_base_path;
-        self.settings.cloud.api_bearer_access_token = Some(api_bearer_access_token);
-        if previous != self.settings {
-            warn!("Change in PrintNannySettings detected, commiting changes");
-            let content = self.settings.to_toml_string()?;
-            self.settings
+        let mut settings = PrintNannySettings::new()?;
+
+        info!("Updated printnanny_cloud_api_config sqlite record");
+        let api_bearer_access_token = Some(api_bearer_access_token);
+        if self.api_config.api_bearer_access_token != api_bearer_access_token {
+            self.api_config.api_base_path = api_base_path.clone();
+            self.api_config.api_bearer_access_token = api_bearer_access_token.clone();
+            warn!("connect_cloud_account saving new api_bearer_access_token");
+            settings.cloud.api_base_path = api_base_path;
+            settings.cloud.api_bearer_access_token = api_bearer_access_token;
+            let content = settings.to_toml_string()?;
+            settings
                 .save_and_commit(
                     &content,
                     Some("Updated PrintNanny Cloud API auth".to_string()),
@@ -91,15 +95,12 @@ impl ApiService {
                 .await?;
         }
 
-        let cloud_state_file = self.settings.paths.cloud();
-
         // sync data models
         self.sync().await?;
-        let mut state = PrintNannyCloudData::load(&cloud_state_file)?;
-        let pi_id = state.pi.unwrap().id;
+        let pi_id = printnanny_edge_db::cloud::Pi::get_id()?;
 
         // download license
-        if !self.settings.paths.license_zip().exists() {
+        if settings.paths.license_zip().exists() {
             // download credential and device identity bundled in license.zip
             self.pi_download_license(pi_id, false).await?;
         }
@@ -111,11 +112,7 @@ impl ApiService {
             hostname: None,
             favorite: None,
         };
-
         self.pi_partial_update(pi_id, req).await?;
-        let pi = self.pi_retrieve(pi_id).await?;
-        state.pi = Some(pi);
-        state.save(&cloud_state_file)?;
         Ok(self)
     }
 
@@ -225,16 +222,21 @@ impl ApiService {
         Ok(accounts_api::accounts2fa_auth_token_create(&self.reqwest_config(), req).await?)
     }
 
-    async fn sync_pi_models(&self, pi: &models::Pi) -> Result<models::Pi, ServiceError> {
+    async fn sync_pi_models(
+        &self,
+        edge_pi: printnanny_edge_db::cloud::Pi,
+    ) -> Result<models::Pi, ServiceError> {
         info!(
-            "Synchronizing models for Pi with id={}: device_system_info_update_or_create()",
-            pi.id
+            "Synchronizing models for Pi with id={}: system_info_update_or_create()",
+            edge_pi.id
         );
-        let system_info = self.system_info_update_or_create(pi.id).await?;
+        let system_info = self.system_info_update_or_create(edge_pi.id).await?;
         info!("Success! Updated SystemInfo model: {:?}", system_info);
-        match &pi.octoprint_server {
-            Some(octoprint_server) => {
-                let octoprint_server = self.octoprint_server_update(octoprint_server).await?;
+        match &edge_pi.octoprint_server_id {
+            Some(octoprint_server_id) => {
+                let octoprint_server = self
+                    .octoprint_server_update(octoprint_server_id, &edge_pi.id)
+                    .await?;
                 info!(
                     "Success! Updated OctoPrintServer model: {:?}",
                     octoprint_server
@@ -243,7 +245,10 @@ impl ApiService {
             None => (),
         }
 
-        let pi = self.pi_retrieve(pi.id).await?;
+        let pi = self.pi_retrieve(edge_pi.id).await?;
+        let pi_id = pi.id;
+        let changeset: printnanny_edge_db::cloud::UpdatePi = pi.clone().into();
+        printnanny_edge_db::cloud::Pi::update(pi_id, changeset)?;
         Ok(pi)
     }
 
@@ -253,67 +258,34 @@ impl ApiService {
         let _sbc = Some(models::SbcEnum::Rpi4);
         let hostname = sys_info::hostname().unwrap_or_else(|_| "printnanny".to_string());
 
-        let favorite = Some(true);
-        let setup_finished = Some(true);
+        let favorite = true;
+        let setup_finished = true;
 
         let req = models::PiRequest {
-            sbc: Some(models::SbcEnum::Rpi4),
-            hostname: Some(hostname),
+            sbc: models::SbcEnum::Rpi4,
+            hostname,
             favorite,
             setup_finished,
         };
-        let pi = devices_api::pi_update_or_create(&self.reqwest_config(), Some(req)).await?;
-        info!("Success! Registered Pi: {:#?}", pi);
-        let pi = self.sync_pi_models(&pi).await?;
+        let pi = devices_api::pi_update_or_create(&self.reqwest_config(), req).await?;
+        info!("Success! Registered Pi: {:#?}", &pi);
+        printnanny_edge_db::cloud::Pi::insert(pi.clone().into())?;
+        let pi = self.sync_pi_models(pi.into()).await?;
         Ok(pi)
     }
 
     // syncs Raspberry Pi data with PrintNanny Cloud
     // performs any necessary one-time setup tasks
-    pub async fn sync(&mut self) -> Result<(), ServiceError> {
-        // ensure directory structure exists
-        self.settings.paths.try_init_all()?;
-
-        // is there existing state to load?
-        let cloud_state_file = self.settings.paths.cloud();
-        match cloud_state_file.exists() {
-            true =>
-            // verify pi is authenticated
-            {
-                let mut state = match PrintNannyCloudData::load(&cloud_state_file) {
-                    Ok(data) => data,
-                    Err(e) => {
-                        error!("Error loading PrintNannyCloudData: {}", e);
-                        PrintNannyCloudData::default()
-                    }
-                };
-                match &state.pi {
-                    Some(pi) => {
-                        info!(
-                            "Pi is already registered, updating related models for {:?}",
-                            pi
-                        );
-
-                        let pi = self.sync_pi_models(pi).await?;
-                        state.pi = Some(pi);
-                    }
-                    None => {
-                        let pi = self.init_pi_model().await?;
-                        state.pi = Some(pi);
-                    }
-                };
-
-                state.save(&cloud_state_file)?;
-            }
-            false => {
-                let mut state = PrintNannyCloudData::default();
-                let pi = self.init_pi_model().await?;
-                state.pi = Some(pi);
-                state.save(&cloud_state_file)?;
-            }
-        };
-
-        Ok(())
+    pub async fn sync(&mut self) -> Result<printnanny_api_client::models::Pi, ServiceError> {
+        match printnanny_edge_db::cloud::Pi::get() {
+            Ok(pi_sqlite) => self.sync_pi_models(pi_sqlite).await,
+            Err(e) => match e {
+                // if edge Pi model isn't found, initialize
+                printnanny_edge_db::diesel::result::Error::NotFound => self.init_pi_model().await,
+                // re-raise all other errors
+                _ => Err(ServiceError::SqliteDBError(e)),
+            },
+        }
     }
 
     pub async fn pi_retrieve(&self, pi_id: i32) -> Result<models::Pi, ServiceError> {
@@ -331,9 +303,10 @@ impl ApiService {
     }
 
     pub async fn pi_download_license(&self, pi_id: i32, backup: bool) -> Result<(), ServiceError> {
+        let settings = PrintNannySettings::new()?;
         let res = devices_api::pis_license_zip_retrieve(&self.reqwest_config(), pi_id).await?;
-        self.settings.paths.write_license_zip(res, backup)?;
-        self.settings.paths.unpack_license(backup)?;
+        settings.paths.write_license_zip(res, backup)?;
+        settings.paths.unpack_license(backup)?;
         Ok(())
     }
 
@@ -373,9 +346,11 @@ impl ApiService {
 
     pub async fn octoprint_server_update(
         &self,
-        octoprint_server: &models::OctoPrintServer,
+        octoprint_server_id: &i32,
+        pi_id: &i32,
     ) -> Result<models::OctoPrintServer, ServiceError> {
-        let helper = &self.settings.octoprint;
+        let settings = PrintNannySettings::new()?;
+        let helper = &settings.octoprint;
         let pip_version = helper.pip_version()?;
         let python_version = helper.python_version()?;
         let pip_packages = helper.pip_packages()?;
@@ -386,7 +361,7 @@ impl ApiService {
             pip_version,
             printnanny_plugin_version,
             python_version,
-            pi: Some(octoprint_server.pi),
+            pi: Some(*pi_id),
             ..models::PatchedOctoPrintServerRequest::new()
         };
         debug!(
@@ -395,7 +370,7 @@ impl ApiService {
         );
         let res = octoprint_api::octoprint_partial_update(
             &self.reqwest_config(),
-            octoprint_server.id,
+            *octoprint_server_id,
             Some(req),
         )
         .await?;

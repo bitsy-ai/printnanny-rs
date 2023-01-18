@@ -1,11 +1,11 @@
-use diesel::prelude::*;
-use diesel::sqlite::SqliteConnection;
+pub mod cloud;
+pub mod connection;
+pub mod janus;
+pub mod nats_app;
+pub mod octoprint;
+pub mod schema;
+pub mod sql_types;
+pub mod user;
+pub mod video_recording;
 
-use printnanny_settings::printnanny::PrintNannySettings;
-
-pub fn establish_connection() -> SqliteConnection {
-    let settings = PrintNannySettings::new().expect("Failed to initialize PrintNannySettings");
-    let database_path = settings.paths.db();
-    SqliteConnection::establish(&database_path.display().to_string())
-        .expect("Failed to initialize sqlite db connection")
-}
+pub use diesel;

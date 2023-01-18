@@ -952,17 +952,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "diesel-enum"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d273018d979b8e14451bcbf4709e6b0f9f1c41b68a5bacbf56d647f7a1a1b06"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "diesel_derives"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -972,6 +961,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "diesel_migrations"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9ae22beef5e9d6fab9225ddb073c1c6c1a7a6ded5019d5da11d1e5c5adc34e2"
+dependencies = [
+ "diesel",
+ "migrations_internals",
+ "migrations_macros",
 ]
 
 [[package]]
@@ -2380,6 +2380,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "migrations_internals"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c493c09323068c01e54c685f7da41a9ccf9219735c3766fbfd6099806ea08fbc"
+dependencies = [
+ "serde 1.0.148",
+ "toml",
+]
+
+[[package]]
+name = "migrations_macros"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a8ff27a350511de30cdabb77147501c36ef02e0451d957abea2f30caffb2b58"
+dependencies = [
+ "migrations_internals",
+ "proc-macro2",
+ "quote",
+]
+
+[[package]]
 name = "mime"
 version = "0.3.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3229,9 +3250,9 @@ checksum = "c6fa0831dd7cc608c38a5e323422a0077678fa5744aa2be4ad91c4ece8eec8d5"
 
 [[package]]
 name = "printnanny-api-client"
-version = "0.124.1"
+version = "0.124.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "048d03b70108cfd7d3983d2f3fb6baf09c11f491665f4e767f37a4bc9c1f7e17"
+checksum = "64450a9bc779d6772c6ac91e5402e0bfb131ff9abc3c297902ee950c2d119f93"
 dependencies = [
  "bytes",
  "clap",
@@ -3267,6 +3288,7 @@ dependencies = [
  "log",
  "printnanny-api-client",
  "printnanny-dbus",
+ "printnanny-edge-db",
  "printnanny-gst-pipelines",
  "printnanny-nats",
  "printnanny-services",
@@ -3299,8 +3321,11 @@ name = "printnanny-edge-db"
 version = "0.1.0"
 dependencies = [
  "diesel",
- "diesel-enum",
+ "diesel_migrations",
+ "log",
+ "printnanny-api-client",
  "printnanny-settings",
+ "serde 1.0.148",
 ]
 
 [[package]]
@@ -3367,6 +3392,7 @@ dependencies = [
  "nix 0.26.1",
  "printnanny-api-client",
  "printnanny-dbus",
+ "printnanny-edge-db",
  "printnanny-services",
  "printnanny-settings",
  "serde 1.0.148",
@@ -3408,6 +3434,7 @@ dependencies = [
  "predicates 2.1.4",
  "printnanny-api-client",
  "printnanny-dbus",
+ "printnanny-edge-db",
  "printnanny-settings",
  "procfs",
  "rand 0.8.5",
