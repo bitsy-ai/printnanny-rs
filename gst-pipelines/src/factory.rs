@@ -121,7 +121,7 @@ impl PrintNannyPipelineFactory {
             ! v4l2convert \
             ! v4l2h264enc min-force-key-unit-interval={framerate} extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
-            ! capssetter caps='video/x-h264,colorimetry={colorimetry},level=(string)4' \
+            ! capssetter caps=video/x-h264,colorimetry={colorimetry},level=(string)4 \
             ! interpipesink name={interpipesink} sync=false",
             width=camera.width,
             height=camera.height,
