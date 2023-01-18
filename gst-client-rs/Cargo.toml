@@ -1,8 +1,8 @@
 [package]
-name = "gst-client"
-version = "0.1.2"
+name = "gst-client-rs"
+version = "0.2.0"
 description = "Provides bindings for the main functionalities of the GStreamer Daemon"
-authors = ["ALLATRA IT <it@allatra.org>"]
+authors = ["ALLATRA IT <it@allatra.org>", "Leigh Johnson <leigh@printnanny.ai>"]
 edition = "2021"
 readme = "README.md"
 license-file = "LICENSE.md"
@@ -11,18 +11,6 @@ documentation = "https://docs.rs/gst-client"
 keywords = ["gstreamer", "gstd", "API", "client"]
 categories = ["web-programming::http-client"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[package.metadata.release]
-allow-branch = ["master"]
-dev-version = false
-pre-release-replacements = [
-    {file="README.md", search="[{{prev_version}}]+", replace="{{version}}"} ,
-    {file="CHANGELOG.md", search="Unreleased", replace="{{version}}", min=1},
-    {file="CHANGELOG.md", search="...HEAD", replace="...{{tag_name}}", exactly=1},
-    {file="CHANGELOG.md", search="ReleaseDate", replace="{{date}}", min=1},
-    {file="CHANGELOG.md", search="<!-- next-header -->", replace="<!-- next-header -->\n## [Unreleased] - ReleaseDate\n", exactly=1},
-    {file="CHANGELOG.md", search="<!-- next-url -->", replace="<!-- next-url -->\n[Unreleased]: /../../tree/HEAD", exactly=1},
-]
 
 [dependencies]
 mime = "0.3"
