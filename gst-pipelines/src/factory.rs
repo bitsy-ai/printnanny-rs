@@ -119,7 +119,7 @@ impl PrintNannyPipelineFactory {
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=false  \
             ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate}/1,format={format},colorimetry={colorimetry} \
             ! v4l2convert \
-            ! v4l2h264enc min-force-key-unit-interval={framerate} extra-controls='controls,repeat_sequence_header=1' \
+            ! v4l2h264enc min-force-key-unit-interval={framerate} extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
             ! capssetter caps='video/x-h264,colorimetry={colorimetry},level=(string)4' \
             ! interpipesink name={interpipesink} sync=false",
