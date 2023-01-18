@@ -15,6 +15,7 @@ use printnanny_nats::subscriber::{ DEFAULT_NATS_EDGE_APP_NAME, NatsSubscriber};
 use printnanny_nats::message_v2::{NatsReply, NatsRequest};
 use printnanny_nats::cloud_worker::DEFAULT_NATS_CLOUD_APP_NAME;
 use printnanny_services::printnanny_api::ApiService;
+use printnanny_services::setup::printnanny_os_init;
 use printnanny_settings::{SettingsFormat};
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_cli::settings::{SettingsCommand};
@@ -319,6 +320,9 @@ async fn main() -> Result<()> {
             println!("Submitted crash report:");
             println!("{}", report_json);
         },
+        Some(("init", _sub_m)) => {
+            printnanny_os_init()?;
+        }
         Some(("nats-publisher", sub_m)) => {
             let app = printnanny_nats::cloud_publisher::CloudEventPublisher::new(sub_m)?;
             app.run().await?;
