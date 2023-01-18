@@ -14,7 +14,6 @@ use tempfile::NamedTempFile;
 // use printnanny_edge_db::cloud::PrintNannyCloudApiConfig;
 
 // settings modules
-use printnanny_settings::cloud::PrintNannyCloudData;
 use printnanny_settings::error::PrintNannySettingsError;
 use printnanny_settings::printnanny::{PrintNannyApiConfig, PrintNannySettings};
 use printnanny_settings::sys_info;
@@ -288,47 +287,6 @@ impl ApiService {
                 _ => Err(ServiceError::SqliteDBError(e)),
             },
         }
-
-        // is there existing state to load?
-        // let cloud_state_file = self.settings.paths.cloud();
-        // match cloud_state_file.exists() {
-        //     true =>
-        //     // verify pi is authenticated
-        //     {
-        //         let mut state = match PrintNannyCloudData::load(&cloud_state_file) {
-        //             Ok(data) => data,
-        //             Err(e) => {
-        //                 error!("Error loading PrintNannyCloudData: {}", e);
-        //                 PrintNannyCloudData::default()
-        //             }
-        //         };
-        //         match &state.pi {
-        //             Some(pi) => {
-        //                 info!(
-        //                     "Pi is already registered, updating related models for {:?}",
-        //                     pi
-        //                 );
-
-        //                 let pi = self.sync_pi_models(pi).await?;
-        //                 state.pi = Some(pi);
-        //             }
-        //             None => {
-        //                 let pi = self.init_pi_model().await?;
-        //                 state.pi = Some(pi);
-        //             }
-        //         };
-
-        //         state.save(&cloud_state_file)?;
-        //     }
-        //     false => {
-        //         let mut state = PrintNannyCloudData::default();
-        //         let pi = self.init_pi_model().await?;
-        //         state.pi = Some(pi);
-        //         state.save(&cloud_state_file)?;
-        //     }
-        // };
-
-        // Ok(())
     }
 
     pub async fn pi_retrieve(&self, pi_id: i32) -> Result<models::Pi, ServiceError> {

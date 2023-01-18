@@ -3,6 +3,24 @@
 diesel::table! {
     use diesel::sql_types::*;
 
+    octoprint_servers (id) {
+        id -> Integer,
+        user_id -> Integer,
+        pi_id -> Integer,
+        octoprint_url -> Text,
+        base_path -> Text,
+        venv_path -> Text,
+        pip_path -> Text,
+        api_key -> Nullable<Text>,
+        octoprint_version -> Nullable<Text>,
+        pip_version -> Nullable<Text>,
+        printnanny_plugin_version -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+
     pis (id) {
         id -> Integer,
         last_boot -> Nullable<Text>,
@@ -46,4 +64,9 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(pis, users, video_recordings,);
+diesel::allow_tables_to_appear_in_same_query!(
+    octoprint_servers,
+    pis,
+    users,
+    video_recordings,
+);

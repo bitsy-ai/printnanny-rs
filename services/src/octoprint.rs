@@ -4,12 +4,12 @@ use reqwest::header;
 use reqwest::Url;
 
 use printnanny_api_client::models;
-use printnanny_settings::cloud::PrintNannyCloudData;
+use printnanny_edge_db::octoprint::OctoPrintServer;
 use printnanny_settings::printnanny_asyncapi_models;
 
 use crate::error::ServiceError;
 
-fn octoprint_api_headers(octoprint_server: &models::OctoPrintServer) -> header::HeaderMap {
+fn octoprint_api_headers(octoprint_server: &OctoPrintServer) -> header::HeaderMap {
     let mut headers = header::HeaderMap::new();
     match &octoprint_server.api_key {
         Some(api_key) => {
@@ -28,18 +28,17 @@ fn octoprint_api_headers(octoprint_server: &models::OctoPrintServer) -> header::
 }
 
 pub fn octoprint_api_client(
-    octoprint_server: &models::OctoPrintServer,
+    octoprint_server: &OctoPrintServer,
 ) -> reqwest::Result<reqwest::Client> {
     let headers = octoprint_api_headers(octoprint_server);
     reqwest::Client::builder().default_headers(headers).build()
 }
 
 pub async fn octoprint_get_current_job_filename() -> Result<Option<String>, ServiceError> {
-    let cloud = PrintNannyCloudData::new()?;
-    let octoprint_server = cloud.octoprint_server()?;
+    let octoprint_server = OctoPrintServer::get()?;
     let api_client = octoprint_api_client(&octoprint_server)?;
 
-    let base_url = Url::parse(&octoprint_server.base_url)?;
+    let base_url = Url::parse(&octoprint_server.octoprint_url)?;
     let url = base_url.join("/api/job")?;
 
     let result = api_client
