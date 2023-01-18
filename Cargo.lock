@@ -1594,8 +1594,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "gst-client"
-version = "0.1.2"
+name = "gst-client-rs"
+version = "0.2.0"
 dependencies = [
  "derive_more",
  "mime",
@@ -3333,7 +3333,7 @@ name = "printnanny-gst-pipelines"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "gst-client",
+ "gst-client-rs",
  "log",
  "printnanny-settings",
 ]

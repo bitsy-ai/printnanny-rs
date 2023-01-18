@@ -6,8 +6,8 @@ authors = ["ALLATRA IT <it@allatra.org>", "Leigh Johnson <leigh@printnanny.ai>"]
 edition = "2021"
 readme = "README.md"
 license-file = "LICENSE.md"
-repository = "https://github.com/ALLATRA-IT/gst-client-rs"
-documentation = "https://docs.rs/gst-client"
+repository = "https://github.com/printnanny-rs/gst-client-rs"
+documentation = "https://docs.rs/gst-client-rs"
 keywords = ["gstreamer", "gstd", "API", "client"]
 categories = ["web-programming::http-client"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
