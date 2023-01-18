@@ -62,9 +62,8 @@ impl WebrtcEdgeServer {
         let result: WebrtcEdgeServer = webrtc_edge_servers
             .order_by(id)
             .first::<WebrtcEdgeServer>(connection)?;
-        // let result = pis.order_by(id).first(&mut connection)?;
         info!(
-            "printnanny_edge_db::cloud::OctoPrintServer get {:#?}",
+            "printnanny_edge_db::janus::WebrtcEdgeServer get {:#?}",
             &result
         );
         Ok(result)
@@ -76,7 +75,7 @@ impl WebrtcEdgeServer {
             .values(row)
             .execute(&mut connection)?;
         info!(
-            "printnanny_edge_db::cloud::OctoPrintServer created {}",
+            "printnanny_edge_db::janus::WebrtcEdgeServer created {}",
             &updated
         );
         Ok(())

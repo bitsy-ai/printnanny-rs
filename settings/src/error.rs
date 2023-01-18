@@ -19,9 +19,7 @@ pub enum VersionControlledSettingsError {
     GitError(#[from] git2::Error),
     #[error(transparent)]
     ZbusError(#[from] zbus::Error),
-    #[error(transparent)]
 }
-
 
 #[derive(Error, Debug)]
 pub enum PrintNannySettingsError {

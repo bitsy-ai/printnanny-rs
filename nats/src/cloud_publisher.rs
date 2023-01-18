@@ -11,8 +11,10 @@ use printnanny_api_client::models;
 use printnanny_api_client::models::polymorphic_octo_print_event_request::PolymorphicOctoPrintEventRequest;
 use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
 
-use printnanny_settings::cloud::PrintNannyCloudData;
-use printnanny_settings::error::PrintNannySettingsError;
+use printnanny_edge_db::cloud::Pi;
+use printnanny_edge_db::octoprint::OctoPrintServer;
+
+use printnanny_services::error::ServiceError;
 use printnanny_settings::printnanny::PrintNannySettings;
 
 use tokio::net::UnixStream;
@@ -29,7 +31,8 @@ pub const DEFAULT_NATS_CLOUD_PUBLISHER_APP_NAME: &str = "nats-cloud-publisher";
 pub struct CloudEventPublisher {
     args: ArgMatches,
     settings: PrintNannySettings,
-    state: PrintNannyCloudData,
+    pi_id: i32,
+    octoprint_server_id: i32,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -41,14 +44,15 @@ pub enum PayloadFormat {
 
 impl CloudEventPublisher {
     // initialize CloudEventPublisher from clap::Command ArgMatches
-    pub fn new(args: &ArgMatches) -> Result<Self, PrintNannySettingsError> {
+    pub fn new(args: &ArgMatches) -> Result<Self, ServiceError> {
         let settings = PrintNannySettings::new().unwrap();
-        let state = PrintNannyCloudData::new()?;
-        state.try_check_cloud_data()?;
+        let pi_id = Pi::get_id()?;
+        let octoprint_server_id = OctoPrintServer::get_id()?;
         Ok(Self {
             args: args.clone(),
             settings,
-            state,
+            pi_id,
+            octoprint_server_id,
         })
     }
     pub fn clap_command(app_name: Option<String>) -> Command<'static> {
@@ -315,12 +319,7 @@ impl CloudEventPublisher {
     pub async fn run(self) -> Result<()> {
         self.socket_ok()?;
 
-        let pi_id = self
-            .state
-            .pi
-            .as_ref()
-            .expect("Failed to read PrintNannyCloudData.pi")
-            .id;
+        let pi_id = self.pi_id;
         let id = Some(Uuid::new_v4().to_string());
         let created_dt: DateTime<Utc> = SystemTime::now().into();
         let created_dt = Some(created_dt.to_rfc3339());
@@ -495,15 +494,8 @@ impl CloudEventPublisher {
                     .expect("--payload is required");
                 let payload =
                     serde_json::from_str::<models::OctoPrintPrintJobPayloadRequest>(payload)?;
-                let octoprint_server = self
-                    .state
-                    .pi
-                    .as_ref()
-                    .expect("Failed to readPrintNannySettings.cloud.pi")
-                    .octoprint_server
-                    .as_ref()
-                    .expect("Failed to read PrintNannySettings.cloud.pi.octoprint_server")
-                    .id;
+
+                let octoprint_server = self.octoprint_server_id;
                 let event_type = self
                     .args
                     .get_one::<models::OctoPrintPrintJobStatusType>("event_type")
@@ -530,15 +522,8 @@ impl CloudEventPublisher {
                     )?),
                     None => None,
                 };
-                let octoprint_server = self
-                    .state
-                    .pi
-                    .as_ref()
-                    .expect("Failed to readPrintNannySettings.cloud.pi")
-                    .octoprint_server
-                    .as_ref()
-                    .expect("Failed to read PrintNannySettings.cloud.pi.octoprint_server")
-                    .id;
+                let octoprint_server = self.octoprint_server_id;
+
                 let event_type = self
                     .args
                     .get_one::<models::OctoPrintServerStatusType>("event_type")
@@ -564,15 +549,8 @@ impl CloudEventPublisher {
                     )?),
                     None => None,
                 };
-                let octoprint_server = self
-                    .state
-                    .pi
-                    .as_ref()
-                    .expect("Failed to readPrintNannySettings.cloud.pi")
-                    .octoprint_server
-                    .as_ref()
-                    .expect("Failed to read PrintNannySettings.cloud.pi.octoprint_server")
-                    .id;
+                let octoprint_server = self.octoprint_server_id;
+
                 let event_type = self
                     .args
                     .get_one::<models::OctoPrintPrinterStatusType>("event_type")

@@ -3,7 +3,6 @@ use log::warn;
 use reqwest::header;
 use reqwest::Url;
 
-use printnanny_api_client::models;
 use printnanny_edge_db::octoprint::OctoPrintServer;
 use printnanny_settings::printnanny_asyncapi_models;
 

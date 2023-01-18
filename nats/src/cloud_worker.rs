@@ -12,7 +12,8 @@ use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 use printnanny_api_client::models::polymorphic_pi_event_request::PolymorphicPiEventRequest;
 use printnanny_services::error::NatsError;
 
-use printnanny_settings::cloud::PrintNannyCloudData;
+use printnanny_edge_db::nats_app::NatsApp;
+
 use printnanny_settings::printnanny::PrintNannySettings;
 
 use crate::cloud_commands;
@@ -236,15 +237,11 @@ impl NatsCloudWorker {
 
     pub async fn new(_args: &ArgMatches) -> Result<Self> {
         let config = PrintNannySettings::new()?;
-        let state = PrintNannyCloudData::new()?;
-        // ensure pi, nats_app, nats_creds are provided
-        state.try_check_cloud_data()?;
+
+        let nats_app = NatsApp::get()?;
 
         // try_check_license guards the following properties set, so it's safe to unwrap here
-        let pi = state.pi.unwrap();
-        let nats_app = pi.nats_app.unwrap();
-
-        let subscribe_subject = to_nats_command_subscribe_subject(&pi.id);
+        let subscribe_subject = to_nats_command_subscribe_subject(&nats_app.pi_id);
 
         // check if uri requires tls
         let require_tls = nats_app.nats_server_uri.contains("tls");

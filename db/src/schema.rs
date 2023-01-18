@@ -3,6 +3,22 @@
 diesel::table! {
     use diesel::sql_types::*;
 
+    nats_apps (id) {
+        id -> Integer,
+        app_name -> Text,
+        pi_id -> Integer,
+        organization_id -> Integer,
+        organization_name -> Text,
+        nats_server_uri -> Text,
+        nats_ws_uri -> Text,
+        mqtt_broker_host -> Text,
+        mqtt_broker_port -> Integer,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+
     octoprint_servers (id) {
         id -> Integer,
         user_id -> Integer,
@@ -86,6 +102,7 @@ diesel::table! {
 }
 
 diesel::allow_tables_to_appear_in_same_query!(
+    nats_apps,
     octoprint_servers,
     pis,
     users,

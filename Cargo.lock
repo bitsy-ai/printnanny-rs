@@ -3391,6 +3391,7 @@ dependencies = [
  "nix 0.26.1",
  "printnanny-api-client",
  "printnanny-dbus",
+ "printnanny-edge-db",
  "printnanny-services",
  "printnanny-settings",
  "serde 1.0.148",

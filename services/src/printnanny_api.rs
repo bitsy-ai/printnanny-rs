@@ -248,7 +248,7 @@ impl ApiService {
         let pi = self.pi_retrieve(edge_pi.id).await?;
         let pi_id = pi.id.clone();
         let changeset: printnanny_edge_db::cloud::UpdatePi = pi.clone().into();
-        printnanny_edge_db::cloud::Pi::update(pi_id, changeset);
+        printnanny_edge_db::cloud::Pi::update(pi_id, changeset)?;
         Ok(pi)
     }
 

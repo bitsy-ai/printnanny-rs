@@ -1,6 +1,7 @@
 pub mod cloud;
 pub mod connection;
 pub mod janus;
+pub mod nats_app;
 pub mod octoprint;
 pub mod schema;
 pub mod sql_types;

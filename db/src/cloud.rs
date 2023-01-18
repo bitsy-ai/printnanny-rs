@@ -46,20 +46,16 @@ impl From<printnanny_api_client::models::Pi> for UpdatePi {
         let urls = *obj.urls;
         let preferred_dns = match obj.network_settings {
             Some(network_settings) => match network_settings.preferred_dns {
-                Some(result) => result.into(),
+                Some(result) => result,
                 None => printnanny_api_client::models::PreferredDnsType::Multicast,
             },
             None => printnanny_api_client::models::PreferredDnsType::Multicast,
         }
         .to_string();
-        let octoprint_server_id = match obj.octoprint_server {
-            Some(octoprint_server) => Some(octoprint_server.id),
-            None => None,
-        };
-        let system_info_id = match obj.system_info {
-            Some(system_info) => Some(system_info.id),
-            None => None,
-        };
+        let octoprint_server_id = obj
+            .octoprint_server
+            .map(|octoprint_server| octoprint_server.id);
+        let system_info_id = obj.system_info.map(|system_info| system_info.id);
         UpdatePi {
             last_boot: obj.last_boot,
             hostname: None,

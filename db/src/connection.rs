@@ -3,7 +3,6 @@ use std::error::Error;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-use log::warn;
 
 use printnanny_settings::printnanny::PrintNannySettings;
 
