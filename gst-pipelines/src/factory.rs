@@ -301,7 +301,7 @@ impl PrintNannyPipelineFactory {
                 detection_settings.nms_threshold,
                 camera.width,
                 camera.height,
-                camera.format,
+                &camera.format,
                 detection_settings.tensor_width,
                 detection_settings.tensor_height,
                 &detection_settings.label_file,
@@ -356,7 +356,7 @@ impl PrintNannyPipelineFactory {
             hls_pipeline.pause().await?;
             hls_pipeline.play().await?;
         }
-        
+
         camera_pipeline.play().await?;
         h264_pipeline.play().await?;
         rtp_pipeline.play().await?;
