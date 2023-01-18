@@ -64,9 +64,31 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    use diesel::sql_types::*;
+
+    webrtc_edge_servers (id) {
+        id -> Integer,
+        pi_id -> Integer,
+        admin_secret -> Text,
+        admin_port -> Integer,
+        admin_url -> Text,
+        api_token -> Text,
+        api_domain -> Text,
+        api_port -> Integer,
+        pt -> Integer,
+        rtp_domain -> Text,
+        video_rtp_port -> Integer,
+        data_rtp_port -> Integer,
+        rtpmap -> Text,
+        ws_port -> Integer,
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
     octoprint_servers,
     pis,
     users,
     video_recordings,
+    webrtc_edge_servers,
 );

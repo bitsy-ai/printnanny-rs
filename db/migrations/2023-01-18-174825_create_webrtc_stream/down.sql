@@ -1,0 +1,1 @@
+DROP TABLE webrtc_edge_servers
