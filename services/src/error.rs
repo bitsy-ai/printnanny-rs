@@ -13,9 +13,7 @@ use printnanny_settings::figment;
 use printnanny_settings::sys_info;
 use printnanny_settings::toml;
 
-use printnanny_settings::error::{
-    PrintNannyCloudDataError, PrintNannySettingsError, VersionControlledSettingsError,
-};
+use printnanny_settings::error::{PrintNannySettingsError, VersionControlledSettingsError};
 
 #[derive(Error, Debug)]
 pub enum PrintNannyCamSettingsError {
@@ -116,9 +114,6 @@ pub enum ServiceError {
     FigmentError(#[from] figment::error::Error),
     #[error(transparent)]
     PrintNannySettingsError(#[from] PrintNannySettingsError),
-
-    #[error(transparent)]
-    PrintNannyCloudDataError(#[from] PrintNannyCloudDataError),
 
     #[error("Setup incomplete, failed to read {field:?} {detail:?}")]
     SetupIncomplete {

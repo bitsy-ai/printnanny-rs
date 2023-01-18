@@ -20,26 +20,8 @@ pub enum VersionControlledSettingsError {
     #[error(transparent)]
     ZbusError(#[from] zbus::Error),
     #[error(transparent)]
-    PrintNannyCloudDataError(#[from] PrintNannyCloudDataError),
 }
 
-#[derive(Error, Debug)]
-pub enum PrintNannyCloudDataError {
-    #[error("PrintNanny Cloud setup incomplete, failed to read {path}")]
-    SetupIncomplete { path: String },
-
-    #[error(transparent)]
-    SerdeJson(#[from] serde_json::Error),
-
-    #[error(transparent)]
-    TomlSerError(#[from] toml::ser::Error),
-    #[error(transparent)]
-    TomlDeError(#[from] toml::de::Error),
-    #[error("Failed to write {path} - {error}")]
-    WriteIOError { path: String, error: std::io::Error },
-    #[error("Failed to read {path} - {error}")]
-    ReadIOError { path: String, error: std::io::Error },
-}
 
 #[derive(Error, Debug)]
 pub enum PrintNannySettingsError {
@@ -94,9 +76,6 @@ pub enum PrintNannySettingsError {
 
     #[error(transparent)]
     GitError(#[from] git2::Error),
-
-    #[error(transparent)]
-    PrintNannyCloudDataError(#[from] PrintNannyCloudDataError),
 
     #[error(transparent)]
     VersionControlledSettingsError(#[from] VersionControlledSettingsError),
