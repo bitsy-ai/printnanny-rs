@@ -1,8 +1,7 @@
 CREATE TABLE pis (
-  id INTEGER PRIMARY KEY,
+  id INTEGER PRIMARY KEY NOT NULL,
   last_boot VARCHAR,
   hostname VARCHAR NOT NULL,
-  sbc TEXT CHECK(sbc IN ('rpi4')) NOT NULL,
   created_dt VARCHAR NOT NULL,
   moonraker_api_url VARCHAR NOT NULL,
   mission_control_url VARCHAR NOT NULL,

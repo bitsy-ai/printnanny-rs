@@ -1,10 +1,10 @@
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::schema::user;
+use crate::schema::users;
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, Queryable, Identifiable)]
-#[diesel(table_name = user)]
+#[diesel(table_name = users)]
 pub struct User {
     pub email: String,
     pub id: i32,
