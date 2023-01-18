@@ -136,6 +136,9 @@ pub enum ServiceError {
 
     #[error(transparent)]
     SqliteDBError(#[from] diesel::result::Error),
+
+    #[error("Error running diesel SQLIte migrations: {msg}")]
+    SQLiteMigrationError { msg: String },
 }
 
 #[derive(Error, Debug)]

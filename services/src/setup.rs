@@ -9,6 +9,8 @@ pub fn printnanny_os_init() -> Result<(), ServiceError> {
     // ensure directory structure exists
     settings.paths.try_init_all()?;
     // run any pending migrations
-    run_migrations()?;
+    run_migrations().map_err(|e| ServiceError::SQLiteMigrationError {
+        msg: (*e).to_string(),
+    })?;
     Ok(())
 }
