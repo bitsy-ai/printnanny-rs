@@ -1,10 +1,11 @@
 use std::fmt::Debug;
 use std::fs;
-use std::time::SystemTime;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
+use chrono;
 use log::{error, info};
 use printnanny_settings::cam::CameraVideoSource;
 use serde::de::DeserializeOwned;
@@ -50,6 +51,9 @@ pub enum NatsRequest {
     // pi.{pi_id}.cameras.load
     #[serde(rename = "pi.{pi_id}.cameras.load")]
     CameraLoadRequest,
+
+    #[serde(rename = "pi.{pi_id}.command.cloud.sync")]
+    PrintNannyCloudSyncRequest,
 
     // pi.{pi_id}.crash_reports.os
     #[serde(rename = "pi.{pi_id}.crash_reports.os")]
@@ -101,6 +105,9 @@ pub enum NatsReply {
     #[serde(rename = "pi.{pi_id}.cameras.load")]
     CameraLoadReply(CamerasLoadReply),
 
+    #[serde(rename = "pi.{pi_id}.command.cloud.sync")]
+    PrintNannyCloudSyncReply,
+
     // pi.{pi_id}.crash_reports.os
     #[serde(rename = "pi.{pi_id}.crash_reports.os")]
     CrashReportOsLogsReply(CrashReportOsLogsReply),
@@ -145,6 +152,17 @@ pub enum NatsReply {
 }
 
 impl NatsRequest {
+    pub async fn handle_cloud_sync(&self) -> Result<NatsReply> {
+        let start = SystemTime::now();
+
+        let api = ApiService::new()?;
+        // sync cloud models
+        api.sync().await?;
+        let end = SystemTime::now();
+
+        Ok(NatsReply::PrintNannyCloudSyncReply { start, end })
+    }
+
     // message messages sent to: "pi.{pi_id}.device_info.load"
     pub async fn handle_device_info_load(&self) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;

@@ -256,6 +256,25 @@ impl PrintNannyPipelineFactory {
         self.make_pipeline(pipeline_name, &description).await
     }
 
+    async fn stop_pipeline(pipeline_name: &str) -> Result<()> {
+        info!("Attempting to stop Gstreamer pipeline: {}", &pipeline_name);
+        let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
+        let pipeline = client.pipeline(pipeline_name);
+        pipeline.stop()await?;
+        info!("Success! Stopped Gstreamer pipeline: {}", &pipeline_name);
+        Ok(())
+    }
+
+    async fn start_pipeline(pipeline_name: &str) -> Result<()> {
+        info!("Attempting to start Gstreamer pipeline: {}", &pipeline_name);
+        let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
+        let pipeline = client.pipeline(pipeline_name);
+        pipeline.pause().await?;
+        pipeline.play()await?;
+        info!("Success! Started Gstreamer pipeline: {}", &pipeline_name);
+        Ok(())
+    }
+
     pub async fn start_pipelines(&self) -> Result<()> {
         let settings = PrintNannySettings::new()?;
         let snapshot_settings = *settings.video_stream.snapshot;
@@ -320,20 +339,20 @@ impl PrintNannyPipelineFactory {
             .await?;
 
         // TODO
-        // if snapshot_settings.enabled {
-        //     let snapshot_pipeline_name = "snapshot";
-        //     let snapshot_pipeline = self
-        //         .make_jpeg_snapshot_pipeline(
-        //             snapshot_pipeline_name,
-        //             camera_pipeline_name,
-        //             &snapshot_settings.path,
-        //             &camera
-        //         )
-        //         .await?;
-        //     snapshot_pipeline.play().await?;
-        // }
+        if snapshot_settings.enabled {
+            let snapshot_pipeline_name = "snapshot";
+            let snapshot_pipeline = self
+                .make_jpeg_snapshot_pipeline(
+                    snapshot_pipeline_name,
+                    camera_pipeline_name,
+                    &snapshot_settings.path,
+                    &camera
+                )
+                .await?;
+            snapshot_pipeline.play().await?;
+        }
 
-        // start pre-rolling
+        start pre-rolling
 
         camera_pipeline.pause().await?;
         h264_pipeline.pause().await?;
