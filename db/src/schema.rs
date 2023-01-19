@@ -2,6 +2,7 @@
 
 diesel::table! {
     use diesel::sql_types::*;
+    use diesel::sqlite::sql_types::*;
 
     nats_apps (id) {
         id -> Integer,
@@ -18,6 +19,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
+    use diesel::sqlite::sql_types::*;
 
     octoprint_servers (id) {
         id -> Integer,
@@ -36,6 +38,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
+    use diesel::sqlite::sql_types::*;
 
     pis (id) {
         id -> Integer,
@@ -55,6 +58,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
+    use diesel::sqlite::sql_types::*;
 
     users (id) {
         id -> Nullable<Integer>,
@@ -66,22 +70,24 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
+    use diesel::sqlite::sql_types::*;
 
     video_recordings (id) {
         id -> Text,
         recording_status -> Text,
-        recording_start -> Nullable<BigInt>,
-        recording_end -> Nullable<BigInt>,
+        recording_start -> Nullable<TimestamptzSqlite>,
+        recording_end -> Nullable<TimestamptzSqlite>,
         recording_file_name -> Text,
         gcode_file_name -> Nullable<Text>,
         cloud_sync_status -> Text,
-        cloud_sync_start -> Nullable<BigInt>,
-        cloud_sync_end -> Nullable<BigInt>,
+        cloud_sync_start -> Nullable<TimestamptzSqlite>,
+        cloud_sync_end -> Nullable<TimestamptzSqlite>,
     }
 }
 
 diesel::table! {
     use diesel::sql_types::*;
+    use diesel::sqlite::sql_types::*;
 
     webrtc_edge_servers (id) {
         id -> Integer,

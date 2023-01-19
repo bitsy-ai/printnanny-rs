@@ -13,15 +13,16 @@ use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::printnanny_asyncapi_models;
 use printnanny_dbus::printnanny_asyncapi_models::{
-    CamerasLoadReply, CrashReportOsLogsReply, CrashReportOsLogsRequest, DeviceInfoLoadReply,
-    PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, PrintNannyCloudSyncReply, SettingsApp,
-    SettingsFile, SettingsFileApplyReply, SettingsFileApplyRequest, SettingsFileLoadReply,
-    SettingsFileRevertReply, SettingsFileRevertRequest, SystemdManagerDisableUnitsReply,
-    SystemdManagerEnableUnitsReply, SystemdManagerGetUnitFileStateReply,
-    SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
-    SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
-    SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdManagerUnitFilesRequest,
-    SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState, VideoStreamSettings,
+    CameraRecordingLoadReply, CamerasLoadReply, CrashReportOsLogsReply, CrashReportOsLogsRequest,
+    DeviceInfoLoadReply, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest,
+    PrintNannyCloudSyncReply, SettingsApp, SettingsFile, SettingsFileApplyReply,
+    SettingsFileApplyRequest, SettingsFileLoadReply, SettingsFileRevertReply,
+    SettingsFileRevertRequest, SystemdManagerDisableUnitsReply, SystemdManagerEnableUnitsReply,
+    SystemdManagerGetUnitFileStateReply, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
+    SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply,
+    SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest,
+    SystemdManagerUnitFilesRequest, SystemdUnitChange, SystemdUnitChangeState,
+    SystemdUnitFileState, VideoStreamSettings,
 };
 
 use printnanny_dbus::zbus;
@@ -50,6 +51,10 @@ pub trait NatsRequestHandler {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "subject_pattern")]
 pub enum NatsRequest {
+    // pi.{pi_id}.command.camera.recording.load
+    #[serde(rename = "pi.{pi_id}.command.camera.recording.load")]
+    CameraRecordingLoadRequest,
+
     // pi.{pi_id}.cameras.load
     #[serde(rename = "pi.{pi_id}.cameras.load")]
     CameraLoadRequest,
@@ -103,6 +108,10 @@ pub enum NatsRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "subject_pattern")]
 pub enum NatsReply {
+    // pi.{pi_id}.command.camera.recording.load
+    #[serde(rename = "pi.{pi_id}.command.camera.recording.load")]
+    CameraRecordingLoadReply(CameraRecordingLoadReply),
+
     // pi.{pi_id}.cameras.load
     #[serde(rename = "pi.{pi_id}.cameras.load")]
     CameraLoadReply(CamerasLoadReply),
@@ -154,6 +163,17 @@ pub enum NatsReply {
 }
 
 impl NatsRequest {
+    pub async fn handle_camera_recording_load(&self) -> Result<NatsReply> {
+        let recordings = printnanny_edge::db::VideoRecording::get_all()?;
+        let current = printnanny_edge::db::VideoRecording::get_current()?;
+        Ok(NatsReply::CameraRecordingLoadReply(
+            CameraRecordingLoadReply {
+                recordings,
+                current,
+            },
+        ))
+    }
+
     pub async fn handle_cloud_sync(&self) -> Result<NatsReply> {
         let start = chrono::offset::Utc::now().to_rfc3339();
 
