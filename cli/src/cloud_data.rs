@@ -10,7 +10,7 @@ impl CloudDataCommand {
     pub async fn handle(sub_m: &clap::ArgMatches) -> Result<(), ServiceError> {
         match sub_m.subcommand() {
             Some(("sync", _args)) => {
-                let mut service = ApiService::new()?;
+                let service = ApiService::new()?;
                 service.sync().await?;
             }
             Some(("show", _args)) => {

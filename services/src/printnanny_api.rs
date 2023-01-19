@@ -276,7 +276,7 @@ impl ApiService {
 
     // syncs Raspberry Pi data with PrintNanny Cloud
     // performs any necessary one-time setup tasks
-    pub async fn sync(&mut self) -> Result<printnanny_api_client::models::Pi, ServiceError> {
+    pub async fn sync(&self) -> Result<printnanny_api_client::models::Pi, ServiceError> {
         match printnanny_edge_db::cloud::Pi::get() {
             Ok(pi_sqlite) => self.sync_pi_models(pi_sqlite).await,
             Err(e) => match e {

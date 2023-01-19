@@ -3399,6 +3399,7 @@ dependencies = [
  "printnanny-api-client",
  "printnanny-dbus",
  "printnanny-edge-db",
+ "printnanny-gst-pipelines",
  "printnanny-services",
  "printnanny-settings",
  "serde 1.0.152",

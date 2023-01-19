@@ -135,7 +135,7 @@ pub async fn handle_pi_boot_command(
 
             //  publish to status topic
             nats_client.publish(subject.clone(), req).await?;
-            let mut api = ApiService::new()?;
+            let api = ApiService::new()?;
             let result = api.sync().await;
 
             match result {

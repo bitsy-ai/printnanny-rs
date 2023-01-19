@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use std::fs;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -14,8 +14,8 @@ use serde::{Deserialize, Serialize};
 use printnanny_dbus::printnanny_asyncapi_models;
 use printnanny_dbus::printnanny_asyncapi_models::{
     CamerasLoadReply, CrashReportOsLogsReply, CrashReportOsLogsRequest, DeviceInfoLoadReply,
-    PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, SettingsApp, SettingsFile,
-    SettingsFileApplyReply, SettingsFileApplyRequest, SettingsFileLoadReply,
+    PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, PrintNannyCloudSyncReply, SettingsApp,
+    SettingsFile, SettingsFileApplyReply, SettingsFileApplyRequest, SettingsFileLoadReply,
     SettingsFileRevertReply, SettingsFileRevertRequest, SystemdManagerDisableUnitsReply,
     SystemdManagerEnableUnitsReply, SystemdManagerGetUnitFileStateReply,
     SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
@@ -32,6 +32,8 @@ use printnanny_settings::printnanny::PrintNannySettings;
 use printnanny_settings::vcs::VersionControlledSettings;
 
 use printnanny_services::printnanny_api::ApiService;
+
+use printnanny_gst_pipelines::factory::PrintNannyPipelineFactory;
 
 #[async_trait]
 pub trait NatsRequestHandler {
@@ -106,7 +108,7 @@ pub enum NatsReply {
     CameraLoadReply(CamerasLoadReply),
 
     #[serde(rename = "pi.{pi_id}.command.cloud.sync")]
-    PrintNannyCloudSyncReply,
+    PrintNannyCloudSyncReply(PrintNannyCloudSyncReply),
 
     // pi.{pi_id}.crash_reports.os
     #[serde(rename = "pi.{pi_id}.crash_reports.os")]
@@ -153,14 +155,19 @@ pub enum NatsReply {
 
 impl NatsRequest {
     pub async fn handle_cloud_sync(&self) -> Result<NatsReply> {
-        let start = SystemTime::now();
+        let start = chrono::offset::Utc::now().to_rfc3339();
 
         let api = ApiService::new()?;
-        // sync cloud models
+        // sync cloud models to edge db
         api.sync().await?;
-        let end = SystemTime::now();
+        // set optional pipelines to correct state
+        let gst_pipelines = PrintNannyPipelineFactory::default();
+        gst_pipelines.sync_optional_pipelines().await?;
+        let end = chrono::offset::Utc::now().to_rfc3339();
 
-        Ok(NatsReply::PrintNannyCloudSyncReply { start, end })
+        Ok(NatsReply::PrintNannyCloudSyncReply(
+            PrintNannyCloudSyncReply { start, end },
+        ))
     }
 
     // message messages sent to: "pi.{pi_id}.device_info.load"
@@ -700,6 +707,7 @@ impl NatsRequestHandler for NatsRequest {
 
     fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Request> {
         match subject_pattern {
+            "pi.{pi_id}.command.cloud.sync" => Ok(NatsRequest::PrintNannyCloudSyncRequest),
             "pi.{pi_id}.crash_reports.os" => Ok(NatsRequest::CrashReportOsLogsRequest(
                 serde_json::from_slice::<CrashReportOsLogsRequest>(payload.as_ref())?,
             )),
@@ -765,6 +773,8 @@ impl NatsRequestHandler for NatsRequest {
 
     async fn handle(&self) -> Result<Self::Reply> {
         let reply = match self {
+            // pi.{pi_id}.command.cloud.sync
+            NatsRequest::PrintNannyCloudSyncRequest => self.handle_cloud_sync().await?,
             // pi.{pi_id}.cameras.load
             NatsRequest::CameraLoadRequest => self.handle_cameras_load()?,
             // "pi.{pi_id}.crash_reports.os"
