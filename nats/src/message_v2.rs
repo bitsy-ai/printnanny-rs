@@ -164,8 +164,8 @@ pub enum NatsReply {
 
 impl NatsRequest {
     pub async fn handle_camera_recording_load(&self) -> Result<NatsReply> {
-        let recordings = printnanny_edge::db::VideoRecording::get_all()?;
-        let current = printnanny_edge::db::VideoRecording::get_current()?;
+        let recordings = printnanny_edge_db::video_recording::VideoRecording::get_all()?;
+        let current = printnanny_edge_db::video_recording::VideoRecording::get_current()?;
         Ok(NatsReply::CameraRecordingLoadReply(
             CameraRecordingLoadReply {
                 recordings,
