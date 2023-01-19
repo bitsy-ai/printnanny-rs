@@ -164,10 +164,11 @@ pub enum NatsReply {
 
 impl NatsRequest {
     pub async fn handle_camera_recording_load(&self) -> Result<NatsReply> {
-        let recordings = printnanny_edge_db::video_recording::VideoRecording::get_all()?
-            .iter()
-            .map(|v| v.into())
-            .collect();
+        let recordings: Vec<printnanny_asyncapi_models::VideoRecording> =
+            printnanny_edge_db::video_recording::VideoRecording::get_all()?
+                .into_iter()
+                .map(|v| (v).into())
+                .collect();
         let current = printnanny_edge_db::video_recording::VideoRecording::get_current()?
             .map(|v| Box::new(v.into()));
         Ok(NatsReply::CameraRecordingLoadReply(
@@ -731,6 +732,9 @@ impl NatsRequestHandler for NatsRequest {
 
     fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Request> {
         match subject_pattern {
+            "pi.{pi_id}.command.camera.recording.load" => {
+                Ok(NatsRequest::CameraRecordingLoadRequest)
+            }
             "pi.{pi_id}.command.cloud.sync" => Ok(NatsRequest::PrintNannyCloudSyncRequest),
             "pi.{pi_id}.crash_reports.os" => Ok(NatsRequest::CrashReportOsLogsRequest(
                 serde_json::from_slice::<CrashReportOsLogsRequest>(payload.as_ref())?,
@@ -797,6 +801,8 @@ impl NatsRequestHandler for NatsRequest {
 
     async fn handle(&self) -> Result<Self::Reply> {
         let reply = match self {
+            // pi.{pi_id}.command.camera.recording.load
+            NatsRequest::CameraRecordingLoadRequest => self.handle_camera_recording_load().await?,
             // pi.{pi_id}.command.cloud.sync
             NatsRequest::PrintNannyCloudSyncRequest => self.handle_cloud_sync().await?,
             // pi.{pi_id}.cameras.load
