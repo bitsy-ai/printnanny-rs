@@ -3256,9 +3256,9 @@ checksum = "c6fa0831dd7cc608c38a5e323422a0077678fa5744aa2be4ad91c4ece8eec8d5"
 
 [[package]]
 name = "printnanny-api-client"
-version = "0.124.4"
+version = "0.124.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64450a9bc779d6772c6ac91e5402e0bfb131ff9abc3c297902ee950c2d119f93"
+checksum = "b0d75027343f16b782972254f5a6501524641d06f744265d118135686bd5db21"
 dependencies = [
  "bytes",
  "clap",
@@ -3273,9 +3273,9 @@ dependencies = [
 
 [[package]]
 name = "printnanny-asyncapi-models"
-version = "0.3.7"
+version = "0.3.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8bf7377d2a7be4692a422cd424d91dacde90b47bcae4a75304e024431b23e3d4"
+checksum = "1639de583803c79ac47aeb7597e3fda5d9083d8a28b89686f1e7272737a44b17"
 dependencies = [
  "serde 1.0.152",
  "serde_json",
@@ -3326,12 +3326,15 @@ dependencies = [
 name = "printnanny-edge-db"
 version = "0.2.0"
 dependencies = [
+ "chrono",
  "diesel",
  "diesel_migrations",
  "log",
  "printnanny-api-client",
+ "printnanny-asyncapi-models",
  "printnanny-settings",
  "serde 1.0.152",
+ "serde_json",
 ]
 
 [[package]]
