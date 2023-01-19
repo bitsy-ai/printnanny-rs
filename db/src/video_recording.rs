@@ -1,5 +1,9 @@
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
+use log::info;
+use printnanny_settings::error::PrintNannySettingsError;
+use printnanny_settings::printnanny::PrintNannySettings;
+use uuid;
 
 use printnanny_asyncapi_models;
 
@@ -65,21 +69,33 @@ impl VideoRecording {
             .optional()?;
         Ok(result)
     }
-}
+    pub fn start_new() -> Result<VideoRecording, diesel::result::Error> {
+        use crate::schema::video_recordings::dsl::*;
+        // mark all other recordings as done
+        let connection = &mut establish_sqlite_connection();
 
-// impl From<String> for printnanny_asyncapi_models::VideoRecordingStatus {
-//     fn from(value: String) -> Self {
-//         match &value {
-//             "pending" => printnanny_asyncapi_models::VideoRecordingStatus::Pending,
-//             "inprogress" => printnanny_asyncapi_models::VideoRecordingStatus::Inprogress,
-//             "done" => printnanny_asyncapi_models::VideoRecordingStatus::Done,
-//             _ => panic!(
-//                 "Invalid value for printnanny_asyncapi_models::VideoRecordingStatus: {}",
-//                 &value
-//             ),
-//         }
-//     }
-// }
+        diesel::update(video_recordings)
+            .set(recording_status.eq("done"))
+            .execute(connection)?;
+        info!("Set existing VideoRecording.recording_status = done");
+        let settings = PrintNannySettings::new().unwrap();
+        let row_id = uuid::Uuid::new_v4().to_string();
+        let filename = settings.paths.video().join(format!("{}.mp4", &row_id));
+        let row = NewVideoRecording {
+            id: &row_id,
+            recording_status: "pending",
+            cloud_sync_status: "pending",
+            mp4_file_name: &filename.display().to_string(),
+            gcode_file_name: None, // TODO
+        };
+        diesel::insert_into(video_recordings)
+            .values(&row)
+            .execute(connection)?;
+        info!("Created new VideoRecording with id {}", &row_id);
+        let result = video_recordings.find(&row_id).first(connection)?;
+        Ok(result)
+    }
+}
 
 impl From<VideoRecording> for printnanny_asyncapi_models::VideoRecording {
     fn from(obj: VideoRecording) -> Self {

@@ -277,6 +277,17 @@ impl PrintNannyPipelineFactory {
         self.make_pipeline(pipeline_name, &description).await
     }
 
+    async fn make_mp4_filesink_pipeline(&self, pipeline_name: &str, listen_to: &str, filename: &str) -> Result<gst_client::resources::Pipeline>{
+        let interpipelinesrc = Self::to_interpipelinesrc_name(pipeline_name);
+        let listen_to = Self::to_interpipesink_name(listen_to);
+        
+
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false \
+            ! mp4mux ! filesink location={filename}
+        ")
+        self.make_pipeline(pipeline-name, &description);
+    }
+
     pub async fn stop_pipeline(&self, pipeline_name: &str) -> Result<()> {
         info!("Attempting to stop Gstreamer pipeline: {}", &pipeline_name);
         let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
@@ -335,6 +346,12 @@ impl PrintNannyPipelineFactory {
 
         Ok(())
     }
+
+    pub async fn start_video_recording_pipeline(&self, filename: &str) -> Result<()> {
+        let pipeline = self.make_mp4_filesink_pipeline()
+    }
+
+
 
     pub async fn start_pipelines(&self) -> Result<()> {
         let settings = PrintNannySettings::new()?;

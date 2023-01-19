@@ -3335,6 +3335,7 @@ dependencies = [
  "printnanny-settings",
  "serde 1.0.152",
  "serde_json",
+ "uuid 1.2.2",
 ]
 
 [[package]]
