@@ -26,8 +26,24 @@ pub struct VideoRecording {
 #[diesel(table_name = video_recordings)]
 pub struct NewVideoRecording<'a> {
     pub id: &'a str,
-    pub recording_file_name: &'a str,
-    pub gcode_file_name: &'a str,
+    pub recording_status: &'a str,
+    pub cloud_sync_status: &'a str,
+    pub mp4_file_name: &'a str,
+    pub gcode_file_name: Option<&'a str>,
+}
+
+#[derive(Clone, Debug, PartialEq, AsChangeset)]
+#[diesel(table_name = video_recordings)]
+pub struct UpdateVideoRecording<'a> {
+    pub gcode_file_name: Option<&'a str>,
+    pub recording_status: Option<&'a str>,
+    pub recording_start: Option<&'a DateTime<Utc>>,
+    pub recording_end: Option<&'a DateTime<Utc>>,
+    pub mp4_upload_url: Option<&'a str>,
+    pub mp4_download_url: Option<&'a str>,
+    pub cloud_sync_status: Option<&'a str>,
+    pub cloud_sync_start: Option<DateTime<Utc>>,
+    pub cloud_sync_end: Option<DateTime<Utc>>,
 }
 
 impl VideoRecording {
@@ -78,6 +94,8 @@ impl From<VideoRecording> for printnanny_asyncapi_models::VideoRecording {
             recording_start: obj.recording_start.map(|v| v.to_rfc3339()),
             recording_end: obj.recording_end.map(|v| v.to_rfc3339()),
             mp4_file_name: obj.mp4_file_name,
+            mp4_upload_url: obj.mp4_upload_url,
+            mp4_download_url: obj.mp4_download_url,
             gcode_file_name: obj.gcode_file_name,
             cloud_sync_status: Box::new(
                 serde_json::from_str::<printnanny_asyncapi_models::VideoRecordingStatus>(
