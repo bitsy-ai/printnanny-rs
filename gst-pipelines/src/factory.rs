@@ -311,22 +311,26 @@ impl PrintNannyPipelineFactory {
             )
             .await?;
         if snapshot_settings.enabled {
-            snapshot_pipeline.play().await?;
+            snapshot_pipeline.pause().await?;
             snapshot_pipeline.play().await?;
         } else {
+            snapshot_pipeline.stop().await?;
         }
+
+        let hls_pipeline = self
+            .make_hls_pipeline(
+                HLS_PIPELINE,
+                H264_PIPELINE,
+                &hls_settings.segments,
+                &hls_settings.playlist,
+                &hls_settings.playlist_root,
+            )
+            .await?;
         if hls_settings.enabled {
-            let hls_pipeline = self
-                .make_hls_pipeline(
-                    HLS_PIPELINE,
-                    H264_PIPELINE,
-                    &hls_settings.segments,
-                    &hls_settings.playlist,
-                    &hls_settings.playlist_root,
-                )
-                .await?;
             hls_pipeline.pause().await?;
             hls_pipeline.play().await?;
+        } else {
+            hls_pipeline.stop().await?;
         }
 
         Ok(())
