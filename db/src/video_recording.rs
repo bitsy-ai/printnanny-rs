@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use log::info;
-use printnanny_settings::error::PrintNannySettingsError;
 use printnanny_settings::printnanny::PrintNannySettings;
 use uuid;
 
@@ -51,6 +50,22 @@ pub struct UpdateVideoRecording<'a> {
 }
 
 impl VideoRecording {
+    pub fn update(row_id: &str, row: UpdateVideoRecording) -> Result<(), diesel::result::Error> {
+        use crate::schema::video_recordings::dsl::*;
+        let connection = &mut establish_sqlite_connection();
+        diesel::update(video_recordings.filter(id.eq(row_id)))
+            .set(row)
+            .execute(connection)?;
+        info!("Updated VideoRecording with id {}", row_id);
+        Ok(())
+    }
+    pub fn get_by_id(row_id: &str) -> Result<VideoRecording, diesel::result::Error> {
+        use crate::schema::video_recordings::dsl::*;
+        let connection = &mut establish_sqlite_connection();
+        video_recordings
+            .filter(id.eq(row_id))
+            .first::<VideoRecording>(connection)
+    }
     pub fn get_all() -> Result<Vec<VideoRecording>, diesel::result::Error> {
         use crate::schema::video_recordings::dsl::*;
         let connection = &mut establish_sqlite_connection();

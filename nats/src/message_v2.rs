@@ -5,7 +5,7 @@ use std::time::SystemTime;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
-use chrono;
+use chrono::prelude::*;
 use log::{error, info};
 use printnanny_settings::cam::CameraVideoSource;
 use serde::de::DeserializeOwned;
@@ -195,7 +195,20 @@ impl NatsRequest {
         ))
     }
 
-    pub async fn handle_camera_recording_start(&self) -> Result<NatsReply> {}
+    pub async fn handle_camera_recording_start(&self) -> Result<NatsReply> {
+        let recording = printnanny_edge_db::video_recording::VideoRecording::start_new()?;
+        let factory = PrintNannyPipelineFactory::default();
+        factory
+            .start_video_recording_pipeline(recording.mp4_file_name)
+            .await?;
+        let now = Utc::now();
+        let update = printnanny_edge_db::video_recording::UpdateVideoRecording {
+            recording_status: Some("inprogress"),
+            recording_start: Some(&now),
+        };
+        printnanny_edge_db::video_recording::VideoRecording::update(recording.id, update).await?;
+        let recording = printnanny_edge_db::video_recording::VideoRecording::get_by_id(row_id);
+    }
 
     pub async fn handle_camera_recording_stop(&self) -> Result<NatsReply> {}
 
