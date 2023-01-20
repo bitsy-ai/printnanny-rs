@@ -85,6 +85,22 @@ impl VideoRecording {
         Ok(result)
     }
 
+    pub fn get_ready_for_cloud_sync() -> Result<Vec<VideoRecording>, diesel::result::Error> {
+        use crate::schema::video_recordings::dsl::*;
+        let connection = &mut establish_sqlite_connection();
+        let result = video_recordings
+            .filter(
+                recording_status
+                    .eq("done")
+                    .and(cloud_sync_status.eq("pending"))
+                    .and(cloud_sync_start.is_null()),
+            )
+            .load::<VideoRecording>(connection)?;
+
+        info!("VideoRecording rows ready for cloud sync: {:#?}", &result);
+        Ok(result)
+    }
+
     pub fn stop_all() -> Result<(), diesel::result::Error> {
         use crate::schema::video_recordings::dsl::*;
         let connection = &mut establish_sqlite_connection();
@@ -99,7 +115,7 @@ impl VideoRecording {
         use crate::schema::video_recordings::dsl::*;
         let connection = &mut establish_sqlite_connection();
         // mark all other recordings as done
-        Self::stop_all();
+        Self::stop_all()?;
         let settings = PrintNannySettings::new().unwrap();
         let row_id = uuid::Uuid::new_v4().to_string();
         let filename = settings.paths.video().join(format!("{}.mp4", &row_id));
