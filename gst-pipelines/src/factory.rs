@@ -111,9 +111,10 @@ impl PrintNannyPipelineFactory {
     ) -> Result<gst_client::resources::Pipeline> {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
+        let colorimetry = "bt709";
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false max-buffers=2 leaky-type=2 \
-            ! capsfilter caps=video/x-raw,width={width},height={height},format={format} \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=false max-buffers=2 leaky-type=2 \
+            ! capsfilter caps=video/x-raw,width={width},height={height},format={format},colorimetry={colorimetry} \
             ! v4l2jpegenc ! multifilesink max-files=2 location={filesink_location}",
             width=camera.width,
             height=camera.height,
@@ -198,20 +199,28 @@ impl PrintNannyPipelineFactory {
         tensor_width: i32,
         tensor_height: i32,
         tflite_model_file: &str,
+        camera: &CameraSettings
     ) -> Result<gst_client::resources::Pipeline> {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
 
-        let format = "RGB"; // model expects pixel data to be in RGB format
+        let tensor_format = "RGB"; // model expects pixel data to be in RGB format
+        let colorimetry = "bt709";
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false max-buffers=2 leaky-type=2 \
-            ! videoconvert ! videoscale ! capsfilter caps=video/x-raw,format={format},width={tensor_width},height={tensor_height} \
+            ! capsfilter caps=video/x-raw,width={width},height={height},format={format},colorimetry={colorimetry} \
+            ! videoconvert ! videoscale ! videorate ! capsfilter caps=video/x-raw,format={tensor_format},width={tensor_width},height={tensor_height},framerate=0/1 \
             ! tensor_converter \
             ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1 \
             ! capsfilter caps=other/tensors,format=static \
             ! tensor_filter framework=tensorflow2-lite model={tflite_model_file} \
-            ! interpipesink name={interpipesink} sync=false");
+            ! interpipesink name={interpipesink} sync=false",
+            width=camera.width,
+            height=camera.height,
+            format=camera.format,
+        );
+
         self.make_pipeline(pipeline_name, &description).await
     }
 
@@ -394,6 +403,7 @@ impl PrintNannyPipelineFactory {
                 detection_settings.tensor_width,
                 detection_settings.tensor_height,
                 &detection_settings.model_file,
+                &camera
             )
             .await?;
 
