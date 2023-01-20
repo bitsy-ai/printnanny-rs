@@ -29,7 +29,7 @@ impl VideoUploadProgress {
         
         let current_percent = self.total_size / uploaded;
         if self.last_percent - current_percent >= self.interval {
-            video_recording::VideoRecording::set_progress(&self.id, &current_percent);
+            video_recording::VideoRecording::set_cloud_sync_progress(&self.id, &current_percent);
             info!("VideoUploadProgress id={} percent={}", &self.id, &current_percent);
             self.last_percent = current_percent
         }
@@ -40,7 +40,7 @@ impl VideoUploadProgress {
 pub async fn upload_video_recording(src_id: String, src_file: &str, upload_url: &str) -> Result<()> {
     // tokio::fs::File will use a streaming reader
     let file = File::open(src_file).await?;
-    let total_size = f.metadata().unwrap().len();
+    let total_size = file.metadata().unwrap().len();
 
     let byte_stream = FramedRead::new(file, BytesCodec::new());
     let mut progress = VideoUploadProgress {

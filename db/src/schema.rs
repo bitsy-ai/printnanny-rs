@@ -75,15 +75,16 @@ diesel::table! {
     video_recordings (id) {
         id -> Text,
         recording_status -> Text,
-        recording_start -> Nullable<TimestamptzSqlite>,
-        recording_end -> Nullable<TimestamptzSqlite>,
+        recording_start -> Nullable<Timestamp>,
+        recording_end -> Nullable<Timestamp>,
         mp4_file_name -> Text,
         mp4_upload_url -> Nullable<Text>,
         mp4_download_url -> Nullable<Text>,
         gcode_file_name -> Nullable<Text>,
         cloud_sync_status -> Text,
-        cloud_sync_start -> Nullable<TimestamptzSqlite>,
-        cloud_sync_end -> Nullable<TimestamptzSqlite>,
+        cloud_sync_percent -> Nullable<Integer>,
+        cloud_sync_start -> Nullable<Timestamp>,
+        cloud_sync_end -> Nullable<Timestamp>,
     }
 }
 

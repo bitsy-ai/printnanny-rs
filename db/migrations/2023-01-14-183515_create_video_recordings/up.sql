@@ -8,6 +8,7 @@ CREATE TABLE video_recordings (
   mp4_download_url VARCHAR,
   gcode_file_name TEXT,
   cloud_sync_status TEXT CHECK(cloud_sync_status IN ('pending', 'inprogress', 'done')) NOT NULL,
+  cloud_sync_percent INTEGER,
   cloud_sync_start DATETIME,
   cloud_sync_end DATETIME
 )
