@@ -361,10 +361,9 @@ impl PrintNannyPipelineFactory {
         Ok(())
     }
 
-    pub async fn stop_video_recording_pipeline(&self, filename: &str) -> Result<()> {
-        let pipeline = self
-            .make_mp4_filesink_pipeline(MP4_PIPELINE, H264_PIPELINE, filename)
-            .await?;
+    pub async fn stop_video_recording_pipeline(&self) -> Result<()> {
+        let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
+        let pipeline = client.pipeline(MP4_PIPELINE);
         pipeline.stop().await?;
         Ok(())
     }

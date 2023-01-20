@@ -84,15 +84,22 @@ impl VideoRecording {
             .optional()?;
         Ok(result)
     }
-    pub fn start_new() -> Result<VideoRecording, diesel::result::Error> {
+
+    pub fn stop_all() -> Result<(), diesel::result::Error> {
         use crate::schema::video_recordings::dsl::*;
-        // mark all other recordings as done
         let connection = &mut establish_sqlite_connection();
 
         diesel::update(video_recordings)
             .set(recording_status.eq("done"))
             .execute(connection)?;
         info!("Set existing VideoRecording.recording_status = done");
+        Ok(())
+    }
+    pub fn start_new() -> Result<VideoRecording, diesel::result::Error> {
+        use crate::schema::video_recordings::dsl::*;
+        let connection = &mut establish_sqlite_connection();
+        // mark all other recordings as done
+        Self::stop_all();
         let settings = PrintNannySettings::new().unwrap();
         let row_id = uuid::Uuid::new_v4().to_string();
         let filename = settings.paths.video().join(format!("{}.mp4", &row_id));

@@ -22,7 +22,8 @@ use printnanny_dbus::printnanny_asyncapi_models::{
     SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
     SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
     SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdManagerUnitFilesRequest,
-    SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState, VideoStreamSettings,
+    SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState, VideoRecording,
+    VideoStreamSettings,
 };
 
 use printnanny_dbus::zbus;
@@ -199,18 +200,63 @@ impl NatsRequest {
         let recording = printnanny_edge_db::video_recording::VideoRecording::start_new()?;
         let factory = PrintNannyPipelineFactory::default();
         factory
-            .start_video_recording_pipeline(recording.mp4_file_name)
+            .start_video_recording_pipeline(&recording.mp4_file_name)
             .await?;
         let now = Utc::now();
         let update = printnanny_edge_db::video_recording::UpdateVideoRecording {
             recording_status: Some("inprogress"),
             recording_start: Some(&now),
+            gcode_file_name: None,
+            recording_end: None,
+            mp4_upload_url: None,
+            mp4_download_url: None,
+            cloud_sync_status: None,
+            cloud_sync_start: None,
+            cloud_sync_end: None,
         };
-        printnanny_edge_db::video_recording::VideoRecording::update(recording.id, update).await?;
-        let recording = printnanny_edge_db::video_recording::VideoRecording::get_by_id(row_id);
+        printnanny_edge_db::video_recording::VideoRecording::update(&recording.id, update)?;
+        let recording =
+            printnanny_edge_db::video_recording::VideoRecording::get_by_id(&recording.id)?;
+
+        Ok(NatsReply::CameraRecordingStartReply(
+            CameraRecordingStarted {
+                recording: Box::new(recording.into()),
+            },
+        ))
     }
 
-    pub async fn handle_camera_recording_stop(&self) -> Result<NatsReply> {}
+    pub async fn handle_camera_recording_stop(&self) -> Result<NatsReply> {
+        let recording = printnanny_edge_db::video_recording::VideoRecording::get_current()?;
+        let factory = PrintNannyPipelineFactory::default();
+        factory.stop_video_recording_pipeline().await?;
+
+        let recording = match recording {
+            Some(recording) => {
+                let now = Utc::now();
+                let update = printnanny_edge_db::video_recording::UpdateVideoRecording {
+                    recording_status: Some("done"),
+                    recording_end: Some(&now),
+                    recording_start: None,
+                    gcode_file_name: None,
+                    mp4_upload_url: None,
+                    mp4_download_url: None,
+                    cloud_sync_status: None,
+                    cloud_sync_start: None,
+                    cloud_sync_end: None,
+                };
+                printnanny_edge_db::video_recording::VideoRecording::update(&recording.id, update)?;
+                let recording =
+                    printnanny_edge_db::video_recording::VideoRecording::get_by_id(&recording.id)?;
+                Some(recording)
+            }
+            None => None,
+        };
+        Ok(NatsReply::CameraRecordingStopReply(
+            CameraRecordingStopped {
+                recording: recording.map(|v| Box::new(v.into())),
+            },
+        ))
+    }
 
     pub async fn handle_cloud_sync(&self) -> Result<NatsReply> {
         let start = chrono::offset::Utc::now().to_rfc3339();
@@ -765,6 +811,12 @@ impl NatsRequestHandler for NatsRequest {
 
     fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Request> {
         match subject_pattern {
+            "pi.{pi_id}.command.camera.recording.start" => {
+                Ok(NatsRequest::CameraRecordingStartRequest)
+            }
+            "pi.{pi_id}.command.camera.recording.stop" => {
+                Ok(NatsRequest::CameraRecordingStopRequest)
+            }
             "pi.{pi_id}.command.camera.recording.load" => {
                 Ok(NatsRequest::CameraRecordingLoadRequest)
             }
@@ -834,6 +886,12 @@ impl NatsRequestHandler for NatsRequest {
 
     async fn handle(&self) -> Result<Self::Reply> {
         let reply = match self {
+            // pi.{pi_id}.command.camera.recording.start
+            NatsRequest::CameraRecordingStartRequest => {
+                self.handle_camera_recording_start().await?
+            }
+            // pi.{pi_id}.command.camera.recording.stop
+            NatsRequest::CameraRecordingStopRequest => self.handle_camera_recording_stop().await?,
             // pi.{pi_id}.command.camera.recording.load
             NatsRequest::CameraRecordingLoadRequest => self.handle_camera_recording_load().await?,
             // pi.{pi_id}.command.cloud.sync
