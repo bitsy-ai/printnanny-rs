@@ -13,8 +13,9 @@ const RTP_PIPELINE: &str = "rtp";
 const INFERENCE_PIPELINE: &str = "tflite_inference";
 const BB_PIPELINE: &str = "bounding_boxes";
 const DF_WINDOW_PIPELINE: &str = "df";
-const SNAPSHOT_PIPELINE: &str = "pipeline";
+const SNAPSHOT_PIPELINE: &str = "snapshot";
 const HLS_PIPELINE: &str = "hls";
+const MP4_PIPELINE: &str = "mp4";
 
 pub struct PrintNannyPipelineFactory {
     pub address: String,
@@ -277,6 +278,21 @@ impl PrintNannyPipelineFactory {
         self.make_pipeline(pipeline_name, &description).await
     }
 
+    async fn make_mp4_filesink_pipeline(
+        &self,
+        pipeline_name: &str,
+        listen_to: &str,
+        filename: &str,
+    ) -> Result<gst_client::resources::Pipeline> {
+        let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
+        let listen_to = Self::to_interpipesink_name(listen_to);
+
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false \
+            ! mp4mux ! filesink location={filename}
+        ");
+        self.make_pipeline(pipeline_name, &description).await
+    }
+
     pub async fn stop_pipeline(&self, pipeline_name: &str) -> Result<()> {
         info!("Attempting to stop Gstreamer pipeline: {}", &pipeline_name);
         let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
@@ -333,6 +349,22 @@ impl PrintNannyPipelineFactory {
             hls_pipeline.stop().await?;
         }
 
+        Ok(())
+    }
+
+    pub async fn start_video_recording_pipeline(&self, filename: &str) -> Result<()> {
+        let pipeline = self
+            .make_mp4_filesink_pipeline(MP4_PIPELINE, H264_PIPELINE, filename)
+            .await?;
+        pipeline.pause().await?;
+        pipeline.play().await?;
+        Ok(())
+    }
+
+    pub async fn stop_video_recording_pipeline(&self) -> Result<()> {
+        let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
+        let pipeline = client.pipeline(MP4_PIPELINE);
+        pipeline.stop().await?;
         Ok(())
     }
 

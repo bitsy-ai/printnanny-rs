@@ -117,17 +117,15 @@ impl Pi {
 
         let connection = &mut establish_sqlite_connection();
         let result: Pi = pis.order_by(id).first::<Pi>(connection)?;
-        // let result = pis.order_by(id).first(&mut connection)?;
         info!("printnanny_edge_db::cloud::Pi get {:#?}", &result);
         Ok(result)
     }
     pub fn insert(row: Pi) -> Result<(), diesel::result::Error> {
         let mut connection = establish_sqlite_connection();
-
-        let updated = diesel::insert_into(pis::dsl::pis)
+        let row = diesel::insert_into(pis::dsl::pis)
             .values(row)
             .execute(&mut connection)?;
-        info!("printnanny_edge_db::cloud::Pi created {}", &updated);
+        info!("printnanny_edge_db::cloud::Pi created {}", &row);
         Ok(())
     }
     pub fn update(pi_id: i32, changeset: UpdatePi) -> Result<(), diesel::result::Error> {
@@ -135,7 +133,7 @@ impl Pi {
         let result = diesel::update(pis::table.filter(pis::id.eq(pi_id)))
             .set(changeset)
             .execute(&mut connection)?;
-        info!("printnanny_edge_db::cloud::Pi updated {}", &result);
+        info!("printnanny_edge_db::cloud::Pi with id={} updated", &result);
         Ok(())
     }
 }

@@ -5,7 +5,7 @@ use std::time::SystemTime;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
-use chrono;
+use chrono::prelude::*;
 use log::{error, info};
 use printnanny_settings::cam::CameraVideoSource;
 use serde::de::DeserializeOwned;
@@ -13,16 +13,17 @@ use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::printnanny_asyncapi_models;
 use printnanny_dbus::printnanny_asyncapi_models::{
-    CameraRecordingLoadReply, CamerasLoadReply, CrashReportOsLogsReply, CrashReportOsLogsRequest,
-    DeviceInfoLoadReply, PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest,
-    PrintNannyCloudSyncReply, SettingsApp, SettingsFile, SettingsFileApplyReply,
-    SettingsFileApplyRequest, SettingsFileLoadReply, SettingsFileRevertReply,
-    SettingsFileRevertRequest, SystemdManagerDisableUnitsReply, SystemdManagerEnableUnitsReply,
-    SystemdManagerGetUnitFileStateReply, SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest,
-    SystemdManagerRestartUnitReply, SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply,
-    SystemdManagerStartUnitRequest, SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest,
-    SystemdManagerUnitFilesRequest, SystemdUnitChange, SystemdUnitChangeState,
-    SystemdUnitFileState, VideoStreamSettings,
+    CameraRecordingLoadReply, CameraRecordingStarted, CameraRecordingStopped, CamerasLoadReply,
+    CrashReportOsLogsReply, CrashReportOsLogsRequest, DeviceInfoLoadReply,
+    PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, PrintNannyCloudSyncReply, SettingsApp,
+    SettingsFile, SettingsFileApplyReply, SettingsFileApplyRequest, SettingsFileLoadReply,
+    SettingsFileRevertReply, SettingsFileRevertRequest, SystemdManagerDisableUnitsReply,
+    SystemdManagerEnableUnitsReply, SystemdManagerGetUnitFileStateReply,
+    SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
+    SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
+    SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdManagerUnitFilesRequest,
+    SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState, VideoRecording,
+    VideoStreamSettings,
 };
 
 use printnanny_dbus::zbus;
@@ -54,6 +55,14 @@ pub enum NatsRequest {
     // pi.{pi_id}.command.camera.recording.load
     #[serde(rename = "pi.{pi_id}.command.camera.recording.load")]
     CameraRecordingLoadRequest,
+
+    // pi.{pi_id}.command.camera.recording.start
+    #[serde(rename = "pi.{pi_id}.command.camera.recording.start")]
+    CameraRecordingStartRequest,
+
+    // pi.{pi_id}.command.camera.recording.stop
+    #[serde(rename = "pi.{pi_id}.command.camera.recording.stop")]
+    CameraRecordingStopRequest,
 
     // pi.{pi_id}.cameras.load
     #[serde(rename = "pi.{pi_id}.cameras.load")]
@@ -111,6 +120,14 @@ pub enum NatsReply {
     // pi.{pi_id}.command.camera.recording.load
     #[serde(rename = "pi.{pi_id}.command.camera.recording.load")]
     CameraRecordingLoadReply(CameraRecordingLoadReply),
+
+    // pi.{pi_id}.command.camera.recording.start
+    #[serde(rename = "pi.{pi_id}.command.camera.recording.start")]
+    CameraRecordingStartReply(CameraRecordingStarted),
+
+    // pi.{pi_id}.command.camera.recording.stop
+    #[serde(rename = "pi.{pi_id}.command.camera.recording.stop")]
+    CameraRecordingStopReply(CameraRecordingStopped),
 
     // pi.{pi_id}.cameras.load
     #[serde(rename = "pi.{pi_id}.cameras.load")]
@@ -175,6 +192,68 @@ impl NatsRequest {
             CameraRecordingLoadReply {
                 recordings,
                 current,
+            },
+        ))
+    }
+
+    pub async fn handle_camera_recording_start(&self) -> Result<NatsReply> {
+        let recording = printnanny_edge_db::video_recording::VideoRecording::start_new()?;
+        let factory = PrintNannyPipelineFactory::default();
+        factory
+            .start_video_recording_pipeline(&recording.mp4_file_name)
+            .await?;
+        let now = Utc::now();
+        let update = printnanny_edge_db::video_recording::UpdateVideoRecording {
+            recording_status: Some("inprogress"),
+            recording_start: Some(&now),
+            gcode_file_name: None,
+            recording_end: None,
+            mp4_upload_url: None,
+            mp4_download_url: None,
+            cloud_sync_status: None,
+            cloud_sync_start: None,
+            cloud_sync_end: None,
+        };
+        printnanny_edge_db::video_recording::VideoRecording::update(&recording.id, update)?;
+        let recording =
+            printnanny_edge_db::video_recording::VideoRecording::get_by_id(&recording.id)?;
+
+        Ok(NatsReply::CameraRecordingStartReply(
+            CameraRecordingStarted {
+                recording: Box::new(recording.into()),
+            },
+        ))
+    }
+
+    pub async fn handle_camera_recording_stop(&self) -> Result<NatsReply> {
+        let recording = printnanny_edge_db::video_recording::VideoRecording::get_current()?;
+        let factory = PrintNannyPipelineFactory::default();
+        factory.stop_video_recording_pipeline().await?;
+
+        let recording = match recording {
+            Some(recording) => {
+                let now = Utc::now();
+                let update = printnanny_edge_db::video_recording::UpdateVideoRecording {
+                    recording_status: Some("done"),
+                    recording_end: Some(&now),
+                    recording_start: None,
+                    gcode_file_name: None,
+                    mp4_upload_url: None,
+                    mp4_download_url: None,
+                    cloud_sync_status: None,
+                    cloud_sync_start: None,
+                    cloud_sync_end: None,
+                };
+                printnanny_edge_db::video_recording::VideoRecording::update(&recording.id, update)?;
+                let recording =
+                    printnanny_edge_db::video_recording::VideoRecording::get_by_id(&recording.id)?;
+                Some(recording)
+            }
+            None => None,
+        };
+        Ok(NatsReply::CameraRecordingStopReply(
+            CameraRecordingStopped {
+                recording: recording.map(|v| Box::new(v.into())),
             },
         ))
     }
@@ -732,6 +811,12 @@ impl NatsRequestHandler for NatsRequest {
 
     fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Request> {
         match subject_pattern {
+            "pi.{pi_id}.command.camera.recording.start" => {
+                Ok(NatsRequest::CameraRecordingStartRequest)
+            }
+            "pi.{pi_id}.command.camera.recording.stop" => {
+                Ok(NatsRequest::CameraRecordingStopRequest)
+            }
             "pi.{pi_id}.command.camera.recording.load" => {
                 Ok(NatsRequest::CameraRecordingLoadRequest)
             }
@@ -801,6 +886,12 @@ impl NatsRequestHandler for NatsRequest {
 
     async fn handle(&self) -> Result<Self::Reply> {
         let reply = match self {
+            // pi.{pi_id}.command.camera.recording.start
+            NatsRequest::CameraRecordingStartRequest => {
+                self.handle_camera_recording_start().await?
+            }
+            // pi.{pi_id}.command.camera.recording.stop
+            NatsRequest::CameraRecordingStopRequest => self.handle_camera_recording_stop().await?,
             // pi.{pi_id}.command.camera.recording.load
             NatsRequest::CameraRecordingLoadRequest => self.handle_camera_recording_load().await?,
             // pi.{pi_id}.command.cloud.sync
