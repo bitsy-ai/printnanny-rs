@@ -22,18 +22,27 @@ struct VideoUploadProgress {
 
 impl VideoUploadProgress {
 
+    pub fn start(&self) -> Result<()> {
+        video_recording::VideoRecording::start_cloud_sync(&self.id)?;
+        Ok(())
+    }
 
-    pub fn tick(&mut self, chunk){
+
+    pub fn tick(&mut self, chunk) -> Result<()> {
         let uploaded = min(self.uploaded + (chunk.len() as u64), self.total_size);
         self.uploaded = uploaded;
         
         let current_percent = self.total_size / uploaded;
         if self.last_percent - current_percent >= self.interval {
-            video_recording::VideoRecording::set_cloud_sync_progress(&self.id, &current_percent);
+            video_recording::VideoRecording::set_cloud_sync_progress(&self.id, &current_percent)?;
             info!("VideoUploadProgress id={} percent={}", &self.id, &current_percent);
-            self.last_percent = current_percent
+            self.last_percent = current_percent;
         }
+        Ok(())
+    }
 
+    pub fn finish(&self) -> Result<()> {
+        video_recording::VideoRecording::finish_cloud_sync(&self.id)
     }
 }
 
@@ -55,9 +64,7 @@ pub async fn upload_video_recording(src_id: String, src_file: &str, upload_url: 
     let async_stream = async_stream::stream! {
         while let Some(chunk) = byte_stream.next().await {
             if let Ok(chunk) = &chunk {
-                let new = min(uploaded + (chunk.len() as u64), total_size);
-                uploaded = new;
-                pb.set_position(new);
+                progress.tick(chunk)
             }
             yield chunk;
         }

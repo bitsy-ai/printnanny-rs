@@ -21,7 +21,7 @@ pub struct VideoRecording {
     pub mp4_download_url: Option<String>,
     pub gcode_file_name: Option<String>,
     pub cloud_sync_status: String,
-    pub cloud_sync_percent: Option<u32>,
+    pub cloud_sync_percent: Option<i32>,
     pub cloud_sync_start: Option<DateTime<Utc>>,
     pub cloud_sync_end: Option<DateTime<Utc>>,
 }
@@ -46,7 +46,7 @@ pub struct UpdateVideoRecording<'a> {
     pub mp4_upload_url: Option<&'a str>,
     pub mp4_download_url: Option<&'a str>,
     pub cloud_sync_status: Option<&'a str>,
-    pub cloud_sync_percent: Option<u32>,
+    pub cloud_sync_percent: Option<&'a i32>,
     pub cloud_sync_start: Option<DateTime<Utc>>,
     pub cloud_sync_end: Option<DateTime<Utc>>,
 }
@@ -103,9 +103,30 @@ impl VideoRecording {
         Ok(result)
     }
 
-    pub fn set_cloud_sync_progress(&self, row_id: &str, progress: &i32) -> Result<(), diesel::result::Error {
-        let row =  UpdateVideoRecording { 
-            cloud_sync_percent: progress,
+    pub fn start_cloud_sync(row_id: &str) -> Result<(), diesel::result::Error> {
+        let now = Utc::now();
+        let row = UpdateVideoRecording {
+            cloud_sync_start: Some(now),
+            cloud_sync_status: Some("inprogress"),
+            cloud_sync_percent: None,
+            gcode_file_name: None,
+            recording_status: None,
+            recording_start: None,
+            recording_end: None,
+            mp4_upload_url: None,
+            mp4_download_url: None,
+            cloud_sync_end: None,
+        };
+        Self::update(row_id, row)
+    }
+
+    pub fn set_cloud_sync_progress(
+        &self,
+        row_id: &str,
+        progress: &i32,
+    ) -> Result<(), diesel::result::Error> {
+        let row = UpdateVideoRecording {
+            cloud_sync_percent: Some(progress),
             gcode_file_name: None,
             recording_status: None,
             recording_start: None,
@@ -113,11 +134,26 @@ impl VideoRecording {
             mp4_upload_url: None,
             mp4_download_url: None,
             cloud_sync_status: None,
-            cloud_sync_percent: None,
             cloud_sync_start: None,
-            cloud_sync_end: None
+            cloud_sync_end: None,
         };
-        Self::update(row_id, &row)
+        Self::update(row_id, row)
+    }
+
+    pub fn finish_cloud_sync_progress(&self, row_id: &str) -> Result<(), diesel::result::Error> {
+        let row = UpdateVideoRecording {
+            cloud_sync_percent: Some(&100),
+            cloud_sync_status: None,
+            gcode_file_name: None,
+            recording_status: None,
+            recording_start: None,
+            recording_end: None,
+            mp4_upload_url: None,
+            mp4_download_url: None,
+            cloud_sync_start: None,
+            cloud_sync_end: None,
+        };
+        Self::update(row_id, row)
     }
 
     pub fn stop_all() -> Result<(), diesel::result::Error> {
