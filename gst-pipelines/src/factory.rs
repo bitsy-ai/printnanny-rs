@@ -160,7 +160,7 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=false \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=false format=3 \
             ! rtph264pay config-interval=1 aggregate-mode=zero-latency pt=96 \
             ! udpsink port={port}");
         self.make_pipeline(pipeline_name, &description).await
@@ -200,7 +200,7 @@ impl PrintNannyPipelineFactory {
         tensor_width: i32,
         tensor_height: i32,
         tflite_model_file: &str,
-        camera: &CameraSettings
+        camera: &CameraSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
@@ -404,7 +404,7 @@ impl PrintNannyPipelineFactory {
                 detection_settings.tensor_width,
                 detection_settings.tensor_height,
                 &detection_settings.model_file,
-                &camera
+                &camera,
             )
             .await?;
 
