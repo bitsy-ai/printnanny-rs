@@ -23,6 +23,7 @@ use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::apis::crash_reports_api;
 use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::octoprint_api;
+use printnanny_api_client::apis::videos_api;
 use printnanny_api_client::models;
 
 use crate::cpuinfo::RpiCpuInfo;
@@ -375,6 +376,54 @@ impl ApiService {
         )
         .await?;
         Ok(res)
+    }
+
+    pub async fn video_recording_update_or_create(
+        &self,
+        obj: printnanny_edge_db::video_recording::VideoRecording,
+    ) -> Result<models::VideoRecording, ServiceError> {
+        let recording_status = match obj.recording_status.as_ref() {
+            "done" => models::RecordingStatusEnum::Done,
+            "progress" => models::RecordingStatusEnum::Inprogress,
+            "pending" => models::RecordingStatusEnum::Pending,
+            _ => unimplemented!(),
+        };
+
+        let cloud_sync_status = match obj.cloud_sync_status.as_ref() {
+            "done" => models::CloudSyncStatusEnum::Done,
+            "progress" => models::CloudSyncStatusEnum::Inprogress,
+            "pending" => models::CloudSyncStatusEnum::Pending,
+            _ => unimplemented!(),
+        };
+
+        let result = videos_api::video_recordings_update_or_create(
+            &self.reqwest_config(),
+            Some(&obj.id),
+            obj.recording_start,
+            obj.recording_end,
+            Some(recording_status),
+            obj.cloud_sync_start,
+            obj.cloud_sync_end,
+            Some(cloud_sync_status),
+            obj.gcode_file_name.map(|v| v.to_string()),
+            None,
+        )
+        .await?;
+        // save result locally
+        let row = printnanny_edge_db::video_recording::UpdateVideoRecording {
+            mp4_upload_url: obj.mp4_upload_url.map(|v| v.as_ref()),
+            gcode_file_name: None,
+            recording_status: None,
+            recording_start: None,
+            recording_end: None,
+            mp4_download_url: None,
+            cloud_sync_status: None,
+            cloud_sync_start: None,
+            cloud_sync_percent: None,
+            cloud_sync_end: None,
+        };
+        printnanny_edge_db::video_recording::VideoRecording::update(&obj.id, row)?;
+        Ok(result)
     }
 
     // read <models::<T>>.json from disk cache @ /var/run/printnanny

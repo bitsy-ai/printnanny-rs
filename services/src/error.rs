@@ -7,6 +7,7 @@ use printnanny_api_client::apis::accounts_api;
 use printnanny_api_client::apis::crash_reports_api;
 use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::octoprint_api;
+use printnanny_api_client::apis::videos_api;
 use printnanny_api_client::apis::Error as ApiError;
 
 use printnanny_settings::figment;
@@ -14,6 +15,20 @@ use printnanny_settings::sys_info;
 use printnanny_settings::toml;
 
 use printnanny_settings::error::{PrintNannySettingsError, VersionControlledSettingsError};
+
+#[derive(Error, Debug)]
+pub enum VideoRecordingSyncError {
+    #[error("mp4 upload url was not set for VideoRecording with id={id} file_name={file_name}")]
+    UploadUrlNotSet { id: String, file_name: String },
+    #[error(transparent)]
+    ReqwestError(#[from] reqwest::Error),
+
+    #[error(transparent)]
+    SqliteDBError(#[from] diesel::result::Error),
+
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+}
 
 #[derive(Error, Debug)]
 pub enum PrintNannyCamSettingsError {
@@ -80,6 +95,11 @@ pub enum ServiceError {
 
     #[error(transparent)]
     UserRetrieveError(#[from] ApiError<accounts_api::AccountsUserRetrieveError>),
+
+    #[error(transparent)]
+    VideoRecordingsUpdateOrCreateError(
+        #[from] ApiError<videos_api::VideoRecordingsUpdateOrCreateError>,
+    ),
 
     #[error(transparent)]
     Accounts2faAuthTokenCreateError(

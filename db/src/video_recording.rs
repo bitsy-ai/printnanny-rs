@@ -4,6 +4,7 @@ use log::info;
 use printnanny_settings::printnanny::PrintNannySettings;
 use uuid;
 
+use printnanny_api_client::models;
 use printnanny_asyncapi_models;
 
 use crate::connection::establish_sqlite_connection;
@@ -47,8 +48,8 @@ pub struct UpdateVideoRecording<'a> {
     pub mp4_download_url: Option<&'a str>,
     pub cloud_sync_status: Option<&'a str>,
     pub cloud_sync_percent: Option<&'a i32>,
-    pub cloud_sync_start: Option<DateTime<Utc>>,
-    pub cloud_sync_end: Option<DateTime<Utc>>,
+    pub cloud_sync_start: Option<&'a DateTime<Utc>>,
+    pub cloud_sync_end: Option<&'a DateTime<Utc>>,
 }
 
 impl VideoRecording {
@@ -106,7 +107,7 @@ impl VideoRecording {
     pub fn start_cloud_sync(row_id: &str) -> Result<(), diesel::result::Error> {
         let now = Utc::now();
         let row = UpdateVideoRecording {
-            cloud_sync_start: Some(now),
+            cloud_sync_start: Some(&now),
             cloud_sync_status: Some("inprogress"),
             cloud_sync_percent: None,
             gcode_file_name: None,
@@ -121,7 +122,6 @@ impl VideoRecording {
     }
 
     pub fn set_cloud_sync_progress(
-        &self,
         row_id: &str,
         progress: &i32,
     ) -> Result<(), diesel::result::Error> {
@@ -140,9 +140,11 @@ impl VideoRecording {
         Self::update(row_id, row)
     }
 
-    pub fn finish_cloud_sync_progress(&self, row_id: &str) -> Result<(), diesel::result::Error> {
+    pub fn finish_cloud_sync(row_id: &str) -> Result<(), diesel::result::Error> {
+        let now = Utc::now();
         let row = UpdateVideoRecording {
             cloud_sync_percent: Some(&100),
+            cloud_sync_end: Some(&now),
             cloud_sync_status: None,
             gcode_file_name: None,
             recording_status: None,
@@ -151,7 +153,6 @@ impl VideoRecording {
             mp4_upload_url: None,
             mp4_download_url: None,
             cloud_sync_start: None,
-            cloud_sync_end: None,
         };
         Self::update(row_id, row)
     }
