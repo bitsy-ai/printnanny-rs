@@ -378,40 +378,99 @@ impl ApiService {
         Ok(res)
     }
 
-    pub async fn video_recording_update_or_create(
+    pub async fn video_recordings_partial_update(
         &self,
-        obj: printnanny_edge_db::video_recording::VideoRecording,
+        obj: &printnanny_edge_db::video_recording::VideoRecording,
     ) -> Result<models::VideoRecording, ServiceError> {
+        let id = Some(obj.id.as_str());
+        let recording_start = obj.recording_start.map(|v| v.to_rfc3339());
+        let recording_end = obj.recording_end.map(|v| v.to_rfc3339());
+        let cloud_sync_start = obj.cloud_sync_start.map(|v| v.to_rfc3339());
+        let cloud_sync_end = obj.cloud_sync_end.map(|v| v.to_rfc3339());
+        let gcode_file_name = obj.gcode_file_name.as_ref().map(|v| v.as_str());
         let recording_status = match obj.recording_status.as_ref() {
-            "done" => models::RecordingStatusEnum::Done,
-            "progress" => models::RecordingStatusEnum::Inprogress,
-            "pending" => models::RecordingStatusEnum::Pending,
-            _ => unimplemented!(),
+            "done" => Some(models::RecordingStatusEnum::Done),
+            "progress" => Some(models::RecordingStatusEnum::Inprogress),
+            "pending" => Some(models::RecordingStatusEnum::Pending),
+            _ => None,
         };
 
         let cloud_sync_status = match obj.cloud_sync_status.as_ref() {
-            "done" => models::CloudSyncStatusEnum::Done,
-            "progress" => models::CloudSyncStatusEnum::Inprogress,
-            "pending" => models::CloudSyncStatusEnum::Pending,
-            _ => unimplemented!(),
+            "done" => Some(models::CloudSyncStatusEnum::Done),
+            "progress" => Some(models::CloudSyncStatusEnum::Inprogress),
+            "pending" => Some(models::CloudSyncStatusEnum::Pending),
+            _ => None,
         };
-
         let result = videos_api::video_recordings_update_or_create(
             &self.reqwest_config(),
-            Some(&obj.id),
-            obj.recording_start,
-            obj.recording_end,
-            Some(recording_status),
-            obj.cloud_sync_start,
-            obj.cloud_sync_end,
-            Some(cloud_sync_status),
-            obj.gcode_file_name.map(|v| v.to_string()),
+            id,
+            recording_start,
+            recording_end,
+            recording_status,
+            cloud_sync_start,
+            cloud_sync_end,
+            cloud_sync_status,
+            gcode_file_name,
             None,
         )
         .await?;
         // save result locally
         let row = printnanny_edge_db::video_recording::UpdateVideoRecording {
-            mp4_upload_url: obj.mp4_upload_url.map(|v| v.as_ref()),
+            mp4_upload_url: Some(&result.mp4_upload_url),
+            gcode_file_name: None,
+            recording_status: None,
+            recording_start: None,
+            recording_end: None,
+            mp4_download_url: None,
+            cloud_sync_status: None,
+            cloud_sync_start: None,
+            cloud_sync_percent: None,
+            cloud_sync_end: None,
+        };
+        printnanny_edge_db::video_recording::VideoRecording::update(&obj.id, row)?;
+        Ok(result)
+    }
+
+    pub async fn video_recording_update_or_create(
+        &self,
+        obj: &printnanny_edge_db::video_recording::VideoRecording,
+    ) -> Result<models::VideoRecording, ServiceError> {
+        let id = Some(obj.id.as_str());
+        let recording_start = obj.recording_start.map(|v| v.to_rfc3339());
+        let recording_end = obj.recording_end.map(|v| v.to_rfc3339());
+        let cloud_sync_start = obj.cloud_sync_start.map(|v| v.to_rfc3339());
+        let cloud_sync_end = obj.cloud_sync_end.map(|v| v.to_rfc3339());
+        let gcode_file_name = obj.gcode_file_name.as_ref().map(|v| v.as_str());
+        let recording_status = match obj.recording_status.as_ref() {
+            "done" => Some(models::RecordingStatusEnum::Done),
+            "progress" => Some(models::RecordingStatusEnum::Inprogress),
+            "pending" => Some(models::RecordingStatusEnum::Pending),
+            _ => None,
+        };
+
+        let cloud_sync_status = match obj.cloud_sync_status.as_ref() {
+            "done" => Some(models::CloudSyncStatusEnum::Done),
+            "progress" => Some(models::CloudSyncStatusEnum::Inprogress),
+            "pending" => Some(models::CloudSyncStatusEnum::Pending),
+            _ => None,
+        };
+
+        let result = videos_api::video_recordings_update_or_create(
+            &self.reqwest_config(),
+            id,
+            recording_start,
+            recording_end,
+            recording_status,
+            cloud_sync_start,
+            cloud_sync_end,
+            cloud_sync_status,
+            gcode_file_name,
+            None,
+        )
+        .await?;
+        // save result locally
+        let row = printnanny_edge_db::video_recording::UpdateVideoRecording {
+            mp4_upload_url: Some(&result.mp4_upload_url),
             gcode_file_name: None,
             recording_status: None,
             recording_start: None,
