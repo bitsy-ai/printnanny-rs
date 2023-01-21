@@ -92,7 +92,7 @@ impl PrintNannyPipelineFactory {
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
             ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate}/1,format={format},colorimetry={colorimetry} \
-            ! interpipesink name={interpipesink} sync=false",
+            ! interpipesink name={interpipesink} sync=true async=false caps=video/x-raw,width={width},height={height},framerate={framerate}/1,format={format},colorimetry={colorimetry}",
             camera_name=camera.device_name,
             width=camera.width,
             height=camera.height,
