@@ -1,25 +1,22 @@
 use std::cmp::min;
 
 use futures::stream::StreamExt;
-use printnanny_settings::git2::transport::Service;
 use reqwest::Body;
 use tokio::fs::File;
 
 use tokio::task::JoinSet;
 use tokio_util::codec::{BytesCodec, FramedRead};
 
-use log::{error, info, warn};
+use log::{error, info};
 
 use crate::error::{ServiceError, VideoRecordingSyncError};
 use crate::printnanny_api::ApiService;
 
 use printnanny_api_client::models;
-use printnanny_edge_db::diesel;
 use printnanny_edge_db::video_recording;
 
 struct VideoUploadProgress {
     id: String,
-    total_size: u64,
     uploaded: u64,
     last_percent: u64,
     interval: u64,
@@ -33,7 +30,7 @@ fn progress_tick(
     last_emitted_percent: u64,
     interval: u64,
 ) -> (u64, u64) {
-    let uploaded = min((uploaded + chunk_size), total_size);
+    let uploaded = min(uploaded + chunk_size, total_size);
 
     let current_percent = total_size / uploaded;
     if current_percent - last_emitted_percent >= interval {
@@ -56,7 +53,7 @@ impl VideoUploadProgress {
         video_recording::VideoRecording::start_cloud_sync(&self.id)?;
         let row = video_recording::VideoRecording::get_by_id(&self.id)?;
         let api_service = ApiService::new()?;
-        api_service.video_recordings_partial_update(&row).await;
+        api_service.video_recordings_partial_update(&row).await?;
         Ok(())
     }
 
@@ -154,6 +151,7 @@ pub async fn upload_video_recording(
         .body(body)
         .send()
         .await?;
+    info!("upload_video_recording response: {:#?}", res);
     let row = video_recording::VideoRecording::get_by_id(&video_recording.id)?;
     Ok(row)
 }

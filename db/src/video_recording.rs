@@ -4,7 +4,6 @@ use log::info;
 use printnanny_settings::printnanny::PrintNannySettings;
 use uuid;
 
-use printnanny_api_client::models;
 use printnanny_asyncapi_models;
 
 use crate::connection::establish_sqlite_connection;
