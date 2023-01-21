@@ -452,7 +452,7 @@ impl Default for VideoStreamSettings {
         });
 
         let snapshot = Box::new(printnanny_asyncapi_models::SnapshotSettings {
-            path: "/var/run/printnanny-snapshot/%d.jpg".into(),
+            path: "/var/run/printnanny-snapshot/snapshot.jpg".into(),
             enabled: true,
         });
 
