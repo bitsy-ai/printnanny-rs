@@ -113,8 +113,7 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let colorimetry = "bt709";
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=false max-buffers=2 leaky-type=2 \
-            ! capsfilter caps=video/x-raw,width={width},height={height},format={format},colorimetry={colorimetry},framerate={framerate}/1 \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=false max-buffers=2 leaky-type=2 caps=video/x-raw,width={width},height={height},format={format},colorimetry={colorimetry},framerate={framerate}/1\
             ! v4l2jpegenc ! multifilesink max-files=2 location={filesink_location}",
             width=camera.width,
             height=camera.height,
@@ -136,8 +135,7 @@ impl PrintNannyPipelineFactory {
 
         let colorimetry = "bt709";
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=false  \
-            ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate}/1,format={format},colorimetry={colorimetry} \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=false caps=video/x-raw,width={width},height={height},framerate={framerate}/1,format={format},colorimetry={colorimetry} \
             ! v4l2convert \
             ! v4l2h264enc min-force-key-unit-interval={framerate} extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
@@ -209,8 +207,7 @@ impl PrintNannyPipelineFactory {
         let tensor_format = "RGB"; // model expects pixel data to be in RGB format
         let colorimetry = "bt709";
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false max-buffers=2 leaky-type=2 \
-            ! capsfilter caps=video/x-raw,width={width},height={height},format={format},colorimetry={colorimetry} \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false max-buffers=2 leaky-type=2 caps=video/x-raw,width={width},height={height},format={format},colorimetry={colorimetry} \
             ! videoconvert ! videoscale ! videorate ! capsfilter caps=video/x-raw,format={tensor_format},width={tensor_width},height={tensor_height},framerate=0/1 \
             ! tensor_converter \
             ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1 \
