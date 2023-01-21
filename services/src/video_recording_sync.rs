@@ -102,7 +102,6 @@ pub async fn upload_video_recording(
     let mut byte_stream = FramedRead::new(file, BytesCodec::new());
     let mut progress = VideoUploadProgress {
         id: video_recording.id.clone(),
-        total_size,
         uploaded: 0,
         last_percent: 0,
         interval: 2, // log progress every 2%
