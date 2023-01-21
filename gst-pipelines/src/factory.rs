@@ -118,7 +118,6 @@ impl PrintNannyPipelineFactory {
             width=camera.width,
             height=camera.height,
             format=camera.format,
-            framerate=camera.framerate
         );
         self.make_pipeline(pipeline_name, &description).await
     }
