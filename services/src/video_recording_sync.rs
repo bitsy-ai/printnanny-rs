@@ -80,10 +80,10 @@ impl VideoUploadProgress {
     // }
 
     pub async fn finish(&self) -> Result<(), ServiceError> {
-        video_recording::VideoRecording::finish_cloud_sync(&self.id);
+        video_recording::VideoRecording::finish_cloud_sync(&self.id)?;
         let row = video_recording::VideoRecording::get_by_id(&self.id)?;
         let api_service = ApiService::new()?;
-        api_service.video_recordings_partial_update(&row).await;
+        api_service.video_recordings_partial_update(&row).await?;
         Ok(())
     }
 }

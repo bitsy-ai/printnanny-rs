@@ -34,7 +34,6 @@ impl CameraCommand {
         match args.subcommand() {
             Some(("list", args)) => Self::list(args),
             Some(("start-pipelines", args)) => Self::start_pipelines(args).await,
-
             _ => unimplemented!(),
         }
     }
