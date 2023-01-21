@@ -427,18 +427,6 @@ impl PrintNannyPipelineFactory {
             )
             .await?;
 
-        if snapshot_settings.enabled {
-            let snapshot_pipeline = self
-                .make_jpeg_snapshot_pipeline(
-                    SNAPSHOT_PIPELINE,
-                    CAMERA_PIPELINE,
-                    &snapshot_settings.path,
-                    &camera,
-                )
-                .await?;
-            snapshot_pipeline.play().await?;
-        }
-
         camera_pipeline.pause().await?;
         h264_pipeline.pause().await?;
         rtp_pipeline.pause().await?;
@@ -458,6 +446,19 @@ impl PrintNannyPipelineFactory {
                 .await?;
             hls_pipeline.pause().await?;
             hls_pipeline.play().await?;
+        }
+
+        if snapshot_settings.enabled {
+            let snapshot_pipeline = self
+                .make_jpeg_snapshot_pipeline(
+                    SNAPSHOT_PIPELINE,
+                    CAMERA_PIPELINE,
+                    &snapshot_settings.path,
+                    &camera,
+                )
+                .await?;
+            snapshot_pipeline.pause().await?;
+            snapshot_pipeline.play().await?;
         }
 
         camera_pipeline.play().await?;
