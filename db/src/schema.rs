@@ -82,6 +82,7 @@ diesel::table! {
         mp4_download_url -> Nullable<Text>,
         gcode_file_name -> Nullable<Text>,
         cloud_sync_status -> Text,
+        cloud_sync_percent -> Nullable<Integer>,
         cloud_sync_start -> Nullable<TimestamptzSqlite>,
         cloud_sync_end -> Nullable<TimestamptzSqlite>,
     }

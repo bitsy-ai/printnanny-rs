@@ -22,8 +22,7 @@ use printnanny_dbus::printnanny_asyncapi_models::{
     SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
     SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
     SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdManagerUnitFilesRequest,
-    SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState, VideoRecording,
-    VideoStreamSettings,
+    SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState, VideoStreamSettings,
 };
 
 use printnanny_dbus::zbus;
@@ -210,6 +209,7 @@ impl NatsRequest {
             recording_end: None,
             mp4_upload_url: None,
             mp4_download_url: None,
+            cloud_sync_percent: None,
             cloud_sync_status: None,
             cloud_sync_start: None,
             cloud_sync_end: None,
@@ -240,6 +240,7 @@ impl NatsRequest {
                     gcode_file_name: None,
                     mp4_upload_url: None,
                     mp4_download_url: None,
+                    cloud_sync_percent: None,
                     cloud_sync_status: None,
                     cloud_sync_start: None,
                     cloud_sync_end: None,
