@@ -1,4 +1,5 @@
 use gst_client::reqwest;
+use gst_client::resources::PipelineElement;
 use gst_client::GstClient;
 use log::{error, info};
 
@@ -289,12 +290,13 @@ impl PrintNannyPipelineFactory {
         pipeline_name: &str,
         listen_to: &str,
         filename: &str,
+        filesink_name: &str,
     ) -> Result<gst_client::resources::Pipeline> {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false \
-            ! mp4mux ! filesink location={filename}");
+            ! mp4mux ! filesink location={filename} name={filesink_name}");
         self.make_pipeline(pipeline_name, &description).await
     }
 
@@ -358,9 +360,21 @@ impl PrintNannyPipelineFactory {
     }
 
     pub async fn start_video_recording_pipeline(&self, filename: &str) -> Result<()> {
+        let filesink_element_name = "mp4_filesink";
         let pipeline = self
-            .make_mp4_filesink_pipeline(MP4_PIPELINE, H264_PIPELINE, filename)
+            .make_mp4_filesink_pipeline(
+                MP4_PIPELINE,
+                H264_PIPELINE,
+                filename,
+                filesink_element_name,
+            )
             .await?;
+
+        // if pipeline was already created, ensure location property is set to filename
+        let filesink_element = PipelineElement::new(filesink_element_name, &pipeline);
+        filesink_element.set_property("location", filename).await?;
+        info!("Updated Gstreamer element name={filesink_element_name} with property location={filename}");
+
         pipeline.pause().await?;
         pipeline.play().await?;
         Ok(())
