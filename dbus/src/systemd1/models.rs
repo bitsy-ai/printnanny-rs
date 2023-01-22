@@ -5,6 +5,9 @@ use zbus_systemd::systemd1::UnitProxy;
 
 use crate::error::SystemdError;
 use printnanny_asyncapi_models;
+
+pub const PRINTNANNY_RECORDING_SERVICE_TEMPLATE: &str = "printnanny-recording-sync@";
+
 /// State value that reflects whether the configuration file of this unit has been loaded
 /// https://www.freedesktop.org/wiki/Software/systemd/dbus/ LoadState property
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]

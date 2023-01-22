@@ -6,7 +6,7 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
 use chrono::prelude::*;
-use log::{error, info};
+use log::{error, info, warn};
 use printnanny_settings::cam::CameraVideoSource;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -24,6 +24,7 @@ use printnanny_dbus::printnanny_asyncapi_models::{
     SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdManagerUnitFilesRequest,
     SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState, VideoStreamSettings,
 };
+use printnanny_dbus::systemd1::models::PRINTNANNY_RECORDING_SERVICE_TEMPLATE;
 
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
@@ -228,7 +229,52 @@ impl NatsRequest {
     pub async fn handle_camera_recording_stop(&self) -> Result<NatsReply> {
         let recording = printnanny_edge_db::video_recording::VideoRecording::get_current()?;
         let factory = PrintNannyPipelineFactory::default();
+
+        // send EOS signal to gstreamer
         factory.stop_video_recording_pipeline().await?;
+
+        // start cloud sync service
+        let settings = PrintNannySettings::new()?;
+        if settings.video_stream.recording.cloud_sync {
+            match &recording {
+                Some(recording) => {
+                    let connection = zbus::Connection::system().await?;
+                    let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
+                    let unit_name = format!(
+                        "{PRINTNANNY_RECORDING_SERVICE_TEMPLATE}{}.service",
+                        recording.id
+                    );
+                    info!("Attempting to start {}", &unit_name);
+                    // ref: https://www.freedesktop.org/wiki/Software/systemd/dbus/
+                    // StartUnit() enqeues a start job, and possibly depending jobs. Takes the unit to activate, plus a mode string.
+                    // The mode needs to be one of replace, fail, isolate, ignore-dependencies, ignore-requirements.
+                    // If "replace" the call will start the unit and its dependencies, possibly replacing already queued jobs that conflict with this.
+                    // If "fail" the call will start the unit and its dependencies, but will fail if this would change an already queued job.
+                    // If "isolate" the call will start the unit in question and terminate all units that aren't dependencies of it.
+                    // If "ignore-dependencies" it will start a unit but ignore all its dependencies.
+                    // If "ignore-requirements" it will start a unit but only ignore the requirement dependencies.
+                    // It is not recommended to make use of the latter two options. Returns the newly created job object.
+                    let job = proxy.start_unit(unit_name.to_string(), "fail".into()).await; // "fail"
+                    match job {
+                        Ok(job) => {
+                            info!(
+                                "Success, submitted StartUnit job={} for unit={}",
+                                &job, &unit_name
+                            );
+                        }
+                        Err(e) => {
+                            error!(
+                                "Error submitting StartUnit job for {} error={}",
+                                &unit_name, e
+                            );
+                        }
+                    }
+                }
+                None => {
+                    warn!("handle_camera_recording_stop called, but no active recording was found. You may need to manually run `printnanny cloud sync-video-recordings` to backup recording to PrintNanny Cloud.");
+                }
+            }
+        }
 
         let recording = match recording {
             Some(recording) => {
