@@ -1,5 +1,4 @@
 use gst_client::reqwest;
-use gst_client::resources::PipelineElement;
 use gst_client::GstClient;
 use log::{error, info};
 
