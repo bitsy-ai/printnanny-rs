@@ -294,8 +294,7 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false \
-            ! mp4mux ! filesink location={filename}
-        ");
+            ! mp4mux ! filesink location={filename}");
         self.make_pipeline(pipeline_name, &description).await
     }
 
