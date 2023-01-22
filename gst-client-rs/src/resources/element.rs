@@ -18,7 +18,7 @@ pub struct PipelineElement {
 }
 
 impl PipelineElement {
-    pub fn new<S: Into<String>>(name: S, pipeline: &Pipeline) -> Self {
+    pub(crate) fn new<S: Into<String>>(name: S, pipeline: &Pipeline) -> Self {
         Self {
             name: name.into(),
             client: pipeline.client.clone(),
