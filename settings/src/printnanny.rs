@@ -192,7 +192,7 @@ impl PrintNannySettings {
             // allow nested environment variables:
             // PRINTNANNY_SETTINGS_KEY__SUBKEY
             .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"));
-        info!("Finalized PrintNannySettings: \n {:?}", result);
+        debug!("Finalized PrintNannySettings: \n {:?}", result);
         Ok(result)
     }
 
