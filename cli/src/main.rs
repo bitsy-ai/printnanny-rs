@@ -165,7 +165,12 @@ async fn main() -> Result<()> {
                 .author(crate_authors!())
                 .about(crate_description!())
                 .version(GIT_VERSION)
-                .about("Sync local video recordings to PrintNanny Cloud")          
+                .about("Sync local video recordings to PrintNanny Cloud")
+                .arg(Arg::new("id")
+                .long("id")
+                .takes_value(true)
+                .required(false)
+                .help("Sync only recording with id"))     
             )
         )
         

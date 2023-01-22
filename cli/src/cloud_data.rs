@@ -1,6 +1,8 @@
 use printnanny_services::error::ServiceError;
 use printnanny_services::printnanny_api::ApiService;
-use printnanny_services::video_recording_sync::handle_sync_video_recordings;
+use printnanny_services::video_recording_sync::{
+    sync_all_video_recordings, sync_video_recording_by_id,
+};
 use std::io::{self, Write};
 
 use printnanny_edge_db::cloud::Pi;
@@ -14,7 +16,14 @@ impl CloudDataCommand {
                 let service = ApiService::new()?;
                 service.sync().await?;
             }
-            Some(("sync-video-recordings", _args)) => handle_sync_video_recordings().await?,
+            Some(("sync-video-recordings", args)) => {
+                let id = args.value_of("id");
+
+                match id {
+                    Some(id) => sync_video_recording_by_id(id).await?,
+                    None => sync_all_video_recordings().await?,
+                }
+            }
             Some(("show", _args)) => {
                 let pi = Pi::get()?;
                 let v = serde_json::to_vec_pretty(&pi)?;

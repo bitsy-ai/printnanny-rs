@@ -17,7 +17,21 @@ use printnanny_settings::toml;
 use printnanny_settings::error::{PrintNannySettingsError, VersionControlledSettingsError};
 
 #[derive(Error, Debug)]
+pub enum VideoRecordingUpdateOrCreateError {
+    #[error(transparent)]
+    SqliteDBError(#[from] diesel::result::Error),
+
+    #[error(transparent)]
+    VideoRecordingsUpdateOrCreateError(
+        #[from] ApiError<videos_api::VideoRecordingsUpdateOrCreateError>,
+    ),
+}
+
+#[derive(Error, Debug)]
 pub enum VideoRecordingSyncError {
+    #[error(transparent)]
+    PrintNannySettingsError(#[from] PrintNannySettingsError),
+
     #[error("mp4 upload url was not set for VideoRecording with id={id} file_name={file_name}")]
     UploadUrlNotSet { id: String, file_name: String },
     #[error(transparent)]
@@ -28,6 +42,9 @@ pub enum VideoRecordingSyncError {
 
     #[error(transparent)]
     IoError(#[from] std::io::Error),
+
+    #[error(transparent)]
+    VideoRecordingsUpdateOrCreateError(#[from] VideoRecordingUpdateOrCreateError),
 }
 
 #[derive(Error, Debug)]
@@ -97,11 +114,6 @@ pub enum ServiceError {
     UserRetrieveError(#[from] ApiError<accounts_api::AccountsUserRetrieveError>),
 
     #[error(transparent)]
-    VideoRecordingsUpdateOrCreateError(
-        #[from] ApiError<videos_api::VideoRecordingsUpdateOrCreateError>,
-    ),
-
-    #[error(transparent)]
     Accounts2faAuthTokenCreateError(
         #[from] ApiError<accounts_api::Accounts2faAuthTokenCreateError>,
     ),
@@ -109,6 +121,9 @@ pub enum ServiceError {
     Accounts2faAuthEmailCreateError(
         #[from] ApiError<accounts_api::Accounts2faAuthEmailCreateError>,
     ),
+
+    #[error(transparent)]
+    VideoRecordingSyncError(#[from] VideoRecordingSyncError),
 
     #[error(transparent)]
     Utf8Error(#[from] std::str::Utf8Error),
