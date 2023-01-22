@@ -259,7 +259,8 @@ impl NatsRequest {
                         Ok(job) => {
                             info!(
                                 "Success, submitted StartUnit job={} for unit={}",
-                                &job, &unit_name
+                                job.to_string(),
+                                &unit_name
                             );
                         }
                         Err(e) => {
