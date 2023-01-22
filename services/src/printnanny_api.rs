@@ -387,7 +387,7 @@ impl ApiService {
         let recording_end = obj.recording_end.map(|v| v.to_rfc3339());
         let cloud_sync_start = obj.cloud_sync_start.map(|v| v.to_rfc3339());
         let cloud_sync_end = obj.cloud_sync_end.map(|v| v.to_rfc3339());
-        let gcode_file_name = obj.gcode_file_name.as_ref().map(|v| v.as_str());
+        let gcode_file_name = obj.gcode_file_name.as_deref();
         let recording_status = match obj.recording_status.as_ref() {
             "done" => Some(models::RecordingStatusEnum::Done),
             "progress" => Some(models::RecordingStatusEnum::Inprogress),
@@ -440,7 +440,7 @@ impl ApiService {
         let recording_end = obj.recording_end.map(|v| v.to_rfc3339());
         let cloud_sync_start = obj.cloud_sync_start.map(|v| v.to_rfc3339());
         let cloud_sync_end = obj.cloud_sync_end.map(|v| v.to_rfc3339());
-        let gcode_file_name = obj.gcode_file_name.as_ref().map(|v| v.as_str());
+        let gcode_file_name = obj.gcode_file_name.as_deref();
         let recording_status = match obj.recording_status.as_ref() {
             "done" => Some(models::RecordingStatusEnum::Done),
             "progress" => Some(models::RecordingStatusEnum::Inprogress),

@@ -68,16 +68,13 @@ impl PrintNannyPipelineFactory {
             Err(e) => {
                 error!("Error creating pipeline name={} error={}", pipeline_name, e);
                 match e {
-                    gst_client::Error::BadStatus(code, ref body) => match code {
-                        reqwest::StatusCode::CONFLICT => {
-                            info!(
-                                "Pipeline with name={} already exists, body={:?}",
-                                pipeline_name, body
-                            );
-                            Ok(())
-                        }
-                        _ => Err(e),
-                    },
+                    gst_client::Error::BadStatus(reqwest::StatusCode::CONFLICT, ref body) => {
+                        info!(
+                            "Pipeline with name={} already exists, body={:?}",
+                            pipeline_name, body
+                        );
+                        Ok(())
+                    }
                     _ => Err(e),
                 }
             }

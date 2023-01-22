@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use figment::providers::{Env, Format, Serialized, Toml};
 use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
-use log::{debug, error, info};
+use log::{debug, error};
 use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::zbus;

@@ -4,6 +4,7 @@ use log::info;
 use printnanny_settings::printnanny::PrintNannySettings;
 use uuid;
 
+use printnanny_api_client::models;
 use printnanny_asyncapi_models;
 
 use crate::connection::establish_sqlite_connection;
@@ -52,6 +53,24 @@ pub struct UpdateVideoRecording<'a> {
 }
 
 impl VideoRecording {
+    pub fn to_openapi_recording_status(status: &str) -> Option<models::RecordingStatusEnum> {
+        match status {
+            "done" => Some(models::RecordingStatusEnum::Done),
+            "progress" => Some(models::RecordingStatusEnum::Inprogress),
+            "pending" => Some(models::RecordingStatusEnum::Pending),
+            _ => None,
+        }
+    }
+    pub fn to_asyncapi_recording_status(
+        status: &str,
+    ) -> Option<printnanny_asyncapi_models::VideoRecordingStatus> {
+        match status {
+            "done" => Some(printnanny_asyncapi_models::VideoRecordingStatus::Done),
+            "progress" => Some(printnanny_asyncapi_models::VideoRecordingStatus::Inprogress),
+            "pending" => Some(printnanny_asyncapi_models::VideoRecordingStatus::Pending),
+            _ => None,
+        }
+    }
     pub fn update(row_id: &str, row: UpdateVideoRecording) -> Result<(), diesel::result::Error> {
         use crate::schema::video_recordings::dsl::*;
         let connection = &mut establish_sqlite_connection();
@@ -192,26 +211,21 @@ impl VideoRecording {
 
 impl From<VideoRecording> for printnanny_asyncapi_models::VideoRecording {
     fn from(obj: VideoRecording) -> Self {
+        let recording_status =
+            VideoRecording::to_asyncapi_recording_status(&obj.recording_status).map(Box::new);
+        let cloud_sync_status =
+            VideoRecording::to_asyncapi_recording_status(&obj.cloud_sync_status).map(Box::new);
+
         Self {
             id: obj.id,
-            recording_status: Box::new(
-                serde_json::from_str::<printnanny_asyncapi_models::VideoRecordingStatus>(
-                    &obj.recording_status,
-                )
-                .unwrap(),
-            ),
+            recording_status,
             recording_start: obj.recording_start.map(|v| v.to_rfc3339()),
             recording_end: obj.recording_end.map(|v| v.to_rfc3339()),
             mp4_file_name: obj.mp4_file_name,
             mp4_upload_url: obj.mp4_upload_url,
             mp4_download_url: obj.mp4_download_url,
             gcode_file_name: obj.gcode_file_name,
-            cloud_sync_status: Box::new(
-                serde_json::from_str::<printnanny_asyncapi_models::VideoRecordingStatus>(
-                    &obj.cloud_sync_status,
-                )
-                .unwrap(),
-            ),
+            cloud_sync_status,
             cloud_sync_start: obj.cloud_sync_start.map(|v| v.to_rfc3339()),
             cloud_sync_end: obj.cloud_sync_end.map(|v| v.to_rfc3339()),
         }

@@ -34,11 +34,8 @@ fn progress_tick(
 
     let current_percent = total_size / uploaded;
     if current_percent - last_emitted_percent >= interval {
-        video_recording::VideoRecording::set_cloud_sync_progress(
-            &row_id,
-            &(current_percent as i32),
-        )
-        .expect("Failed to set set_cloud_sync_progress");
+        video_recording::VideoRecording::set_cloud_sync_progress(row_id, &(current_percent as i32))
+            .expect("Failed to set set_cloud_sync_progress");
         info!(
             "VideoUploadProgress id={} percent={}",
             &row_id, &current_percent
@@ -165,7 +162,7 @@ async fn generate_upload_url(
     Ok(recording)
 }
 
-async fn sync_upload_urls(video_recordings: Vec<video_recording::VideoRecording>) -> () {
+async fn sync_upload_urls(video_recordings: Vec<video_recording::VideoRecording>) {
     // for each video recording, generate a new signed upload url
     let mut set = JoinSet::new();
     for recording in video_recordings {
@@ -206,10 +203,9 @@ pub async fn handle_sync_video_recordings() -> Result<(), ServiceError> {
         match res {
             Ok(recording) => {
                 let duration = match recording.cloud_sync_start {
-                    Some(start) => match recording.cloud_sync_end {
-                        Some(end) => Some((end - start).num_seconds()),
-                        None => None,
-                    },
+                    Some(start) => recording
+                        .cloud_sync_end
+                        .map(|end| (end - start).num_seconds()),
                     None => None,
                 };
                 info!(
