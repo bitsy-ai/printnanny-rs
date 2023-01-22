@@ -9,7 +9,7 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 
 use log::{error, info};
 
-use crate::error::{ServiceError, VideoRecordingSyncError};
+use crate::error::VideoRecordingSyncError;
 use crate::printnanny_api::ApiService;
 
 use printnanny_api_client::models;
@@ -46,7 +46,7 @@ fn progress_tick(
 }
 
 impl VideoUploadProgress {
-    pub async fn start(&self) -> Result<(), ServiceError> {
+    pub async fn start(&self) -> Result<(), VideoRecordingSyncError> {
         video_recording::VideoRecording::start_cloud_sync(&self.id)?;
         let row = video_recording::VideoRecording::get_by_id(&self.id)?;
         let api_service = ApiService::new()?;
@@ -54,26 +54,7 @@ impl VideoUploadProgress {
         Ok(())
     }
 
-    // pub fn tick(&mut self, chunk: &[u8]) -> Result<(), VideoRecordingSyncError> {
-    //     let uploaded = min(self.uploaded + (chunk.len() as u64), self.total_size);
-    //     self.uploaded = uploaded;
-
-    //     let current_percent = self.total_size / uploaded;
-    //     if self.last_percent - current_percent >= self.interval {
-    //         video_recording::VideoRecording::set_cloud_sync_progress(
-    //             &self.id,
-    //             &(current_percent as i32),
-    //         )?;
-    //         info!(
-    //             "VideoUploadProgress id={} percent={}",
-    //             &self.id, &current_percent
-    //         );
-    //         self.last_percent = current_percent;
-    //     }
-    //     Ok(())
-    // }
-
-    pub async fn finish(&self) -> Result<(), ServiceError> {
+    pub async fn finish(&self) -> Result<(), VideoRecordingSyncError> {
         video_recording::VideoRecording::finish_cloud_sync(&self.id)?;
         let row = video_recording::VideoRecording::get_by_id(&self.id)?;
         let api_service = ApiService::new()?;
@@ -154,7 +135,7 @@ pub async fn upload_video_recording(
 
 async fn generate_upload_url(
     recording: video_recording::VideoRecording,
-) -> Result<models::VideoRecording, ServiceError> {
+) -> Result<models::VideoRecording, VideoRecordingSyncError> {
     let api_service = ApiService::new()?;
     let recording = api_service
         .video_recording_update_or_create(&recording)
@@ -183,7 +164,7 @@ async fn sync_upload_urls(video_recordings: Vec<video_recording::VideoRecording>
     }
 }
 
-pub async fn handle_sync_video_recordings() -> Result<(), ServiceError> {
+pub async fn sync_all_video_recordings() -> Result<(), VideoRecordingSyncError> {
     // select all recordings that are finished, but not uploaded
     let video_recordings = video_recording::VideoRecording::get_ready_for_cloud_sync()?;
     info!(
@@ -218,5 +199,19 @@ pub async fn handle_sync_video_recordings() -> Result<(), ServiceError> {
             }
         }
     }
+    Ok(())
+}
+
+pub async fn sync_video_recording_by_id(id: &str) -> Result<(), VideoRecordingSyncError> {
+    let video_recording = video_recording::VideoRecording::get_by_id(id)?;
+    info!(
+        "Starting cloud sync for VideoRecording: {:?}",
+        &video_recording
+    );
+    generate_upload_url(video_recording).await?;
+
+    let video_recording = video_recording::VideoRecording::get_by_id(id)?;
+    upload_video_recording(video_recording).await?;
+
     Ok(())
 }

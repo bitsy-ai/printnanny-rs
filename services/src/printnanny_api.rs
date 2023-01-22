@@ -28,7 +28,7 @@ use printnanny_api_client::models;
 
 use crate::cpuinfo::RpiCpuInfo;
 use crate::crash_report::write_crash_report_zip;
-use crate::error::ServiceError;
+use crate::error::{ServiceError, VideoRecordingUpdateOrCreateError};
 use crate::file::open;
 use crate::metadata;
 use crate::os_release::OsRelease;
@@ -55,7 +55,7 @@ pub fn save_model_json<T: serde::Serialize>(model: &T, path: &Path) -> Result<()
 impl ApiService {
     // config priority:
     // args >> api_config.json >> anonymous api usage only
-    pub fn new() -> Result<ApiService, ServiceError> {
+    pub fn new() -> Result<ApiService, PrintNannySettingsError> {
         let settings = PrintNannySettings::new()?;
         Ok(Self {
             api_config: settings.cloud,
@@ -381,7 +381,7 @@ impl ApiService {
     pub async fn video_recordings_partial_update(
         &self,
         obj: &printnanny_edge_db::video_recording::VideoRecording,
-    ) -> Result<models::VideoRecording, ServiceError> {
+    ) -> Result<models::VideoRecording, VideoRecordingUpdateOrCreateError> {
         let id = Some(obj.id.as_str());
         let recording_start = obj.recording_start.map(|v| v.to_rfc3339());
         let recording_end = obj.recording_end.map(|v| v.to_rfc3339());
@@ -434,7 +434,7 @@ impl ApiService {
     pub async fn video_recording_update_or_create(
         &self,
         obj: &printnanny_edge_db::video_recording::VideoRecording,
-    ) -> Result<models::VideoRecording, ServiceError> {
+    ) -> Result<models::VideoRecording, VideoRecordingUpdateOrCreateError> {
         let id = Some(obj.id.as_str());
         let recording_start = obj.recording_start.map(|v| v.to_rfc3339());
         let recording_end = obj.recording_end.map(|v| v.to_rfc3339());
