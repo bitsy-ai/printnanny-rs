@@ -4,6 +4,7 @@ use log::info;
 use printnanny_settings::printnanny::PrintNannySettings;
 use uuid;
 
+use printnanny_api_client::models;
 use printnanny_asyncapi_models;
 
 use crate::connection::establish_sqlite_connection;
@@ -52,6 +53,24 @@ pub struct UpdateVideoRecording<'a> {
 }
 
 impl VideoRecording {
+    pub fn to_openapi_recording_status(status: &str) -> Option<models::RecordingStatusEnum> {
+        match status {
+            "done" => Some(models::RecordingStatusEnum::Done),
+            "progress" => Some(models::RecordingStatusEnum::Inprogress),
+            "pending" => Some(models::RecordingStatusEnum::Pending),
+            _ => None,
+        }
+    }
+    pub fn to_asyncapi_recording_status(
+        status: &str,
+    ) -> Option<printnanny_asyncapi_models::VideoRecordingStatus> {
+        match status {
+            "done" => Some(printnanny_asyncapi_models::VideoRecordingStatus::Done),
+            "progress" => Some(printnanny_asyncapi_models::VideoRecordingStatus::Inprogress),
+            "pending" => Some(printnanny_asyncapi_models::VideoRecordingStatus::Pending),
+            _ => None,
+        }
+    }
     pub fn update(row_id: &str, row: UpdateVideoRecording) -> Result<(), diesel::result::Error> {
         use crate::schema::video_recordings::dsl::*;
         let connection = &mut establish_sqlite_connection();
@@ -192,14 +211,11 @@ impl VideoRecording {
 
 impl From<VideoRecording> for printnanny_asyncapi_models::VideoRecording {
     fn from(obj: VideoRecording) -> Self {
+        let recording_status = VideoRecording::to_asyncapi_recording_status(&obj.recording_status);
+
         Self {
             id: obj.id,
-            recording_status: Box::new(
-                serde_json::from_str::<printnanny_asyncapi_models::VideoRecordingStatus>(
-                    &obj.recording_status,
-                )
-                .unwrap(),
-            ),
+            recording_status: Box::new(&obj.recording_status),
             recording_start: obj.recording_start.map(|v| v.to_rfc3339()),
             recording_end: obj.recording_end.map(|v| v.to_rfc3339()),
             mp4_file_name: obj.mp4_file_name,
