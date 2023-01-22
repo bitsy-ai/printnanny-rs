@@ -18,6 +18,8 @@ const SNAPSHOT_PIPELINE: &str = "snapshot";
 const HLS_PIPELINE: &str = "hls";
 const MP4_PIPELINE: &str = "mp4";
 
+const GST_BUS_TIMEOUT: i32 = 6e+10 as i32; // 60 seconds (in nanoseconds)
+
 pub struct PrintNannyPipelineFactory {
     pub address: String,
     pub port: i32,
@@ -295,7 +297,7 @@ impl PrintNannyPipelineFactory {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=true is-live=true allow-renegotiation=false \
             ! mp4mux ! filesink location={filename} name={filesink_name}");
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -371,9 +373,17 @@ impl PrintNannyPipelineFactory {
             .await?;
 
         // if pipeline was already created, ensure location property is set to filename
-        let filesink_element = PipelineElement::new(filesink_element_name, &pipeline);
+        let filesink_element = pipeline.element(filesink_element_name);
         filesink_element.set_property("location", filename).await?;
         info!("Updated Gstreamer element name={filesink_element_name} with property location={filename}");
+
+        // set a filter for eos signal
+        let bus = pipeline.bus();
+        bus.set_filter("eos").await?;
+        info!("Set filter for EOS events on {MP4_PIPELINE} pipeline bus");
+        // set timeout for eos signal
+        bus.set_timeout(GST_BUS_TIMEOUT).await?;
+        info!("Set timeout ns={GST_BUS_TIMEOUT} for events on {MP4_PIPELINE} pipeline bus");
 
         pipeline.pause().await?;
         pipeline.play().await?;
@@ -383,6 +393,25 @@ impl PrintNannyPipelineFactory {
     pub async fn stop_video_recording_pipeline(&self) -> Result<()> {
         let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
         let pipeline = client.pipeline(MP4_PIPELINE);
+        info!("Sending EOS signal to pipeline name={MP4_PIPELINE}");
+        let bus = pipeline.bus();
+        pipeline.emit_event_eos().await?;
+        // wait for eos signal to be emitted by pipeline bus
+        match bus.read().await {
+            Ok(res) => {
+                info!(
+                    "Event on pipeline name={MP4_PIPELINE} message bus event={:#?}",
+                    res
+                );
+            }
+            Err(e) => {
+                error!(
+                    "Error reading events on pipeline name={MP4_PIPELINE} error={}",
+                    e
+                )
+            }
+        };
+
         pipeline.stop().await?;
         Ok(())
     }
