@@ -15,8 +15,8 @@ pub enum Error {
     ///
     /// [`StatusCode`]: reqwest::StatusCode
     /// [`GstClient`]: crate::GstClient
-    #[display(fmt = "API responded with bad status: {}", _0)]
-    BadStatus(#[error(not(source))] reqwest::StatusCode),
+    #[display(fmt = "API responded with status={} error={:#?}", _0, _1)]
+    BadStatus(#[error(not(source))] reqwest::StatusCode, Option<String>),
 
     /// [`GstClient`] responded with a bad body, which cannot be deserialized.
     ///

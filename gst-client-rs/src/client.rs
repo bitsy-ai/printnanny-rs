@@ -46,7 +46,7 @@ impl GstClient {
             .map_err(Error::RequestFailed)
     }
 
-    pub(crate) async fn put(&self,url: reqwest::Url) -> Result<Response, Error> {
+    pub(crate) async fn put(&self, url: reqwest::Url) -> Result<Response, Error> {
         self.http_client
             .put(url)
             .send()
@@ -64,7 +64,9 @@ impl GstClient {
 
     pub(crate) async fn process_resp(&self, resp: Response) -> Result<gstd_types::Response, Error> {
         if !resp.status().is_success() {
-            return Err(Error::BadStatus(resp.status()));
+            let status = resp.status();
+            let error = &resp.text().await.map_err(Error::BadBody)?;
+            return Err(Error::BadStatus(status, Some(error.to_string())));
         }
 
         let res = resp
@@ -86,7 +88,10 @@ impl GstClient {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn pipelines(&self) -> Result<gstd_types::Response, Error> {
-        let url = self.base_url.join("pipelines").map_err(Error::IncorrectApiUrl)?;
+        let url = self
+            .base_url
+            .join("pipelines")
+            .map_err(Error::IncorrectApiUrl)?;
         let resp = self.get(url).await?;
         self.process_resp(resp).await
     }
