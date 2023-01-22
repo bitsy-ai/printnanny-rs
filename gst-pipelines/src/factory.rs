@@ -1,5 +1,4 @@
 use gst_client::reqwest;
-use gst_client::resources::PipelineElement;
 use gst_client::GstClient;
 use log::{error, info};
 
@@ -94,12 +93,13 @@ impl PrintNannyPipelineFactory {
         let colorimetry = "bt709";
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
-            ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate}/1,format={format},colorimetry={colorimetry} \
-            ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true caps=video/x-raw,width={width},height={height},framerate={framerate}/1,format={format},colorimetry={colorimetry}",
+            ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} \
+            ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry}",
             camera_name=camera.device_name,
             width=camera.width,
             height=camera.height,
-            framerate=camera.framerate,
+            framerate_n=camera.framerate_n,
+            framerate_d=camera.framerate_d,
             format=camera.format
         );
         self.make_pipeline(pipeline_name, &description).await
@@ -137,16 +137,17 @@ impl PrintNannyPipelineFactory {
 
         let colorimetry = "bt709";
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=false caps=video/x-raw,width={width},height={height},framerate={framerate}/1,format={format},colorimetry={colorimetry} \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=false caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} \
             ! v4l2convert \
-            ! v4l2h264enc min-force-key-unit-interval={framerate} extra-controls=controls,repeat_sequence_header=1 \
+            ! v4l2h264enc min-force-key-unit-interval={framerate_n} extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
             ! capssetter caps=video/x-h264,colorimetry={colorimetry},level=(string)4 \
             ! interpipesink name={interpipesink} sync=false",
             width=camera.width,
             height=camera.height,
             format=camera.format,
-            framerate=camera.framerate
+            framerate_n=camera.framerate_n,
+            framerate_d=camera.framerate_d
         );
         self.make_pipeline(pipeline_name, &description).await
     }
