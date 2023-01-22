@@ -414,7 +414,8 @@ impl Default for VideoStreamSettings {
         let camera = Box::new(printnanny_asyncapi_models::CameraSettings {
             width: 640,
             height: 480,
-            framerate: 16,
+            framerate_n: 16,
+            framerate_d: 1,
             device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
             format: "YUY2".into(),
             label: "Raspberry Pi imx219".into(),
