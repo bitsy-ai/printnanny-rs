@@ -26,7 +26,7 @@ pub struct PrintNannyPipelineFactory {
 impl Default for PrintNannyPipelineFactory {
     fn default() -> Self {
         let address = "127.0.0.1".to_string();
-        let port = 5001;
+        let port = 5002;
         let uri = Self::uri(&address, port);
         Self { address, port, uri }
     }
