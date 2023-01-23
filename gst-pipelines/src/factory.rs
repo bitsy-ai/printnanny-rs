@@ -116,11 +116,13 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let colorimetry = "bt709";
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=false format=3 leaky-type=1 caps=video/x-raw,width={width},height={height},format={format},colorimetry={colorimetry} \
-            ! videorate ! capsfilter caps=framerate=2/1 ! v4l2jpegenc ! filesink location={filesink_location} max-files=2",
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=false format=3 leaky-type=1 caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} \
+            ! videorate ! capsfilter caps=video/x-raw,framerate=2/1 ! v4l2jpegenc ! filesink location={filesink_location} max-files=2",
             width=camera.width,
             height=camera.height,
             format=camera.format,
+            framerate_n=camera.framerate_n,
+            framerate_d=camera.framerate_d,
         );
         self.make_pipeline(pipeline_name, &description).await
     }
