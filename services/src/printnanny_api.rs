@@ -416,6 +416,7 @@ impl ApiService {
         // save result locally
         let row = printnanny_edge_db::video_recording::UpdateVideoRecording {
             mp4_upload_url: Some(&result.mp4_upload_url),
+            deleted: None,
             gcode_file_name: None,
             recording_status: None,
             recording_start: None,
@@ -473,6 +474,7 @@ impl ApiService {
         // save result locally
         let row = printnanny_edge_db::video_recording::UpdateVideoRecording {
             mp4_upload_url: Some(&result.mp4_upload_url),
+            deleted: None,
             gcode_file_name: None,
             recording_status: None,
             recording_start: None,
