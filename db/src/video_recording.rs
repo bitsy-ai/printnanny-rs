@@ -32,6 +32,7 @@ pub struct VideoRecording {
 #[diesel(table_name = video_recordings)]
 pub struct NewVideoRecording<'a> {
     pub id: &'a str,
+    pub deleted: &'a bool,
     pub recording_status: &'a str,
     pub cloud_sync_status: &'a str,
     pub mp4_file_name: &'a str,
@@ -200,6 +201,7 @@ impl VideoRecording {
         let filename = settings.paths.video().join(format!("{}.mp4", &row_id));
         let row = NewVideoRecording {
             id: &row_id,
+            deleted: &false,
             recording_status: "pending",
             cloud_sync_status: "pending",
             mp4_file_name: &filename.display().to_string(),
