@@ -382,12 +382,12 @@ impl ApiService {
         &self,
         obj: &printnanny_edge_db::video_recording::VideoRecording,
     ) -> Result<models::VideoRecording, VideoRecordingUpdateOrCreateError> {
-        let id = Some(obj.id.as_str());
+        let id = obj.id.as_str();
         let recording_start = obj.recording_start.map(|v| v.to_rfc3339());
         let recording_end = obj.recording_end.map(|v| v.to_rfc3339());
         let cloud_sync_start = obj.cloud_sync_start.map(|v| v.to_rfc3339());
         let cloud_sync_end = obj.cloud_sync_end.map(|v| v.to_rfc3339());
-        let gcode_file_name = obj.gcode_file_name.as_deref();
+        let gcode_file_name = obj.gcode_file_name.clone();
         let recording_status = match obj.recording_status.as_ref() {
             "done" => Some(models::RecordingStatusEnum::Done),
             "progress" => Some(models::RecordingStatusEnum::Inprogress),
@@ -401,9 +401,7 @@ impl ApiService {
             "pending" => Some(models::CloudSyncStatusEnum::Pending),
             _ => None,
         };
-        let result = videos_api::video_recordings_update_or_create(
-            &self.reqwest_config(),
-            id,
+        let request = models::PatchedVideoRecordingRequest {
             recording_start,
             recording_end,
             recording_status,
@@ -411,9 +409,10 @@ impl ApiService {
             cloud_sync_end,
             cloud_sync_status,
             gcode_file_name,
-            None,
-        )
-        .await?;
+        };
+        let result =
+            videos_api::video_recordings_partial_update(&self.reqwest_config(), id, Some(request))
+                .await?;
         // save result locally
         let row = printnanny_edge_db::video_recording::UpdateVideoRecording {
             mp4_upload_url: Some(&result.mp4_upload_url),
@@ -435,12 +434,12 @@ impl ApiService {
         &self,
         obj: &printnanny_edge_db::video_recording::VideoRecording,
     ) -> Result<models::VideoRecording, VideoRecordingUpdateOrCreateError> {
-        let id = Some(obj.id.as_str());
+        let id = obj.id.as_str();
         let recording_start = obj.recording_start.map(|v| v.to_rfc3339());
         let recording_end = obj.recording_end.map(|v| v.to_rfc3339());
         let cloud_sync_start = obj.cloud_sync_start.map(|v| v.to_rfc3339());
         let cloud_sync_end = obj.cloud_sync_end.map(|v| v.to_rfc3339());
-        let gcode_file_name = obj.gcode_file_name.as_deref();
+        let gcode_file_name = obj.gcode_file_name.clone();
         let recording_status = match obj.recording_status.as_ref() {
             "done" => Some(models::RecordingStatusEnum::Done),
             "progress" => Some(models::RecordingStatusEnum::Inprogress),
@@ -455,9 +454,7 @@ impl ApiService {
             _ => None,
         };
 
-        let result = videos_api::video_recordings_update_or_create(
-            &self.reqwest_config(),
-            id,
+        let request = models::VideoRecordingRequest {
             recording_start,
             recording_end,
             recording_status,
@@ -465,7 +462,12 @@ impl ApiService {
             cloud_sync_end,
             cloud_sync_status,
             gcode_file_name,
-            None,
+        };
+
+        let result = videos_api::video_recordings_update_or_create(
+            &self.reqwest_config(),
+            id,
+            Some(request),
         )
         .await?;
         // save result locally
