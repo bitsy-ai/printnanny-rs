@@ -206,6 +206,7 @@ impl NatsRequest {
         let update = printnanny_edge_db::video_recording::UpdateVideoRecording {
             recording_status: Some("inprogress"),
             recording_start: Some(&now),
+            deleted: None,
             gcode_file_name: None,
             recording_end: None,
             mp4_upload_url: None,
@@ -283,6 +284,7 @@ impl NatsRequest {
                 let update = printnanny_edge_db::video_recording::UpdateVideoRecording {
                     recording_status: Some("done"),
                     recording_end: Some(&now),
+                    deleted: None,
                     recording_start: None,
                     gcode_file_name: None,
                     mp4_upload_url: None,
