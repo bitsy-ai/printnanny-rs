@@ -3290,9 +3290,9 @@ checksum = "c6fa0831dd7cc608c38a5e323422a0077678fa5744aa2be4ad91c4ece8eec8d5"
 
 [[package]]
 name = "printnanny-api-client"
-version = "0.124.8"
+version = "0.124.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b73cefc483100c7efa83b29c6ecf43ee55b937f93b76b97ec28f996965d27ad6"
+checksum = "e2df6d28df7079502bea1966da870a8bb849823cfdded7d707f4ad563a2bb578"
 dependencies = [
  "bytes",
  "clap",
