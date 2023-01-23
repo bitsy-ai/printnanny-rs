@@ -14,6 +14,7 @@ use crate::schema::video_recordings;
 #[diesel(table_name = video_recordings)]
 pub struct VideoRecording {
     pub id: String,
+    pub deleted: bool,
     pub recording_status: String,
     pub recording_start: Option<DateTime<Utc>>,
     pub recording_end: Option<DateTime<Utc>>,
@@ -40,6 +41,7 @@ pub struct NewVideoRecording<'a> {
 #[derive(Clone, Debug, PartialEq, AsChangeset)]
 #[diesel(table_name = video_recordings)]
 pub struct UpdateVideoRecording<'a> {
+    pub deleted: Option<&'a bool>,
     pub gcode_file_name: Option<&'a str>,
     pub recording_status: Option<&'a str>,
     pub recording_start: Option<&'a DateTime<Utc>>,
@@ -127,6 +129,7 @@ impl VideoRecording {
         let row = UpdateVideoRecording {
             cloud_sync_start: Some(&now),
             cloud_sync_status: Some("inprogress"),
+            deleted: None,
             cloud_sync_percent: None,
             gcode_file_name: None,
             recording_status: None,
@@ -145,6 +148,7 @@ impl VideoRecording {
     ) -> Result<(), diesel::result::Error> {
         let row = UpdateVideoRecording {
             cloud_sync_percent: Some(progress),
+            deleted: None,
             gcode_file_name: None,
             recording_status: None,
             recording_start: None,
@@ -164,6 +168,7 @@ impl VideoRecording {
             cloud_sync_percent: Some(&100),
             cloud_sync_end: Some(&now),
             cloud_sync_status: None,
+            deleted: None,
             gcode_file_name: None,
             recording_status: None,
             recording_start: None,

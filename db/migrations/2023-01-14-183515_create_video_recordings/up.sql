@@ -1,5 +1,6 @@
 CREATE TABLE video_recordings (
   id VARCHAR PRIMARY KEY NOT NULL,
+  deleted BOOLEAN NOT NULL,
   recording_status TEXT CHECK(recording_status IN ('pending', 'inprogress', 'done')) NOT NULL,
   recording_start DATETIME,
   recording_end DATETIME,

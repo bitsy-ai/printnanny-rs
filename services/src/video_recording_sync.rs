@@ -1,4 +1,5 @@
 use std::cmp::min;
+use std::fs;
 
 use futures::stream::StreamExt;
 use reqwest::Body;
@@ -13,7 +14,7 @@ use crate::error::VideoRecordingSyncError;
 use crate::printnanny_api::ApiService;
 
 use printnanny_api_client::models;
-use printnanny_edge_db::video_recording;
+use printnanny_edge_db::video_recording::{self, UpdateVideoRecording};
 
 struct VideoUploadProgress {
     id: String,
@@ -204,6 +205,7 @@ pub async fn sync_all_video_recordings() -> Result<(), VideoRecordingSyncError> 
 
 pub async fn sync_video_recording_by_id(id: &str) -> Result<(), VideoRecordingSyncError> {
     let video_recording = video_recording::VideoRecording::get_by_id(id)?;
+    let filename = video_recording.mp4_file_name.clone();
     info!(
         "Starting cloud sync for VideoRecording: {:?}",
         &video_recording
@@ -212,6 +214,23 @@ pub async fn sync_video_recording_by_id(id: &str) -> Result<(), VideoRecordingSy
 
     let video_recording = video_recording::VideoRecording::get_by_id(id)?;
     upload_video_recording(video_recording).await?;
+
+    info!("Removing local file: {}", &filename);
+    fs::remove_file(&filename)?;
+    let row = UpdateVideoRecording {
+        deleted: Some(&true),
+        cloud_sync_percent: None,
+        cloud_sync_end: None,
+        cloud_sync_status: None,
+        gcode_file_name: None,
+        recording_status: None,
+        recording_start: None,
+        recording_end: None,
+        mp4_upload_url: None,
+        mp4_download_url: None,
+        cloud_sync_start: None,
+    };
+    video_recording::VideoRecording::update(id, row)?;
 
     Ok(())
 }

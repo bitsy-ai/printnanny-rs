@@ -74,6 +74,7 @@ diesel::table! {
 
     video_recordings (id) {
         id -> Text,
+        deleted -> Bool,
         recording_status -> Text,
         recording_start -> Nullable<TimestamptzSqlite>,
         recording_end -> Nullable<TimestamptzSqlite>,
