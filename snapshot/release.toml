@@ -1,0 +1,6 @@
+consolidate-commits = true
+pre-release-commit-message = "chore: Release {{version}}"
+consolidate-pushes = true
+allow-branch = ["main"]
+sign-commit = true
+dependent-version = "upgrade"

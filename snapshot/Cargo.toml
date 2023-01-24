@@ -1,0 +1,14 @@
+[package]
+name = "printnanny-snapshot"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-or-later"
+rust-version = "1.63"
+authors = ["Leigh Johnson <leigh@printnanny.ai>"]
+description = "Serve the latest JPEG snapshot from a directory"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rocket = "0.5.0-rc.2"                    # Web framework for nightly with a focus on ease-of-use, expressibility, and speed.
+printnanny-settings = { path = "../settings", version = "^0.6"}

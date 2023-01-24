@@ -20,6 +20,7 @@ pub const DEFAULT_PRINTNANNY_DATA_DIR: &str = "/home/printnanny/.local/share/pri
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyPaths {
+    pub snapshot_dir: PathBuf,
     pub state_dir: PathBuf,    // application state
     pub settings_dir: PathBuf, // local git repo used to commit/revert changes to user-supplied config
     pub log_dir: PathBuf,      // application log dir
@@ -31,6 +32,7 @@ pub struct PrintNannyPaths {
 
 impl Default for PrintNannyPaths {
     fn default() -> Self {
+        let snapshot_dir: PathBuf = "/var/run/printnanny-snapshot".into();
         let settings_dir: PathBuf = DEFAULT_PRINTNANNY_SETTINGS_DIR.into();
         // /var/run/ is a temporary runtime directory, cleared after each boot
         let run_dir: PathBuf = "/var/run/printnanny".into();
@@ -41,6 +43,7 @@ impl Default for PrintNannyPaths {
         let log_dir: PathBuf = "/var/log/printnanny".into();
         let os_release = "/etc/os-release".into();
         Self {
+            snapshot_dir,
             settings_dir,
             issue_txt,
             state_dir,
