@@ -2,7 +2,6 @@
 extern crate rocket;
 use std::fs;
 
-use rocket::fairing::AdHoc;
 use rocket::fs::NamedFile;
 use rocket::response::status::NotFound;
 use rocket::State;
@@ -10,7 +9,8 @@ use rocket::State;
 use printnanny_settings::printnanny::PrintNannySettings;
 
 #[get("/jpeg")]
-async fn jpeg(settings: &State<PrintNannySettings>) -> Result<NamedFile, NotFound<String>> {
+async fn jpeg(state: &State<PrintNannySettings>) -> Result<NamedFile, NotFound<String>> {
+    let settings = state;
     let dir_entry = fs::read_dir(settings.paths.snapshot_dir.clone())
         .map_err(|e| NotFound(e.to_string()))?
         .last()
@@ -24,7 +24,7 @@ async fn jpeg(settings: &State<PrintNannySettings>) -> Result<NamedFile, NotFoun
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build()
-        .mount("/", routes![jpeg])
-        .attach(AdHoc::config::<PrintNannySettings>())
+    let settings = PrintNannySettings::new().expect("Failed to initialize PrintNannySettings");
+
+    rocket::build().manage(settings).mount("/", routes![jpeg])
 }
