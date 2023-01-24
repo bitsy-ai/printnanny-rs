@@ -11,15 +11,22 @@ use printnanny_settings::printnanny::PrintNannySettings;
 #[get("/jpeg")]
 async fn jpeg(state: &State<PrintNannySettings>) -> Result<NamedFile, NotFound<String>> {
     let settings = state;
-    let dir_entry = fs::read_dir(settings.paths.snapshot_dir.clone())
-        .map_err(|e| NotFound(e.to_string()))?
-        .last()
-        .unwrap()
-        .map_err(|e| NotFound(e.to_string()))?;
+    let dir = settings.paths.snapshot_dir.clone();
+    let dir_entry = fs::read_dir(&dir).map_err(|e| NotFound(e.to_string()))?;
 
-    NamedFile::open(&dir_entry.path())
-        .await
-        .map_err(|e| NotFound(e.to_string()))
+    match dir_entry.last() {
+        Some(last) => {
+            let last = last.map_err(|e| NotFound(e.to_string()))?;
+            let result = NamedFile::open(last.path())
+                .await
+                .map_err(|e| NotFound(e.to_string()))?;
+            Ok(result)
+        }
+        None => Err(NotFound(format!(
+            "Failed to read directory {}",
+            dir.display().to_string()
+        ))),
+    }
 }
 
 #[launch]
