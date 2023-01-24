@@ -6,6 +6,7 @@ members = [
     "gst-client-rs",
     "gst-pipelines",
     "gst-plugin",
+    "snapshot",
     "settings",
     "services",
     "nats",
