@@ -6,6 +6,7 @@ license = "AGPL-3.0-or-later"
 rust-version = "1.63"
 authors = ["Leigh Johnson <leigh@printnanny.ai>"]
 description = "Serve the latest JPEG snapshot from a directory"
+repository = "https://github.com/bitsy-ai/printnanny-rs.git"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
