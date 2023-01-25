@@ -39,23 +39,23 @@ impl From<printnanny_api_client::models::PiNatsApp> for NatsApp {
 }
 
 impl NatsApp {
-    pub fn get_id() -> Result<i32, diesel::result::Error> {
+    pub fn get_id(connection_str: &str) -> Result<i32, diesel::result::Error> {
         use crate::schema::nats_apps::dsl::*;
-        let connection = &mut establish_sqlite_connection();
+        let connection = &mut establish_sqlite_connection(connection_str);
         let result: i32 = nats_apps.select(id).first(connection)?;
         Ok(result)
     }
-    pub fn get() -> Result<NatsApp, diesel::result::Error> {
+    pub fn get(connection_str: &str) -> Result<NatsApp, diesel::result::Error> {
         use crate::schema::nats_apps::dsl::*;
 
-        let connection = &mut establish_sqlite_connection();
+        let connection = &mut establish_sqlite_connection(connection_str);
         let result: NatsApp = nats_apps.order_by(id).first::<NatsApp>(connection)?;
         // let result = pis.order_by(id).first(&mut connection)?;
         info!("printnanny_edge_db::nats_app::NatsApp get {:#?}", &result);
         Ok(result)
     }
-    pub fn insert(row: NatsApp) -> Result<(), diesel::result::Error> {
-        let mut connection = establish_sqlite_connection();
+    pub fn insert(connection_str: &str, row: NatsApp) -> Result<(), diesel::result::Error> {
+        let mut connection = establish_sqlite_connection(connection_str);
 
         let updated = diesel::insert_into(nats_apps::dsl::nats_apps)
             .values(row)

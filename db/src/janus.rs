@@ -49,16 +49,16 @@ impl From<printnanny_api_client::models::WebrtcStream> for WebrtcEdgeServer {
 }
 
 impl WebrtcEdgeServer {
-    pub fn get_id() -> Result<i32, diesel::result::Error> {
+    pub fn get_id(connection_str: &str) -> Result<i32, diesel::result::Error> {
         use crate::schema::webrtc_edge_servers::dsl::*;
-        let connection = &mut establish_sqlite_connection();
+        let connection = &mut establish_sqlite_connection(connection_str);
         let result: i32 = webrtc_edge_servers.select(id).first(connection)?;
         Ok(result)
     }
-    pub fn get() -> Result<WebrtcEdgeServer, diesel::result::Error> {
+    pub fn get(connection_str: &str) -> Result<WebrtcEdgeServer, diesel::result::Error> {
         use crate::schema::webrtc_edge_servers::dsl::*;
 
-        let connection = &mut establish_sqlite_connection();
+        let connection = &mut establish_sqlite_connection(connection_str);
         let result: WebrtcEdgeServer = webrtc_edge_servers
             .order_by(id)
             .first::<WebrtcEdgeServer>(connection)?;
@@ -68,8 +68,11 @@ impl WebrtcEdgeServer {
         );
         Ok(result)
     }
-    pub fn insert(row: WebrtcEdgeServer) -> Result<(), diesel::result::Error> {
-        let mut connection = establish_sqlite_connection();
+    pub fn insert(
+        connection_str: &str,
+        row: WebrtcEdgeServer,
+    ) -> Result<(), diesel::result::Error> {
+        let mut connection = establish_sqlite_connection(connection_str);
 
         let updated = diesel::insert_into(webrtc_edge_servers::dsl::webrtc_edge_servers)
             .values(row)

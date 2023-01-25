@@ -60,11 +60,12 @@ pub fn machine_id() -> io::Result<String> {
     fs::read_to_string("machine-id")
 }
 
-pub fn write_crash_report_zip(file: &File) -> Result<(), PrintNannySettingsError> {
+pub fn write_crash_report_zip(
+    file: &File,
+    crash_report_paths: Vec<PathBuf>,
+) -> Result<(), PrintNannySettingsError> {
     let mut zip = zip::ZipWriter::new(file);
     let options = FileOptions::default().unix_permissions(0o755);
-
-    let settings = PrintNannySettings::new()?;
     let mut buffer = Vec::new();
 
     // write disk usage to zip
@@ -93,7 +94,7 @@ pub fn write_crash_report_zip(file: &File) -> Result<(), PrintNannySettingsError
     zip.start_file("avahi-daemon.service.log", options)?;
     zip.write_all(&systemd_avahi_daemon_logs()?)?;
 
-    for path in settings.paths.crash_report_paths() {
+    for path in crash_report_paths {
         // read all files in directory
         if path.is_dir() {
             for dir_file in fs::read_dir(&path)? {

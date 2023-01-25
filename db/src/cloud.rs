@@ -106,30 +106,34 @@ impl From<printnanny_api_client::models::Pi> for Pi {
 }
 
 impl Pi {
-    pub fn get_id() -> Result<i32, diesel::result::Error> {
+    pub fn get_id(connection_str: &str) -> Result<i32, diesel::result::Error> {
         use crate::schema::pis::dsl::*;
-        let connection = &mut establish_sqlite_connection();
+        let connection = &mut establish_sqlite_connection(connection_str);
         let result: i32 = pis.select(id).first(connection)?;
         Ok(result)
     }
-    pub fn get() -> Result<Pi, diesel::result::Error> {
+    pub fn get(connection_str: &str) -> Result<Pi, diesel::result::Error> {
         use crate::schema::pis::dsl::*;
 
-        let connection = &mut establish_sqlite_connection();
+        let connection = &mut establish_sqlite_connection(connection_str);
         let result: Pi = pis.order_by(id).first::<Pi>(connection)?;
         info!("printnanny_edge_db::cloud::Pi get {:#?}", &result);
         Ok(result)
     }
-    pub fn insert(row: Pi) -> Result<(), diesel::result::Error> {
-        let mut connection = establish_sqlite_connection();
+    pub fn insert(connection_str: &str, row: Pi) -> Result<(), diesel::result::Error> {
+        let mut connection = establish_sqlite_connection(connection_str);
         let row = diesel::insert_into(pis::dsl::pis)
             .values(row)
             .execute(&mut connection)?;
         info!("printnanny_edge_db::cloud::Pi created {}", &row);
         Ok(())
     }
-    pub fn update(pi_id: i32, changeset: UpdatePi) -> Result<(), diesel::result::Error> {
-        let mut connection = establish_sqlite_connection();
+    pub fn update(
+        connection_str: &str,
+        pi_id: i32,
+        changeset: UpdatePi,
+    ) -> Result<(), diesel::result::Error> {
+        let mut connection = establish_sqlite_connection(connection_str);
         let result = diesel::update(pis::table.filter(pis::id.eq(pi_id)))
             .set(changeset)
             .execute(&mut connection)?;

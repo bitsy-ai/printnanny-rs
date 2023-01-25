@@ -197,7 +197,12 @@ impl NatsRequest {
     }
 
     pub async fn handle_camera_recording_start() -> Result<NatsReply> {
-        let recording = printnanny_edge_db::video_recording::VideoRecording::start_new()?;
+        let settings = PrintNannySettings::new().await?;
+        let sqlite_connection = settings.paths.db().display().to_string();
+        let recording = printnanny_edge_db::video_recording::VideoRecording::start_new(
+            &sqlite_connection,
+            &settings.paths.video(),
+        )?;
         let factory = PrintNannyPipelineFactory::default();
         factory
             .start_video_recording_pipeline(&recording.mp4_file_name)
@@ -311,12 +316,15 @@ impl NatsRequest {
     pub async fn handle_cloud_sync() -> Result<NatsReply> {
         let start = chrono::offset::Utc::now().to_rfc3339();
 
-        let api = ApiService::new()?;
+        let settings = PrintNannySettings::new()?;
+        let api = ApiService::new(settings.cloud)?;
         // sync cloud models to edge db
         api.sync().await?;
         // set optional pipelines to correct state
         let gst_pipelines = PrintNannyPipelineFactory::default();
-        gst_pipelines.sync_optional_pipelines().await?;
+        gst_pipelines
+            .sync_optional_pipelines(settings.video_stream)
+            .await?;
         let end = chrono::offset::Utc::now().to_rfc3339();
 
         Ok(NatsReply::PrintNannyCloudSyncReply(
@@ -375,7 +383,8 @@ impl NatsRequest {
     pub async fn handle_printnanny_cloud_auth(
         request: &PrintNannyCloudAuthRequest,
     ) -> Result<NatsReply> {
-        let api_service = ApiService::new()?;
+        let settings = PrintNannySettings::new().await?;
+        let api_service = ApiService::new(settings.cloud)?;
         let result = api_service
             .connect_cloud_account(request.api_url.clone(), request.api_token.clone())
             .await;
@@ -403,7 +412,8 @@ impl NatsRequest {
     }
 
     pub async fn handle_crash_report(request: &CrashReportOsLogsRequest) -> Result<NatsReply> {
-        let api_service = ApiService::new()?;
+        let settings = PrintNannySettings::new().await?;
+        let api_service = ApiService::new(settings.cloud)?;
         let result = api_service.crash_report_update(&request.id).await?;
         Ok(NatsReply::CrashReportOsLogsReply(CrashReportOsLogsReply {
             id: result.id,

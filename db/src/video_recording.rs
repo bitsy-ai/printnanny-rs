@@ -1,7 +1,8 @@
+use std::path::PathBuf;
+
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use log::info;
-use printnanny_settings::printnanny::PrintNannySettings;
 use uuid;
 
 use printnanny_api_client::models;
@@ -74,33 +75,42 @@ impl VideoRecording {
             _ => None,
         }
     }
-    pub fn update(row_id: &str, row: UpdateVideoRecording) -> Result<(), diesel::result::Error> {
+    pub fn update(
+        connection_str: &str,
+        row_id: &str,
+        row: UpdateVideoRecording,
+    ) -> Result<(), diesel::result::Error> {
         use crate::schema::video_recordings::dsl::*;
-        let connection = &mut establish_sqlite_connection();
+        let connection = &mut establish_sqlite_connection(connection_str);
         diesel::update(video_recordings.filter(id.eq(row_id)))
             .set(row)
             .execute(connection)?;
         info!("Updated VideoRecording with id {}", row_id);
         Ok(())
     }
-    pub fn get_by_id(row_id: &str) -> Result<VideoRecording, diesel::result::Error> {
+    pub fn get_by_id(
+        connection_str: &str,
+        row_id: &str,
+    ) -> Result<VideoRecording, diesel::result::Error> {
         use crate::schema::video_recordings::dsl::*;
-        let connection = &mut establish_sqlite_connection();
+        let connection = &mut establish_sqlite_connection(connection_str);
         video_recordings
             .filter(id.eq(row_id))
             .first::<VideoRecording>(connection)
     }
-    pub fn get_all() -> Result<Vec<VideoRecording>, diesel::result::Error> {
+    pub fn get_all(connection_str: &str) -> Result<Vec<VideoRecording>, diesel::result::Error> {
         use crate::schema::video_recordings::dsl::*;
-        let connection = &mut establish_sqlite_connection();
+        let connection = &mut establish_sqlite_connection(connection_str);
         let result = video_recordings
             .order_by(id)
             .load::<VideoRecording>(connection)?;
         Ok(result)
     }
-    pub fn get_current() -> Result<Option<VideoRecording>, diesel::result::Error> {
+    pub fn get_current(
+        connection_str: &str,
+    ) -> Result<Option<VideoRecording>, diesel::result::Error> {
         use crate::schema::video_recordings::dsl::*;
-        let connection = &mut establish_sqlite_connection();
+        let connection = &mut establish_sqlite_connection(connection_str);
         let result = video_recordings
             .filter(recording_status.eq("inprogress"))
             .order(recording_start.desc())
@@ -109,9 +119,11 @@ impl VideoRecording {
         Ok(result)
     }
 
-    pub fn get_ready_for_cloud_sync() -> Result<Vec<VideoRecording>, diesel::result::Error> {
+    pub fn get_ready_for_cloud_sync(
+        connection_str: &str,
+    ) -> Result<Vec<VideoRecording>, diesel::result::Error> {
         use crate::schema::video_recordings::dsl::*;
-        let connection = &mut establish_sqlite_connection();
+        let connection = &mut establish_sqlite_connection(connection_str);
         let result = video_recordings
             .filter(
                 recording_status
@@ -125,7 +137,10 @@ impl VideoRecording {
         Ok(result)
     }
 
-    pub fn start_cloud_sync(row_id: &str) -> Result<(), diesel::result::Error> {
+    pub fn start_cloud_sync(
+        connection_str: &str,
+        row_id: &str,
+    ) -> Result<(), diesel::result::Error> {
         let now = Utc::now();
         let row = UpdateVideoRecording {
             cloud_sync_start: Some(&now),
@@ -140,10 +155,11 @@ impl VideoRecording {
             mp4_download_url: None,
             cloud_sync_end: None,
         };
-        Self::update(row_id, row)
+        Self::update(connection_str, row_id, row)
     }
 
     pub fn set_cloud_sync_progress(
+        connection_str: &str,
         row_id: &str,
         progress: &i32,
     ) -> Result<(), diesel::result::Error> {
@@ -160,10 +176,13 @@ impl VideoRecording {
             cloud_sync_start: None,
             cloud_sync_end: None,
         };
-        Self::update(row_id, row)
+        Self::update(connection_str, row_id, row)
     }
 
-    pub fn finish_cloud_sync(row_id: &str) -> Result<(), diesel::result::Error> {
+    pub fn finish_cloud_sync(
+        connection_str: &str,
+        row_id: &str,
+    ) -> Result<(), diesel::result::Error> {
         let now = Utc::now();
         let row = UpdateVideoRecording {
             cloud_sync_percent: Some(&100),
@@ -178,12 +197,12 @@ impl VideoRecording {
             mp4_download_url: None,
             cloud_sync_start: None,
         };
-        Self::update(row_id, row)
+        Self::update(connection_str, row_id, row)
     }
 
-    pub fn stop_all() -> Result<(), diesel::result::Error> {
+    pub fn stop_all(connection: &str) -> Result<(), diesel::result::Error> {
         use crate::schema::video_recordings::dsl::*;
-        let connection = &mut establish_sqlite_connection();
+        let connection = &mut establish_sqlite_connection(connection);
 
         diesel::update(video_recordings)
             .set(recording_status.eq("done"))
@@ -191,14 +210,16 @@ impl VideoRecording {
         info!("Set existing VideoRecording.recording_status = done");
         Ok(())
     }
-    pub fn start_new() -> Result<VideoRecording, diesel::result::Error> {
+    pub fn start_new(
+        connection_str: &str,
+        video_path: &PathBuf,
+    ) -> Result<VideoRecording, diesel::result::Error> {
         use crate::schema::video_recordings::dsl::*;
-        let connection = &mut establish_sqlite_connection();
+        let connection = &mut establish_sqlite_connection(connection_str);
         // mark all other recordings as done
-        Self::stop_all()?;
-        let settings = PrintNannySettings::new().unwrap();
+        Self::stop_all(connection_str)?;
         let row_id = uuid::Uuid::new_v4().to_string();
-        let filename = settings.paths.video().join(format!("{}.mp4", &row_id));
+        let filename = video_path.join(format!("{}.mp4", &row_id));
         let row = NewVideoRecording {
             id: &row_id,
             deleted: &false,

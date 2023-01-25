@@ -30,8 +30,10 @@ async fn jpeg(state: &State<PrintNannySettings>) -> Result<NamedFile, NotFound<S
 }
 
 #[launch]
-fn rocket() -> _ {
-    let settings = PrintNannySettings::new().expect("Failed to initialize PrintNannySettings");
+async fn rocket() -> _ {
+    let settings = PrintNannySettings::new()
+        .await
+        .expect("Failed to initialize PrintNannySettings");
 
     rocket::build().manage(settings).mount("/", routes![jpeg])
 }

@@ -2,6 +2,7 @@ use std::cmp::min;
 use std::fs;
 
 use futures::stream::StreamExt;
+use printnanny_settings::printnanny::PrintNannySettings;
 use reqwest::Body;
 use tokio::fs::File;
 
@@ -24,6 +25,7 @@ struct VideoUploadProgress {
 }
 
 fn progress_tick(
+    sqlite_connection: &str,
     row_id: &str,
     uploaded: u64,
     chunk_size: u64,
@@ -35,8 +37,12 @@ fn progress_tick(
 
     let current_percent = total_size / uploaded;
     if current_percent - last_emitted_percent >= interval {
-        video_recording::VideoRecording::set_cloud_sync_progress(row_id, &(current_percent as i32))
-            .expect("Failed to set set_cloud_sync_progress");
+        video_recording::VideoRecording::set_cloud_sync_progress(
+            sqlite_connection,
+            row_id,
+            &(current_percent as i32),
+        )
+        .expect("Failed to set set_cloud_sync_progress");
         info!(
             "VideoUploadProgress id={} percent={}",
             &row_id, &current_percent
@@ -47,24 +53,31 @@ fn progress_tick(
 }
 
 impl VideoUploadProgress {
-    pub async fn start(&self) -> Result<(), VideoRecordingSyncError> {
-        video_recording::VideoRecording::start_cloud_sync(&self.id)?;
-        let row = video_recording::VideoRecording::get_by_id(&self.id)?;
-        let api_service = ApiService::new()?;
-        api_service.video_recordings_partial_update(&row).await?;
+    pub async fn start(
+        &self,
+        api: &ApiService,
+        sqlite_connection: &str,
+    ) -> Result<(), VideoRecordingSyncError> {
+        video_recording::VideoRecording::start_cloud_sync(sqlite_connection, &self.id)?;
+        let row = video_recording::VideoRecording::get_by_id(sqlite_connection, &self.id)?;
+        api.video_recordings_partial_update(&row).await?;
         Ok(())
     }
 
-    pub async fn finish(&self) -> Result<(), VideoRecordingSyncError> {
-        video_recording::VideoRecording::finish_cloud_sync(&self.id)?;
-        let row = video_recording::VideoRecording::get_by_id(&self.id)?;
-        let api_service = ApiService::new()?;
-        api_service.video_recordings_partial_update(&row).await?;
+    pub async fn finish(
+        &self,
+        api: &ApiService,
+        sqlite_connection: &str,
+    ) -> Result<(), VideoRecordingSyncError> {
+        video_recording::VideoRecording::finish_cloud_sync(sqlite_connection, &self.id)?;
+        let row = video_recording::VideoRecording::get_by_id(sqlite_connection, &self.id)?;
+        api.video_recordings_partial_update(&row).await?;
         Ok(())
     }
 }
 
 pub async fn upload_video_recording(
+    settings: PrintNannySettings,
     video_recording: printnanny_edge_db::video_recording::VideoRecording,
 ) -> Result<video_recording::VideoRecording, VideoRecordingSyncError> {
     let upload_url = match video_recording.mp4_upload_url {
@@ -88,8 +101,11 @@ pub async fn upload_video_recording(
 
     let row_id = video_recording.id.clone();
 
+    let sqlite_connection = settings.paths.db().display().to_string();
+    let api_service = ApiService::new(settings.cloud);
+
     let async_stream = async_stream::stream! {
-        match progress.start().await{
+        match progress.start(&api_service, &sqlite_connection).await{
             Ok(()) => {},
             Err(e) => error!("Error in VideoUploadProgress.start error={}", e)
         };
@@ -101,7 +117,7 @@ pub async fn upload_video_recording(
                 let interval = progress.interval;
                 let row_id = row_id.clone();
                 match tokio::task::spawn_blocking(move ||{
-                    progress_tick(&row_id, uploaded, chunk_size, total_size, last_percent, interval)
+                    progress_tick(&sqlite_connection, &row_id, uploaded, chunk_size, total_size, last_percent, interval)
                 }).await {
                     Ok((uploaded, last_percent)) => {
                         progress.uploaded = uploaded;
@@ -115,7 +131,7 @@ pub async fn upload_video_recording(
             }
             yield chunk;
         };
-        match progress.finish().await {
+        match progress.finish(&api_service, &sqlite_connection).await {
             Ok(()) => {},
             Err(e) => error!("Error in VideoUploadProgress.finish error={}", e)
         };

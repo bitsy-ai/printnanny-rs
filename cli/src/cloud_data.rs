@@ -3,6 +3,7 @@ use printnanny_services::printnanny_api::ApiService;
 use printnanny_services::video_recording_sync::{
     sync_all_video_recordings, sync_video_recording_by_id,
 };
+use printnanny_settings::printnanny::PrintNannySettings;
 use std::io::{self, Write};
 
 use printnanny_edge_db::cloud::Pi;
@@ -13,7 +14,8 @@ impl CloudDataCommand {
     pub async fn handle(sub_m: &clap::ArgMatches) -> Result<(), ServiceError> {
         match sub_m.subcommand() {
             Some(("sync-models", _args)) => {
-                let service = ApiService::new()?;
+                let settings = PrintNannySettings::new().await?;
+                let service = ApiService::new(settings.cloud)?;
                 service.sync().await?;
             }
             Some(("sync-video-recordings", args)) => {

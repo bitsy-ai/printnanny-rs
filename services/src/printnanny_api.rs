@@ -35,6 +35,7 @@ use crate::os_release::OsRelease;
 
 #[derive(Debug, Clone)]
 pub struct ApiService {
+    pub sqlite_connection: String,
     pub api_config: PrintNannyApiConfig,
     pub pi: Option<models::Pi>,
     pub user: Option<models::User>,
@@ -55,13 +56,13 @@ pub fn save_model_json<T: serde::Serialize>(model: &T, path: &Path) -> Result<()
 impl ApiService {
     // config priority:
     // args >> api_config.json >> anonymous api usage only
-    pub fn new() -> Result<ApiService, PrintNannySettingsError> {
-        let settings = PrintNannySettings::new()?;
-        Ok(Self {
-            api_config: settings.cloud,
+    pub fn new(api_config: PrintNannyApiConfig, sqlite_connection: String) -> Self {
+        Self {
+            api_config,
+            sqlite_connection,
             pi: None,
             user: None,
-        })
+        }
     }
 
     fn reqwest_config(&self) -> ReqwestConfig {
@@ -125,11 +126,12 @@ impl ApiService {
         browser_logs: Option<PathBuf>,
         status: Option<models::CrashReportStatusEnum>,
         posthog_session: Option<&str>,
+        crash_report_paths: Vec<PathBuf>,
     ) -> Result<models::CrashReport, ServiceError> {
         let file = NamedTempFile::new()?;
         let (file, filename) = &file.keep()?;
 
-        write_crash_report_zip(file)?;
+        write_crash_report_zip(file, crash_report_paths)?;
         warn!("Wrote crash report logs to {}", filename.display());
 
         let serial = match RpiCpuInfo::new() {
@@ -161,12 +163,16 @@ impl ApiService {
         Ok(result)
     }
 
-    pub async fn crash_report_update(&self, id: &str) -> Result<models::CrashReport, ServiceError> {
+    pub async fn crash_report_update(
+        &self,
+        id: &str,
+        crash_report_paths: Vec<PathBuf>,
+    ) -> Result<models::CrashReport, ServiceError> {
         let os_release = OsRelease::new()?;
         let file = NamedTempFile::new()?;
         let (file, filename) = &file.keep()?;
 
-        write_crash_report_zip(file)?;
+        write_crash_report_zip(file, crash_report_paths)?;
         warn!("Wrote crash report logs to {}", filename.display());
 
         let serial = match RpiCpuInfo::new() {
@@ -249,7 +255,7 @@ impl ApiService {
         let pi = self.pi_retrieve(edge_pi.id).await?;
         let pi_id = pi.id;
         let changeset: printnanny_edge_db::cloud::UpdatePi = pi.clone().into();
-        printnanny_edge_db::cloud::Pi::update(pi_id, changeset)?;
+        printnanny_edge_db::cloud::Pi::update(&self.sqlite_connection, pi_id, changeset)?;
         Ok(pi)
     }
 
@@ -270,7 +276,7 @@ impl ApiService {
         };
         let pi = devices_api::pi_update_or_create(&self.reqwest_config(), req).await?;
         info!("Success! Registered Pi: {:#?}", &pi);
-        printnanny_edge_db::cloud::Pi::insert(pi.clone().into())?;
+        printnanny_edge_db::cloud::Pi::insert(&self.sqlite_connection, pi.clone().into())?;
         let pi = self.sync_pi_models(pi.into()).await?;
         Ok(pi)
     }
@@ -278,7 +284,7 @@ impl ApiService {
     // syncs Raspberry Pi data with PrintNanny Cloud
     // performs any necessary one-time setup tasks
     pub async fn sync(&self) -> Result<printnanny_api_client::models::Pi, ServiceError> {
-        match printnanny_edge_db::cloud::Pi::get() {
+        match printnanny_edge_db::cloud::Pi::get(&self.sqlite_connection) {
             Ok(pi_sqlite) => self.sync_pi_models(pi_sqlite).await,
             Err(e) => match e {
                 // if edge Pi model isn't found, initialize
@@ -304,7 +310,7 @@ impl ApiService {
     }
 
     pub async fn pi_download_license(&self, pi_id: i32, backup: bool) -> Result<(), ServiceError> {
-        let settings = PrintNannySettings::new()?;
+        let settings = PrintNannySettings::new().await?;
         let res = devices_api::pis_license_zip_retrieve(&self.reqwest_config(), pi_id).await?;
         settings.paths.write_license_zip(res, backup).await?;
         tokio::task::spawn_blocking(move || settings.paths.unpack_license(backup)).await??;
@@ -351,7 +357,7 @@ impl ApiService {
         octoprint_server_id: &i32,
         pi_id: &i32,
     ) -> Result<models::OctoPrintServer, ServiceError> {
-        let settings = PrintNannySettings::new()?;
+        let settings = PrintNannySettings::new().await?;
         let helper = settings.to_octoprint_settings();
         let python_version = helper.python_version();
         let pip_version = helper.pip_version();
@@ -486,7 +492,11 @@ impl ApiService {
             cloud_sync_percent: None,
             cloud_sync_end: None,
         };
-        printnanny_edge_db::video_recording::VideoRecording::update(&obj.id, row)?;
+        printnanny_edge_db::video_recording::VideoRecording::update(
+            &self.sqlite_connection,
+            &obj.id,
+            row,
+        )?;
         Ok(result)
     }
 
@@ -522,5 +532,14 @@ impl ApiService {
                 }
             }
         }
+    }
+}
+
+impl From<&PrintNannySettings> for ApiService {
+    fn from(settings: &PrintNannySettings) -> ApiService {
+        ApiService::new(
+            settings.cloud.clone(),
+            settings.paths.db().display().to_string(),
+        )
     }
 }

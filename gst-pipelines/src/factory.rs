@@ -2,6 +2,7 @@ use gst_client::reqwest;
 use gst_client::GstClient;
 use log::{error, info};
 
+use printnanny_settings::cam::VideoStreamSettings;
 use printnanny_settings::printnanny::PrintNannySettings;
 use printnanny_settings::printnanny_asyncapi_models::{CameraSettings, DetectionSettings};
 
@@ -324,11 +325,10 @@ impl PrintNannyPipelineFactory {
         Ok(())
     }
 
-    pub async fn sync_optional_pipelines(&self) -> Result<()> {
-        let settings = PrintNannySettings::new()?;
-        let snapshot_settings = *settings.video_stream.snapshot;
-        let camera = *settings.video_stream.camera;
-        let hls_settings = *settings.video_stream.hls;
+    pub async fn sync_optional_pipelines(&self, settings: VideoStreamSettings) -> Result<()> {
+        let snapshot_settings = *settings.snapshot;
+        let camera = *settings.camera;
+        let hls_settings = *settings.hls;
 
         let snapshot_pipeline = self
             .make_jpeg_snapshot_pipeline(
@@ -420,7 +420,7 @@ impl PrintNannyPipelineFactory {
     }
 
     pub async fn start_pipelines(&self) -> Result<()> {
-        let settings = PrintNannySettings::new()?;
+        let settings = PrintNannySettings::new().await?;
         let snapshot_settings = *settings.video_stream.snapshot;
         let camera = *settings.video_stream.camera;
         let hls_settings = *settings.video_stream.hls;

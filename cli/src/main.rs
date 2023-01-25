@@ -305,11 +305,12 @@ async fn main() -> Result<()> {
         },
         Some(("crash-report", sub_m)) => {
             let id = sub_m.value_of("id");
-            let api_service = ApiService::new()?;
+            let settings = PrintNannySettings::new().await?;
+            let api_service = ApiService::new(settings.cloud)?;
 
             let report = match id {
                 Some(id) => api_service.crash_report_update(id).await,
-                None => api_service.crash_report_create(None, None, None, None, None, None).await
+                None => api_service.crash_report_create(None, None, None, None, None, None, settings.paths.crash_report_paths()).await
             }?;
             let report_json = serde_json::to_string_pretty(&report)?;
             println!("Submitted crash report:");
