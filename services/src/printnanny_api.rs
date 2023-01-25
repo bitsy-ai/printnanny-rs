@@ -306,8 +306,9 @@ impl ApiService {
     pub async fn pi_download_license(&self, pi_id: i32, backup: bool) -> Result<(), ServiceError> {
         let settings = PrintNannySettings::new()?;
         let res = devices_api::pis_license_zip_retrieve(&self.reqwest_config(), pi_id).await?;
-        settings.paths.write_license_zip(res, backup)?;
-        settings.paths.unpack_license(backup)?;
+        settings.paths.write_license_zip(res, backup).await?;
+        tokio::task::spawn_blocking(move || settings.paths.unpack_license(backup)).await??;
+        // settings.paths.unpack_license(backup).await?;
         Ok(())
     }
 
@@ -315,7 +316,7 @@ impl ApiService {
         &self,
         pi: i32,
     ) -> Result<models::SystemInfo, ServiceError> {
-        let system_info = tokio::task::spawn_blocking(|| metadata::system_info()).await??;
+        let system_info = tokio::task::spawn_blocking(metadata::system_info).await??;
         let os_release_json: HashMap<String, serde_json::Value> =
             serde_json::from_str(&serde_json::to_string(&system_info.os_release)?)?;
 

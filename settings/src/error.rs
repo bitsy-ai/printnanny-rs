@@ -77,4 +77,6 @@ pub enum PrintNannySettingsError {
 
     #[error(transparent)]
     VersionControlledSettingsError(#[from] VersionControlledSettingsError),
+    #[error(transparent)]
+    TaskJoinError(#[from] tokio::task::JoinError),
 }

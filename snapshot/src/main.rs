@@ -24,7 +24,7 @@ async fn jpeg(state: &State<PrintNannySettings>) -> Result<NamedFile, NotFound<S
         }
         None => Err(NotFound(format!(
             "Failed to read directory {}",
-            dir.display().to_string()
+            dir.display()
         ))),
     }
 }

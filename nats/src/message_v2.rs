@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use std::fs;
 use std::time::SystemTime;
 
 use anyhow::{anyhow, Result};
@@ -10,6 +9,7 @@ use log::{error, info, warn};
 use printnanny_settings::cam::CameraVideoSource;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use tokio::fs;
 
 use printnanny_dbus::printnanny_asyncapi_models;
 use printnanny_dbus::printnanny_asyncapi_models::{
@@ -308,7 +308,7 @@ impl NatsRequest {
         ))
     }
 
-    pub async fn handle_cloud_sync(&self) -> Result<NatsReply> {
+    pub async fn handle_cloud_sync() -> Result<NatsReply> {
         let start = chrono::offset::Utc::now().to_rfc3339();
 
         let api = ApiService::new()?;
@@ -325,23 +325,43 @@ impl NatsRequest {
     }
 
     // message messages sent to: "pi.{pi_id}.device_info.load"
-    pub async fn handle_device_info_load(&self) -> Result<NatsReply> {
+    pub async fn handle_device_info_load() -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
-        let issue = fs::read_to_string(settings.paths.issue_txt)?;
-        let os_release = fs::read_to_string(settings.paths.os_release)?;
+        let issue = fs::read_to_string(settings.paths.issue_txt).await?;
+        let os_release = fs::read_to_string(settings.paths.os_release).await?;
 
-        let ifaddrs = nix::ifaddrs::getifaddrs()?
-            .map(
-                |v| printnanny_settings::printnanny_asyncapi_models::NetworkInterfaceAddress {
-                    interface_name: v.interface_name,
-                    flags: v.flags.bits(),
-                    address: v.address.map(|v| v.to_string()),
-                    netmask: v.netmask.map(|v| v.to_string()),
-                    destination: v.destination.map(|v| v.to_string()),
-                    broadcast: v.broadcast.map(|v| v.to_string()),
-                },
-            )
-            .collect();
+        let ifaddrs = tokio::task::spawn_blocking(|| match nix::ifaddrs::getifaddrs() {
+            Ok(result) => result
+                .map(
+                    |v| printnanny_settings::printnanny_asyncapi_models::NetworkInterfaceAddress {
+                        interface_name: v.interface_name,
+                        flags: v.flags.bits(),
+                        address: v.address.map(|v| v.to_string()),
+                        netmask: v.netmask.map(|v| v.to_string()),
+                        destination: v.destination.map(|v| v.to_string()),
+                        broadcast: v.broadcast.map(|v| v.to_string()),
+                    },
+                )
+                .collect(),
+            Err(e) => {
+                error!("Error loading ifaddrs {}", e.to_string());
+                vec![]
+            }
+        })
+        .await?;
+
+        // let ifaddrs = ifaddrs
+        //     .map(
+        //         |v| printnanny_settings::printnanny_asyncapi_models::NetworkInterfaceAddress {
+        //             interface_name: v.interface_name,
+        //             flags: v.flags.bits(),
+        //             address: v.address.map(|v| v.to_string()),
+        //             netmask: v.netmask.map(|v| v.to_string()),
+        //             destination: v.destination.map(|v| v.to_string()),
+        //             broadcast: v.broadcast.map(|v| v.to_string()),
+        //         },
+        //     )
+        //     .collect();
 
         Ok(NatsReply::DeviceInfoLoadReply(DeviceInfoLoadReply {
             issue,
@@ -353,7 +373,6 @@ impl NatsRequest {
 
     // handle messages sent to: "pi.{pi_id}.settings.printnanny.cloud.auth"
     pub async fn handle_printnanny_cloud_auth(
-        &self,
         request: &PrintNannyCloudAuthRequest,
     ) -> Result<NatsReply> {
         let api_service = ApiService::new()?;
@@ -383,10 +402,7 @@ impl NatsRequest {
         Ok(result)
     }
 
-    pub async fn handle_crash_report(
-        &self,
-        request: &CrashReportOsLogsRequest,
-    ) -> Result<NatsReply> {
+    pub async fn handle_crash_report(request: &CrashReportOsLogsRequest) -> Result<NatsReply> {
         let api_service = ApiService::new()?;
         let result = api_service.crash_report_update(&request.id).await?;
         Ok(NatsReply::CrashReportOsLogsReply(CrashReportOsLogsReply {
@@ -395,7 +411,7 @@ impl NatsRequest {
         }))
     }
 
-    pub fn handle_cameras_load(&self) -> Result<NatsReply> {
+    pub fn handle_cameras_load() -> Result<NatsReply> {
         let cameras: Vec<printnanny_asyncapi_models::Camera> =
             CameraVideoSource::from_libcamera_list()?
                 .iter()
@@ -408,7 +424,6 @@ impl NatsRequest {
     }
 
     pub async fn handle_printnanny_settings_revert(
-        &self,
         request: &SettingsFileRevertRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
@@ -416,48 +431,54 @@ impl NatsRequest {
         // revert commit
         let oid = git2::Oid::from_str(&request.git_commit)?;
         settings.git_revert_hooks(Some(oid)).await?;
-        let files = vec![settings.to_payload(SettingsApp::Printnanny)?];
-        self.build_settings_revert_reply(request, &settings, files)
+        let files = vec![settings.to_payload(SettingsApp::Printnanny).await?];
+        Self::build_settings_revert_reply(request, &settings, files)
     }
 
     async fn handle_octoprint_settings_revert(
-        &self,
         request: &SettingsFileRevertRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
         // revert commit
         let oid = git2::Oid::from_str(&request.git_commit)?;
         settings.octoprint.git_revert_hooks(Some(oid)).await?;
-        let files = vec![settings.octoprint.to_payload(SettingsApp::Octoprint)?];
-        self.build_settings_revert_reply(request, &settings, files)
+        let files = vec![
+            settings
+                .octoprint
+                .to_payload(SettingsApp::Octoprint)
+                .await?,
+        ];
+        Self::build_settings_revert_reply(request, &settings, files)
     }
 
     async fn handle_moonraker_settings_revert(
-        &self,
         request: &SettingsFileRevertRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
         // revert commit
         let oid = git2::Oid::from_str(&request.git_commit)?;
         settings.moonraker.git_revert_hooks(Some(oid)).await?;
-        let files = vec![settings.moonraker.to_payload(SettingsApp::Moonraker)?];
-        self.build_settings_revert_reply(request, &settings, files)
+        let files = vec![
+            settings
+                .moonraker
+                .to_payload(SettingsApp::Moonraker)
+                .await?,
+        ];
+        Self::build_settings_revert_reply(request, &settings, files)
     }
 
     async fn handle_klipper_settings_revert(
-        &self,
         request: &SettingsFileRevertRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
         // revert commit
         let oid = git2::Oid::from_str(&request.git_commit)?;
         settings.klipper.git_revert_hooks(Some(oid)).await?;
-        let files = vec![settings.klipper.to_payload(SettingsApp::Klipper)?];
-        self.build_settings_revert_reply(request, &settings, files)
+        let files = vec![settings.klipper.to_payload(SettingsApp::Klipper).await?];
+        Self::build_settings_revert_reply(request, &settings, files)
     }
 
     fn build_settings_revert_reply(
-        &self,
         request: &SettingsFileRevertRequest,
         settings: &PrintNannySettings,
         files: Vec<SettingsFile>,
@@ -476,7 +497,6 @@ impl NatsRequest {
     }
 
     async fn handle_printnanny_settings_apply(
-        &self,
         request: &SettingsFileApplyRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
@@ -484,12 +504,11 @@ impl NatsRequest {
         settings
             .save_and_commit(&request.file.content, Some(request.git_commit_msg.clone()))
             .await?;
-        let file = settings.to_payload(SettingsApp::Printnanny)?;
-        self.build_settings_apply_reply(request, settings, file)
+        let file = settings.to_payload(SettingsApp::Printnanny).await?;
+        Self::build_settings_apply_reply(request, settings, file)
     }
 
     async fn handle_octoprint_settings_apply(
-        &self,
         request: &SettingsFileApplyRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
@@ -497,12 +516,14 @@ impl NatsRequest {
             .octoprint
             .save_and_commit(&request.file.content, Some(request.git_commit_msg.clone()))
             .await?;
-        let file = settings.octoprint.to_payload(SettingsApp::Octoprint)?;
-        self.build_settings_apply_reply(request, settings, file)
+        let file = settings
+            .octoprint
+            .to_payload(SettingsApp::Octoprint)
+            .await?;
+        Self::build_settings_apply_reply(request, settings, file)
     }
 
     async fn handle_moonraker_settings_apply(
-        &self,
         request: &SettingsFileApplyRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
@@ -510,12 +531,14 @@ impl NatsRequest {
             .moonraker
             .save_and_commit(&request.file.content, Some(request.git_commit_msg.clone()))
             .await?;
-        let file = settings.moonraker.to_payload(SettingsApp::Moonraker)?;
-        self.build_settings_apply_reply(request, settings, file)
+        let file = settings
+            .moonraker
+            .to_payload(SettingsApp::Moonraker)
+            .await?;
+        Self::build_settings_apply_reply(request, settings, file)
     }
 
     async fn handle_klipper_settings_apply(
-        &self,
         request: &SettingsFileApplyRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
@@ -523,12 +546,11 @@ impl NatsRequest {
             .klipper
             .save_and_commit(&request.file.content, Some(request.git_commit_msg.clone()))
             .await?;
-        let file = settings.klipper.to_payload(SettingsApp::Klipper)?;
-        self.build_settings_apply_reply(request, settings, file)
+        let file = settings.klipper.to_payload(SettingsApp::Klipper).await?;
+        Self::build_settings_apply_reply(request, settings, file)
     }
 
     fn build_settings_apply_reply(
-        &self,
         _request: &SettingsFileApplyRequest,
         settings: PrintNannySettings,
         file: SettingsFile,
@@ -543,41 +565,51 @@ impl NatsRequest {
         }))
     }
 
-    fn handle_printnanny_settings_load(&self) -> Result<Vec<SettingsFile>> {
+    async fn handle_printnanny_settings_load() -> Result<Vec<SettingsFile>> {
         let settings = PrintNannySettings::new()?;
-        let files = vec![settings.to_payload(SettingsApp::Printnanny)?];
+        let files = vec![settings.to_payload(SettingsApp::Printnanny).await?];
         Ok(files)
     }
 
-    fn handle_octoprint_settings_load(&self) -> Result<Vec<SettingsFile>> {
+    async fn handle_octoprint_settings_load() -> Result<Vec<SettingsFile>> {
         let settings = PrintNannySettings::new()?;
-        let files = vec![settings.octoprint.to_payload(SettingsApp::Octoprint)?];
+        let files = vec![
+            settings
+                .octoprint
+                .to_payload(SettingsApp::Octoprint)
+                .await?,
+        ];
         Ok(files)
     }
 
-    fn handle_moonraker_settings_load(&self) -> Result<Vec<SettingsFile>> {
+    async fn handle_moonraker_settings_load() -> Result<Vec<SettingsFile>> {
         let settings = PrintNannySettings::new()?;
-        let files = vec![settings.moonraker.to_payload(SettingsApp::Moonraker)?];
+        let files = vec![
+            settings
+                .moonraker
+                .to_payload(SettingsApp::Moonraker)
+                .await?,
+        ];
         Ok(files)
     }
 
-    fn handle_klipper_settings_load(&self) -> Result<Vec<SettingsFile>> {
+    async fn handle_klipper_settings_load() -> Result<Vec<SettingsFile>> {
         let settings = PrintNannySettings::new()?;
-        let files = vec![settings.klipper.to_payload(SettingsApp::Klipper)?];
+        let files = vec![settings.klipper.to_payload(SettingsApp::Klipper).await?];
         Ok(files)
     }
 
-    pub fn handle_settings_load(&self) -> Result<NatsReply> {
+    pub async fn handle_settings_load() -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
 
         let git_head_commit = settings.get_git_head_commit()?.oid;
         let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
             settings.get_rev_list()?.iter().map(|r| r.into()).collect();
 
-        let mut files = self.handle_printnanny_settings_load()?;
-        files.extend(self.handle_octoprint_settings_load()?);
-        files.extend(self.handle_moonraker_settings_load()?);
-        files.extend(self.handle_klipper_settings_load()?);
+        let mut files = Self::handle_printnanny_settings_load().await?;
+        files.extend(Self::handle_octoprint_settings_load().await?);
+        files.extend(Self::handle_moonraker_settings_load().await?);
+        files.extend(Self::handle_klipper_settings_load().await?);
         Ok(NatsReply::SettingsFileLoadReply(SettingsFileLoadReply {
             files,
             git_head_commit,
@@ -585,29 +617,23 @@ impl NatsRequest {
         }))
     }
 
-    pub async fn handle_settings_apply(
-        &self,
-        request: &SettingsFileApplyRequest,
-    ) -> Result<NatsReply> {
+    pub async fn handle_settings_apply(request: &SettingsFileApplyRequest) -> Result<NatsReply> {
         match *request.file.app {
-            SettingsApp::Printnanny => self.handle_printnanny_settings_apply(request).await,
-            SettingsApp::Octoprint => self.handle_octoprint_settings_apply(request).await,
-            SettingsApp::Moonraker => self.handle_moonraker_settings_apply(request).await,
-            SettingsApp::Klipper => self.handle_klipper_settings_apply(request).await,
+            SettingsApp::Printnanny => Self::handle_printnanny_settings_apply(request).await,
+            SettingsApp::Octoprint => Self::handle_octoprint_settings_apply(request).await,
+            SettingsApp::Moonraker => Self::handle_moonraker_settings_apply(request).await,
+            SettingsApp::Klipper => Self::handle_klipper_settings_apply(request).await,
         }
     }
 
-    pub async fn handle_camera_settings_load(&self) -> Result<NatsReply> {
+    pub async fn handle_camera_settings_load() -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
         Ok(NatsReply::CameraSettingsFileLoadReply(
             settings.video_stream.into(),
         ))
     }
 
-    pub async fn handle_camera_settings_apply(
-        &self,
-        request: &VideoStreamSettings,
-    ) -> Result<NatsReply> {
+    pub async fn handle_camera_settings_apply(request: &VideoStreamSettings) -> Result<NatsReply> {
         info!("Received request: {:#?}", request);
         let mut settings = PrintNannySettings::new()?;
 
@@ -621,20 +647,16 @@ impl NatsRequest {
         ))
     }
 
-    pub async fn handle_settings_revert(
-        &self,
-        request: &SettingsFileRevertRequest,
-    ) -> Result<NatsReply> {
+    pub async fn handle_settings_revert(request: &SettingsFileRevertRequest) -> Result<NatsReply> {
         match *request.app {
-            SettingsApp::Printnanny => self.handle_printnanny_settings_revert(request).await,
-            SettingsApp::Octoprint => self.handle_octoprint_settings_revert(request).await,
-            SettingsApp::Moonraker => self.handle_moonraker_settings_revert(request).await,
-            SettingsApp::Klipper => self.handle_klipper_settings_revert(request).await,
+            SettingsApp::Printnanny => Self::handle_printnanny_settings_revert(request).await,
+            SettingsApp::Octoprint => Self::handle_octoprint_settings_revert(request).await,
+            SettingsApp::Moonraker => Self::handle_moonraker_settings_revert(request).await,
+            SettingsApp::Klipper => Self::handle_klipper_settings_revert(request).await,
         }
     }
 
     pub async fn handle_disable_units_request(
-        &self,
         request: &SystemdManagerUnitFilesRequest,
     ) -> Result<NatsReply> {
         let connection = zbus::Connection::system().await?;
@@ -677,7 +699,6 @@ impl NatsRequest {
     }
 
     pub async fn handle_enable_units_request(
-        &self,
         request: &SystemdManagerUnitFilesRequest,
     ) -> Result<NatsReply> {
         let connection = zbus::Connection::system().await?;
@@ -722,7 +743,6 @@ impl NatsRequest {
     }
 
     async fn get_systemd_unit(
-        &self,
         unit_name: String,
     ) -> Result<printnanny_asyncapi_models::SystemdUnit> {
         let connection = zbus::Connection::system().await?;
@@ -735,11 +755,8 @@ impl NatsRequest {
         Ok(unit)
     }
 
-    async fn handle_get_unit_request(
-        &self,
-        request: &SystemdManagerGetUnitRequest,
-    ) -> Result<NatsReply> {
-        let unit = self.get_systemd_unit(request.unit_name.clone()).await?;
+    async fn handle_get_unit_request(request: &SystemdManagerGetUnitRequest) -> Result<NatsReply> {
+        let unit = Self::get_systemd_unit(request.unit_name.clone()).await?;
         Ok(NatsReply::SystemdManagerGetUnitReply(
             SystemdManagerGetUnitReply {
                 unit: Box::new(unit),
@@ -748,7 +765,6 @@ impl NatsRequest {
     }
 
     async fn handle_get_unit_file_state_request(
-        &self,
         request: &SystemdManagerGetUnitRequest,
     ) -> Result<NatsReply> {
         let connection = zbus::Connection::system().await?;
@@ -799,7 +815,6 @@ impl NatsRequest {
     // }
 
     async fn handle_restart_unit_request(
-        &self,
         request: &SystemdManagerRestartUnitRequest,
     ) -> Result<NatsReply> {
         let connection = zbus::Connection::system().await?;
@@ -807,7 +822,7 @@ impl NatsRequest {
         let job = proxy
             .restart_unit(request.unit_name.clone(), "replace".into())
             .await?;
-        let unit = self.get_systemd_unit(request.unit_name.clone()).await?;
+        let unit = Self::get_systemd_unit(request.unit_name.clone()).await?;
 
         Ok(NatsReply::SystemdManagerRestartUnitReply(
             SystemdManagerRestartUnitReply {
@@ -818,7 +833,6 @@ impl NatsRequest {
     }
 
     async fn handle_start_unit_request(
-        &self,
         request: &SystemdManagerStartUnitRequest,
     ) -> Result<NatsReply> {
         let connection = zbus::Connection::system().await?;
@@ -826,7 +840,7 @@ impl NatsRequest {
         let job = proxy
             .start_unit(request.unit_name.clone(), "replace".into())
             .await?;
-        let unit = self.get_systemd_unit(request.unit_name.clone()).await?;
+        let unit = Self::get_systemd_unit(request.unit_name.clone()).await?;
         Ok(NatsReply::SystemdManagerStartUnitReply(
             SystemdManagerStartUnitReply {
                 job: job.to_string(),
@@ -836,7 +850,6 @@ impl NatsRequest {
     }
 
     async fn handle_stop_unit_request(
-        &self,
         request: &SystemdManagerStopUnitRequest,
     ) -> Result<NatsReply> {
         let connection = zbus::Connection::system().await?;
@@ -844,7 +857,7 @@ impl NatsRequest {
         let job = proxy
             .stop_unit(request.unit_name.clone(), "replace".into())
             .await?;
-        let unit = self.get_systemd_unit(request.unit_name.clone()).await?;
+        let unit = Self::get_systemd_unit(request.unit_name.clone()).await?;
         Ok(NatsReply::SystemdManagerStopUnitReply(
             SystemdManagerStopUnitReply {
                 job: job.to_string(),
@@ -936,80 +949,68 @@ impl NatsRequestHandler for NatsRequest {
 
     // Request handlers with blocking I/O should be run with tokio::task::spawn_blocking
     async fn handle(&self) -> Result<Self::Reply> {
-        let reply = match self {
+        match self {
             // pi.{pi_id}.command.camera.recording.start
-            NatsRequest::CameraRecordingStartRequest => {
-                tokio::task::spawn_blocking(|| async {
-                    Self::handle_camera_recording_start().await
-                })
-                .await?
-                .await?
-            }
+            NatsRequest::CameraRecordingStartRequest => Self::handle_camera_recording_start().await,
             // pi.{pi_id}.command.camera.recording.stop
-            NatsRequest::CameraRecordingStopRequest => {
-                tokio::task::spawn_blocking(|| async { Self::handle_camera_recording_stop().await })
-                    .await?
-                    .await?
-            }
+            NatsRequest::CameraRecordingStopRequest => Self::handle_camera_recording_stop().await,
             // pi.{pi_id}.command.camera.recording.load
             NatsRequest::CameraRecordingLoadRequest => {
-                tokio::task::spawn_blocking(|| Self::handle_camera_recording_load()).await??
+                tokio::task::spawn_blocking(Self::handle_camera_recording_load).await?
             }
             // pi.{pi_id}.command.cloud.sync
-            NatsRequest::PrintNannyCloudSyncRequest => self.handle_cloud_sync().await?,
+            NatsRequest::PrintNannyCloudSyncRequest => Self::handle_cloud_sync().await,
             // pi.{pi_id}.cameras.load
-            NatsRequest::CameraLoadRequest => self.handle_cameras_load()?,
+            NatsRequest::CameraLoadRequest => {
+                tokio::task::spawn_blocking(Self::handle_cameras_load).await?
+            }
             // "pi.{pi_id}.crash_reports.os"
             NatsRequest::CrashReportOsLogsRequest(request) => {
-                self.handle_crash_report(request).await?
+                Self::handle_crash_report(request).await
             }
             // pi.{pi_id}.device_info.load
-            NatsRequest::DeviceInfoLoadRequest => self.handle_device_info_load().await?,
+            NatsRequest::DeviceInfoLoadRequest => Self::handle_device_info_load().await,
 
             // pi.{pi_id}.settings.*
             NatsRequest::PrintNannyCloudAuthRequest(request) => {
-                self.handle_printnanny_cloud_auth(request).await?
+                Self::handle_printnanny_cloud_auth(request).await
             }
-            NatsRequest::SettingsFileLoadRequest => self.handle_settings_load()?,
+            NatsRequest::SettingsFileLoadRequest => Self::handle_settings_load().await,
             NatsRequest::SettingsFileApplyRequest(request) => {
-                self.handle_settings_apply(request).await?
+                Self::handle_settings_apply(request).await
             }
             NatsRequest::SettingsFileRevertRequest(request) => {
-                self.handle_settings_revert(request).await?
+                Self::handle_settings_revert(request).await
             }
 
-            NatsRequest::CameraSettingsFileLoadRequest => {
-                self.handle_camera_settings_load().await?
-            }
+            NatsRequest::CameraSettingsFileLoadRequest => Self::handle_camera_settings_load().await,
 
             NatsRequest::CameraSettingsFileApplyRequest(request) => {
-                self.handle_camera_settings_apply(request).await?
+                Self::handle_camera_settings_apply(request).await
             }
             // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
             NatsRequest::SystemdManagerDisableUnitsRequest(request) => {
-                self.handle_disable_units_request(request).await?
+                Self::handle_disable_units_request(request).await
             }
             NatsRequest::SystemdManagerEnableUnitsRequest(request) => {
-                self.handle_enable_units_request(request).await?
+                Self::handle_enable_units_request(request).await
             }
             NatsRequest::SystemdManagerGetUnitRequest(request) => {
-                self.handle_get_unit_request(request).await?
+                Self::handle_get_unit_request(request).await
             }
             NatsRequest::SystemdManagerGetUnitFileStateRequest(request) => {
-                self.handle_get_unit_file_state_request(request).await?
+                Self::handle_get_unit_file_state_request(request).await
             }
             NatsRequest::SystemdManagerRestartUnitRequest(request) => {
-                self.handle_restart_unit_request(request).await?
+                Self::handle_restart_unit_request(request).await
             }
             NatsRequest::SystemdManagerStartUnitRequest(request) => {
-                self.handle_start_unit_request(request).await?
+                Self::handle_start_unit_request(request).await
             }
             NatsRequest::SystemdManagerStopUnitRequest(request) => {
-                self.handle_stop_unit_request(request).await?
+                Self::handle_stop_unit_request(request).await
             }
-        };
-
-        Ok(reply)
+        }
     }
 }
 

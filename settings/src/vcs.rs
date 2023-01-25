@@ -1,5 +1,6 @@
-use std::fs;
 use std::path::{Path, PathBuf};
+
+use tokio::fs;
 
 use async_trait::async_trait;
 use git2::{DiffFormat, DiffOptions, Repository};
@@ -22,10 +23,13 @@ pub struct GitCommit {
 #[async_trait]
 pub trait VersionControlledSettings {
     type SettingsModel: Serialize;
-    fn to_payload(&self, app: SettingsApp) -> Result<SettingsFile, VersionControlledSettingsError> {
+    async fn to_payload(
+        &self,
+        app: SettingsApp,
+    ) -> Result<SettingsFile, VersionControlledSettingsError> {
         let file_name = self.get_settings_file().display().to_string();
         let file_format = self.get_settings_format();
-        let content = match fs::read_to_string(&file_name) {
+        let content = match fs::read_to_string(&file_name).await {
             Ok(data) => Ok(data),
             Err(e) => Err(VersionControlledSettingsError::ReadIOError {
                 path: file_name.clone(),
@@ -103,9 +107,9 @@ pub trait VersionControlledSettings {
         )?;
         Ok(lines.join("\n"))
     }
-    fn read_settings(&self) -> Result<String, VersionControlledSettingsError> {
+    async fn read_settings(&self) -> Result<String, VersionControlledSettingsError> {
         let settings_file = self.get_settings_file();
-        let result = match fs::read_to_string(&settings_file) {
+        let result = match fs::read_to_string(&settings_file).await {
             Ok(d) => Ok(d),
             Err(e) => Err(VersionControlledSettingsError::ReadIOError {
                 path: (settings_file.display()).to_string(),
@@ -114,11 +118,11 @@ pub trait VersionControlledSettings {
         }?;
         Ok(result)
     }
-    fn write_settings(&self, content: &str) -> Result<(), VersionControlledSettingsError> {
+    async fn write_settings(&self, content: &str) -> Result<(), VersionControlledSettingsError> {
         let output = self.get_settings_file();
         let parent_dir = output.parent().unwrap();
         if !parent_dir.exists() {
-            match fs::create_dir_all(parent_dir) {
+            match fs::create_dir_all(parent_dir).await {
                 Ok(_) => {
                     info!("Created directory {}", parent_dir.display());
                     Ok(())
@@ -129,7 +133,7 @@ pub trait VersionControlledSettings {
                 }),
             }?;
         }
-        match fs::write(&output, content) {
+        match fs::write(&output, content).await {
             Ok(_) => Ok(()),
             Err(e) => Err(VersionControlledSettingsError::WriteIOError {
                 path: output.display().to_string(),
@@ -238,7 +242,7 @@ pub trait VersionControlledSettings {
         // then run any pre-save hooks
         self.pre_save().await?;
         // write settings file
-        self.write_settings(content)?;
+        self.write_settings(content).await?;
         // commit changes
         self.git_add_all()?;
         self.git_commit(commit_msg)?;

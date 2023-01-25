@@ -3,10 +3,11 @@ use figment::providers::Env;
 use log::{info, warn};
 use serde;
 use serde::{Deserialize, Serialize};
+use std::io;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{fs, io};
+use tokio::fs;
 use zip::ZipArchive;
 
 use super::error::PrintNannySettingsError;
@@ -174,15 +175,12 @@ impl PrintNannyPaths {
                 }
             }
             // read filename from archive
-            let file = archive.by_name(filename);
-            let mut file = match file {
-                Ok(f) => Ok(f),
-                Err(_) => Err(PrintNannySettingsError::ArchiveMissingFile {
+            let mut file = archive.by_name(filename).map_err(|_e| {
+                PrintNannySettingsError::ArchiveMissingFile {
                     filename: filename.to_string(),
                     archive: license_zip.clone(),
-                }),
-            }?;
-
+                }
+            })?;
             let mut contents = String::new();
 
             match file.read_to_string(&mut contents) {
@@ -193,14 +191,16 @@ impl PrintNannyPaths {
                 }),
             }?;
 
-            match std::fs::write(dest, contents) {
-                Ok(_) => Ok(()),
+            match std::fs::write(dest, &contents) {
+                Ok(_) => {
+                    info!("Wrote seed file {:?}", dest);
+                    Ok(())
+                }
                 Err(error) => Err(PrintNannySettingsError::WriteIOError {
                     path: PathBuf::from(filename),
                     error,
                 }),
             }?;
-            info!("Wrote seed file {:?}", dest);
         }
         Ok(results)
     }
@@ -213,7 +213,7 @@ impl PrintNannyPaths {
             .as_secs();
         let new_filename = format!("{}.{}.bak", filename.display(), ts);
         let new_filepath = PathBuf::from(&new_filename);
-        fs::copy(filename, &new_filepath)?;
+        std::fs::copy(filename, &new_filepath)?;
         info!(
             "{} already exists, backed up to {} before overwriting",
             filename.display(),
@@ -222,7 +222,11 @@ impl PrintNannyPaths {
         Ok(new_filepath)
     }
 
-    pub fn write_license_zip(&self, b: Bytes, backup: bool) -> Result<(), PrintNannySettingsError> {
+    pub async fn write_license_zip(
+        &self,
+        b: Bytes,
+        backup: bool,
+    ) -> Result<(), PrintNannySettingsError> {
         let filename = self.license_zip();
 
         // if license.zip already exists, back up existing file before overwriting
@@ -240,7 +244,7 @@ impl PrintNannyPaths {
             }
         }
 
-        fs::write(filename, b)?;
+        fs::write(filename, b).await?;
 
         Ok(())
     }
