@@ -204,7 +204,7 @@ impl NatsRequest {
         let sqlite_connection = settings.paths.db().display().to_string();
         let recording = printnanny_edge_db::video_recording::VideoRecording::start_new(
             &sqlite_connection,
-            &settings.paths.video(),
+            settings.paths.video(),
         )?;
         let factory = PrintNannyPipelineFactory::default();
         factory
@@ -1066,7 +1066,10 @@ mod tests {
         )
         .unwrap();
         jail.set_env("PRINTNANNY_SETTINGS", "PrintNannySettingsTest.toml");
-        let settings = PrintNannySettings::new().unwrap();
+        let settings = Runtime::new()
+            .unwrap()
+            .block_on(PrintNannySettings::new())
+            .unwrap();
         settings.get_git_repo().unwrap();
     }
 
@@ -1124,7 +1127,9 @@ mod tests {
             // init git repo in jail tmp dir
             make_settings_repo(jail);
             // get settings
-            let settings = PrintNannySettings::new().unwrap();
+            let runtime = Runtime::new().unwrap();
+
+            let settings = runtime.block_on(PrintNannySettings::new()).unwrap();
             let request = NatsRequest::CameraSettingsFileLoadRequest;
 
             let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
@@ -1144,8 +1149,9 @@ mod tests {
             // init git repo in jail tmp dir
             make_settings_repo(jail);
 
+            let runtime = Runtime::new().unwrap();
             // apply a settings change
-            let settings = PrintNannySettings::new().unwrap();
+            let settings = runtime.block_on(PrintNannySettings::new()).unwrap();
             let mut modified = settings.video_stream.clone();
             modified.hls.enabled = false;
 
@@ -1154,7 +1160,7 @@ mod tests {
 
             if let NatsReply::CameraSettingsFileApplyReply(reply) = reply {
                 assert_eq!(reply.hls.enabled, false);
-                let settings = PrintNannySettings::new().unwrap();
+                let settings = runtime.block_on(PrintNannySettings::new()).unwrap();
                 assert_eq!(settings.video_stream.hls.enabled, false);
             } else {
                 panic!("Expected NatsReply::CameraSettingsFileApplyReply")
@@ -1171,8 +1177,12 @@ mod tests {
             make_settings_repo(jail);
 
             // apply a settings change
-            let mut settings = PrintNannySettings::new().unwrap();
-            let original = settings.to_payload(SettingsApp::Printnanny).unwrap();
+            let runtime = Runtime::new().unwrap();
+            let mut settings = runtime.block_on(PrintNannySettings::new()).unwrap();
+
+            let original = runtime
+                .block_on(settings.to_payload(SettingsApp::Printnanny))
+                .unwrap();
             let mut modified = original.clone();
             let git_head_commit = settings.get_git_head_commit().unwrap().oid;
             settings.paths.log_dir = "/path/to/testing".into();
@@ -1184,10 +1194,7 @@ mod tests {
                 git_head_commit,
                 git_commit_msg: git_commit_msg.clone(),
             });
-            let reply = Runtime::new()
-                .unwrap()
-                .block_on(request_apply.handle())
-                .unwrap();
+            let reply = runtime.block_on(request_apply.handle()).unwrap();
             let revert_commit = settings.get_git_head_commit().unwrap().oid;
 
             if let NatsReply::SettingsFileApplyReply(reply) = reply {
@@ -1224,7 +1231,10 @@ mod tests {
                 .block_on(request_revert.handle())
                 .unwrap();
             if let NatsReply::SettingsFileRevertReply(reply) = reply {
-                let settings = PrintNannySettings::new().unwrap();
+                let settings = Runtime::new()
+                    .unwrap()
+                    .block_on(PrintNannySettings::new())
+                    .unwrap();
 
                 assert_eq!(reply.files[0].content, settings.to_toml_string().unwrap());
             } else {
@@ -1277,13 +1287,16 @@ mod tests {
             // init git repo in jail tmp dir
             make_settings_repo(jail);
 
-            let settings = PrintNannySettings::new().unwrap();
+            let runtime = Runtime::new().unwrap();
+            let settings = runtime.block_on(PrintNannySettings::new()).unwrap();
+
+            let octoprint_settings = settings.to_octoprint_settings();
 
             // apply a settings change
-            let original = settings
-                .octoprint
-                .to_payload(SettingsApp::Octoprint)
+            let original = runtime
+                .block_on(octoprint_settings.to_payload(SettingsApp::Octoprint))
                 .unwrap();
+
             let mut modified = original.clone();
             modified.content = OCTOPRINT_MODIFIED_SETTINGS.into();
             let git_head_commit = settings.get_git_head_commit().unwrap().oid;
@@ -1382,12 +1395,14 @@ mod tests {
             // init git repo in jail tmp dir
             make_settings_repo(jail);
 
-            let settings = PrintNannySettings::new().unwrap();
+            let runtime = Runtime::new().unwrap();
+            let settings = runtime.block_on(PrintNannySettings::new()).unwrap();
+
+            let moonraker_settings = settings.to_moonraker_settings();
 
             // apply a settings change
-            let original = settings
-                .moonraker
-                .to_payload(SettingsApp::Octoprint)
+            let original = runtime
+                .block_on(moonraker_settings.to_payload(SettingsApp::Octoprint))
                 .unwrap();
             let mut modified = original.clone();
             modified.content = MOONRAKER_MODIFIED_SETTINGS.into();

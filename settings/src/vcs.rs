@@ -8,8 +8,8 @@ use log::{debug, info, warn};
 use printnanny_asyncapi_models::{SettingsApp, SettingsFile};
 use serde::{Deserialize, Serialize};
 
-use crate::error::{PrintNannySettingsError, VersionControlledSettingsError};
-use crate::printnanny::{GitSettings, PrintNannySettings};
+use crate::error::VersionControlledSettingsError;
+use crate::printnanny::GitSettings;
 use crate::SettingsFormat;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
