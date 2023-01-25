@@ -534,8 +534,8 @@ mod tests {
         });
     }
 
-    #[test_log::test]
-    fn test_user_provided_toml_file() {
+    #[tokio::test]
+    async fn test_user_provided_toml_file() {
         figment::Jail::expect_with(|jail| {
             let output = jail.directory().to_str().unwrap();
 
@@ -547,26 +547,27 @@ mod tests {
                     r#"
                 profile = "local"
                 [paths]
-                settings_dir = "{output}/printnanny.d"
                 log_dir = "{output}/log"
                 "#,
                     output = output
                 ),
             )?;
 
-            let config =
-                PrintNannySettings::from_toml(PathBuf::from(output).join(filename)).unwrap();
+            let config = async { PrintNannySettings::from_toml(PathBuf::from(output).join(filename))
+                .await
+                .unwrap();
+            }
             assert_eq!(
-                config.paths.settings_dir,
-                PathBuf::from(format!("{}/printnanny.d", output))
+                config.paths.log_dir
+                PathBuf::from(format!("{}/log", output))
             );
 
             Ok(())
         });
     }
 
-    #[test_log::test]
-    fn test_cam_settings() {
+    #[tokio::test]
+    async fn test_cam_settings() {
         figment::Jail::expect_with(|jail| {
             let output = jail.directory().to_str().unwrap();
 
@@ -580,8 +581,9 @@ mod tests {
                 "#,
             )?;
 
-            let settings =
-                PrintNannySettings::from_toml(PathBuf::from(output).join(filename)).unwrap();
+            let settings = PrintNannySettings::from_toml(PathBuf::from(output).join(filename))
+                .await
+                .unwrap();
             assert_eq!(settings.video_stream.detection.tensor_framerate, 1);
 
             Ok(())
