@@ -315,7 +315,7 @@ impl ApiService {
         &self,
         pi: i32,
     ) -> Result<models::SystemInfo, ServiceError> {
-        let system_info = metadata::system_info()?;
+        let system_info = tokio::task::spawn_blocking(|| metadata::system_info()).await??;
         let os_release_json: HashMap<String, serde_json::Value> =
             serde_json::from_str(&serde_json::to_string(&system_info.os_release)?)?;
 
@@ -352,16 +352,16 @@ impl ApiService {
     ) -> Result<models::OctoPrintServer, ServiceError> {
         let settings = PrintNannySettings::new()?;
         let helper = &settings.octoprint;
-        let pip_version = helper.pip_version()?;
-        let python_version = helper.python_version()?;
-        let pip_packages = helper.pip_packages()?;
+        let python_version = helper.python_version();
+        let pip_version = helper.pip_version();
+        let pip_packages = helper.pip_packages().await?;
         let octoprint_version = helper.octoprint_version(&pip_packages);
         let printnanny_plugin_version = helper.printnanny_plugin_version(&pip_packages);
         let req = models::PatchedOctoPrintServerRequest {
             octoprint_version,
-            pip_version,
             printnanny_plugin_version,
-            python_version,
+            pip_version: pip_version.await?,
+            python_version: python_version.await?,
             pi: Some(*pi_id),
             ..models::PatchedOctoPrintServerRequest::new()
         };

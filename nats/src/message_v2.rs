@@ -180,7 +180,7 @@ pub enum NatsReply {
 }
 
 impl NatsRequest {
-    pub async fn handle_camera_recording_load(&self) -> Result<NatsReply> {
+    pub fn handle_camera_recording_load() -> Result<NatsReply> {
         let recordings: Vec<printnanny_asyncapi_models::VideoRecording> =
             printnanny_edge_db::video_recording::VideoRecording::get_all()?
                 .into_iter()
@@ -196,7 +196,7 @@ impl NatsRequest {
         ))
     }
 
-    pub async fn handle_camera_recording_start(&self) -> Result<NatsReply> {
+    pub async fn handle_camera_recording_start() -> Result<NatsReply> {
         let recording = printnanny_edge_db::video_recording::VideoRecording::start_new()?;
         let factory = PrintNannyPipelineFactory::default();
         factory
@@ -227,7 +227,7 @@ impl NatsRequest {
         ))
     }
 
-    pub async fn handle_camera_recording_stop(&self) -> Result<NatsReply> {
+    pub async fn handle_camera_recording_stop() -> Result<NatsReply> {
         let recording = printnanny_edge_db::video_recording::VideoRecording::get_current()?;
         let factory = PrintNannyPipelineFactory::default();
 
@@ -934,16 +934,27 @@ impl NatsRequestHandler for NatsRequest {
         }
     }
 
+    // Request handlers with blocking I/O should be run with tokio::task::spawn_blocking
     async fn handle(&self) -> Result<Self::Reply> {
         let reply = match self {
             // pi.{pi_id}.command.camera.recording.start
             NatsRequest::CameraRecordingStartRequest => {
-                self.handle_camera_recording_start().await?
+                tokio::task::spawn_blocking(|| async {
+                    Self::handle_camera_recording_start().await
+                })
+                .await?
+                .await?
             }
             // pi.{pi_id}.command.camera.recording.stop
-            NatsRequest::CameraRecordingStopRequest => self.handle_camera_recording_stop().await?,
+            NatsRequest::CameraRecordingStopRequest => {
+                tokio::task::spawn_blocking(|| async { Self::handle_camera_recording_stop().await })
+                    .await?
+                    .await?
+            }
             // pi.{pi_id}.command.camera.recording.load
-            NatsRequest::CameraRecordingLoadRequest => self.handle_camera_recording_load().await?,
+            NatsRequest::CameraRecordingLoadRequest => {
+                tokio::task::spawn_blocking(|| Self::handle_camera_recording_load()).await??
+            }
             // pi.{pi_id}.command.cloud.sync
             NatsRequest::PrintNannyCloudSyncRequest => self.handle_cloud_sync().await?,
             // pi.{pi_id}.cameras.load

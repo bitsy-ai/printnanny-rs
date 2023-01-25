@@ -158,17 +158,7 @@ where
                     Ok(request) => {
                         debug!("Received NATS Message: {:?}", message);
                         if let Some(reply_inbox) = message.reply {
-                            let payload = match request.handle().await {
-                                Ok(r) => serde_json::to_vec(&r).unwrap(),
-                                Err(e) => {
-                                    let r = RequestErrorMsg {
-                                        error: e.to_string(),
-                                        subject_pattern,
-                                        request,
-                                    };
-                                    serde_json::to_vec(&r).unwrap()
-                                }
-                            };
+                            let payload = self.handle_request(request, &subject_pattern).await;
                             match &nats_client.publish(reply_inbox, payload.into()).await {
                                 Ok(_) => (),
                                 Err(e) => {
@@ -206,6 +196,21 @@ where
 
         Ok(())
     }
+
+    async fn handle_request(&self, request: Request, subject_pattern: &str) -> Vec<u8> {
+        match request.handle().await {
+            Ok(r) => serde_json::to_vec(&r).unwrap(),
+            Err(e) => {
+                let r = RequestErrorMsg {
+                    error: e.to_string(),
+                    subject_pattern: subject_pattern.to_string(),
+                    request,
+                };
+                serde_json::to_vec(&r).unwrap()
+            }
+        }
+    }
+
     pub async fn try_init_nats_client(&self) -> Result<async_nats::Client, std::io::Error> {
         match &self.nats_creds {
             Some(nats_creds) => match nats_creds.exists() {
