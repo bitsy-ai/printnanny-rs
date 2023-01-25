@@ -26,7 +26,7 @@ systemd = []
 
 [dependencies]
 anyhow = "1"
-async-nats = "0.18.0"
+async-nats = "0.26.0"
 async-process = "1.4.0"
 async-trait = "0.1.58"
 bytes = "1.2"
