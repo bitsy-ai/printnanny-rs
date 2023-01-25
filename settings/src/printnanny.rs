@@ -23,6 +23,8 @@ use crate::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
 use crate::vcs::VersionControlledSettings;
 use crate::SettingsFormat;
 
+pub const DEFAULT_PRINTNANNY_SETTINGS_DIR: &str = "/home/printnanny/.config/printnanny/vcs";
+
 const DEFAULT_PRINTNANNY_SETTINGS_GIT_REMOTE: &str =
     "https://github.com/bitsy-ai/printnanny-settings.git";
 const DEFAULT_PRINTNANNY_SETTINGS_GIT_EMAIL: &str = "robots@printnanny.ai";
@@ -74,6 +76,7 @@ pub struct SystemdUnit {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct GitSettings {
+    pub path: PathBuf, // local git repo used to commit/revert changes to user-supplied config
     pub remote: String,
     pub email: String,
     pub name: String,
@@ -83,6 +86,7 @@ pub struct GitSettings {
 impl Default for GitSettings {
     fn default() -> Self {
         Self {
+            path: DEFAULT_PRINTNANNY_SETTINGS_DIR.into(),
             remote: DEFAULT_PRINTNANNY_SETTINGS_GIT_REMOTE.into(),
             email: DEFAULT_PRINTNANNY_SETTINGS_GIT_EMAIL.into(),
             name: DEFAULT_PRINTNANNY_SETTINGS_GIT_NAME.into(),
@@ -288,9 +292,8 @@ impl Provider for PrintNannySettings {
 #[async_trait]
 impl VersionControlledSettings for PrintNannySettings {
     type SettingsModel = PrintNannySettings;
-    async fn from_dir(settings_dir: &Path) -> Self {
-        let settings_file = settings_dir.join("printnanny/printnanny.toml");
-        PrintNannySettings::from_toml(settings_file).await.unwrap()
+    fn from_dir(settings_dir: &Path) -> Self {
+        todo!()
     }
     fn get_settings_format(&self) -> SettingsFormat {
         SettingsFormat::Toml
@@ -320,6 +323,18 @@ impl VersionControlledSettings for PrintNannySettings {
     }
     fn validate(&self) -> Result<(), VersionControlledSettingsError> {
         todo!("PrintNannySettings validate hook is not yet implemented");
+    }
+
+    fn get_git_repo_path(&self) -> &Path {
+        &self.paths.settings_dir
+    }
+
+    fn get_git_remote(&self) -> &str {
+        &self.git.remote
+    }
+
+    fn get_git_settings(&self) -> &GitSettings {
+        &self.git
     }
 }
 

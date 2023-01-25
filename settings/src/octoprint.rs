@@ -11,6 +11,8 @@ use printnanny_dbus::zbus_systemd;
 
 use crate::error::PrintNannySettingsError;
 use crate::error::VersionControlledSettingsError;
+use crate::printnanny::GitSettings;
+use crate::printnanny::PrintNannySettings;
 use crate::vcs::VersionControlledSettings;
 use crate::SettingsFormat;
 
@@ -26,16 +28,18 @@ pub struct PipPackage {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct OctoPrintSettings {
+pub struct OctoPrintSettings<'a> {
     pub enabled: bool,
+    pub remote: String,
     pub install_dir: PathBuf,
     pub settings_file: PathBuf,
     pub settings_format: SettingsFormat,
     pub venv: PathBuf,
+    pub git_settings: &'a GitSettings,
 }
 
 #[async_trait]
-impl VersionControlledSettings for OctoPrintSettings {
+impl VersionControlledSettings for OctoPrintSettings<'a> {
     type SettingsModel = OctoPrintSettings;
     fn from_dir(settings_dir: &Path) -> Self {
         let settings_file = settings_dir.join("octoprint/octoprint.yaml");
@@ -49,6 +53,18 @@ impl VersionControlledSettings for OctoPrintSettings {
     }
     fn get_settings_file(&self) -> PathBuf {
         self.settings_file.clone()
+    }
+
+    fn get_git_repo_path(&self) -> &Path {
+        &self.settings_dir
+    }
+
+    fn get_git_remote(&self) -> &str {
+        &self.printnanny_settings.git.remote
+    }
+
+    fn get_git_settings(&self) -> &GitSettings {
+        &self.printnanny_settings.git
     }
 
     async fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {

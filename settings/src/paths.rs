@@ -14,7 +14,6 @@ use super::error::PrintNannySettingsError;
 
 pub const DEFAULT_PRINTNANNY_USER: &str = "printnanny";
 pub const PRINTNANNY_SETTINGS_FILENAME: &str = "printnanny.toml";
-pub const DEFAULT_PRINTNANNY_SETTINGS_DIR: &str = "/home/printnanny/.config/printnanny/vcs";
 pub const DEFAULT_PRINTNANNY_SETTINGS_FILE: &str =
     "/home/printnanny/.config/printnanny/vcs/printnanny/printnanny.toml";
 pub const DEFAULT_PRINTNANNY_DATA_DIR: &str = "/home/printnanny/.local/share/printnanny";
@@ -22,10 +21,9 @@ pub const DEFAULT_PRINTNANNY_DATA_DIR: &str = "/home/printnanny/.local/share/pri
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyPaths {
     pub snapshot_dir: PathBuf,
-    pub state_dir: PathBuf,    // application state
-    pub settings_dir: PathBuf, // local git repo used to commit/revert changes to user-supplied config
-    pub log_dir: PathBuf,      // application log dir
-    pub run_dir: PathBuf,      // application runtime dir
+    pub state_dir: PathBuf, // application state
+    pub log_dir: PathBuf,   // application log dir
+    pub run_dir: PathBuf,   // application runtime dir
 
     pub issue_txt: PathBuf,  // path to /etc/issue
     pub os_release: PathBuf, // oath to /etc/os-release
@@ -34,7 +32,6 @@ pub struct PrintNannyPaths {
 impl Default for PrintNannyPaths {
     fn default() -> Self {
         let snapshot_dir: PathBuf = "/var/run/printnanny-snapshot".into();
-        let settings_dir: PathBuf = DEFAULT_PRINTNANNY_SETTINGS_DIR.into();
         // /var/run/ is a temporary runtime directory, cleared after each boot
         let run_dir: PathBuf = "/var/run/printnanny".into();
         // /home persistent state directory, mounted as a r/w overlay fs. Application state is stored here and is preserved between upgrades.
@@ -45,7 +42,6 @@ impl Default for PrintNannyPaths {
         let os_release = "/etc/os-release".into();
         Self {
             snapshot_dir,
-            settings_dir,
             issue_txt,
             state_dir,
             log_dir,

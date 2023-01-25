@@ -4,24 +4,6 @@ use thiserror::Error;
 use printnanny_dbus::zbus;
 
 #[derive(Error, Debug)]
-pub enum VersionControlledSettingsError {
-    #[error("Failed to write {path} - {error}")]
-    WriteIOError { path: String, error: std::io::Error },
-    #[error("Failed to read {path} - {error}")]
-    ReadIOError { path: String, error: std::io::Error },
-    #[error("Failed to copy {src:?} to {dest:?} - {error}")]
-    CopyIOError {
-        src: PathBuf,
-        dest: PathBuf,
-        error: std::io::Error,
-    },
-    #[error(transparent)]
-    GitError(#[from] git2::Error),
-    #[error(transparent)]
-    ZbusError(#[from] zbus::Error),
-}
-
-#[derive(Error, Debug)]
 pub enum PrintNannySettingsError {
     #[error("PRINTNANNY_SETTINGS was set {path:?} but file was not found")]
     ConfigFileNotFound { path: PathBuf },
@@ -78,7 +60,26 @@ pub enum PrintNannySettingsError {
     GitError(#[from] git2::Error),
 
     #[error(transparent)]
-    VersionControlledSettingsError(#[from] VersionControlledSettingsError),
-    #[error(transparent)]
     TaskJoinError(#[from] tokio::task::JoinError),
+}
+
+#[derive(Error, Debug)]
+pub enum VersionControlledSettingsError {
+    #[error("Failed to write {path} - {error}")]
+    WriteIOError { path: String, error: std::io::Error },
+    #[error("Failed to read {path} - {error}")]
+    ReadIOError { path: String, error: std::io::Error },
+    #[error("Failed to copy {src:?} to {dest:?} - {error}")]
+    CopyIOError {
+        src: PathBuf,
+        dest: PathBuf,
+        error: std::io::Error,
+    },
+    #[error(transparent)]
+    GitError(#[from] git2::Error),
+    #[error(transparent)]
+    ZbusError(#[from] zbus::Error),
+
+    #[error(transparent)]
+    PrintNannySettingsError(#[from] PrintNannySettingsError),
 }

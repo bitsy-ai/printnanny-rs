@@ -50,7 +50,7 @@ impl VersionControlledSettings for KlipperSettings {
             ..Self::default()
         }
     }
-    fn get_settings_format(&self) -> SettingsFormat {
+    fn get_settings_format() -> SettingsFormat {
         self.settings_format
     }
     fn get_settings_file(&self) -> PathBuf {
