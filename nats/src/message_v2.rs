@@ -1057,9 +1057,12 @@ mod tests {
             &format!(
                 r#"
             [paths]
-            settings_dir = "{output}/settings"
             state_dir = "{output}/"
             log_dir = "{output}/log"
+
+            [git]
+            path = "{output}/settings"
+
             "#,
                 output = &output
             ),
