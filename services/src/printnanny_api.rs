@@ -78,7 +78,7 @@ impl ApiService {
         api_base_path: String,
         api_bearer_access_token: String,
     ) -> Result<Self, ServiceError> {
-        let mut settings = PrintNannySettings::new()?;
+        let mut settings = PrintNannySettings::new().await?;
 
         info!("Updated printnanny_cloud_api_config sqlite record");
         let api_bearer_access_token = Some(api_bearer_access_token);
@@ -99,7 +99,7 @@ impl ApiService {
 
         // sync data models
         self.sync().await?;
-        let pi_id = printnanny_edge_db::cloud::Pi::get_id()?;
+        let pi_id = printnanny_edge_db::cloud::Pi::get_id(&self.sqlite_connection)?;
 
         // download license
         if settings.paths.license_zip().exists() {
@@ -434,7 +434,11 @@ impl ApiService {
             cloud_sync_percent: None,
             cloud_sync_end: None,
         };
-        printnanny_edge_db::video_recording::VideoRecording::update(&obj.id, row)?;
+        printnanny_edge_db::video_recording::VideoRecording::update(
+            &self.sqlite_connection,
+            &obj.id,
+            row,
+        )?;
         Ok(result)
     }
 

@@ -15,12 +15,11 @@ impl CloudDataCommand {
         match sub_m.subcommand() {
             Some(("sync-models", _args)) => {
                 let settings = PrintNannySettings::new().await?;
-                let service = ApiService::new(settings.cloud)?;
+                let service = ApiService::new()?;
                 service.sync().await?;
             }
             Some(("sync-video-recordings", args)) => {
                 let id = args.value_of("id");
-
                 match id {
                     Some(id) => sync_video_recording_by_id(id).await?,
                     None => sync_all_video_recordings().await?,

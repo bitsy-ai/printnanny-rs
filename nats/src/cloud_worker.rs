@@ -236,7 +236,7 @@ impl NatsCloudWorker {
     }
 
     pub async fn new(_args: &ArgMatches) -> Result<Self> {
-        let config = PrintNannySettings::new()?;
+        let config = PrintNannySettings::new().await?;
 
         let nats_app = NatsApp::get()?;
 

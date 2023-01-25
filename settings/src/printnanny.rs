@@ -16,7 +16,6 @@ use printnanny_dbus::zbus_systemd;
 use crate::cam::VideoStreamSettings;
 use crate::error::{PrintNannySettingsError, VersionControlledSettingsError};
 use crate::klipper::KlipperSettings;
-use crate::mainsail::MainsailSettings;
 use crate::moonraker::MoonrakerSettings;
 use crate::octoprint::OctoPrintSettings;
 use crate::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};

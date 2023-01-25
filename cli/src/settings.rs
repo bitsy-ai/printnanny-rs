@@ -10,10 +10,10 @@ pub struct SettingsCommand;
 
 impl SettingsCommand {
     pub async fn handle(sub_m: &clap::ArgMatches) -> Result<(), PrintNannySettingsError> {
-        let config: PrintNannySettings = PrintNannySettings::new()?;
+        let config: PrintNannySettings = PrintNannySettings::new().await?;
         match sub_m.subcommand() {
             Some(("clone", args)) => {
-                let settings = PrintNannySettings::new()?;
+                let settings = PrintNannySettings::new().await?;
 
                 let dir = args
                     .value_of("dir")
@@ -31,7 +31,7 @@ impl SettingsCommand {
                             serde_json::to_vec_pretty(&data)?
                         }
                         None => {
-                            let data = PrintNannySettings::new()?;
+                            let data = PrintNannySettings::new().await?;
                             serde_json::to_vec_pretty(&data)?
                         }
                     },
@@ -41,7 +41,7 @@ impl SettingsCommand {
                             toml::ser::to_vec(&data)?
                         }
                         None => {
-                            let data = PrintNannySettings::new()?;
+                            let data = PrintNannySettings::new().await?;
                             toml::ser::to_vec(&data)?
                         }
                     },

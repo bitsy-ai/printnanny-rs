@@ -21,7 +21,7 @@ _____      _       _   _   _
 ";
 
 fn handle_issue() -> Result<()> {
-    let config = PrintNannySettings::new()?;
+    let config = PrintNannySettings::new().await?;
     let result = fs::read_to_string(&config.paths.issue_txt);
     let output = match result {
         Ok(content) => content,

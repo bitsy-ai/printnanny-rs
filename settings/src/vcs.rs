@@ -164,8 +164,6 @@ pub trait VersionControlledSettings {
     fn get_git_commit_message(&self) -> Result<String, VersionControlledSettingsError> {
         let settings_file = self.get_settings_file();
         let settings_filename = settings_file.file_name().unwrap();
-        let path = self.get_git_repo_path();
-        let remote = self.get_git_remote();
         let commit_parent_count = self.git_head_commit_parent_count()? + 1; // add 1 to git count of parent commits
         Ok(format!(
             "PrintNanny updated {:?} - revision #{}",
@@ -173,13 +171,13 @@ pub trait VersionControlledSettings {
         ))
     }
 
-    async fn get_git_head_commit(&self) -> Result<GitCommit, VersionControlledSettingsError> {
+    fn get_git_head_commit(&self) -> Result<GitCommit, VersionControlledSettingsError> {
         let repo = self.get_git_repo()?;
         let commit = &repo.head()?.peel_to_commit()?;
         Ok(commit.into())
     }
 
-    async fn get_rev_list(&self) -> Result<Vec<GitCommit>, VersionControlledSettingsError> {
+    fn get_rev_list(&self) -> Result<Vec<GitCommit>, VersionControlledSettingsError> {
         let repo = self.get_git_repo()?;
         let mut revwalk = repo.revwalk()?;
         revwalk.set_sorting(git2::Sort::TIME)?;
