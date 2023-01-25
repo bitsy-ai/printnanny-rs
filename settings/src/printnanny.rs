@@ -315,7 +315,7 @@ impl Provider for PrintNannySettings {
 #[async_trait]
 impl VersionControlledSettings for PrintNannySettings {
     type SettingsModel = PrintNannySettings;
-    fn from_dir(settings_dir: &Path) -> Self {
+    fn from_dir(_settings_dir: &Path) -> Self {
         todo!()
     }
     fn get_settings_format(&self) -> SettingsFormat {

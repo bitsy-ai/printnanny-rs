@@ -76,7 +76,7 @@ pub trait VersionControlledSettings {
     fn get_git_repo(&self) -> Result<Repository, VersionControlledSettingsError> {
         let path = self.get_git_repo_path();
 
-        match Repository::open(&path) {
+        match Repository::open(path) {
             Ok(repo) => {
                 debug!("Found existing git repo: {}", path.display());
                 Ok(repo)
@@ -87,7 +87,7 @@ pub trait VersionControlledSettings {
                     e,
                     path.display()
                 );
-                Ok(self.init_git_repo(&path)?)
+                Ok(self.init_git_repo(path)?)
             }
         }
     }

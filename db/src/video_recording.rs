@@ -212,7 +212,7 @@ impl VideoRecording {
     }
     pub fn start_new(
         connection_str: &str,
-        video_path: &PathBuf,
+        video_path: PathBuf,
     ) -> Result<VideoRecording, diesel::result::Error> {
         use crate::schema::video_recordings::dsl::*;
         let connection = &mut establish_sqlite_connection(connection_str);
