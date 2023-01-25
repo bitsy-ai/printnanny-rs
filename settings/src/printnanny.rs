@@ -100,10 +100,6 @@ pub struct PrintNannySettings {
     pub cloud: PrintNannyApiConfig,
     pub git: GitSettings,
     pub paths: PrintNannyPaths,
-    // pub klipper: KlipperSettings,
-    // pub mainsail: MainsailSettings,
-    // pub moonraker: MoonrakerSettings,
-    // pub octoprint: OctoPrintSettings,
 }
 
 impl Default for PrintNannySettings {
@@ -114,10 +110,6 @@ impl Default for PrintNannySettings {
         Self {
             cloud: PrintNannyApiConfig::default(),
             paths: PrintNannyPaths::default(),
-            // klipper: KlipperSettings::default(),
-            // octoprint: OctoPrintSettings::default(),
-            // moonraker: MoonrakerSettings::default(),
-            // mainsail: MainsailSettings::default(),
             git,
             video_stream,
         }
@@ -127,12 +119,7 @@ impl Default for PrintNannySettings {
 impl PrintNannySettings {
     pub async fn new() -> Result<Self, PrintNannySettingsError> {
         let figment = Self::figment().await?;
-        let mut result: PrintNannySettings = figment.extract()?;
-
-        // result.octoprint = OctoPrintSettings::from_dir(&result.paths.settings_dir);
-        // result.moonraker = MoonrakerSettings::from_dir(&result.paths.settings_dir);
-        // result.klipper = KlipperSettings::from_dir(&result.paths.settings_dir);
-
+        let result: PrintNannySettings = figment.extract()?;
         debug!("Initialized config {:?}", result);
 
         Ok(result)
