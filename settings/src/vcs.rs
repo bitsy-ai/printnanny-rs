@@ -23,12 +23,11 @@ pub struct GitCommit {
 #[async_trait]
 pub trait VersionControlledSettings {
     type SettingsModel: Serialize;
-    async fn to_payload(
-        &self,
-        app: SettingsApp,
-    ) -> Result<SettingsFile, VersionControlledSettingsError> {
-        let file_name = self.get_settings_file().display().to_string();
-        let file_format = self.get_settings_format();
+    async fn to_payload(app: SettingsApp) -> Result<SettingsFile, VersionControlledSettingsError> {
+        let file_name = VersionControlledSettings::get_settings_file()
+            .display()
+            .to_string();
+        let file_format = VersionControlledSettings::get_settings_format();
         let content = match fs::read_to_string(&file_name).await {
             Ok(data) => Ok(data),
             Err(e) => Err(VersionControlledSettingsError::ReadIOError {
@@ -68,8 +67,8 @@ pub trait VersionControlledSettings {
         Ok(repo)
     }
 
-    fn get_git_repo(&self) -> Result<Repository, git2::Error> {
-        let settings = PrintNannySettings::new().unwrap();
+    async fn get_git_repo(&self) -> Result<Repository, git2::Error> {
+        let settings = PrintNannySettings::new().await.unwrap();
         match Repository::open(&settings.paths.settings_dir) {
             Ok(repo) => {
                 debug!(
@@ -108,7 +107,7 @@ pub trait VersionControlledSettings {
         Ok(lines.join("\n"))
     }
     async fn read_settings(&self) -> Result<String, VersionControlledSettingsError> {
-        let settings_file = self.get_settings_file();
+        let settings_file = VersionControlledSettings::get_settings_file();
         let result = match fs::read_to_string(&settings_file).await {
             Ok(d) => Ok(d),
             Err(e) => Err(VersionControlledSettingsError::ReadIOError {
@@ -143,16 +142,16 @@ pub trait VersionControlledSettings {
         info!("Wrote settings to {}", output.display());
         Ok(())
     }
-    fn git_add_all(&self) -> Result<(), git2::Error> {
-        let repo = self.get_git_repo()?;
+    async fn git_add_all(&self) -> Result<(), git2::Error> {
+        let repo = self.get_git_repo().await?;
         let mut index = repo.index()?;
         index.add_all(["."], git2::IndexAddOption::DEFAULT, None)?;
         index.write()?;
         Ok(())
     }
 
-    fn git_head_commit_parent_count(&self) -> Result<usize, git2::Error> {
-        let repo = self.get_git_repo()?;
+    async fn git_head_commit_parent_count(&self) -> Result<usize, git2::Error> {
+        let repo = self.get_git_repo().await?;
         let head = repo.head()?;
         let head_commit = head.peel_to_commit()?;
         Ok(head_commit.parent_count())
@@ -161,21 +160,21 @@ pub trait VersionControlledSettings {
     fn get_git_commit_message(&self) -> Result<String, git2::Error> {
         let settings_file = self.get_settings_file();
         let settings_filename = settings_file.file_name().unwrap();
-        let commit_parent_count = self.git_head_commit_parent_count()? + 1; // add 1 to git count of parent commits
+        let commit_parent_count = self.git_head_commit_parent_count().await? + 1; // add 1 to git count of parent commits
         Ok(format!(
             "PrintNanny updated {:?} - revision #{}",
             &settings_filename, &commit_parent_count
         ))
     }
 
-    fn get_git_head_commit(&self) -> Result<GitCommit, git2::Error> {
-        let repo = self.get_git_repo()?;
+    async fn get_git_head_commit(&self) -> Result<GitCommit, git2::Error> {
+        let repo = self.get_git_repo().await?;
         let commit = &repo.head()?.peel_to_commit()?;
         Ok(commit.into())
     }
 
-    fn get_rev_list(&self) -> Result<Vec<GitCommit>, git2::Error> {
-        let repo = self.get_git_repo()?;
+    async fn get_rev_list(&self) -> Result<Vec<GitCommit>, git2::Error> {
+        let repo = self.get_git_repo().await?;
         let mut revwalk = repo.revwalk()?;
         revwalk.set_sorting(git2::Sort::TIME)?;
         revwalk.push_head()?;
@@ -192,9 +191,9 @@ pub trait VersionControlledSettings {
         Ok(result)
     }
 
-    fn git_commit(&self, commit_msg: Option<String>) -> Result<git2::Oid, git2::Error> {
-        self.git_add_all()?;
-        let repo = self.get_git_repo()?;
+    async fn git_commit(&self, commit_msg: Option<String>) -> Result<git2::Oid, git2::Error> {
+        self.git_add_all().await?;
+        let repo = self.get_git_repo().await?;
         let mut index = repo.index()?;
         let oid = index.write_tree()?;
         let signature = repo.signature()?;
@@ -213,8 +212,8 @@ pub trait VersionControlledSettings {
         Ok(result)
     }
 
-    fn git_revert(&self, oid: Option<git2::Oid>) -> Result<(), git2::Error> {
-        let repo = self.get_git_repo()?;
+    async fn git_revert(&self, oid: Option<git2::Oid>) -> Result<(), git2::Error> {
+        let repo = self.get_git_repo().await?;
         let commit = match oid {
             Some(sha) => repo.find_commit(sha)?,
             None => repo.head().unwrap().peel_to_commit()?,
@@ -227,7 +226,7 @@ pub trait VersionControlledSettings {
         oid: Option<git2::Oid>,
     ) -> Result<(), VersionControlledSettingsError> {
         self.pre_save().await?;
-        self.git_revert(oid)?;
+        self.git_revert(oid).await?;
         self.pre_save().await?;
         Ok(())
     }
@@ -238,23 +237,23 @@ pub trait VersionControlledSettings {
         commit_msg: Option<String>,
     ) -> Result<(), VersionControlledSettingsError> {
         // first, get repo (clone will run if repo is not present, which requires empty path)
-        self.get_git_repo()?;
+        self.get_git_repo().await?;
         // then run any pre-save hooks
         self.pre_save().await?;
         // write settings file
         self.write_settings(content).await?;
         // commit changes
-        self.git_add_all()?;
-        self.git_commit(commit_msg)?;
+        self.git_add_all().await?;
+        self.git_commit(commit_msg).await?;
         // run post-save hooks
         self.post_save().await?;
         Ok(())
     }
 
-    fn from_dir(settings_dir: &Path) -> Self::SettingsModel;
+    async fn from_dir(settings_dir: &Path) -> Self::SettingsModel;
 
-    fn get_settings_format(&self) -> SettingsFormat;
-    fn get_settings_file(&self) -> PathBuf;
+    fn get_settings_format() -> SettingsFormat;
+    fn get_settings_file() -> PathBuf;
 
     async fn pre_save(&self) -> Result<(), VersionControlledSettingsError>;
     async fn post_save(&self) -> Result<(), VersionControlledSettingsError>;

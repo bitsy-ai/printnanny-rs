@@ -66,6 +66,8 @@ pub enum PrintNannySettingsError {
     #[error(transparent)]
     TomlSerError(#[from] toml::ser::Error),
     #[error(transparent)]
+    TomlDeError(#[from] toml::de::Error),
+    #[error(transparent)]
     FigmentError(#[from] figment::error::Error),
     #[error(transparent)]
     ZipError(#[from] zip::result::ZipError),

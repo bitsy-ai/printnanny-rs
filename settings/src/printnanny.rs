@@ -1,5 +1,5 @@
 use std::env;
-use std::fs;
+// use std::fs;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
@@ -8,6 +8,7 @@ use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
 use log::{debug, error};
 use serde::{Deserialize, Serialize};
+use tokio::fs;
 
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
@@ -121,8 +122,8 @@ impl Default for PrintNannySettings {
 }
 
 impl PrintNannySettings {
-    pub fn new() -> Result<Self, PrintNannySettingsError> {
-        let figment = Self::figment()?;
+    pub async fn new() -> Result<Self, PrintNannySettingsError> {
+        let figment = Self::figment().await?;
         let mut result: PrintNannySettings = figment.extract()?;
 
         result.octoprint = OctoPrintSettings::from_dir(&result.paths.settings_dir);
@@ -138,14 +139,9 @@ impl PrintNannySettings {
         let hostname = sys_info::hostname().unwrap_or_else(|_| "printnanny".to_string());
         format!("http://{}.local/", hostname)
     }
-    pub fn find_value(key: &str) -> Result<figment::value::Value, PrintNannySettingsError> {
-        let figment = Self::figment()?;
+    pub async fn find_value(key: &str) -> Result<figment::value::Value, PrintNannySettingsError> {
+        let figment = Self::figment().await?;
         Ok(figment.find_value(key)?)
-    }
-
-    // intended for use with Rocket's figmment
-    pub fn from_figment(figment: Figment) -> Figment {
-        figment.merge(Self::figment().unwrap())
     }
 
     // Load configuration with the following order of precedence:
@@ -180,15 +176,14 @@ impl PrintNannySettings {
         }
     }
 
-    pub fn figment() -> Result<Figment, PrintNannySettingsError> {
+    pub async fn figment() -> Result<Figment, PrintNannySettingsError> {
         // if PRINTNANNY_SETTINGS env var is set, check file exists and is readable
         Self::check_file_from_env_var("PRINTNANNY_SETTINGS")?;
         // merge file in PRINTNANNY_SETTINGS env var (if set)
+        let file_path = Env::var_or("PRINTNANNY_SETTINGS", DEFAULT_PRINTNANNY_SETTINGS_FILE);
+        let file_contents = fs::read_to_string(file_path).await?;
         let result = Figment::from(Self { ..Self::default() })
-            .merge(Toml::file(Env::var_or(
-                "PRINTNANNY_SETTINGS",
-                DEFAULT_PRINTNANNY_SETTINGS_FILE,
-            )))
+            .merge(Toml::string(&file_contents))
             // allow nested environment variables:
             // PRINTNANNY_SETTINGS_KEY__SUBKEY
             .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"));
@@ -196,8 +191,11 @@ impl PrintNannySettings {
         Ok(result)
     }
 
-    pub fn from_toml(f: PathBuf) -> Result<Self, PrintNannySettingsError> {
-        let figment = PrintNannySettings::figment()?.merge(Toml::file(f));
+    pub async fn from_toml(f: PathBuf) -> Result<Self, PrintNannySettingsError> {
+        let file_contents = fs::read_to_string(f).await?;
+        let figment = PrintNannySettings::figment()
+            .await?
+            .merge(Toml::string(&file_contents));
         Ok(figment.extract()?)
     }
 
@@ -212,19 +210,21 @@ impl PrintNannySettings {
     }
 
     // Save settings to PRINTNANNY_SETTINGS
-    pub fn try_save(&self) -> Result<(), PrintNannySettingsError> {
+    pub async fn try_save(&self) -> Result<(), PrintNannySettingsError> {
         let settings_file = self.paths.settings_file();
         let settings_data = toml::ser::to_string_pretty(self)?;
-        fs::write(settings_file, settings_data)?;
+        fs::write(settings_file, settings_data).await?;
         Ok(())
     }
     // Save settings to PRINTNANNY_SETTINGS
-    pub fn save(&self) {
-        self.try_save().expect("Failed to save PrintNannySettings");
+    pub async fn save(&self) {
+        self.try_save()
+            .await
+            .expect("Failed to save PrintNannySettings");
     }
 
     // Save ::Default() to output file
-    pub fn try_init(
+    pub async fn try_init(
         &self,
         filename: &str,
         format: &SettingsFormat,
@@ -234,7 +234,7 @@ impl PrintNannySettings {
             SettingsFormat::Toml => toml::ser::to_string_pretty(self)?,
             _ => unimplemented!("try_init is not implemented for format: {}", format),
         };
-        fs::write(filename, content)?;
+        fs::write(filename, content).await?;
         Ok(())
     }
 
@@ -288,9 +288,9 @@ impl Provider for PrintNannySettings {
 #[async_trait]
 impl VersionControlledSettings for PrintNannySettings {
     type SettingsModel = PrintNannySettings;
-    fn from_dir(settings_dir: &Path) -> Self {
+    async fn from_dir(settings_dir: &Path) -> Self {
         let settings_file = settings_dir.join("printnanny/printnanny.toml");
-        PrintNannySettings::from_toml(settings_file).unwrap()
+        PrintNannySettings::from_toml(settings_file).await.unwrap()
     }
     fn get_settings_format(&self) -> SettingsFormat {
         SettingsFormat::Toml
