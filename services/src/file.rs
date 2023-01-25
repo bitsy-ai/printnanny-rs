@@ -3,14 +3,10 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use log::warn;
-
 use printnanny_settings::error::PrintNannySettingsError;
 use serde::{Deserialize, Serialize};
 
 use printnanny_settings::printnanny::PrintNannySettings;
-
-use crate::octoprint;
 
 pub fn open<P: AsRef<Path>>(path: P) -> io::Result<File> {
     File::open(&path).map_err(|err| {

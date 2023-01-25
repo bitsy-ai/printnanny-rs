@@ -1,12 +1,10 @@
 use log::warn;
 
 use reqwest::header;
-use reqwest::Url;
+// use reqwest::Url;
 
 use printnanny_edge_db::octoprint::OctoPrintServer;
 use printnanny_settings::printnanny_asyncapi_models;
-
-use crate::error::ServiceError;
 
 fn octoprint_api_headers(octoprint_server: &OctoPrintServer) -> header::HeaderMap {
     let mut headers = header::HeaderMap::new();

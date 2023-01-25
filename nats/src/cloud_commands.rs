@@ -6,6 +6,7 @@ use log::{debug, warn};
 use printnanny_api_client::models::{self, PolymorphicPiEventRequest};
 use printnanny_services::printnanny_api::ApiService;
 use printnanny_services::swupdate::Swupdate;
+use printnanny_settings::printnanny::PrintNannySettings;
 use std::collections::HashMap;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -135,7 +136,8 @@ pub async fn handle_pi_boot_command(
 
             //  publish to status topic
             nats_client.publish(subject.clone(), req).await?;
-            let api = ApiService::new()?;
+            let settings = PrintNannySettings::new().await?;
+            let api = ApiService::from(&settings);
             let result = api.sync().await;
 
             match result {

@@ -188,8 +188,9 @@ impl NatsRequest {
                 .into_iter()
                 .map(|v| (v).into())
                 .collect();
-        let current = printnanny_edge_db::video_recording::VideoRecording::get_current()?
-            .map(|v| Box::new(v.into()));
+        let current =
+            printnanny_edge_db::video_recording::VideoRecording::get_current(&sqlite_connection)?
+                .map(|v| Box::new(v.into()));
         Ok(NatsReply::CameraRecordingLoadReply(
             CameraRecordingLoadReply {
                 recordings,
@@ -223,9 +224,15 @@ impl NatsRequest {
             cloud_sync_start: None,
             cloud_sync_end: None,
         };
-        printnanny_edge_db::video_recording::VideoRecording::update(&recording.id, update)?;
-        let recording =
-            printnanny_edge_db::video_recording::VideoRecording::get_by_id(&recording.id)?;
+        printnanny_edge_db::video_recording::VideoRecording::update(
+            &sqlite_connection,
+            &recording.id,
+            update,
+        )?;
+        let recording = printnanny_edge_db::video_recording::VideoRecording::get_by_id(
+            &sqlite_connection,
+            &recording.id,
+        )?;
 
         Ok(NatsReply::CameraRecordingStartReply(
             CameraRecordingStarted {
@@ -235,14 +242,17 @@ impl NatsRequest {
     }
 
     pub async fn handle_camera_recording_stop() -> Result<NatsReply> {
-        let recording = printnanny_edge_db::video_recording::VideoRecording::get_current()?;
+        // start cloud sync service
+        let settings = PrintNannySettings::new().await?;
+        let sqlite_connection = settings.paths.db().display().to_string();
+
+        let recording =
+            printnanny_edge_db::video_recording::VideoRecording::get_current(&sqlite_connection)?;
         let factory = PrintNannyPipelineFactory::default();
 
         // send EOS signal to gstreamer
         factory.stop_video_recording_pipeline().await?;
 
-        // start cloud sync service
-        let settings = PrintNannySettings::new().await?;
         if settings.video_stream.recording.cloud_sync {
             match &recording {
                 Some(recording) => {
@@ -301,9 +311,15 @@ impl NatsRequest {
                     cloud_sync_start: None,
                     cloud_sync_end: None,
                 };
-                printnanny_edge_db::video_recording::VideoRecording::update(&recording.id, update)?;
-                let recording =
-                    printnanny_edge_db::video_recording::VideoRecording::get_by_id(&recording.id)?;
+                printnanny_edge_db::video_recording::VideoRecording::update(
+                    &sqlite_connection,
+                    &recording.id,
+                    update,
+                )?;
+                let recording = printnanny_edge_db::video_recording::VideoRecording::get_by_id(
+                    &sqlite_connection,
+                    &recording.id,
+                )?;
                 Some(recording)
             }
             None => None,
@@ -319,7 +335,7 @@ impl NatsRequest {
         let start = chrono::offset::Utc::now().to_rfc3339();
 
         let settings = PrintNannySettings::new().await?;
-        let api = ApiService::new(settings.cloud)?;
+        let api = ApiService::from(&settings);
         // sync cloud models to edge db
         api.sync().await?;
         // set optional pipelines to correct state
@@ -415,8 +431,11 @@ impl NatsRequest {
 
     pub async fn handle_crash_report(request: &CrashReportOsLogsRequest) -> Result<NatsReply> {
         let settings = PrintNannySettings::new().await?;
-        let api_service = ApiService::new(settings.cloud)?;
-        let result = api_service.crash_report_update(&request.id).await?;
+        let api_service = ApiService::from(&settings);
+        let crash_report_paths = settings.paths.crash_report_paths();
+        let result = api_service
+            .crash_report_update(&request.id, crash_report_paths)
+            .await?;
         Ok(NatsReply::CrashReportOsLogsReply(CrashReportOsLogsReply {
             id: result.id,
             updated_dt: result.updated_dt,
