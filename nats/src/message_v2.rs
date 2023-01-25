@@ -441,7 +441,8 @@ impl NatsRequest {
         let settings = PrintNannySettings::new()?;
         // revert commit
         let oid = git2::Oid::from_str(&request.git_commit)?;
-        settings.octoprint.git_revert_hooks(Some(oid)).await?;
+        let octoprint_settings = settings.to_octoprint_settings();
+        octoprint_setting.git_revert_hooks(Some(oid)).await?;
         let files = vec![
             settings
                 .octoprint
@@ -527,14 +528,11 @@ impl NatsRequest {
         request: &SettingsFileApplyRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
-        settings
-            .moonraker
+        let moonraker_settings = settings.to_moonraker_settings();
+        moonraker_setting
             .save_and_commit(&request.file.content, Some(request.git_commit_msg.clone()))
             .await?;
-        let file = settings
-            .moonraker
-            .to_payload(SettingsApp::Moonraker)
-            .await?;
+        let file = moonraker_setting.to_payload(SettingsApp::Moonraker).await?;
         Self::build_settings_apply_reply(request, settings, file)
     }
 
@@ -542,11 +540,11 @@ impl NatsRequest {
         request: &SettingsFileApplyRequest,
     ) -> Result<NatsReply> {
         let settings = PrintNannySettings::new()?;
-        settings
-            .klipper
+        let klipper_settings = settings.to_klipper_settings();
+        klipper_settings
             .save_and_commit(&request.file.content, Some(request.git_commit_msg.clone()))
             .await?;
-        let file = settings.klipper.to_payload(SettingsApp::Klipper).await?;
+        let file = klipper_settings.to_payload(SettingsApp::Klipper).await?;
         Self::build_settings_apply_reply(request, settings, file)
     }
 

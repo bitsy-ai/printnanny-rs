@@ -12,6 +12,7 @@ use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
 use crate::error::VersionControlledSettingsError;
+use crate::printnanny::GitSettings;
 use crate::vcs::VersionControlledSettings;
 use crate::SettingsFormat;
 
@@ -307,6 +308,7 @@ pub struct MoonrakerSettings {
     pub settings_file: PathBuf,
     pub settings_format: SettingsFormat,
     pub venv: PathBuf,
+    pub git_settings: GitSettings,
 }
 
 impl Default for MoonrakerSettings {
@@ -316,12 +318,14 @@ impl Default for MoonrakerSettings {
             "MOONRAKER_SETTINGS_FILE",
             DEFAULT_MOONRAKER_SETTINGS_FILE,
         ));
+        let git_settings = GitSettings::default();
         Self {
             settings_file,
             install_dir,
             enabled: false,
             venv: MOONRAKER_VENV.into(),
             settings_format: SettingsFormat::Ini,
+            git_settings,
         }
     }
 }
@@ -336,11 +340,23 @@ impl VersionControlledSettings for MoonrakerSettings {
             ..Self::default()
         }
     }
-    fn get_settings_format() -> SettingsFormat {
+    fn get_settings_format(&self) -> SettingsFormat {
         self.settings_format
     }
     fn get_settings_file(&self) -> PathBuf {
         self.settings_file.clone()
+    }
+
+    fn get_git_repo_path(&self) -> &Path {
+        &self.git_settings.path
+    }
+
+    fn get_git_remote(&self) -> &str {
+        &self.git_settings.remote
+    }
+
+    fn get_git_settings(&self) -> &GitSettings {
+        &self.git_settings
     }
     async fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {
         debug!("Running KlipperSettings pre_save hook");

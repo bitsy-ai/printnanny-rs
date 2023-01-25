@@ -352,7 +352,7 @@ impl ApiService {
         pi_id: &i32,
     ) -> Result<models::OctoPrintServer, ServiceError> {
         let settings = PrintNannySettings::new()?;
-        let helper = &settings.octoprint;
+        let helper = settings.to_octoprint_settings();
         let python_version = helper.python_version();
         let pip_version = helper.pip_version();
         let pip_packages = helper.pip_packages().await?;

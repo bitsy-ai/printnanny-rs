@@ -12,7 +12,6 @@ use printnanny_dbus::zbus_systemd;
 use crate::error::PrintNannySettingsError;
 use crate::error::VersionControlledSettingsError;
 use crate::printnanny::GitSettings;
-use crate::printnanny::PrintNannySettings;
 use crate::vcs::VersionControlledSettings;
 use crate::SettingsFormat;
 
@@ -28,18 +27,37 @@ pub struct PipPackage {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct OctoPrintSettings<'a> {
+pub struct OctoPrintSettings {
     pub enabled: bool,
-    pub remote: String,
     pub install_dir: PathBuf,
     pub settings_file: PathBuf,
     pub settings_format: SettingsFormat,
     pub venv: PathBuf,
-    pub git_settings: &'a GitSettings,
+    pub git_settings: GitSettings,
+}
+
+impl OctoPrintSettings {
+    pub fn new(
+        enabled: bool,
+        install_dir: PathBuf,
+        settings_file: PathBuf,
+        settings_format: SettingsFormat,
+        venv: PathBuf,
+        git_settings: GitSettings,
+    ) -> Self {
+        Self {
+            enabled,
+            install_dir,
+            settings_file,
+            settings_format,
+            venv,
+            git_settings,
+        }
+    }
 }
 
 #[async_trait]
-impl VersionControlledSettings for OctoPrintSettings<'a> {
+impl VersionControlledSettings for OctoPrintSettings {
     type SettingsModel = OctoPrintSettings;
     fn from_dir(settings_dir: &Path) -> Self {
         let settings_file = settings_dir.join("octoprint/octoprint.yaml");
@@ -56,15 +74,15 @@ impl VersionControlledSettings for OctoPrintSettings<'a> {
     }
 
     fn get_git_repo_path(&self) -> &Path {
-        &self.settings_dir
+        &self.git_settings.path
     }
 
     fn get_git_remote(&self) -> &str {
-        &self.printnanny_settings.git.remote
+        &self.git_settings.remote
     }
 
     fn get_git_settings(&self) -> &GitSettings {
-        &self.printnanny_settings.git
+        &self.git_settings
     }
 
     async fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {
@@ -104,12 +122,14 @@ impl Default for OctoPrintSettings {
             "OCTOPRINT_SETTINGS_FILE",
             DEFAULT_OCTOPRINT_SETTINGS_FILE,
         ));
+        let git_settings = GitSettings::default();
         Self {
             settings_file,
             install_dir,
             enabled: true,
             venv: OCTOPRINT_VENV.into(),
             settings_format: SettingsFormat::Yaml,
+            git_settings,
         }
     }
 }

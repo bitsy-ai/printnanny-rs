@@ -101,10 +101,10 @@ pub struct PrintNannySettings {
     pub cloud: PrintNannyApiConfig,
     pub git: GitSettings,
     pub paths: PrintNannyPaths,
-    pub klipper: KlipperSettings,
-    pub mainsail: MainsailSettings,
-    pub moonraker: MoonrakerSettings,
-    pub octoprint: OctoPrintSettings,
+    // pub klipper: KlipperSettings,
+    // pub mainsail: MainsailSettings,
+    // pub moonraker: MoonrakerSettings,
+    // pub octoprint: OctoPrintSettings,
 }
 
 impl Default for PrintNannySettings {
@@ -115,10 +115,10 @@ impl Default for PrintNannySettings {
         Self {
             cloud: PrintNannyApiConfig::default(),
             paths: PrintNannyPaths::default(),
-            klipper: KlipperSettings::default(),
-            octoprint: OctoPrintSettings::default(),
-            moonraker: MoonrakerSettings::default(),
-            mainsail: MainsailSettings::default(),
+            // klipper: KlipperSettings::default(),
+            // octoprint: OctoPrintSettings::default(),
+            // moonraker: MoonrakerSettings::default(),
+            // mainsail: MainsailSettings::default(),
             git,
             video_stream,
         }
@@ -130,13 +130,37 @@ impl PrintNannySettings {
         let figment = Self::figment().await?;
         let mut result: PrintNannySettings = figment.extract()?;
 
-        result.octoprint = OctoPrintSettings::from_dir(&result.paths.settings_dir);
-        result.moonraker = MoonrakerSettings::from_dir(&result.paths.settings_dir);
-        result.klipper = KlipperSettings::from_dir(&result.paths.settings_dir);
+        // result.octoprint = OctoPrintSettings::from_dir(&result.paths.settings_dir);
+        // result.moonraker = MoonrakerSettings::from_dir(&result.paths.settings_dir);
+        // result.klipper = KlipperSettings::from_dir(&result.paths.settings_dir);
 
         debug!("Initialized config {:?}", result);
 
         Ok(result)
+    }
+
+    pub fn to_octoprint_settings(&self) -> OctoPrintSettings {
+        let git_settings = self.git.clone();
+        OctoPrintSettings {
+            git_settings,
+            ..OctoPrintSettings::default()
+        }
+    }
+
+    pub fn to_moonraker_settings(&self) -> MoonrakerSettings {
+        let git_settings = self.git.clone();
+        MoonrakerSettings {
+            git_settings,
+            ..MoonrakerSettings::default()
+        }
+    }
+
+    pub fn to_klipper_settings(&self) -> KlipperSettings {
+        let git_settings = self.git.clone();
+        KlipperSettings {
+            git_settings,
+            ..KlipperSettings::default()
+        }
     }
 
     pub fn dashboard_url(&self) -> String {
@@ -326,7 +350,7 @@ impl VersionControlledSettings for PrintNannySettings {
     }
 
     fn get_git_repo_path(&self) -> &Path {
-        &self.paths.settings_dir
+        &self.git.path
     }
 
     fn get_git_remote(&self) -> &str {

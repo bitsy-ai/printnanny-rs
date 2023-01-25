@@ -8,6 +8,7 @@ use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
 use crate::error::VersionControlledSettingsError;
+use crate::printnanny::GitSettings;
 use crate::vcs::VersionControlledSettings;
 use crate::SettingsFormat;
 
@@ -23,18 +24,22 @@ pub struct KlipperSettings {
     pub settings_file: PathBuf,
     pub settings_format: SettingsFormat,
     pub venv: PathBuf,
+    pub git_settings: GitSettings,
 }
 
 impl Default for KlipperSettings {
     fn default() -> Self {
         let install_dir: PathBuf = KLIPPER_INSTALL_DIR.into();
         let settings_file = KLIPPER_SETTINGS_FILE.into();
+        let git_settings = GitSettings::default();
+
         Self {
             settings_file,
             install_dir,
             enabled: false,
             venv: KLIPPER_VENV.into(),
             settings_format: SettingsFormat::Ini,
+            git_settings,
         }
     }
 }
@@ -50,11 +55,23 @@ impl VersionControlledSettings for KlipperSettings {
             ..Self::default()
         }
     }
-    fn get_settings_format() -> SettingsFormat {
+    fn get_settings_format(&self) -> SettingsFormat {
         self.settings_format
     }
     fn get_settings_file(&self) -> PathBuf {
         self.settings_file.clone()
+    }
+
+    fn get_git_repo_path(&self) -> &Path {
+        &self.git_settings.path
+    }
+
+    fn get_git_remote(&self) -> &str {
+        &self.git_settings.remote
+    }
+
+    fn get_git_settings(&self) -> &GitSettings {
+        &self.git_settings
     }
 
     async fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {
