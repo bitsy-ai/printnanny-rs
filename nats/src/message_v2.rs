@@ -442,9 +442,19 @@ impl NatsRequest {
         }))
     }
 
-    pub fn handle_cameras_load() -> Result<NatsReply> {
+    pub async fn handle_cameras_load() -> Result<NatsReply> {
+        // "hotplug" prefers live connected devices or default/disconnected devices
+        let mut settings = PrintNannySettings::new().await?;
+        let old_video_stream_settings = settings.video_stream.clone();
+        settings.video_stream = settings.video_stream.hotplug().await?;
+        if settings.video_stream != old_video_stream_settings {
+            warn!("handle_cameras_load detected a hotplug change in camera settings. Saving detected configuration");
+            settings.save().await;
+        }
+
         let cameras: Vec<printnanny_asyncapi_models::Camera> =
-            CameraVideoSource::from_libcamera_list()?
+            CameraVideoSource::from_libcamera_list()
+                .await?
                 .iter()
                 .map(|v| v.into())
                 .collect();
@@ -989,9 +999,7 @@ impl NatsRequestHandler for NatsRequest {
             // pi.{pi_id}.command.cloud.sync
             NatsRequest::PrintNannyCloudSyncRequest => Self::handle_cloud_sync().await,
             // pi.{pi_id}.cameras.load
-            NatsRequest::CameraLoadRequest => {
-                tokio::task::spawn_blocking(Self::handle_cameras_load).await?
-            }
+            NatsRequest::CameraLoadRequest => Self::handle_cameras_load().await,
             // "pi.{pi_id}.crash_reports.os"
             NatsRequest::CrashReportOsLogsRequest(request) => {
                 Self::handle_crash_report(request).await

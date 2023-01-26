@@ -9,8 +9,8 @@ use printnanny_settings::{cam::CameraVideoSource, SettingsFormat};
 pub struct CameraCommand;
 
 impl CameraCommand {
-    fn list(args: &clap::ArgMatches) -> Result<()> {
-        let output = CameraVideoSource::from_libcamera_list()?;
+    async fn list(args: &clap::ArgMatches) -> Result<()> {
+        let output = CameraVideoSource::from_libcamera_list().await?;
         let f: SettingsFormat = args.value_of_t("format").unwrap();
 
         let v = match f {
@@ -32,7 +32,7 @@ impl CameraCommand {
     }
     pub async fn handle(args: &clap::ArgMatches) -> Result<()> {
         match args.subcommand() {
-            Some(("list", args)) => Self::list(args),
+            Some(("list", args)) => Self::list(args).await,
             Some(("start-pipelines", args)) => Self::start_pipelines(args).await,
             _ => unimplemented!(),
         }

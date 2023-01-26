@@ -1,9 +1,10 @@
-use std::process::{Command, Output};
+use std::process::Output;
 
 use clap::ArgMatches;
 use log::{debug, error};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use tokio::process::Command;
 
 use gst::prelude::DeviceExt;
 use gst::prelude::DeviceProviderExtManual;
@@ -226,12 +227,13 @@ impl CameraVideoSource {
             .collect()
     }
 
-    pub fn list_cameras_command_output() -> Result<Output, std::io::Error> {
-        let output = Command::new("cam")
+    pub async fn list_cameras_command_output() -> std::io::Result<Output> {
+        let result = Command::new("cam")
             .env("LIBCAMERA_LOG_LEVELS", "*:ERROR") // supress verbose output: https://libcamera.org/getting-started.html#basic-testing-with-cam-utility
             .args(["--list", "--list-properties"])
-            .output()?;
-        Ok(output)
+            .output()
+            .await?;
+        Ok(result)
     }
 
     pub fn parse_list_camera_line(line: &str) -> Option<CameraVideoSource> {
@@ -278,8 +280,8 @@ impl CameraVideoSource {
             .collect()
     }
 
-    pub fn from_libcamera_list() -> Result<Vec<CameraVideoSource>, PrintNannySettingsError> {
-        let output = Self::list_cameras_command_output()?;
+    pub async fn from_libcamera_list() -> Result<Vec<CameraVideoSource>, PrintNannySettingsError> {
+        let output: Output = Self::list_cameras_command_output().await?;
         let utfstdout = String::from_utf8(output.stdout)?;
         Ok(Self::parse_list_cameras_command_output(&utfstdout))
     }
@@ -464,6 +466,33 @@ impl Default for VideoStreamSettings {
             recording,
             rtp,
             snapshot,
+        }
+    }
+}
+
+impl VideoStreamSettings {
+    pub async fn hotplug(mut self) -> Result<Self, PrintNannySettingsError> {
+        // list available devices
+        let camera_sources = CameraVideoSource::from_libcamera_list().await?;
+        let selected_camera = *(self.camera.clone());
+        // if no camera sources are found, return
+        if camera_sources.len() == 0 {
+            return Ok(self);
+        } else {
+            // is device_name among camera sources?
+            for camera in camera_sources.iter() {
+                // if the currently-configured device is detected, return current settings model
+                if camera.device_name == selected_camera.device_name {
+                    return Ok(self);
+                }
+            }
+            // if settings model device isn't plugged in, set default to first available source
+            let selected = camera_sources.first().unwrap();
+            self.camera = Box::new(printnanny_asyncapi_models::CameraSettings {
+                device_name: selected.device_name.clone(),
+                ..selected_camera
+            });
+            return Ok(self);
         }
     }
 }
