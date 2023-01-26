@@ -6,7 +6,7 @@ authors = ["Leigh Johnson <leigh@printnanny.ai>"]
 description = "D-bus APIs used by PrintNanny.ai"
 license = "AGPL-3.0-or-later"
 repository = "https://github.com/bitsy-ai/printnanny-rs.git"
-rust-version = "1.63"
+rust-version = "1.66"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
