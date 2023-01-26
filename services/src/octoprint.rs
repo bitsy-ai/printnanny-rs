@@ -1,12 +1,9 @@
 use log::warn;
 
 use reqwest::header;
-use reqwest::Url;
+// use reqwest::Url;
 
 use printnanny_edge_db::octoprint::OctoPrintServer;
-use printnanny_settings::printnanny_asyncapi_models;
-
-use crate::error::ServiceError;
 
 fn octoprint_api_headers(octoprint_server: &OctoPrintServer) -> header::HeaderMap {
     let mut headers = header::HeaderMap::new();
@@ -33,24 +30,24 @@ pub fn octoprint_api_client(
     reqwest::Client::builder().default_headers(headers).build()
 }
 
-pub async fn octoprint_get_current_job_filename() -> Result<Option<String>, ServiceError> {
-    let octoprint_server = OctoPrintServer::get()?;
-    let api_client = octoprint_api_client(&octoprint_server)?;
+// pub async fn octoprint_get_current_job_filename() -> Result<Option<String>, ServiceError> {
+//     let octoprint_server = OctoPrintServer::get()?;
+//     let api_client = octoprint_api_client(&octoprint_server)?;
 
-    let base_url = Url::parse(&octoprint_server.octoprint_url)?;
-    let url = base_url.join("/api/job")?;
+//     let base_url = Url::parse(&octoprint_server.octoprint_url)?;
+//     let url = base_url.join("/api/job")?;
 
-    let result = api_client
-        .get(url)
-        .send()
-        .await?
-        .json::<printnanny_asyncapi_models::OctoPrintCurrentJob>()
-        .await?;
-    match (result.job).file {
-        Some(file) => match file.name {
-            Some(filename) => Ok(Some(filename)),
-            None => Ok(None),
-        },
-        None => Ok(None),
-    }
-}
+//     let result = api_client
+//         .get(url)
+//         .send()
+//         .await?
+//         .json::<printnanny_asyncapi_models::OctoPrintCurrentJob>()
+//         .await?;
+//     match (result.job).file {
+//         Some(file) => match file.name {
+//             Some(filename) => Ok(Some(filename)),
+//             None => Ok(None),
+//         },
+//         None => Ok(None),
+//     }
+// }

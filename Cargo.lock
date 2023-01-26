@@ -283,21 +283,25 @@ dependencies = [
 
 [[package]]
 name = "async-nats"
-version = "0.18.0"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7f3d93ad98fe0aed0236fd887b5f26b26edd7d40f3f3d2cd0fc5dc23cf1a7c3"
+checksum = "0b0e90b3cd41350d89a242b981fb888f0eb8e3cb81c0fcb4563338f7e96a1084"
 dependencies = [
+ "base64 0.13.1",
  "base64-url",
  "bytes",
  "futures",
  "http",
+ "itertools",
  "itoa 1.0.5",
+ "lazy_static",
  "nkeys",
  "nuid",
  "once_cell",
  "regex",
+ "ring",
  "rustls-native-certs 0.6.2",
- "rustls-pemfile 0.3.0",
+ "rustls-pemfile 1.0.2",
  "serde 1.0.152",
  "serde_json",
  "serde_nanos",
@@ -305,8 +309,9 @@ dependencies = [
  "subslice",
  "time 0.3.17",
  "tokio",
+ "tokio-retry",
  "tokio-rustls 0.23.4",
- "tokio-util",
+ "tracing",
  "url",
 ]
 
@@ -3767,6 +3772,7 @@ dependencies = [
  "sys-info",
  "test-log",
  "thiserror",
+ "tokio",
  "toml",
  "zip",
 ]
@@ -4303,15 +4309,6 @@ name = "rustls-pemfile"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5eebeaeb360c87bfb72e84abdb3447159c0eaececf1bef2aecd65a8be949d1c9"
-dependencies = [
- "base64 0.13.1",
-]
-
-[[package]]
-name = "rustls-pemfile"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ee86d63972a7c661d1536fefe8c3c8407321c3df668891286de28abcd087360"
 dependencies = [
  "base64 0.13.1",
 ]
@@ -5087,6 +5084,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7d995660bd2b7f8c1568414c1126076c13fbb725c40112dc0120b78eb9b717b"
 dependencies = [
  "native-tls",
+ "tokio",
+]
+
+[[package]]
+name = "tokio-retry"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f57eb36ecbe0fc510036adff84824dd3c24bb781e21bfa67b69d556aa85214f"
+dependencies = [
+ "pin-project",
+ "rand 0.8.5",
  "tokio",
 ]
 

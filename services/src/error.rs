@@ -174,6 +174,9 @@ pub enum ServiceError {
 
     #[error("Error running diesel SQLIte migrations: {msg}")]
     SQLiteMigrationError { msg: String },
+
+    #[error(transparent)]
+    TaskJoinError(#[from] tokio::task::JoinError),
 }
 
 #[derive(Error, Debug)]

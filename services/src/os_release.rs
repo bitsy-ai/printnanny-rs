@@ -137,6 +137,7 @@ mod tests {
     use super::*;
     use printnanny_settings::paths::PRINTNANNY_SETTINGS_FILENAME;
     use printnanny_settings::printnanny::PrintNannySettings;
+    use tokio::runtime::Runtime;
 
     const OTHER_EXAMPLE: &str = r#"PRETTY_NAME="Ubuntu 22.04 LTS"
 TESTING="newfield"
@@ -189,8 +190,12 @@ VARIANT_ID=printnanny-octoprint
                 format!("{:?}", jail.directory().join("os-release")),
             );
 
-            let config = PrintNannySettings::new().unwrap();
-            let os_release = OsRelease::new_from(config.paths.os_release).unwrap();
+            let settings = Runtime::new()
+                .unwrap()
+                .block_on(PrintNannySettings::new())
+                .unwrap();
+
+            let os_release = OsRelease::new_from(settings.paths.os_release).unwrap();
             assert_eq!("2022-06-18T18:46:49Z".to_string(), os_release.build_id);
             Ok(())
         });

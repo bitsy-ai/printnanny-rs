@@ -18,6 +18,7 @@ use printnanny_services::printnanny_api::ApiService;
 use printnanny_services::setup::printnanny_os_init;
 use printnanny_settings::{SettingsFormat};
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
+use printnanny_settings::printnanny::PrintNannySettings;
 use printnanny_cli::settings::{SettingsCommand};
 use printnanny_cli::cloud_data::CloudDataCommand;
 use printnanny_cli::os::{OsCommand};
@@ -305,21 +306,24 @@ async fn main() -> Result<()> {
         },
         Some(("crash-report", sub_m)) => {
             let id = sub_m.value_of("id");
-            let api_service = ApiService::new()?;
+            let settings = PrintNannySettings::new().await?;
+            let api_service = ApiService::from(&settings);
+
+            let crash_report_paths = settings.paths.crash_report_paths();
 
             let report = match id {
-                Some(id) => api_service.crash_report_update(id).await,
-                None => api_service.crash_report_create(None, None, None, None, None, None).await
+                Some(id) => api_service.crash_report_update(id, crash_report_paths).await,
+                None => api_service.crash_report_create(None, None, None, None, None, None, settings.paths.crash_report_paths()).await
             }?;
             let report_json = serde_json::to_string_pretty(&report)?;
             println!("Submitted crash report:");
             println!("{}", report_json);
         },
         Some(("init", _sub_m)) => {
-            printnanny_os_init()?;
+            printnanny_os_init().await?;
         }
         Some(("nats-publisher", sub_m)) => {
-            let app = printnanny_nats::cloud_publisher::CloudEventPublisher::new(sub_m)?;
+            let app = printnanny_nats::cloud_publisher::CloudEventPublisher::new(sub_m).await?;
             app.run().await?;
         },
 
@@ -341,7 +345,7 @@ async fn main() -> Result<()> {
         },
 
         Some(("os", subm)) => {
-            OsCommand::handle(subm)?;
+            OsCommand::handle(subm).await?;
         },
         Some(("janus-admin", sub_m)) => {
             let endpoint: JanusAdminEndpoint = sub_m.value_of_t("endpoint").unwrap_or_else(|e| e.exit());

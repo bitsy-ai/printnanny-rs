@@ -24,14 +24,16 @@ async fn jpeg(state: &State<PrintNannySettings>) -> Result<NamedFile, NotFound<S
         }
         None => Err(NotFound(format!(
             "Failed to read directory {}",
-            dir.display().to_string()
+            dir.display()
         ))),
     }
 }
 
 #[launch]
-fn rocket() -> _ {
-    let settings = PrintNannySettings::new().expect("Failed to initialize PrintNannySettings");
+async fn rocket() -> _ {
+    let settings = PrintNannySettings::new()
+        .await
+        .expect("Failed to initialize PrintNannySettings");
 
     rocket::build().manage(settings).mount("/", routes![jpeg])
 }

@@ -20,8 +20,8 @@ _____      _       _   _   _
                                                 |___/ 
 ";
 
-fn handle_issue() -> Result<()> {
-    let config = PrintNannySettings::new()?;
+async fn handle_issue() -> Result<()> {
+    let config = PrintNannySettings::new().await?;
     let result = fs::read_to_string(&config.paths.issue_txt);
     let output = match result {
         Ok(content) => content,
@@ -41,9 +41,9 @@ fn handle_issue() -> Result<()> {
     Ok(())
 }
 
-fn handle_motd() -> Result<()> {
+async fn handle_motd() -> Result<()> {
     print!("{}", &MTOD_HEADER);
-    handle_issue()
+    handle_issue().await
 }
 
 fn handle_system_info(args: &ArgMatches) -> Result<()> {
@@ -59,10 +59,10 @@ fn handle_system_info(args: &ArgMatches) -> Result<()> {
 }
 
 impl OsCommand {
-    pub fn handle(sub_m: &clap::ArgMatches) -> Result<()> {
+    pub async fn handle(sub_m: &clap::ArgMatches) -> Result<()> {
         match sub_m.subcommand() {
-            Some(("issue", _args)) => handle_issue(),
-            Some(("motd", _args)) => handle_motd(),
+            Some(("issue", _args)) => handle_issue().await,
+            Some(("motd", _args)) => handle_motd().await,
             Some(("system-info", args)) => handle_system_info(args),
 
             _ => Err(anyhow!("Unhandled subcommand")),

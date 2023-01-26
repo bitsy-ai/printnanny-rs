@@ -63,16 +63,16 @@ impl From<printnanny_api_client::models::OctoPrintServer> for UpdateOctoPrintSer
 }
 
 impl OctoPrintServer {
-    pub fn get_id() -> Result<i32, diesel::result::Error> {
+    pub fn get_id(connection_str: &str) -> Result<i32, diesel::result::Error> {
         use crate::schema::octoprint_servers::dsl::*;
-        let connection = &mut establish_sqlite_connection();
+        let connection = &mut establish_sqlite_connection(connection_str);
         let result: i32 = octoprint_servers.select(id).first(connection)?;
         Ok(result)
     }
-    pub fn get() -> Result<OctoPrintServer, diesel::result::Error> {
+    pub fn get(connection_str: &str) -> Result<OctoPrintServer, diesel::result::Error> {
         use crate::schema::octoprint_servers::dsl::*;
 
-        let connection = &mut establish_sqlite_connection();
+        let connection = &mut establish_sqlite_connection(connection_str);
         let result: OctoPrintServer = octoprint_servers
             .order_by(id)
             .first::<OctoPrintServer>(connection)?;
@@ -83,8 +83,8 @@ impl OctoPrintServer {
         );
         Ok(result)
     }
-    pub fn insert(row: OctoPrintServer) -> Result<(), diesel::result::Error> {
-        let mut connection = establish_sqlite_connection();
+    pub fn insert(connection_str: &str, row: OctoPrintServer) -> Result<(), diesel::result::Error> {
+        let mut connection = establish_sqlite_connection(connection_str);
 
         let updated = diesel::insert_into(octoprint_servers::dsl::octoprint_servers)
             .values(row)
@@ -96,10 +96,11 @@ impl OctoPrintServer {
         Ok(())
     }
     pub fn update(
+        connection_str: &str,
         pi_id: i32,
         changeset: UpdateOctoPrintServer,
     ) -> Result<(), diesel::result::Error> {
-        let mut connection = establish_sqlite_connection();
+        let mut connection = establish_sqlite_connection(connection_str);
         let result =
             diesel::update(octoprint_servers::table.filter(octoprint_servers::id.eq(pi_id)))
                 .set(changeset)

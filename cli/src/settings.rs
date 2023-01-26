@@ -1,7 +1,7 @@
+use anyhow::Result;
 use std::io::{self, Write};
 use std::path::PathBuf;
 
-use printnanny_settings::error::PrintNannySettingsError;
 use printnanny_settings::printnanny::PrintNannySettings;
 use printnanny_settings::vcs::VersionControlledSettings;
 use printnanny_settings::SettingsFormat;
@@ -9,17 +9,17 @@ use printnanny_settings::SettingsFormat;
 pub struct SettingsCommand;
 
 impl SettingsCommand {
-    pub async fn handle(sub_m: &clap::ArgMatches) -> Result<(), PrintNannySettingsError> {
-        let config: PrintNannySettings = PrintNannySettings::new()?;
+    pub async fn handle(sub_m: &clap::ArgMatches) -> Result<()> {
+        let config: PrintNannySettings = PrintNannySettings::new().await?;
         match sub_m.subcommand() {
             Some(("clone", args)) => {
-                let settings = PrintNannySettings::new()?;
+                let settings = PrintNannySettings::new().await?;
 
                 let dir = args
                     .value_of("dir")
                     .map(PathBuf::from)
-                    .unwrap_or_else(|| settings.paths.settings_dir.clone());
-                settings.init_git_repo(&dir, &settings.git)?;
+                    .unwrap_or_else(|| settings.git.path.clone());
+                settings.init_git_repo(&dir)?;
             }
             Some(("get", args)) => {
                 let key = args.value_of("key");
@@ -27,21 +27,21 @@ impl SettingsCommand {
                 let v = match f {
                     SettingsFormat::Json => match key {
                         Some(k) => {
-                            let data = PrintNannySettings::find_value(k)?;
+                            let data = PrintNannySettings::find_value(k).await?;
                             serde_json::to_vec_pretty(&data)?
                         }
                         None => {
-                            let data = PrintNannySettings::new()?;
+                            let data = PrintNannySettings::new().await?;
                             serde_json::to_vec_pretty(&data)?
                         }
                     },
                     SettingsFormat::Toml => match key {
                         Some(k) => {
-                            let data = PrintNannySettings::find_value(k)?;
+                            let data = PrintNannySettings::find_value(k).await?;
                             toml::ser::to_vec(&data)?
                         }
                         None => {
-                            let data = PrintNannySettings::new()?;
+                            let data = PrintNannySettings::new().await?;
                             toml::ser::to_vec(&data)?
                         }
                     },
@@ -52,7 +52,7 @@ impl SettingsCommand {
             Some(("set", args)) => {
                 let key = args.value_of("key").unwrap();
                 let value = args.value_of("value").unwrap();
-                let figment = PrintNannySettings::figment()?;
+                let figment = PrintNannySettings::figment().await?;
                 let data = figment::providers::Serialized::global(key, &value);
                 let figment = figment.merge(data);
                 let config: PrintNannySettings = figment.extract()?;

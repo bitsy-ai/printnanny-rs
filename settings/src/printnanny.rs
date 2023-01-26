@@ -1,5 +1,5 @@
 use std::env;
-use std::fs;
+// use std::fs;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
@@ -8,6 +8,7 @@ use figment::value::{Dict, Map};
 use figment::{Figment, Metadata, Profile, Provider};
 use log::{debug, error};
 use serde::{Deserialize, Serialize};
+use tokio::fs;
 
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
@@ -15,12 +16,13 @@ use printnanny_dbus::zbus_systemd;
 use crate::cam::VideoStreamSettings;
 use crate::error::{PrintNannySettingsError, VersionControlledSettingsError};
 use crate::klipper::KlipperSettings;
-use crate::mainsail::MainsailSettings;
-use crate::moonraker::MoonrakerSettings;
-use crate::octoprint::OctoPrintSettings;
+use crate::moonraker::{MoonrakerSettings, DEFAULT_MOONRAKER_SETTINGS_FILE};
+use crate::octoprint::{OctoPrintSettings, DEFAULT_OCTOPRINT_SETTINGS_FILE};
 use crate::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
 use crate::vcs::VersionControlledSettings;
 use crate::SettingsFormat;
+
+pub const DEFAULT_PRINTNANNY_SETTINGS_DIR: &str = "/home/printnanny/.config/printnanny/vcs";
 
 const DEFAULT_PRINTNANNY_SETTINGS_GIT_REMOTE: &str =
     "https://github.com/bitsy-ai/printnanny-settings.git";
@@ -73,6 +75,7 @@ pub struct SystemdUnit {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct GitSettings {
+    pub path: PathBuf, // local git repo used to commit/revert changes to user-supplied config
     pub remote: String,
     pub email: String,
     pub name: String,
@@ -82,6 +85,7 @@ pub struct GitSettings {
 impl Default for GitSettings {
     fn default() -> Self {
         Self {
+            path: DEFAULT_PRINTNANNY_SETTINGS_DIR.into(),
             remote: DEFAULT_PRINTNANNY_SETTINGS_GIT_REMOTE.into(),
             email: DEFAULT_PRINTNANNY_SETTINGS_GIT_EMAIL.into(),
             name: DEFAULT_PRINTNANNY_SETTINGS_GIT_NAME.into(),
@@ -96,10 +100,6 @@ pub struct PrintNannySettings {
     pub cloud: PrintNannyApiConfig,
     pub git: GitSettings,
     pub paths: PrintNannyPaths,
-    pub klipper: KlipperSettings,
-    pub mainsail: MainsailSettings,
-    pub moonraker: MoonrakerSettings,
-    pub octoprint: OctoPrintSettings,
 }
 
 impl Default for PrintNannySettings {
@@ -110,10 +110,6 @@ impl Default for PrintNannySettings {
         Self {
             cloud: PrintNannyApiConfig::default(),
             paths: PrintNannyPaths::default(),
-            klipper: KlipperSettings::default(),
-            octoprint: OctoPrintSettings::default(),
-            moonraker: MoonrakerSettings::default(),
-            mainsail: MainsailSettings::default(),
             git,
             video_stream,
         }
@@ -121,31 +117,53 @@ impl Default for PrintNannySettings {
 }
 
 impl PrintNannySettings {
-    pub fn new() -> Result<Self, PrintNannySettingsError> {
-        let figment = Self::figment()?;
-        let mut result: PrintNannySettings = figment.extract()?;
-
-        result.octoprint = OctoPrintSettings::from_dir(&result.paths.settings_dir);
-        result.moonraker = MoonrakerSettings::from_dir(&result.paths.settings_dir);
-        result.klipper = KlipperSettings::from_dir(&result.paths.settings_dir);
-
+    pub async fn new() -> Result<Self, PrintNannySettingsError> {
+        let figment = Self::figment().await?;
+        let result: PrintNannySettings = figment.extract()?;
         debug!("Initialized config {:?}", result);
 
         Ok(result)
+    }
+
+    pub fn to_octoprint_settings(&self) -> OctoPrintSettings {
+        let git_settings = self.git.clone();
+        let settings_file = self.git.path.join(DEFAULT_OCTOPRINT_SETTINGS_FILE);
+
+        OctoPrintSettings {
+            git_settings,
+            settings_file,
+            ..OctoPrintSettings::default()
+        }
+    }
+
+    pub fn to_moonraker_settings(&self) -> MoonrakerSettings {
+        let git_settings = self.git.clone();
+        let settings_file = self.git.path.join(DEFAULT_MOONRAKER_SETTINGS_FILE);
+        MoonrakerSettings {
+            git_settings,
+            settings_file,
+            ..MoonrakerSettings::default()
+        }
+    }
+
+    pub fn to_klipper_settings(&self) -> KlipperSettings {
+        let git_settings = self.git.clone();
+        let settings_file = self.git.path.join(DEFAULT_MOONRAKER_SETTINGS_FILE);
+
+        KlipperSettings {
+            git_settings,
+            settings_file,
+            ..KlipperSettings::default()
+        }
     }
 
     pub fn dashboard_url(&self) -> String {
         let hostname = sys_info::hostname().unwrap_or_else(|_| "printnanny".to_string());
         format!("http://{}.local/", hostname)
     }
-    pub fn find_value(key: &str) -> Result<figment::value::Value, PrintNannySettingsError> {
-        let figment = Self::figment()?;
+    pub async fn find_value(key: &str) -> Result<figment::value::Value, PrintNannySettingsError> {
+        let figment = Self::figment().await?;
         Ok(figment.find_value(key)?)
-    }
-
-    // intended for use with Rocket's figmment
-    pub fn from_figment(figment: Figment) -> Figment {
-        figment.merge(Self::figment().unwrap())
     }
 
     // Load configuration with the following order of precedence:
@@ -180,24 +198,37 @@ impl PrintNannySettings {
         }
     }
 
-    pub fn figment() -> Result<Figment, PrintNannySettingsError> {
+    pub async fn figment() -> Result<Figment, PrintNannySettingsError> {
         // if PRINTNANNY_SETTINGS env var is set, check file exists and is readable
         Self::check_file_from_env_var("PRINTNANNY_SETTINGS")?;
         // merge file in PRINTNANNY_SETTINGS env var (if set)
-        let result = Figment::from(Self { ..Self::default() })
-            .merge(Toml::file(Env::var_or(
-                "PRINTNANNY_SETTINGS",
-                DEFAULT_PRINTNANNY_SETTINGS_FILE,
-            )))
-            // allow nested environment variables:
-            // PRINTNANNY_SETTINGS_KEY__SUBKEY
-            .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"));
+        let file_path_str = Env::var_or("PRINTNANNY_SETTINGS", DEFAULT_PRINTNANNY_SETTINGS_FILE);
+        let file_path = PathBuf::from(&file_path_str);
+        let result = match file_path.exists() {
+            true => {
+                let file_contents = fs::read_to_string(file_path).await?;
+                Figment::from(Self { ..Self::default() })
+                    .merge(Toml::string(&file_contents))
+                    // allow nested environment variables:
+                    // PRINTNANNY_SETTINGS_KEY__SUBKEY
+                    .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"))
+            }
+            false => {
+                Figment::from(Self { ..Self::default() })
+                    // allow nested environment variables:
+                    // PRINTNANNY_SETTINGS_KEY__SUBKEY
+                    .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"))
+            }
+        };
         debug!("Finalized PrintNannySettings: \n {:?}", result);
         Ok(result)
     }
 
-    pub fn from_toml(f: PathBuf) -> Result<Self, PrintNannySettingsError> {
-        let figment = PrintNannySettings::figment()?.merge(Toml::file(f));
+    pub async fn from_toml(f: PathBuf) -> Result<Self, PrintNannySettingsError> {
+        let file_contents = fs::read_to_string(f).await?;
+        let figment = PrintNannySettings::figment()
+            .await?
+            .merge(Toml::string(&file_contents));
         Ok(figment.extract()?)
     }
 
@@ -212,19 +243,21 @@ impl PrintNannySettings {
     }
 
     // Save settings to PRINTNANNY_SETTINGS
-    pub fn try_save(&self) -> Result<(), PrintNannySettingsError> {
+    pub async fn try_save(&self) -> Result<(), PrintNannySettingsError> {
         let settings_file = self.paths.settings_file();
         let settings_data = toml::ser::to_string_pretty(self)?;
-        fs::write(settings_file, settings_data)?;
+        fs::write(settings_file, settings_data).await?;
         Ok(())
     }
     // Save settings to PRINTNANNY_SETTINGS
-    pub fn save(&self) {
-        self.try_save().expect("Failed to save PrintNannySettings");
+    pub async fn save(&self) {
+        self.try_save()
+            .await
+            .expect("Failed to save PrintNannySettings");
     }
 
     // Save ::Default() to output file
-    pub fn try_init(
+    pub async fn try_init(
         &self,
         filename: &str,
         format: &SettingsFormat,
@@ -234,7 +267,7 @@ impl PrintNannySettings {
             SettingsFormat::Toml => toml::ser::to_string_pretty(self)?,
             _ => unimplemented!("try_init is not implemented for format: {}", format),
         };
-        fs::write(filename, content)?;
+        fs::write(filename, content).await?;
         Ok(())
     }
 
@@ -288,9 +321,8 @@ impl Provider for PrintNannySettings {
 #[async_trait]
 impl VersionControlledSettings for PrintNannySettings {
     type SettingsModel = PrintNannySettings;
-    fn from_dir(settings_dir: &Path) -> Self {
-        let settings_file = settings_dir.join("printnanny/printnanny.toml");
-        PrintNannySettings::from_toml(settings_file).unwrap()
+    fn from_dir(_settings_dir: &Path) -> Self {
+        todo!()
     }
     fn get_settings_format(&self) -> SettingsFormat {
         SettingsFormat::Toml
@@ -321,18 +353,33 @@ impl VersionControlledSettings for PrintNannySettings {
     fn validate(&self) -> Result<(), VersionControlledSettingsError> {
         todo!("PrintNannySettings validate hook is not yet implemented");
     }
+
+    fn get_git_repo_path(&self) -> &Path {
+        &self.git.path
+    }
+
+    fn get_git_remote(&self) -> &str {
+        &self.git.remote
+    }
+
+    fn get_git_settings(&self) -> &GitSettings {
+        &self.git
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::paths::PRINTNANNY_SETTINGS_FILENAME;
+    use tokio::runtime::Runtime;
 
     #[test_log::test]
     fn test_config_file_not_found() {
         figment::Jail::expect_with(|jail| {
             jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
-            let result = PrintNannySettings::figment();
+            let result = Runtime::new()
+                .unwrap()
+                .block_on(PrintNannySettings::figment());
             assert!(result.is_err());
             Ok(())
         });
@@ -345,18 +392,18 @@ mod tests {
                 PRINTNANNY_SETTINGS_FILENAME,
                 r#"
                 [paths]
-                settings_dir = "/this/etc/path/gets/overridden"
+                log_dir = "/this/etc/path/gets/overridden"
                 "#,
             )?;
             jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
             let expected = PathBuf::from("testing");
-            jail.set_env(
-                "PRINTNANNY_SETTINGS_PATHS__SETTINGS_DIR",
-                &expected.display(),
-            );
-            let figment = PrintNannySettings::figment().unwrap();
+            jail.set_env("PRINTNANNY_SETTINGS_PATHS__LOG_DIR", &expected.display());
+            let figment = Runtime::new()
+                .unwrap()
+                .block_on(PrintNannySettings::figment())
+                .unwrap();
             let config: PrintNannySettings = figment.extract()?;
-            assert_eq!(config.paths.settings_dir, expected);
+            assert_eq!(config.paths.log_dir, expected);
             Ok(())
         });
     }
@@ -368,16 +415,18 @@ mod tests {
                 PRINTNANNY_SETTINGS_FILENAME,
                 r#"
                 [paths]
-                settings_dir = "/opt/printnanny/"
                 state_dir = "/var/lib/custom"
 
                 "#,
             )?;
             jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
-            let figment = PrintNannySettings::figment().unwrap();
+            let figment = Runtime::new()
+                .unwrap()
+                .block_on(PrintNannySettings::figment())
+                .unwrap();
             let config: PrintNannySettings = figment.extract()?;
             assert_eq!(config.paths.data(), PathBuf::from("/var/lib/custom/data"));
-            assert_eq!(config.paths.settings_dir, PathBuf::from("/opt/printnanny/"));
+            assert_eq!(config.paths.state_dir, PathBuf::from("/var/lib/custom/"));
 
             Ok(())
         });
@@ -395,15 +444,17 @@ mod tests {
                 "#,
             )?;
             jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
-            let settings = PrintNannySettings::new().unwrap();
-            assert_eq!(
-                settings.octoprint.enabled,
-                OctoPrintSettings::default().enabled,
-            );
-            jail.set_env("PRINTNANNY_SETTINGS_OCTOPRINT__ENABLED", "false");
-            let figment = PrintNannySettings::figment().unwrap();
-            let settings: PrintNannySettings = figment.extract()?;
-            assert_eq!(settings.octoprint.enabled, false);
+            let settings = Runtime::new()
+                .unwrap()
+                .block_on(PrintNannySettings::new())
+                .unwrap();
+            assert_eq!(settings.git.remote, GitSettings::default().remote);
+            jail.set_env("PRINTNANNY_SETTINGS_GIT__REMOTE", "foo.git");
+            let settings = Runtime::new()
+                .unwrap()
+                .block_on(PrintNannySettings::new())
+                .unwrap();
+            assert_eq!(settings.git.remote, "foo.git");
             Ok(())
         });
     }
@@ -415,19 +466,18 @@ mod tests {
                 "Local.toml",
                 r#"
                 [paths]
-                settings_dir = ".tmp/"
+                log_dir = ".tmp/"
                 
-                [octoprint]
-                enabled = false
                 "#,
             )?;
             jail.set_env("PRINTNANNY_SETTINGS", "Local.toml");
 
-            let figment = PrintNannySettings::figment().unwrap();
-            let settings: PrintNannySettings = figment.extract()?;
+            let settings = Runtime::new()
+                .unwrap()
+                .block_on(PrintNannySettings::new())
+                .unwrap();
 
-            assert_eq!(settings.paths.settings_dir, PathBuf::from(".tmp/"));
-            assert_eq!(settings.octoprint.enabled, false);
+            assert_eq!(settings.paths.log_dir, PathBuf::from(".tmp/"));
 
             Ok(())
         });
@@ -454,14 +504,16 @@ mod tests {
             )?;
             jail.set_env("PRINTNANNY_SETTINGS", "Local.toml");
 
-            let figment = PrintNannySettings::figment().unwrap();
-            let mut settings: PrintNannySettings = figment.extract()?;
+            let mut settings = Runtime::new()
+                .unwrap()
+                .block_on(PrintNannySettings::new())
+                .unwrap();
 
-            settings.octoprint.enabled = true;
-            settings.save();
-            let figment = PrintNannySettings::figment().unwrap();
-            let settings: PrintNannySettings = figment.extract()?;
-            assert_eq!(settings.octoprint.enabled, true);
+            settings.paths.state_dir = PathBuf::from("foo");
+            let runtime = Runtime::new().unwrap();
+            runtime.block_on(settings.save());
+            let settings = runtime.block_on(PrintNannySettings::new()).unwrap();
+            assert_eq!(settings.paths.state_dir, PathBuf::from("foo"));
             Ok(())
         });
     }
@@ -488,9 +540,12 @@ mod tests {
             )?;
             jail.set_env("PRINTNANNY_SETTINGS", "Local.toml");
 
-            let value: Option<String> = PrintNannySettings::find_value("paths.settings_dir")
+            let value = Runtime::new()
+                .unwrap()
+                .block_on(PrintNannySettings::find_value("paths.settings_dir"))
                 .unwrap()
                 .into_string();
+
             assert_eq!(value, expected);
             Ok(())
         });
@@ -509,18 +564,30 @@ mod tests {
                     r#"
                 profile = "local"
                 [paths]
-                settings_dir = "{output}/printnanny.d"
                 log_dir = "{output}/log"
+
+                [git]
+                path = "{output}/printnanny.d"
                 "#,
                     output = output
                 ),
             )?;
 
-            let config =
-                PrintNannySettings::from_toml(PathBuf::from(output).join(filename)).unwrap();
+            let settings = Runtime::new()
+                .unwrap()
+                .block_on(PrintNannySettings::from_toml(
+                    PathBuf::from(output).join(filename),
+                ))
+                .unwrap();
+
             assert_eq!(
-                config.paths.settings_dir,
+                settings.git.path,
                 PathBuf::from(format!("{}/printnanny.d", output))
+            );
+
+            assert_eq!(
+                settings.paths.log_dir,
+                PathBuf::from(format!("{}/log", output))
             );
 
             Ok(())
@@ -542,8 +609,12 @@ mod tests {
                 "#,
             )?;
 
-            let settings =
-                PrintNannySettings::from_toml(PathBuf::from(output).join(filename)).unwrap();
+            let settings = Runtime::new()
+                .unwrap()
+                .block_on(PrintNannySettings::from_toml(
+                    PathBuf::from(output).join(filename),
+                ))
+                .unwrap();
             assert_eq!(settings.video_stream.detection.tensor_framerate, 1);
 
             Ok(())

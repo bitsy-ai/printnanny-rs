@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use tokio::process::Command;
 
 use async_trait::async_trait;
 use figment::providers::Env;
-use log::{debug, info, error};
+use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::zbus;
@@ -11,13 +11,13 @@ use printnanny_dbus::zbus_systemd;
 
 use crate::error::PrintNannySettingsError;
 use crate::error::VersionControlledSettingsError;
-use crate::vcs::VersionControlledSettings;
+use crate::printnanny::GitSettings;
+use crate::vcs::{VersionControlledSettings, DEFAULT_VCS_SETTINGS_DIR};
 use crate::SettingsFormat;
 
 pub const OCTOPRINT_INSTALL_DIR: &str = "/home/printnanny/.octoprint";
 pub const OCTOPRINT_VENV: &str = "/home/printnanny/octoprint-venv";
-pub const DEFAULT_OCTOPRINT_SETTINGS_FILE: &str =
-    "/home/printnanny/.config/printnanny/settings/octoprint/octoprint.yaml";
+pub const DEFAULT_OCTOPRINT_SETTINGS_FILE: &str = "octoprint/octoprint.yaml";
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PipPackage {
@@ -32,6 +32,27 @@ pub struct OctoPrintSettings {
     pub settings_file: PathBuf,
     pub settings_format: SettingsFormat,
     pub venv: PathBuf,
+    pub git_settings: GitSettings,
+}
+
+impl OctoPrintSettings {
+    pub fn new(
+        enabled: bool,
+        install_dir: PathBuf,
+        settings_file: PathBuf,
+        settings_format: SettingsFormat,
+        venv: PathBuf,
+        git_settings: GitSettings,
+    ) -> Self {
+        Self {
+            enabled,
+            install_dir,
+            settings_file,
+            settings_format,
+            venv,
+            git_settings,
+        }
+    }
 }
 
 #[async_trait]
@@ -49,6 +70,18 @@ impl VersionControlledSettings for OctoPrintSettings {
     }
     fn get_settings_file(&self) -> PathBuf {
         self.settings_file.clone()
+    }
+
+    fn get_git_repo_path(&self) -> &Path {
+        &self.git_settings.path
+    }
+
+    fn get_git_remote(&self) -> &str {
+        &self.git_settings.remote
+    }
+
+    fn get_git_settings(&self) -> &GitSettings {
+        &self.git_settings
     }
 
     async fn pre_save(&self) -> Result<(), VersionControlledSettingsError> {
@@ -84,16 +117,20 @@ impl VersionControlledSettings for OctoPrintSettings {
 impl Default for OctoPrintSettings {
     fn default() -> Self {
         let install_dir: PathBuf = OCTOPRINT_INSTALL_DIR.into();
+        let default_settings_file =
+            PathBuf::from(DEFAULT_VCS_SETTINGS_DIR).join(DEFAULT_OCTOPRINT_SETTINGS_FILE);
         let settings_file = PathBuf::from(Env::var_or(
             "OCTOPRINT_SETTINGS_FILE",
-            DEFAULT_OCTOPRINT_SETTINGS_FILE,
+            default_settings_file.display().to_string(),
         ));
+        let git_settings = GitSettings::default();
         Self {
             settings_file,
             install_dir,
             enabled: true,
             venv: OCTOPRINT_VENV.into(),
             settings_format: SettingsFormat::Yaml,
+            git_settings,
         }
     }
 }
@@ -109,7 +146,8 @@ pub fn parse_pip_list_json(stdout: &str) -> Result<Vec<PipPackage>, PrintNannySe
 pub fn parse_python_version(stdout: &str) -> Option<String> {
     stdout
         .split_once(' ')
-        .map(|(_, version)| version.to_string())}
+        .map(|(_, version)| version.to_string())
+}
 pub fn parse_pip_version(stdout: &str) -> Option<String> {
     let split = stdout.split(' ').nth(1);
     split.map(|v| v.to_string())
@@ -120,15 +158,16 @@ impl OctoPrintSettings {
         self.venv.join("bin/python")
     }
 
-    pub fn pip_version(&self) -> Result<Option<String>, PrintNannySettingsError> {
+    pub async fn pip_version(&self) -> Result<Option<String>, PrintNannySettingsError> {
         let python_path = self.python_path();
         let output = Command::new(&python_path)
             .arg("-m")
             .arg("pip")
             .arg("--version")
-            .output();
+            .output()
+            .await;
         match output {
-            Ok (output) => {
+            Ok(output) => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let result = parse_pip_version(&stdout);
                 debug!(
@@ -138,14 +177,17 @@ impl OctoPrintSettings {
                 Ok(result)
             }
             Err(e) => {
-                let msg = format!("{:?} -m pip --version failed with error={}", &python_path, e);
+                let msg = format!(
+                    "{:?} -m pip --version failed with error={}",
+                    &python_path, e
+                );
                 error!("{}", &msg);
                 Ok(None)
             }
         }
     }
 
-    pub fn pip_packages(&self) -> Result<Vec<PipPackage>, PrintNannySettingsError> {
+    pub async fn pip_packages(&self) -> Result<Vec<PipPackage>, PrintNannySettingsError> {
         let python_path = self.python_path();
         let output = Command::new(&python_path)
             .arg("-m")
@@ -154,9 +196,10 @@ impl OctoPrintSettings {
             .arg("--include-editable") // handle dev environment, where pip install -e . is used for plugin setup
             .arg("--format")
             .arg("json")
-            .output();
+            .output()
+            .await;
         match output {
-            Ok (output) =>  {
+            Ok(output) => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let result = parse_pip_list_json(&stdout)?;
                 debug!(
@@ -168,40 +211,37 @@ impl OctoPrintSettings {
             Err(e) => {
                 let msg = format!(
                     "{} -m pip list --include-editable --format json failed with error={}",
-                    &python_path.display(), e
-                );                 
+                    &python_path.display(),
+                    e
+                );
                 error!("{}", &msg);
                 Ok(vec![])
             }
-        
         }
     }
 
-    pub fn python_version(&self) -> Result<Option<String>, PrintNannySettingsError> {
+    pub async fn python_version(&self) -> Result<Option<String>, PrintNannySettingsError> {
         let python_path = self.python_path();
-        let output = Command::new(&python_path)
-            .arg("--version")
-            .output();
+        let output = Command::new(&python_path).arg("--version").output().await;
         match output {
-            Ok (output) =>  {
+            Ok(output) => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let result = parse_python_version(&stdout);
                 debug!("Parsed python_version in {:?} {:?}", &python_path, &result);
                 Ok(result)
             }
             Err(e) => {
-                debug!("Failed to parse {} --version with error={}", &python_path.display(), &e);
+                debug!(
+                    "Failed to parse {} --version with error={}",
+                    &python_path.display(),
+                    &e
+                );
                 Ok(None)
             }
-        
         }
-        
     }
 
-    pub fn octoprint_version(
-        &self,
-        packages: &[PipPackage],
-    ) -> Option<String> {
+    pub fn octoprint_version(&self, packages: &[PipPackage]) -> Option<String> {
         let python_path = self.python_path();
 
         let v: Vec<&PipPackage> = packages.iter().filter(|p| p.name == "OctoPrint").collect();
@@ -211,36 +251,34 @@ impl OctoPrintSettings {
                     "Parsed octoprint_version {:?} in venv {:?} ",
                     &p, &python_path
                 );
-                Some(p.version.clone())},
+                Some(p.version.clone())
+            }
             None => {
                 error!("Failed to parse octoprint version from pip output");
                 None
-            },
+            }
         }
     }
 
-    pub fn printnanny_plugin_version(
-        &self,
-        packages: &[PipPackage],
-    ) -> Option<String> {
+    pub fn printnanny_plugin_version(&self, packages: &[PipPackage]) -> Option<String> {
         let python_path = self.python_path();
 
         let v: Vec<&PipPackage> = packages
             .iter()
             .filter(|p| p.name == "OctoPrint-Nanny")
             .collect();
-       match v.first() {
+        match v.first() {
             Some(p) => {
                 debug!(
                     "Parsed printnnny_plugin_version {:?} in venv {:?} ",
                     &p, python_path
                 );
                 Some(p.version.clone())
-            },
+            }
             None => {
                 error!("Failed to parse octoprint-nanny plugin version with pip");
                 None
-            },
+            }
         }
     }
 }

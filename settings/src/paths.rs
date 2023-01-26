@@ -3,17 +3,17 @@ use figment::providers::Env;
 use log::{info, warn};
 use serde;
 use serde::{Deserialize, Serialize};
+use std::io;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{fs, io};
+use tokio::fs;
 use zip::ZipArchive;
 
 use super::error::PrintNannySettingsError;
 
 pub const DEFAULT_PRINTNANNY_USER: &str = "printnanny";
 pub const PRINTNANNY_SETTINGS_FILENAME: &str = "printnanny.toml";
-pub const DEFAULT_PRINTNANNY_SETTINGS_DIR: &str = "/home/printnanny/.config/printnanny/vcs";
 pub const DEFAULT_PRINTNANNY_SETTINGS_FILE: &str =
     "/home/printnanny/.config/printnanny/vcs/printnanny/printnanny.toml";
 pub const DEFAULT_PRINTNANNY_DATA_DIR: &str = "/home/printnanny/.local/share/printnanny";
@@ -21,10 +21,9 @@ pub const DEFAULT_PRINTNANNY_DATA_DIR: &str = "/home/printnanny/.local/share/pri
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PrintNannyPaths {
     pub snapshot_dir: PathBuf,
-    pub state_dir: PathBuf,    // application state
-    pub settings_dir: PathBuf, // local git repo used to commit/revert changes to user-supplied config
-    pub log_dir: PathBuf,      // application log dir
-    pub run_dir: PathBuf,      // application runtime dir
+    pub state_dir: PathBuf, // application state
+    pub log_dir: PathBuf,   // application log dir
+    pub run_dir: PathBuf,   // application runtime dir
 
     pub issue_txt: PathBuf,  // path to /etc/issue
     pub os_release: PathBuf, // oath to /etc/os-release
@@ -33,7 +32,6 @@ pub struct PrintNannyPaths {
 impl Default for PrintNannyPaths {
     fn default() -> Self {
         let snapshot_dir: PathBuf = "/var/run/printnanny-snapshot".into();
-        let settings_dir: PathBuf = DEFAULT_PRINTNANNY_SETTINGS_DIR.into();
         // /var/run/ is a temporary runtime directory, cleared after each boot
         let run_dir: PathBuf = "/var/run/printnanny".into();
         // /home persistent state directory, mounted as a r/w overlay fs. Application state is stored here and is preserved between upgrades.
@@ -44,7 +42,6 @@ impl Default for PrintNannyPaths {
         let os_release = "/etc/os-release".into();
         Self {
             snapshot_dir,
-            settings_dir,
             issue_txt,
             state_dir,
             log_dir,
@@ -174,15 +171,12 @@ impl PrintNannyPaths {
                 }
             }
             // read filename from archive
-            let file = archive.by_name(filename);
-            let mut file = match file {
-                Ok(f) => Ok(f),
-                Err(_) => Err(PrintNannySettingsError::ArchiveMissingFile {
+            let mut file = archive.by_name(filename).map_err(|_e| {
+                PrintNannySettingsError::ArchiveMissingFile {
                     filename: filename.to_string(),
                     archive: license_zip.clone(),
-                }),
-            }?;
-
+                }
+            })?;
             let mut contents = String::new();
 
             match file.read_to_string(&mut contents) {
@@ -193,14 +187,16 @@ impl PrintNannyPaths {
                 }),
             }?;
 
-            match std::fs::write(dest, contents) {
-                Ok(_) => Ok(()),
+            match std::fs::write(dest, &contents) {
+                Ok(_) => {
+                    info!("Wrote seed file {:?}", dest);
+                    Ok(())
+                }
                 Err(error) => Err(PrintNannySettingsError::WriteIOError {
                     path: PathBuf::from(filename),
                     error,
                 }),
             }?;
-            info!("Wrote seed file {:?}", dest);
         }
         Ok(results)
     }
@@ -213,7 +209,7 @@ impl PrintNannyPaths {
             .as_secs();
         let new_filename = format!("{}.{}.bak", filename.display(), ts);
         let new_filepath = PathBuf::from(&new_filename);
-        fs::copy(filename, &new_filepath)?;
+        std::fs::copy(filename, &new_filepath)?;
         info!(
             "{} already exists, backed up to {} before overwriting",
             filename.display(),
@@ -222,7 +218,11 @@ impl PrintNannyPaths {
         Ok(new_filepath)
     }
 
-    pub fn write_license_zip(&self, b: Bytes, backup: bool) -> Result<(), PrintNannySettingsError> {
+    pub async fn write_license_zip(
+        &self,
+        b: Bytes,
+        backup: bool,
+    ) -> Result<(), PrintNannySettingsError> {
         let filename = self.license_zip();
 
         // if license.zip already exists, back up existing file before overwriting
@@ -240,7 +240,7 @@ impl PrintNannyPaths {
             }
         }
 
-        fs::write(filename, b)?;
+        fs::write(filename, b).await?;
 
         Ok(())
     }

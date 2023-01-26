@@ -2,6 +2,7 @@ use std::cmp::min;
 use std::fs;
 
 use futures::stream::StreamExt;
+use printnanny_settings::printnanny::PrintNannySettings;
 use reqwest::Body;
 use tokio::fs::File;
 
@@ -24,6 +25,7 @@ struct VideoUploadProgress {
 }
 
 fn progress_tick(
+    sqlite_connection: &str,
     row_id: &str,
     uploaded: u64,
     chunk_size: u64,
@@ -35,8 +37,12 @@ fn progress_tick(
 
     let current_percent = total_size / uploaded;
     if current_percent - last_emitted_percent >= interval {
-        video_recording::VideoRecording::set_cloud_sync_progress(row_id, &(current_percent as i32))
-            .expect("Failed to set set_cloud_sync_progress");
+        video_recording::VideoRecording::set_cloud_sync_progress(
+            sqlite_connection,
+            row_id,
+            &(current_percent as i32),
+        )
+        .expect("Failed to set set_cloud_sync_progress");
         info!(
             "VideoUploadProgress id={} percent={}",
             &row_id, &current_percent
@@ -47,19 +53,25 @@ fn progress_tick(
 }
 
 impl VideoUploadProgress {
-    pub async fn start(&self) -> Result<(), VideoRecordingSyncError> {
-        video_recording::VideoRecording::start_cloud_sync(&self.id)?;
-        let row = video_recording::VideoRecording::get_by_id(&self.id)?;
-        let api_service = ApiService::new()?;
-        api_service.video_recordings_partial_update(&row).await?;
+    pub async fn start(
+        &self,
+        api: &ApiService,
+        sqlite_connection: &str,
+    ) -> Result<(), VideoRecordingSyncError> {
+        video_recording::VideoRecording::start_cloud_sync(sqlite_connection, &self.id)?;
+        let row = video_recording::VideoRecording::get_by_id(sqlite_connection, &self.id)?;
+        api.video_recordings_partial_update(&row).await?;
         Ok(())
     }
 
-    pub async fn finish(&self) -> Result<(), VideoRecordingSyncError> {
-        video_recording::VideoRecording::finish_cloud_sync(&self.id)?;
-        let row = video_recording::VideoRecording::get_by_id(&self.id)?;
-        let api_service = ApiService::new()?;
-        api_service.video_recordings_partial_update(&row).await?;
+    pub async fn finish(
+        &self,
+        api: &ApiService,
+        sqlite_connection: &str,
+    ) -> Result<(), VideoRecordingSyncError> {
+        video_recording::VideoRecording::finish_cloud_sync(sqlite_connection, &self.id)?;
+        let row = video_recording::VideoRecording::get_by_id(sqlite_connection, &self.id)?;
+        api.video_recordings_partial_update(&row).await?;
         Ok(())
     }
 }
@@ -67,6 +79,7 @@ impl VideoUploadProgress {
 pub async fn upload_video_recording(
     video_recording: printnanny_edge_db::video_recording::VideoRecording,
 ) -> Result<video_recording::VideoRecording, VideoRecordingSyncError> {
+    let settings = PrintNannySettings::new().await?;
     let upload_url = match video_recording.mp4_upload_url {
         Some(upload_url) => Ok(upload_url),
         None => Err(VideoRecordingSyncError::UploadUrlNotSet {
@@ -88,8 +101,12 @@ pub async fn upload_video_recording(
 
     let row_id = video_recording.id.clone();
 
+    let api_service = ApiService::from(&settings);
+    let sqlite_connection = settings.paths.db().display().to_string();
+
     let async_stream = async_stream::stream! {
-        match progress.start().await{
+        let inner_conn = sqlite_connection.clone();
+        match progress.start(&api_service, &inner_conn).await {
             Ok(()) => {},
             Err(e) => error!("Error in VideoUploadProgress.start error={}", e)
         };
@@ -100,8 +117,9 @@ pub async fn upload_video_recording(
                 let last_percent = progress.last_percent;
                 let interval = progress.interval;
                 let row_id = row_id.clone();
+                let inner_sqlite_conn = inner_conn.clone();
                 match tokio::task::spawn_blocking(move ||{
-                    progress_tick(&row_id, uploaded, chunk_size, total_size, last_percent, interval)
+                    progress_tick(&inner_sqlite_conn, &row_id, uploaded, chunk_size, total_size, last_percent, interval)
                 }).await {
                     Ok((uploaded, last_percent)) => {
                         progress.uploaded = uploaded;
@@ -115,7 +133,7 @@ pub async fn upload_video_recording(
             }
             yield chunk;
         };
-        match progress.finish().await {
+        match progress.finish(&api_service, &inner_conn).await {
             Ok(()) => {},
             Err(e) => error!("Error in VideoUploadProgress.finish error={}", e)
         };
@@ -130,14 +148,16 @@ pub async fn upload_video_recording(
         .send()
         .await?;
     info!("upload_video_recording response: {:#?}", res);
-    let row = video_recording::VideoRecording::get_by_id(&video_recording.id)?;
+    let sqlite_connection = settings.paths.db().display().to_string();
+    let row = video_recording::VideoRecording::get_by_id(&sqlite_connection, &video_recording.id)?;
     Ok(row)
 }
 
 async fn generate_upload_url(
     recording: video_recording::VideoRecording,
 ) -> Result<models::VideoRecording, VideoRecordingSyncError> {
-    let api_service = ApiService::new()?;
+    let settings = PrintNannySettings::new().await?;
+    let api_service = ApiService::from(&settings);
     let recording = api_service
         .video_recording_update_or_create(&recording)
         .await?;
@@ -166,8 +186,11 @@ async fn sync_upload_urls(video_recordings: Vec<video_recording::VideoRecording>
 }
 
 pub async fn sync_all_video_recordings() -> Result<(), VideoRecordingSyncError> {
+    let settings = PrintNannySettings::new().await?;
+    let sqlite_connection = settings.paths.db().display().to_string();
     // select all recordings that are finished, but not uploaded
-    let video_recordings = video_recording::VideoRecording::get_ready_for_cloud_sync()?;
+    let video_recordings =
+        video_recording::VideoRecording::get_ready_for_cloud_sync(&sqlite_connection)?;
     info!(
         "Starting cloud sync for VideoRecordings: {:?}",
         &video_recordings
@@ -175,7 +198,8 @@ pub async fn sync_all_video_recordings() -> Result<(), VideoRecordingSyncError> 
     sync_upload_urls(video_recordings).await;
 
     // select all recordings that are finished, but not uploaded - which now have an upload url field
-    let video_recordings = video_recording::VideoRecording::get_ready_for_cloud_sync()?;
+    let video_recordings =
+        video_recording::VideoRecording::get_ready_for_cloud_sync(&sqlite_connection)?;
 
     let mut set = JoinSet::new();
     for recording in video_recordings {
@@ -204,7 +228,9 @@ pub async fn sync_all_video_recordings() -> Result<(), VideoRecordingSyncError> 
 }
 
 pub async fn sync_video_recording_by_id(id: &str) -> Result<(), VideoRecordingSyncError> {
-    let video_recording = video_recording::VideoRecording::get_by_id(id)?;
+    let settings = PrintNannySettings::new().await?;
+    let sqlite_connection = settings.paths.db().display().to_string();
+    let video_recording = video_recording::VideoRecording::get_by_id(&sqlite_connection, id)?;
     let filename = video_recording.mp4_file_name.clone();
     info!(
         "Starting cloud sync for VideoRecording: {:?}",
@@ -212,7 +238,7 @@ pub async fn sync_video_recording_by_id(id: &str) -> Result<(), VideoRecordingSy
     );
     generate_upload_url(video_recording).await?;
 
-    let video_recording = video_recording::VideoRecording::get_by_id(id)?;
+    let video_recording = video_recording::VideoRecording::get_by_id(&sqlite_connection, id)?;
     upload_video_recording(video_recording).await?;
 
     info!("Removing local file: {}", &filename);
@@ -230,7 +256,7 @@ pub async fn sync_video_recording_by_id(id: &str) -> Result<(), VideoRecordingSy
         mp4_download_url: None,
         cloud_sync_start: None,
     };
-    video_recording::VideoRecording::update(id, row)?;
+    video_recording::VideoRecording::update(&sqlite_connection, id, row)?;
 
     Ok(())
 }

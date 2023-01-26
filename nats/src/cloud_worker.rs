@@ -236,9 +236,10 @@ impl NatsCloudWorker {
     }
 
     pub async fn new(_args: &ArgMatches) -> Result<Self> {
-        let config = PrintNannySettings::new()?;
+        let config = PrintNannySettings::new().await?;
+        let sqlite_connection = config.paths.db().display().to_string();
 
-        let nats_app = NatsApp::get()?;
+        let nats_app = NatsApp::get(&sqlite_connection)?;
 
         // try_check_license guards the following properties set, so it's safe to unwrap here
         let subscribe_subject = to_nats_command_subscribe_subject(&nats_app.pi_id);

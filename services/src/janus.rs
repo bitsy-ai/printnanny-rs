@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use printnanny_settings::clap;
 use printnanny_settings::clap::ValueEnum;
+use printnanny_settings::printnanny::PrintNannySettings;
 
 use printnanny_edge_db::janus::WebrtcEdgeServer;
 
@@ -61,7 +62,9 @@ pub struct JanusAdminService {
 }
 
 pub async fn janus_admin_api_call(endpoint: JanusAdminEndpoint) -> Result<String> {
-    let janus_config = WebrtcEdgeServer::get()?;
+    let settings = PrintNannySettings::new().await?;
+    let sqlite_connection = settings.paths.db().display().to_string();
+    let janus_config = WebrtcEdgeServer::get(&sqlite_connection)?;
 
     // transaction id
     let transaction: String = thread_rng()

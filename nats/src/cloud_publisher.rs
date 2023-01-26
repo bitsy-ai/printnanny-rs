@@ -44,10 +44,12 @@ pub enum PayloadFormat {
 
 impl CloudEventPublisher {
     // initialize CloudEventPublisher from clap::Command ArgMatches
-    pub fn new(args: &ArgMatches) -> Result<Self, ServiceError> {
-        let settings = PrintNannySettings::new().unwrap();
-        let pi_id = Pi::get_id()?;
-        let octoprint_server_id = OctoPrintServer::get_id()?;
+    pub async fn new(args: &ArgMatches) -> Result<Self, ServiceError> {
+        let settings = PrintNannySettings::new().await?;
+        let sqlite_connection = settings.paths.db().display().to_string();
+
+        let pi_id = Pi::get_id(&sqlite_connection)?;
+        let octoprint_server_id = OctoPrintServer::get_id(&sqlite_connection)?;
         Ok(Self {
             args: args.clone(),
             settings,
