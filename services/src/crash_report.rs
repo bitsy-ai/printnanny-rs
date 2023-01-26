@@ -1,11 +1,11 @@
+use std::fs::File;
 use std::io;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::PathBuf;
 
 use tokio::fs;
 use tokio::process::Command;
 
-use log::error;
 use printnanny_settings::error::PrintNannySettingsError;
 use zip::write::FileOptions;
 
@@ -71,7 +71,6 @@ pub async fn write_crash_report_zip(
 ) -> Result<(), PrintNannySettingsError> {
     let mut zip = zip::ZipWriter::new(file);
     let options = FileOptions::default().unix_permissions(0o755);
-    let mut buffer = Vec::new();
 
     // write disk usage to zip
     zip.start_file("disk_usage.txt", options)?;
@@ -102,19 +101,12 @@ pub async fn write_crash_report_zip(
     for path in crash_report_paths {
         // read all files in directory
         if path.is_dir() {
-            for dir_file in fs::read_dir(&path)? {
-                match &dir_file {
-                    Ok(dir_file) => {
-                        let dir_file_path = dir_file.path();
-                        zip.start_file(dir_file_path.display().to_string(), options)?;
-                        let contents = fs::read(dir_file_path).await?;
-                        zip.write_all(&contents)?;
-                        buffer.clear();
-                    }
-                    Err(e) => {
-                        error!("Failed to read DirEntry={:#?} error={}", &dir_file, e);
-                    }
-                }
+            let mut dir_entries = fs::read_dir(&path).await?;
+            while let Some(entry) = dir_entries.next_entry().await? {
+                let dir_file_path = entry.path();
+                zip.start_file(dir_file_path.display().to_string(), options)?;
+                let contents = fs::read(dir_file_path).await?;
+                zip.write_all(&contents)?;
             }
         } else {
             let contents = fs::read(&path).await?;

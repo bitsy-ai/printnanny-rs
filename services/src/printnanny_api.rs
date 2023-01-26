@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use serde;
 use serde_json;
 use tempfile::NamedTempFile;
+use tokio::fs;
 
 // edge db
 // use printnanny_edge_db::cloud::PrintNannyCloudApiConfig;
@@ -160,6 +161,8 @@ impl ApiService {
             pi,
         )
         .await?;
+        warn!("Finished uploading {}, removing file", filename.display());
+        fs::remove_file(filename).await?;
         Ok(result)
     }
 
