@@ -3,7 +3,7 @@ name = "printnanny-edge-db"
 version = "0.2.0"
 edition = "2021"
 license = "AGPL-3.0-or-later"
-rust-version = "1.63"
+rust-version = "1.66"
 authors = ["Leigh Johnson <leigh@printnanny.ai>"]
 description = "ORM library for PrintNanny SQLite (edge) database models"
 
