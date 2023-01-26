@@ -1,6 +1,6 @@
 use gst_client::reqwest;
 use gst_client::GstClient;
-use log::{error, info};
+use log::{error, info, warn};
 
 use printnanny_settings::cam::VideoStreamSettings;
 use printnanny_settings::printnanny::PrintNannySettings;
@@ -420,7 +420,14 @@ impl PrintNannyPipelineFactory {
     }
 
     pub async fn start_pipelines(&self) -> Result<()> {
-        let settings = PrintNannySettings::new().await?;
+        let mut settings = PrintNannySettings::new().await?;
+        let old_video_stream_settings = settings.video_stream.clone();
+        settings.video_stream = settings.video_stream.hotplug().await?;
+        if settings.video_stream != old_video_stream_settings {
+            warn!("start_pipelines detected a hotplug change in camera settings. Saving detected configuration");
+            settings.save().await;
+        }
+
         let snapshot_settings = *settings.video_stream.snapshot;
         let camera = *settings.video_stream.camera;
         let hls_settings = *settings.video_stream.hls;
