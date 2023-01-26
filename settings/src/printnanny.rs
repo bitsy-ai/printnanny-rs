@@ -16,8 +16,8 @@ use printnanny_dbus::zbus_systemd;
 use crate::cam::VideoStreamSettings;
 use crate::error::{PrintNannySettingsError, VersionControlledSettingsError};
 use crate::klipper::KlipperSettings;
-use crate::moonraker::MoonrakerSettings;
-use crate::octoprint::OctoPrintSettings;
+use crate::moonraker::{MoonrakerSettings, DEFAULT_MOONRAKER_SETTINGS_FILE};
+use crate::octoprint::{OctoPrintSettings, DEFAULT_OCTOPRINT_SETTINGS_FILE};
 use crate::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
 use crate::vcs::VersionControlledSettings;
 use crate::SettingsFormat;
@@ -127,24 +127,32 @@ impl PrintNannySettings {
 
     pub fn to_octoprint_settings(&self) -> OctoPrintSettings {
         let git_settings = self.git.clone();
+        let settings_file = self.git.path.join(DEFAULT_OCTOPRINT_SETTINGS_FILE);
+
         OctoPrintSettings {
             git_settings,
+            settings_file,
             ..OctoPrintSettings::default()
         }
     }
 
     pub fn to_moonraker_settings(&self) -> MoonrakerSettings {
         let git_settings = self.git.clone();
+        let settings_file = self.git.path.join(DEFAULT_MOONRAKER_SETTINGS_FILE);
         MoonrakerSettings {
             git_settings,
+            settings_file,
             ..MoonrakerSettings::default()
         }
     }
 
     pub fn to_klipper_settings(&self) -> KlipperSettings {
         let git_settings = self.git.clone();
+        let settings_file = self.git.path.join(DEFAULT_MOONRAKER_SETTINGS_FILE);
+
         KlipperSettings {
             git_settings,
+            settings_file,
             ..KlipperSettings::default()
         }
     }
@@ -194,13 +202,24 @@ impl PrintNannySettings {
         // if PRINTNANNY_SETTINGS env var is set, check file exists and is readable
         Self::check_file_from_env_var("PRINTNANNY_SETTINGS")?;
         // merge file in PRINTNANNY_SETTINGS env var (if set)
-        let file_path = Env::var_or("PRINTNANNY_SETTINGS", DEFAULT_PRINTNANNY_SETTINGS_FILE);
-        let file_contents = fs::read_to_string(file_path).await?;
-        let result = Figment::from(Self { ..Self::default() })
-            .merge(Toml::string(&file_contents))
-            // allow nested environment variables:
-            // PRINTNANNY_SETTINGS_KEY__SUBKEY
-            .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"));
+        let file_path_str = Env::var_or("PRINTNANNY_SETTINGS", DEFAULT_PRINTNANNY_SETTINGS_FILE);
+        let file_path = PathBuf::from(&file_path_str);
+        let result = match file_path.exists() {
+            true => {
+                let file_contents = fs::read_to_string(file_path).await?;
+                Figment::from(Self { ..Self::default() })
+                    .merge(Toml::string(&file_contents))
+                    // allow nested environment variables:
+                    // PRINTNANNY_SETTINGS_KEY__SUBKEY
+                    .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"))
+            }
+            false => {
+                Figment::from(Self { ..Self::default() })
+                    // allow nested environment variables:
+                    // PRINTNANNY_SETTINGS_KEY__SUBKEY
+                    .merge(Env::prefixed("PRINTNANNY_SETTINGS_").split("__"))
+            }
+        };
         debug!("Finalized PrintNannySettings: \n {:?}", result);
         Ok(result)
     }
@@ -556,7 +575,9 @@ mod tests {
 
             let settings = Runtime::new()
                 .unwrap()
-                .block_on(PrintNannySettings::new())
+                .block_on(PrintNannySettings::from_toml(
+                    PathBuf::from(output).join(filename),
+                ))
                 .unwrap();
 
             assert_eq!(

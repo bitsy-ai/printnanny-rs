@@ -1051,6 +1051,7 @@ mod tests {
     #[cfg(test)]
     fn make_settings_repo(jail: &mut figment::Jail) -> () {
         let output = jail.directory().to_str().unwrap();
+        let moonraker_settings_file = jail.directory().join("settings/moonraker/moonraker.conf");
 
         jail.create_file(
             "PrintNannySettingsTest.toml",
@@ -1069,6 +1070,11 @@ mod tests {
         )
         .unwrap();
         jail.set_env("PRINTNANNY_SETTINGS", "PrintNannySettingsTest.toml");
+        jail.set_env(
+            "MOONRAKER_SETTINGS_FILE",
+            moonraker_settings_file.display().to_string(),
+        );
+
         let settings = Runtime::new()
             .unwrap()
             .block_on(PrintNannySettings::new())
@@ -1405,7 +1411,7 @@ mod tests {
 
             // apply a settings change
             let original = runtime
-                .block_on(moonraker_settings.to_payload(SettingsApp::Octoprint))
+                .block_on(moonraker_settings.to_payload(SettingsApp::Moonraker))
                 .unwrap();
             let mut modified = original.clone();
             modified.content = MOONRAKER_MODIFIED_SETTINGS.into();

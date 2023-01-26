@@ -1,15 +1,12 @@
 use gst::prelude::*;
 use gst::MessageView;
 
-use gst_app::gst::PadTemplate;
-use polars::io::ipc::{IpcReader, IpcStreamReader};
+use polars::io::ipc::IpcStreamReader;
 use polars::io::SerReader;
 use polars::prelude::*;
 
-use std::fs;
 use std::fs::File;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 
 fn init() {
     use std::sync::Once;

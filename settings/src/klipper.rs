@@ -9,13 +9,12 @@ use printnanny_dbus::zbus_systemd;
 
 use crate::error::VersionControlledSettingsError;
 use crate::printnanny::GitSettings;
-use crate::vcs::VersionControlledSettings;
+use crate::vcs::{VersionControlledSettings, DEFAULT_VCS_SETTINGS_DIR};
 use crate::SettingsFormat;
 
 pub const KLIPPER_INSTALL_DIR: &str = "/home/printnanny/.klipper";
 pub const KLIPPER_VENV: &str = "/home/printnanny/klipper-venv";
-pub const KLIPPER_SETTINGS_FILE: &str =
-    "/home/printnanny/.config/printnanny/vcs/klipper/printer.cfg";
+pub const DEFAULT_KLIPPER_SETTINGS_FILE: &str = "/klipper/printer.cfg";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KlipperSettings {
@@ -30,7 +29,9 @@ pub struct KlipperSettings {
 impl Default for KlipperSettings {
     fn default() -> Self {
         let install_dir: PathBuf = KLIPPER_INSTALL_DIR.into();
-        let settings_file = KLIPPER_SETTINGS_FILE.into();
+        let settings_file =
+            PathBuf::from(DEFAULT_VCS_SETTINGS_DIR).join(DEFAULT_KLIPPER_SETTINGS_FILE);
+
         let git_settings = GitSettings::default();
 
         Self {

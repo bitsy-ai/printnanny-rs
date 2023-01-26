@@ -13,13 +13,12 @@ use printnanny_dbus::zbus_systemd;
 
 use crate::error::VersionControlledSettingsError;
 use crate::printnanny::GitSettings;
-use crate::vcs::VersionControlledSettings;
+use crate::vcs::{VersionControlledSettings, DEFAULT_VCS_SETTINGS_DIR};
 use crate::SettingsFormat;
 
 pub const MOONRAKER_INSTALL_DIR: &str = "/home/printnanny/.moonraker";
 pub const MOONRAKER_VENV: &str = "/home/printnanny/moonraker-venv";
-pub const DEFAULT_MOONRAKER_SETTINGS_FILE: &str =
-    "/home/printnanny/.config/printnanny/vcs/moonraker/moonraker.conf";
+pub const DEFAULT_MOONRAKER_SETTINGS_FILE: &str = "moonraker/moonraker.conf";
 
 // Moonraker server config
 // https://moonraker.readthedocs.io/en/latest/configuration/#server
@@ -314,9 +313,11 @@ pub struct MoonrakerSettings {
 impl Default for MoonrakerSettings {
     fn default() -> Self {
         let install_dir: PathBuf = MOONRAKER_INSTALL_DIR.into();
+        let default_settings_file =
+            PathBuf::from(DEFAULT_VCS_SETTINGS_DIR).join(DEFAULT_MOONRAKER_SETTINGS_FILE);
         let settings_file = PathBuf::from(Env::var_or(
             "MOONRAKER_SETTINGS_FILE",
-            DEFAULT_MOONRAKER_SETTINGS_FILE,
+            default_settings_file.display().to_string(),
         ));
         let git_settings = GitSettings::default();
         Self {

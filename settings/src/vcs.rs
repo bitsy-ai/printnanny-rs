@@ -12,6 +12,8 @@ use crate::error::VersionControlledSettingsError;
 use crate::printnanny::GitSettings;
 use crate::SettingsFormat;
 
+pub const DEFAULT_VCS_SETTINGS_DIR: &str = "/home/printnanny/.config/printnanny/vcs";
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct GitCommit {
     pub oid: String,

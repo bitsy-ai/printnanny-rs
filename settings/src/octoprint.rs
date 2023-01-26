@@ -12,13 +12,12 @@ use printnanny_dbus::zbus_systemd;
 use crate::error::PrintNannySettingsError;
 use crate::error::VersionControlledSettingsError;
 use crate::printnanny::GitSettings;
-use crate::vcs::VersionControlledSettings;
+use crate::vcs::{VersionControlledSettings, DEFAULT_VCS_SETTINGS_DIR};
 use crate::SettingsFormat;
 
 pub const OCTOPRINT_INSTALL_DIR: &str = "/home/printnanny/.octoprint";
 pub const OCTOPRINT_VENV: &str = "/home/printnanny/octoprint-venv";
-pub const DEFAULT_OCTOPRINT_SETTINGS_FILE: &str =
-    "/home/printnanny/.config/printnanny/settings/octoprint/octoprint.yaml";
+pub const DEFAULT_OCTOPRINT_SETTINGS_FILE: &str = "octoprint/octoprint.yaml";
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PipPackage {
@@ -118,9 +117,11 @@ impl VersionControlledSettings for OctoPrintSettings {
 impl Default for OctoPrintSettings {
     fn default() -> Self {
         let install_dir: PathBuf = OCTOPRINT_INSTALL_DIR.into();
+        let default_settings_file =
+            PathBuf::from(DEFAULT_VCS_SETTINGS_DIR).join(DEFAULT_OCTOPRINT_SETTINGS_FILE);
         let settings_file = PathBuf::from(Env::var_or(
             "OCTOPRINT_SETTINGS_FILE",
-            DEFAULT_OCTOPRINT_SETTINGS_FILE,
+            default_settings_file.display().to_string(),
         ));
         let git_settings = GitSettings::default();
         Self {
