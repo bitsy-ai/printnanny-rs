@@ -397,10 +397,7 @@ mod tests {
             )?;
             jail.set_env("PRINTNANNY_SETTINGS", PRINTNANNY_SETTINGS_FILENAME);
             let expected = PathBuf::from("testing");
-            jail.set_env(
-                "PRINTNANNY_SETTINGS_PATHS__SETTINGS_DIR",
-                &expected.display(),
-            );
+            jail.set_env("PRINTNANNY_SETTINGS_PATHS__LOG_DIR", &expected.display());
             let figment = Runtime::new()
                 .unwrap()
                 .block_on(PrintNannySettings::figment())
@@ -568,6 +565,9 @@ mod tests {
                 profile = "local"
                 [paths]
                 log_dir = "{output}/log"
+
+                [git]
+                path = "{output}/printnanny.d"
                 "#,
                     output = output
                 ),
@@ -581,8 +581,13 @@ mod tests {
                 .unwrap();
 
             assert_eq!(
-                settings.paths.log_dir,
+                settings.git.path,
                 PathBuf::from(format!("{}/printnanny.d", output))
+            );
+
+            assert_eq!(
+                settings.paths.log_dir,
+                PathBuf::from(format!("{}/log", output))
             );
 
             Ok(())
