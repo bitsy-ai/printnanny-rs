@@ -470,6 +470,33 @@ impl Default for VideoStreamSettings {
     }
 }
 
+impl VideoStreamSettings {
+    pub async fn hotplug(mut self) -> Result<Self, PrintNannySettingsError> {
+        // list available devices
+        let camera_sources = CameraVideoSource::from_libcamera_list().await?;
+        let selected_camera = *(self.camera.clone());
+        // if no camera sources are found, return
+        if camera_sources.len() == 0 {
+            return Ok(self);
+        } else {
+            // is device_name among camera sources?
+            for camera in camera_sources.iter() {
+                // if the currently-configured device is detected, return current settings model
+                if camera.device_name == selected_camera.device_name {
+                    return Ok(self);
+                }
+            }
+            // if settings model device isn't plugged in, set default to first available source
+            let selected = camera_sources.first().unwrap();
+            self.camera = Box::new(printnanny_asyncapi_models::CameraSettings {
+                device_name: selected.device_name.clone(),
+                ..selected_camera
+            });
+            return Ok(self);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
