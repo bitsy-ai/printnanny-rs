@@ -443,6 +443,15 @@ impl NatsRequest {
     }
 
     pub async fn handle_cameras_load() -> Result<NatsReply> {
+        // "hotplug" prefers live connected devices or default/disconnected devices
+        let mut settings = PrintNannySettings::new().await?;
+        let old_video_stream_settings = settings.video_stream.clone();
+        settings.video_stream = settings.video_stream.hotplug().await?;
+        if settings.video_stream != old_video_stream_settings {
+            warn!("handle_cameras_load detected a hotplug change in camera settings. Saving detected configuration");
+            settings.save().await;
+        }
+
         let cameras: Vec<printnanny_asyncapi_models::Camera> =
             CameraVideoSource::from_libcamera_list()
                 .await?
