@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use serde;
 use serde_json;
 use tempfile::NamedTempFile;
+use tokio::fs;
 
 // edge db
 // use printnanny_edge_db::cloud::PrintNannyCloudApiConfig;
@@ -131,7 +132,7 @@ impl ApiService {
         let file = NamedTempFile::new()?;
         let (file, filename) = &file.keep()?;
 
-        write_crash_report_zip(file, crash_report_paths)?;
+        write_crash_report_zip(file, crash_report_paths).await?;
         warn!("Wrote crash report logs to {}", filename.display());
 
         let serial = match RpiCpuInfo::new() {
@@ -160,6 +161,8 @@ impl ApiService {
             pi,
         )
         .await?;
+        warn!("Finished uploading {}, removing file", filename.display());
+        fs::remove_file(filename).await?;
         Ok(result)
     }
 
@@ -172,7 +175,7 @@ impl ApiService {
         let file = NamedTempFile::new()?;
         let (file, filename) = &file.keep()?;
 
-        write_crash_report_zip(file, crash_report_paths)?;
+        write_crash_report_zip(file, crash_report_paths).await?;
         warn!("Wrote crash report logs to {}", filename.display());
 
         let serial = match RpiCpuInfo::new() {
