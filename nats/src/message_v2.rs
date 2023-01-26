@@ -442,9 +442,10 @@ impl NatsRequest {
         }))
     }
 
-    pub fn handle_cameras_load() -> Result<NatsReply> {
+    pub async fn handle_cameras_load() -> Result<NatsReply> {
         let cameras: Vec<printnanny_asyncapi_models::Camera> =
-            CameraVideoSource::from_libcamera_list()?
+            CameraVideoSource::from_libcamera_list()
+                .await?
                 .iter()
                 .map(|v| v.into())
                 .collect();
@@ -989,9 +990,7 @@ impl NatsRequestHandler for NatsRequest {
             // pi.{pi_id}.command.cloud.sync
             NatsRequest::PrintNannyCloudSyncRequest => Self::handle_cloud_sync().await,
             // pi.{pi_id}.cameras.load
-            NatsRequest::CameraLoadRequest => {
-                tokio::task::spawn_blocking(Self::handle_cameras_load).await?
-            }
+            NatsRequest::CameraLoadRequest => Self::handle_cameras_load().await,
             // "pi.{pi_id}.crash_reports.os"
             NatsRequest::CrashReportOsLogsRequest(request) => {
                 Self::handle_crash_report(request).await

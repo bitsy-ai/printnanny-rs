@@ -1,9 +1,10 @@
-use std::process::{Command, Output};
+use std::process::Output;
 
 use clap::ArgMatches;
 use log::{debug, error};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use tokio::process::Command;
 
 use gst::prelude::DeviceExt;
 use gst::prelude::DeviceProviderExtManual;
@@ -226,12 +227,13 @@ impl CameraVideoSource {
             .collect()
     }
 
-    pub fn list_cameras_command_output() -> Result<Output, std::io::Error> {
-        let output = Command::new("cam")
+    pub async fn list_cameras_command_output() -> std::io::Result<Output> {
+        let result = Command::new("cam")
             .env("LIBCAMERA_LOG_LEVELS", "*:ERROR") // supress verbose output: https://libcamera.org/getting-started.html#basic-testing-with-cam-utility
             .args(["--list", "--list-properties"])
-            .output()?;
-        Ok(output)
+            .output()
+            .await?;
+        Ok(result)
     }
 
     pub fn parse_list_camera_line(line: &str) -> Option<CameraVideoSource> {
@@ -278,8 +280,8 @@ impl CameraVideoSource {
             .collect()
     }
 
-    pub fn from_libcamera_list() -> Result<Vec<CameraVideoSource>, PrintNannySettingsError> {
-        let output = Self::list_cameras_command_output()?;
+    pub async fn from_libcamera_list() -> Result<Vec<CameraVideoSource>, PrintNannySettingsError> {
+        let output: Output = Self::list_cameras_command_output().await?;
         let utfstdout = String::from_utf8(output.stdout)?;
         Ok(Self::parse_list_cameras_command_output(&utfstdout))
     }
