@@ -131,7 +131,7 @@ impl ApiService {
         let file = NamedTempFile::new()?;
         let (file, filename) = &file.keep()?;
 
-        write_crash_report_zip(file, crash_report_paths)?;
+        write_crash_report_zip(file, crash_report_paths).await?;
         warn!("Wrote crash report logs to {}", filename.display());
 
         let serial = match RpiCpuInfo::new() {
@@ -172,7 +172,7 @@ impl ApiService {
         let file = NamedTempFile::new()?;
         let (file, filename) = &file.keep()?;
 
-        write_crash_report_zip(file, crash_report_paths)?;
+        write_crash_report_zip(file, crash_report_paths).await?;
         warn!("Wrote crash report logs to {}", filename.display());
 
         let serial = match RpiCpuInfo::new() {
