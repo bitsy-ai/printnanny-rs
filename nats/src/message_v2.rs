@@ -80,7 +80,7 @@ pub enum NatsRequest {
     DeviceInfoLoadRequest,
 
     // pi.{pi_id}.settings.*
-    #[serde(rename = "pi.{pi_id}.settings.printnanny.cloud.auth")]
+    #[serde(rename = "pi.{pi_id}.settings.cloud.auth")]
     PrintNannyCloudAuthRequest(PrintNannyCloudAuthRequest),
     #[serde(rename = "pi.{pi_id}.settings.file.load")]
     SettingsFileLoadRequest,
@@ -145,7 +145,7 @@ pub enum NatsReply {
     DeviceInfoLoadReply(DeviceInfoLoadReply),
 
     // pi.{pi_id}.settings.*
-    #[serde(rename = "pi.{pi_id}.settings.printnanny.cloud.auth")]
+    #[serde(rename = "pi.{pi_id}.settings.cloud.auth")]
     PrintNannyCloudAuthReply(PrintNannyCloudAuthReply),
     #[serde(rename = "pi.{pi_id}.settings.printnanny.load")]
     SettingsFileLoadReply(SettingsFileLoadReply),
