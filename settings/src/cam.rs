@@ -493,7 +493,7 @@ impl VideoStreamSettings {
                 label: selected.label.clone(),
                 height: selected.caps.height,
                 width: selected.caps.width,
-                format: selected.caps.forma.clone(),
+                format: selected.caps.format.clone(),
                 ..selected_camera
             });
             return Ok(self);
