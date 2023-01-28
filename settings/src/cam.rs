@@ -490,6 +490,10 @@ impl VideoStreamSettings {
             let selected = camera_sources.first().unwrap();
             self.camera = Box::new(printnanny_asyncapi_models::CameraSettings {
                 device_name: selected.device_name.clone(),
+                label: selected.label.clone(),
+                height: selected.caps.height,
+                width: selected.caps.width,
+                format: selected.caps.format.clone(),
                 ..selected_camera
             });
             return Ok(self);
