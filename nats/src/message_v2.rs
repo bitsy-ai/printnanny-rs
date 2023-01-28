@@ -43,7 +43,8 @@ pub trait NatsRequestHandler {
     type Reply: Serialize + DeserializeOwned + Clone + Debug;
 
     fn replace_subject_pattern(subject: &str, pattern: &str, replace: &str) -> String {
-        subject.replace(pattern, replace)
+        // replace only first instance of pattern
+        subject.replacen(pattern, replace, 1)
     }
     fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Request>;
     async fn handle(&self) -> Result<Self::Reply>;
@@ -1091,7 +1092,7 @@ mod tests {
     }
 
     #[test]
-    fn test_replace_subject_pattern() {
+    fn test_replace_subject_pattern_systemd() {
         let subject = NatsRequest::replace_subject_pattern(
             "pi.localhost.dbus.org.freedesktop.systemd1.Manager.GetUnit",
             "localhost",
@@ -1103,6 +1104,16 @@ mod tests {
         )
     }
 
+    #[test]
+    fn test_replace_subject_pattern_printnanny_hostname() {
+        // "printnanny" is a valid value for {pi_id} but shouldn't be replaced in subsequent patterns
+        let subject = NatsRequest::replace_subject_pattern(
+            "pi.printnanny.settings.printnanny.cloud.auth",
+            "printnanny",
+            "{pi_id}",
+        );
+        assert_eq!(subject, "pi.{pi_id}.settings.printnanny.cloud.auth")
+    }
     #[test(tokio::test)]
     async fn test_device_info_load() {
         let request = NatsRequest::DeviceInfoLoadRequest;
