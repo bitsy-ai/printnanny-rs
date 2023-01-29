@@ -287,7 +287,7 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=true \
             ! tensor_decoder name=df_tensor_decoder mode=custom-code option1=printnanny_bb_dataframe_decoder \
             ! dataframe_agg filter-threshold={nms_threshold} output-type=json \
             ! nats_sink nats-address={nats_server_uri}");
