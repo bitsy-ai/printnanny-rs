@@ -253,7 +253,7 @@ impl PrintNannyPipelineFactory {
         //    (4): buffers          - GST_FORMAT_BUFFERS
         //    (5): percent          - GST_FORMAT_PERCENT
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=true \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=false caps=other/tensors,format=static,num_tensors=4,framerate=0/1 \
             ! tensor_decoder name=bb_tensor_decoder mode=bounding_boxes option1=mobilenet-ssd-postprocess option2={tflite_label_file} option3=0:1:2:3,{nms_threshold} option4={video_width}:{video_height} option5={tensor_width}:{tensor_height} \
             ! capsfilter caps=video/x-raw,width={video_width},height={video_height},format={format},colorimetry={colorimetry} \
             ! videoconvert \
