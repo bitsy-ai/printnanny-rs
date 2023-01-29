@@ -669,8 +669,8 @@ impl NatsRequest {
             let ts = SystemTime::now();
             let commit_msg = format!("[HOTPLUG] Updated PrintNannySettings.camera @ {ts:?}");
             settings.save_and_commit(&content, Some(commit_msg)).await?;
+            settings = PrintNannySettings::new().await?;
         }
-        let settings = PrintNannySettings::new().await?;
         Ok(NatsReply::CameraSettingsFileLoadReply(
             settings.video_stream.into(),
         ))
@@ -1151,7 +1151,6 @@ mod tests {
         })
     }
 
-    #[cfg(feature = "systemd")]
     #[test_log::test]
     fn test_camera_settings_apply_load() {
         figment::Jail::expect_with(|jail| {
@@ -1160,7 +1159,7 @@ mod tests {
 
             let runtime = Runtime::new().unwrap();
             // apply a settings change
-            let settings = runtime.block_on(PrintNannySettings::new()).unwrap();
+            let mut settings = runtime.block_on(PrintNannySettings::new()).unwrap();
             let mut modified = settings.video_stream.clone();
             modified.hls.enabled = false;
 
@@ -1169,7 +1168,7 @@ mod tests {
 
             if let NatsReply::CameraSettingsFileApplyReply(reply) = reply {
                 assert_eq!(reply.hls.enabled, false);
-                let settings = runtime.block_on(PrintNannySettings::new()).unwrap();
+                settings = runtime.block_on(PrintNannySettings::new()).unwrap();
                 assert_eq!(settings.video_stream.hls.enabled, false);
             } else {
                 panic!("Expected NatsReply::CameraSettingsFileApplyReply")

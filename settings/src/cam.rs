@@ -228,12 +228,11 @@ impl CameraVideoSource {
     }
 
     pub async fn list_cameras_command_output() -> std::io::Result<Output> {
-        let result = Command::new("cam")
+        Command::new("cam")
             .env("LIBCAMERA_LOG_LEVELS", "*:ERROR") // supress verbose output: https://libcamera.org/getting-started.html#basic-testing-with-cam-utility
             .args(["--list", "--list-properties"])
             .output()
-            .await?;
-        Ok(result)
+            .await
     }
 
     pub fn parse_list_camera_line(line: &str) -> Option<CameraVideoSource> {
@@ -281,9 +280,16 @@ impl CameraVideoSource {
     }
 
     pub async fn from_libcamera_list() -> Result<Vec<CameraVideoSource>, PrintNannySettingsError> {
-        let output: Output = Self::list_cameras_command_output().await?;
-        let utfstdout = String::from_utf8(output.stdout)?;
-        Ok(Self::parse_list_cameras_command_output(&utfstdout))
+        match Self::list_cameras_command_output().await {
+            Ok(output) => {
+                let utf8output = String::from_utf8(output.stdout)?;
+                Ok(Self::parse_list_cameras_command_output(&utf8output))
+            }
+            Err(e) => {
+                error!("Error listing libcamera devices {}", e);
+                Ok(vec![])
+            }
+        }
     }
 }
 
