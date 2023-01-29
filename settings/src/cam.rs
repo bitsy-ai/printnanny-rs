@@ -482,7 +482,7 @@ impl VideoStreamSettings {
         let camera_sources = CameraVideoSource::from_libcamera_list().await?;
         let selected_camera = *(self.camera.clone());
         // if no camera sources are found, return
-        if camera_sources.len() == 0 {
+        if camera_sources.is_empty() {
             return Ok(self);
         } else {
             // is device_name among camera sources?
