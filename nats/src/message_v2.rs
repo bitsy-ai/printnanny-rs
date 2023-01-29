@@ -665,9 +665,12 @@ impl NatsRequest {
         settings.video_stream = settings.video_stream.hotplug().await?;
         if settings.video_stream != old_video_stream_settings {
             warn!("handle_cameras_load detected a hotplug change in camera settings. Saving detected configuration");
-            settings.save().await;
+            let content = settings.to_toml_string()?;
+            let ts = SystemTime::now();
+            let commit_msg = format!("[HOTPLUG] Updated PrintNannySettings.camera @ {ts:?}");
+            settings.save_and_commit(&content, Some(commit_msg)).await?;
+            settings = PrintNannySettings::new().await?;
         }
-        let settings = PrintNannySettings::new().await?;
         Ok(NatsReply::CameraSettingsFileLoadReply(
             settings.video_stream.into(),
         ))
@@ -1149,36 +1152,14 @@ mod tests {
     }
 
     #[test_log::test]
-    fn test_camera_settings_load() {
-        figment::Jail::expect_with(|jail| {
-            // init git repo in jail tmp dir
-            make_settings_repo(jail);
-            // get settings
-            let runtime = Runtime::new().unwrap();
-
-            let settings = runtime.block_on(PrintNannySettings::new()).unwrap();
-            let request = NatsRequest::CameraSettingsFileLoadRequest;
-
-            let reply = Runtime::new().unwrap().block_on(request.handle()).unwrap();
-            if let NatsReply::CameraSettingsFileLoadReply(reply) = reply {
-                let expected: printnanny_asyncapi_models::VideoStreamSettings =
-                    settings.video_stream.into();
-                assert_eq!(expected, reply)
-            }
-            Ok(())
-        })
-    }
-
-    #[cfg(feature = "systemd")]
-    #[test_log::test]
-    fn test_camera_settings_apply_load_revert() {
+    fn test_camera_settings_apply_load() {
         figment::Jail::expect_with(|jail| {
             // init git repo in jail tmp dir
             make_settings_repo(jail);
 
             let runtime = Runtime::new().unwrap();
             // apply a settings change
-            let settings = runtime.block_on(PrintNannySettings::new()).unwrap();
+            let mut settings = runtime.block_on(PrintNannySettings::new()).unwrap();
             let mut modified = settings.video_stream.clone();
             modified.hls.enabled = false;
 
@@ -1187,11 +1168,21 @@ mod tests {
 
             if let NatsReply::CameraSettingsFileApplyReply(reply) = reply {
                 assert_eq!(reply.hls.enabled, false);
-                let settings = runtime.block_on(PrintNannySettings::new()).unwrap();
+                settings = runtime.block_on(PrintNannySettings::new()).unwrap();
                 assert_eq!(settings.video_stream.hls.enabled, false);
             } else {
                 panic!("Expected NatsReply::CameraSettingsFileApplyReply")
             }
+
+            let request = NatsRequest::CameraSettingsFileLoadRequest;
+
+            let reply = runtime.block_on(request.handle()).unwrap();
+            if let NatsReply::CameraSettingsFileLoadReply(reply) = reply {
+                let expected: printnanny_asyncapi_models::VideoStreamSettings =
+                    settings.video_stream.into();
+                assert_eq!(expected, reply)
+            }
+
             Ok(())
         })
     }
