@@ -487,13 +487,6 @@ impl PrintNannyPipelineFactory {
             df_pipeline,
         ];
 
-        // camera_pipeline.pause().await?;
-        // h264_pipeline.pause().await?;
-        // rtp_pipeline.pause().await?;
-        // inference_pipeline.pause().await?;
-        // bb_pipeline.pause().await?;
-        // df_pipeline.pause().await?;
-
         if hls_settings.enabled {
             let hls_pipeline = self
                 .make_hls_pipeline(
@@ -519,7 +512,7 @@ impl PrintNannyPipelineFactory {
             pipelines.push(snapshot_pipeline);
         }
 
-        for pipeline in pipelines {
+        for pipeline in pipelines.iter() {
             info!("Setting pipeline name={} state=PAUSED", pipeline.name);
             pipeline.pause().await?;
         }
