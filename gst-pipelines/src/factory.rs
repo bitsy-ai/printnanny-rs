@@ -95,7 +95,7 @@ impl PrintNannyPipelineFactory {
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
             ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} \
-            ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry}",
+            ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} sync=false",
             camera_name=camera.device_name,
             width=camera.width,
             height=camera.height,
@@ -478,12 +478,14 @@ impl PrintNannyPipelineFactory {
             )
             .await?;
 
-        camera_pipeline.pause().await?;
-        h264_pipeline.pause().await?;
-        rtp_pipeline.pause().await?;
-        inference_pipeline.pause().await?;
-        bb_pipeline.pause().await?;
-        df_pipeline.pause().await?;
+        let mut pipelines = vec![
+            camera_pipeline,
+            h264_pipeline,
+            rtp_pipeline,
+            inference_pipeline,
+            bb_pipeline,
+            df_pipeline,
+        ];
 
         if hls_settings.enabled {
             let hls_pipeline = self
@@ -495,8 +497,7 @@ impl PrintNannyPipelineFactory {
                     &hls_settings.playlist_root,
                 )
                 .await?;
-            hls_pipeline.pause().await?;
-            hls_pipeline.play().await?;
+            pipelines.push(hls_pipeline);
         }
 
         if snapshot_settings.enabled {
@@ -508,16 +509,18 @@ impl PrintNannyPipelineFactory {
                     &camera,
                 )
                 .await?;
-            snapshot_pipeline.pause().await?;
-            snapshot_pipeline.play().await?;
+            pipelines.push(snapshot_pipeline);
         }
 
-        camera_pipeline.play().await?;
-        h264_pipeline.play().await?;
-        rtp_pipeline.play().await?;
-        inference_pipeline.play().await?;
-        bb_pipeline.play().await?;
-        df_pipeline.play().await?;
+        for pipeline in pipelines.iter() {
+            info!("Setting pipeline name={} state=PAUSED", pipeline.name);
+            pipeline.pause().await?;
+        }
+
+        for pipeline in pipelines {
+            info!("Setting pipeline name={} state=PLAYING", pipeline.name);
+            pipeline.play().await?;
+        }
 
         Ok(())
     }
