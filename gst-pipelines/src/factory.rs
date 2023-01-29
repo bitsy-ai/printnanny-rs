@@ -220,7 +220,7 @@ impl PrintNannyPipelineFactory {
             ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1 \
             ! capsfilter caps=other/tensors,format=static \
             ! tensor_filter framework=tensorflow2-lite model={tflite_model_file} \
-            ! interpipesink name={interpipesink} sync=false caps=other/tensors,format=static,num_tensors=4,framerate=0/1,dimensions=4:40:1:1,40:1:1:1,40:1:1:1,1:1:1:1,types=float32,float32,float32,float32",
+            ! interpipesink name={interpipesink} sync=false caps=other/tensors,format=static,num_tensors=4,framerate=0/1,dimensions='4:40:1:1,40:1:1:1,40:1:1:1,1:1:1:1',types=float32,float32,float32,float32",
             width=camera.width,
             height=camera.height,
             format=camera.format,
@@ -251,7 +251,7 @@ impl PrintNannyPipelineFactory {
         //    (4): buffers          - GST_FORMAT_BUFFERS
         //    (5): percent          - GST_FORMAT_PERCENT
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false format=3 caps=other/tensors,format=static,num_tensors=4,framerate=0/1,dimensions=4:40:1:1,40:1:1:1,40:1:1:1,1:1:1:1,types=float32,float32,float32,float32 \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false format=3 caps=other/tensors,format=static,num_tensors=4,framerate=0/1,dimensions='4:40:1:1,40:1:1:1,40:1:1:1,1:1:1:1',types=float32,float32,float32,float32 \
             ! tensor_decoder mode=bounding_boxes option1=mobilenet-ssd-postprocess option2={tflite_label_file} option3=0:1:2:3,{nms_threshold} option4={video_width}:{video_height} option5={tensor_width}:{tensor_height} \
             ! capsfilter caps=video/x-raw,width={video_width},height={video_height},format={format} \
             ! videoconvert \
