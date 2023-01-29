@@ -254,7 +254,7 @@ impl PrintNannyPipelineFactory {
         //    (5): percent          - GST_FORMAT_PERCENT
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=true \
-            ! tensor_decoder mode=bounding_boxes option1=mobilenet-ssd-postprocess option2={tflite_label_file} option3=0:1:2:3,{nms_threshold} option4={video_width}:{video_height} option5={tensor_width}:{tensor_height} \
+            ! tensor_decoder name=bb_tensor_decoder mode=bounding_boxes option1=mobilenet-ssd-postprocess option2={tflite_label_file} option3=0:1:2:3,{nms_threshold} option4={video_width}:{video_height} option5={tensor_width}:{tensor_height} \
             ! capsfilter caps=video/x-raw,width={video_width},height={video_height},format={format},colorimetry={colorimetry} \
             ! videoconvert \
             ! v4l2h264enc output-io-mode=mmap capture-io-mode=mmap extra-controls=controls,repeat_sequence_header=1 \
@@ -288,7 +288,7 @@ impl PrintNannyPipelineFactory {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true \
-            ! tensor_decoder mode=custom-code option1=printnanny_bb_dataframe_decoder \
+            ! tensor_decoder name=df_tensor_decoder mode=custom-code option1=printnanny_bb_dataframe_decoder \
             ! dataframe_agg filter-threshold={nms_threshold} output-type=json \
             ! nats_sink nats-address={nats_server_uri}");
         self.make_pipeline(pipeline_name, &description).await
