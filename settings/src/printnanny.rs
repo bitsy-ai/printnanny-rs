@@ -15,7 +15,7 @@ use printnanny_dbus::zbus_systemd;
 
 use crate::cam::VideoStreamSettings;
 use crate::error::{PrintNannySettingsError, VersionControlledSettingsError};
-use crate::klipper::KlipperSettings;
+use crate::klipper::{KlipperSettings, DEFAULT_KLIPPER_SETTINGS_FILE};
 use crate::moonraker::{MoonrakerSettings, DEFAULT_MOONRAKER_SETTINGS_FILE};
 use crate::octoprint::{OctoPrintSettings, DEFAULT_OCTOPRINT_SETTINGS_FILE};
 use crate::paths::{PrintNannyPaths, DEFAULT_PRINTNANNY_SETTINGS_FILE};
@@ -148,7 +148,7 @@ impl PrintNannySettings {
 
     pub fn to_klipper_settings(&self) -> KlipperSettings {
         let git_settings = self.git.clone();
-        let settings_file = self.git.path.join(DEFAULT_MOONRAKER_SETTINGS_FILE);
+        let settings_file = self.git.path.join(DEFAULT_KLIPPER_SETTINGS_FILE);
 
         KlipperSettings {
             git_settings,
