@@ -95,6 +95,7 @@ impl PrintNannyPipelineFactory {
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
             ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} \
+            ! v4l2convert \
             ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} sync=false",
             camera_name=camera.device_name,
             width=camera.width,
@@ -118,7 +119,7 @@ impl PrintNannyPipelineFactory {
         let colorimetry = "bt709";
         let interlace = "progressive";
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=false format=3 leaky-type=1 caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry},interlace-mode={interlace} \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry},interlace-mode={interlace} \
             ! v4l2jpegenc ! multifilesink location={filesink_location} max-files=2",
             width=camera.width,
             height=camera.height,
@@ -141,8 +142,7 @@ impl PrintNannyPipelineFactory {
 
         let colorimetry = "bt709";
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=false caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} \
-            ! v4l2convert \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} \
             ! v4l2h264enc min-force-key-unit-interval={framerate_n} extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
             ! capssetter caps=video/x-h264,colorimetry={colorimetry},level=(string)4 \
