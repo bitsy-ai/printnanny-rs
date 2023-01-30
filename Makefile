@@ -58,8 +58,8 @@ devconfig: $(TMPDIR)/printnanny-$(DEV_MACHINE).zip
 
 
 dev-build:
-	cross build --workspace --target=aarch64-unknown-linux-gnu
-	rsync --progress -e "ssh -o StrictHostKeyChecking=no" target/aarch64-unknown-linux-gnu/debug/cam $(DEV_USER)@$(DEV_MACHINE).local:~/printnanny-cam
+	cross build --bin=printnanny-cli --target=aarch64-unknown-linux-gnu
+	rsync --progress -e "ssh -o StrictHostKeyChecking=no" target/aarch64-unknown-linux-gnu/debug/printnanny-cli $(DEV_USER)@$(DEV_MACHINE).local:~/printnanny-cli
 
 	# rsync --progress -e "ssh -o StrictHostKeyChecking=no" target/aarch64-unknown-linux-gnu/debug/printnanny-cli $(DEV_USER)@$(DEV_MACHINE).local:~/printnanny-cli
 	# rsync --progress -e "ssh -o StrictHostKeyChecking=no" target/aarch64-unknown-linux-gnu/debug/printnanny-dash $(DEV_USER)@$(DEV_MACHINE).local:~/printnanny-dash
