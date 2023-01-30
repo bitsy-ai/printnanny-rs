@@ -251,7 +251,7 @@ impl PrintNannyPaths {
             PathBuf::from("/var/log/cloud-init.log"),
             PathBuf::from("/var/log/nginx/access.log"),
             PathBuf::from("/var/log/nginx/error.log"),
-            PathBuf::from("/var/log/octoprint/"),
+            PathBuf::from("/home/printnanny/.octoprint/logs"),
             PathBuf::from("/var/log/klipper/"),
             PathBuf::from("/var/log/moonraker/"),
             PathBuf::from("/etc/issue"),
