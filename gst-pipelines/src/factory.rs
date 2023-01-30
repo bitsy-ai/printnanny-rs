@@ -143,7 +143,7 @@ impl PrintNannyPipelineFactory {
         // let colorimetry = "bt709";
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d} \
-            ! v4l2h264enc min-force-key-unit-interval={framerate_n} extra-controls=controls,repeat_sequence_header=1 \
+            ! v4l2h264enc extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
             ! capssetter caps=video/x-h264,level=(string)4 \
             ! interpipesink name={interpipesink} sync=false",
@@ -194,7 +194,7 @@ impl PrintNannyPipelineFactory {
         //    (5): percent          - GST_FORMAT_PERCENT
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
-            ! hlssink2 playlist-length=8 max-files=10 target-duration=1 location={hls_segments_location} playlist-location={hls_playlist_location} playlist-root={hls_playlist_root} send-keyframe-requests=false");
+            ! hlssink2 playlist-length=8 max-files=10 target-duration=1 location={hls_segments_location} playlist-location={hls_playlist_location} playlist-root={hls_playlist_root} send-keyframe-requests=true");
         self.make_pipeline(pipeline_name, &description).await
     }
 
