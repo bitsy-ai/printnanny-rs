@@ -119,7 +119,7 @@ impl PrintNannyPipelineFactory {
         // let colorimetry = "bt709";
         // let interlace = "progressive";
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 forrmat=3 caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d} \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 format=3 caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d} \
             ! v4l2jpegenc ! multifilesink location={filesink_location} max-files=2",
             width=camera.width,
             height=camera.height,
