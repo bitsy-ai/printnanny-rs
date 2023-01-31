@@ -11,7 +11,8 @@ use gst::prelude::DeviceProviderExtManual;
 
 use crate::error::PrintNannySettingsError;
 
-const DEFAULT_PIXEL_FORMAT: &str = "YUY2";
+const DEFAULT_PIXEL_FORMAT: &str = "NV21";
+const COMPAT_PIXEL_FORMATS: [&str; 2] = ["NV21", "YUY2"];
 
 #[derive(Debug, Clone, clap::ValueEnum, Deserialize, Serialize, PartialEq, Eq)]
 pub enum VideoSrcType {
@@ -119,7 +120,7 @@ impl CameraVideoSource {
     pub fn default_caps() -> printnanny_asyncapi_models::GstreamerCaps {
         printnanny_asyncapi_models::GstreamerCaps {
             media_type: "video/x-raw".into(),
-            format: "YUY2".into(),
+            format: DEFAULT_PIXEL_FORMAT.into(),
             width: 640,
             height: 480,
         }
@@ -223,7 +224,7 @@ impl CameraVideoSource {
         };
         results
             .into_iter()
-            .filter(|caps| caps.format == DEFAULT_PIXEL_FORMAT)
+            .filter(|caps| COMPAT_PIXEL_FORMATS.contains(caps.format))
             .collect()
     }
 
@@ -425,7 +426,7 @@ impl Default for VideoStreamSettings {
             framerate_n: 16,
             framerate_d: 1,
             device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
-            format: "YUY2".into(),
+            format: DEFAULT_PIXEL_FORMAT.into(),
             label: "Raspberry Pi imx219".into(),
         });
 

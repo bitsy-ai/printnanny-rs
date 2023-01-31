@@ -200,7 +200,7 @@ impl PrintNannyPipelineFactory {
         let target_duration = (60 / framerate_n) + 1; // v4l2-ctl --list-ctrls-menu -d 11 -> h264_i_frame_period default sends a key unit every 60 frames
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
-            ! hlssink2 playlist-length=8 max-files=10 target-duration={target_duration} location={hls_segments_location} playlist-location={hls_playlist_location} playlist-root={hls_playlist_root} send-keyframe-requests=true");
+            ! hlssink2 playlist-length=8 max-files=10 target-duration={target_duration} location={hls_segments_location} playlist-location={hls_playlist_location} playlist-root={hls_playlist_root} send-keyframe-requests=false");
         self.make_pipeline(pipeline_name, &description).await
     }
 
