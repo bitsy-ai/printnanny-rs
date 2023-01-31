@@ -91,18 +91,20 @@ impl PrintNannyPipelineFactory {
         camera: &CameraSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
-        // let colorimetry = "bt709";
+
+        let colorimetry = "bt709";
         // ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d} \
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
             ! v4l2convert \
-            ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d} sync=false",
+            ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} \
+            ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} sync=false",
             camera_name=camera.device_name,
             width=camera.width,
             height=camera.height,
             framerate_n=camera.framerate_n,
             framerate_d=camera.framerate_d,
-            // format=camera.format
+            format=camera.format
         );
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -118,12 +120,13 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
         // let colorimetry = "bt709";
         // let interlace = "progressive";
+        let colorimetry = "bt709";
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 format=3 caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d} \
-            ! v4l2jpegenc ! multifilesink location={filesink_location} max-files=2",
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} \
+            ! v4l2convert ! v4l2jpegenc ! multifilesink location={filesink_location} max-files=2",
             width=camera.width,
             height=camera.height,
-            // format=camera.format,
+            format=camera.format,
             framerate_n=camera.framerate_n,
             framerate_d=camera.framerate_d,
         );
@@ -140,16 +143,16 @@ impl PrintNannyPipelineFactory {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
 
-        // let colorimetry = "bt709";
+        let colorimetry = "bt709";
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d} \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry}  \
             ! v4l2h264enc extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
-            ! capssetter caps=video/x-h264,level=(string)4 \
+            ! capssetter caps=video/x-h264,level=(string)4,profile=(string)high \
             ! interpipesink name={interpipesink} sync=false",
             width=camera.width,
             height=camera.height,
-            // format=camera.format,
+            format=camera.format,
             framerate_n=camera.framerate_n,
             framerate_d=camera.framerate_d
         );
@@ -213,12 +216,13 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
+        let colorimetry = "bt709";
 
         let tensor_format = "RGB"; // model expects pixel data to be in RGB format
                                    // let colorimetry = "bt709";
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 caps=video/x-raw,width={width},height={height} \
-            ! videoconvert ! videoscale ! videorate ! capsfilter caps=video/x-raw,format={tensor_format},width={tensor_width},height={tensor_height},framerate=0/1 \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 caps=video/x-raw,width={width},height={height},format={format},colorimetry={colorimetry}  \
+            ! v4l2convert ! videoscale ! videorate ! capsfilter caps=video/x-raw,format={tensor_format},width={tensor_width},height={tensor_height},framerate=0/1 \
             ! tensor_converter \
             ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1 \
             ! capsfilter caps=other/tensors,format=static \
@@ -226,7 +230,7 @@ impl PrintNannyPipelineFactory {
             ! interpipesink name={interpipesink} sync=false",
             width=camera.width,
             height=camera.height,
-            // format=camera.format,
+            format=camera.format,
         );
 
         self.make_pipeline(pipeline_name, &description).await
@@ -258,11 +262,11 @@ impl PrintNannyPipelineFactory {
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true caps=other/tensors,format=static,num_tensors=4,framerate=0/1 \
             ! tensor_decoder name=bb_tensor_decoder mode=bounding_boxes option1=mobilenet-ssd-postprocess option2={tflite_label_file} option3=0:1:2:3,{nms_threshold} option4={video_width}:{video_height} option5={tensor_width}:{tensor_height} \
-            ! capsfilter caps=video/x-raw,width={video_width},height={video_height} \
-            ! videoconvert \
+            ! capsfilter caps=video/x-raw,width={video_width},height={video_height},format={format} \
+            ! v4l2convert \
             ! v4l2h264enc output-io-mode=mmap capture-io-mode=mmap extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
-            ! capsfilter caps=video/x-h264,level=(string)3,profile=(string)main \
+            ! capssetter caps=video/x-h264,level=(string)4,profile=(string)high \
             ! rtph264pay config-interval=1 aggregate-mode=zero-latency pt=96 \
             ! udpsink port={port}
             ",
@@ -270,7 +274,7 @@ impl PrintNannyPipelineFactory {
             tflite_label_file=detection.label_file,
             tensor_height=detection.tensor_height,
             tensor_width=detection.tensor_width,
-            // format=camera.format,
+            format=camera.format,
             video_width=camera.width,
             video_height=camera.height,
 
