@@ -533,4 +533,26 @@ impl PrintNannyPipelineFactory {
 
         Ok(())
     }
+
+    pub async fn stop_pipelines(&self) -> Result<()> {
+        let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
+        let res = client.pipelines().await?;
+
+        match res.response {
+            gst_client::gstd_types::ResponseT::Properties(props) => {
+                if let Some(nodes) = props.nodes {
+                    for node in nodes {
+                        let pipeline = client.pipeline(&node.name);
+                        info!("Stopping pipeline: {}", &node.name);
+                        pipeline.stop().await?;
+                        info!("Deleting pipeline: {}", &node.name);
+                        pipeline.delete().await?;
+                    }
+                }
+            }
+            _ => unimplemented!("Received invalid response to GET /pipelines"),
+        };
+
+        Ok(())
+    }
 }
