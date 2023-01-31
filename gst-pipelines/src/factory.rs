@@ -93,8 +93,8 @@ impl PrintNannyPipelineFactory {
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
-            ! v4l2convert name=camera_v4l2convert \
             ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} \
+            ! v4l2convert name=camera_v4l2convert \
             ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} sync=false",
             camera_name=camera.device_name,
             width=camera.width,
