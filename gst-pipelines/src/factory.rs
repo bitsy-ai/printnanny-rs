@@ -93,7 +93,7 @@ impl PrintNannyPipelineFactory {
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
-            ! v4l2convert \
+            ! v4l2convert name=camera_v4l2convert \
             ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} \
             ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} sync=false",
             camera_name=camera.device_name,
@@ -118,7 +118,7 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} \
-            ! v4l2convert ! v4l2jpegenc ! multifilesink location={filesink_location} max-files=2",
+            ! v4l2convert name=snapshot_v4l2convert ! v4l2jpegenc ! multifilesink location={filesink_location} max-files=2",
             width=camera.width,
             height=camera.height,
             format=camera.format,
@@ -139,6 +139,7 @@ impl PrintNannyPipelineFactory {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry}  \
+            ! v4l2convert name=h264_v4l2convert \
             ! v4l2h264enc extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
             ! capssetter caps=video/x-h264,level=(string)4,profile=(string)high \
