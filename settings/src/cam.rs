@@ -224,7 +224,7 @@ impl CameraVideoSource {
         };
         results
             .into_iter()
-            .filter(|caps| COMPAT_PIXEL_FORMATS.contains(caps.format))
+            .filter(|caps| COMPAT_PIXEL_FORMATS.contains(&caps.format.as_str()))
             .collect()
     }
 
