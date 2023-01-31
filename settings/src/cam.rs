@@ -11,6 +11,7 @@ use gst::prelude::DeviceProviderExtManual;
 
 use crate::error::PrintNannySettingsError;
 
+const DEFAULT_COLORIMETRY: &str = "bt701";
 const DEFAULT_PIXEL_FORMAT: &str = "NV21";
 const COMPAT_PIXEL_FORMATS: [&str; 2] = ["NV21", "YUY2"];
 
@@ -119,6 +120,7 @@ impl Default for CameraVideoSource {
 impl CameraVideoSource {
     pub fn default_caps() -> printnanny_asyncapi_models::GstreamerCaps {
         printnanny_asyncapi_models::GstreamerCaps {
+            colorimetry: DEFAULT_COLORIMETRY.into(),
             media_type: "video/x-raw".into(),
             format: DEFAULT_PIXEL_FORMAT.into(),
             width: 640,
@@ -164,12 +166,18 @@ impl CameraVideoSource {
                                             s.get("width");
                                         let format: Result<String, gst::structure::GetError<_>> =
                                             s.get("format");
+                                        
+                                        let colorimetry: String = s.get("colorimetry").unwrap_or_else(|e|{
+                                            error!("Failed to get colorimetry caps, using default: {} error={}", DEFAULT_COLORIMETRY, e);
+                                            DEFAULT_COLORIMETRY.into()
+                                        });
 
                                         if let (Ok(height), Ok(width), Ok(format)) =
                                             (&height, &width, &format)
                                         {
                                             let media_type = s.name().into();
                                             Some(printnanny_asyncapi_models::GstreamerCaps {
+                                                colorimetry,
                                                 height: *height,
                                                 width: *width,
                                                 format: format.into(),
@@ -428,6 +436,7 @@ impl Default for VideoStreamSettings {
             device_name: "/base/soc/i2c0mux/i2c@1/imx219@10".into(),
             format: DEFAULT_PIXEL_FORMAT.into(),
             label: "Raspberry Pi imx219".into(),
+            colorimetry: DEFAULT_COLORIMETRY.into()
         });
 
         let detection = Box::new(printnanny_asyncapi_models::DetectionSettings {
