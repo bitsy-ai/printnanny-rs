@@ -91,9 +91,6 @@ impl PrintNannyPipelineFactory {
         camera: &CameraSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
-
-        let colorimetry = "bt709";
-        // ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d} \
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
             ! v4l2convert \
@@ -104,7 +101,8 @@ impl PrintNannyPipelineFactory {
             height=camera.height,
             framerate_n=camera.framerate_n,
             framerate_d=camera.framerate_d,
-            format=camera.format
+            format=camera.format,
+            colorimetry=camera.colorimetry
         );
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -118,9 +116,6 @@ impl PrintNannyPipelineFactory {
     ) -> Result<gst_client::resources::Pipeline> {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
-        // let colorimetry = "bt709";
-        // let interlace = "progressive";
-        let colorimetry = "bt709";
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} \
             ! v4l2convert ! v4l2jpegenc ! multifilesink location={filesink_location} max-files=2",
@@ -129,6 +124,7 @@ impl PrintNannyPipelineFactory {
             format=camera.format,
             framerate_n=camera.framerate_n,
             framerate_d=camera.framerate_d,
+            colorimetry=camera.colorimetry
         );
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -142,9 +138,6 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
-
-        let colorimetry = "bt709";
-
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry}  \
             ! v4l2h264enc extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
@@ -154,7 +147,8 @@ impl PrintNannyPipelineFactory {
             height=camera.height,
             format=camera.format,
             framerate_n=camera.framerate_n,
-            framerate_d=camera.framerate_d
+            framerate_d=camera.framerate_d,
+            colorimetry=camera.colorimetry
         );
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -216,10 +210,8 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
-        let colorimetry = "bt709";
 
         let tensor_format = "RGB"; // model expects pixel data to be in RGB format
-                                   // let colorimetry = "bt709";
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 caps=video/x-raw,width={width},height={height},format={format},colorimetry={colorimetry}  \
             ! v4l2convert ! videoscale ! videorate ! capsfilter caps=video/x-raw,format={tensor_format},width={tensor_width},height={tensor_height},framerate=0/1 \
@@ -231,6 +223,7 @@ impl PrintNannyPipelineFactory {
             width=camera.width,
             height=camera.height,
             format=camera.format,
+            colorimetry=camera.colorimetry
         );
 
         self.make_pipeline(pipeline_name, &description).await
