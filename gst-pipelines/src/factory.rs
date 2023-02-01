@@ -106,14 +106,14 @@ impl PrintNannyPipelineFactory {
 
         let caps = match camera.device_name.contains("imx219") {
             true => format!(
-                "width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2",
+                "x-video/raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2",
                 width = camera.width,
                 height = camera.height,
                 framerate_n = camera.framerate_n,
                 framerate_d = camera.framerate_d
             ),
             false => format!(
-                "width={width},height={height},framerate={framerate_n}/{framerate_d}",
+                "x-video/raw,width={width},height={height},framerate={framerate_n}/{framerate_d}",
                 width = camera.width,
                 height = camera.height,
                 framerate_n = camera.framerate_n,
@@ -122,8 +122,8 @@ impl PrintNannyPipelineFactory {
         };
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
-            ! capsfilter caps={caps} \
             ! v4l2convert \
+            ! capsfilter caps={caps} \
             ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true sync=false",
             camera_name=camera.device_name,
         );
@@ -507,36 +507,36 @@ impl PrintNannyPipelineFactory {
             camera_pipeline,
             h264_pipeline,
             rtp_pipeline,
-            // inference_pipeline,
-            // bb_pipeline,
-            // df_pipeline,
+            inference_pipeline,
+            bb_pipeline,
+            df_pipeline,
         ];
 
-        // if hls_settings.enabled {
-        //     let hls_pipeline = self
-        //         .make_hls_pipeline(
-        //             HLS_PIPELINE,
-        //             H264_PIPELINE,
-        //             &hls_settings.segments,
-        //             &hls_settings.playlist,
-        //             &hls_settings.playlist_root,
-        //             &camera.framerate_n,
-        //         )
-        //         .await?;
-        //     pipelines.push(hls_pipeline);
-        // }
+        if hls_settings.enabled {
+            let hls_pipeline = self
+                .make_hls_pipeline(
+                    HLS_PIPELINE,
+                    H264_PIPELINE,
+                    &hls_settings.segments,
+                    &hls_settings.playlist,
+                    &hls_settings.playlist_root,
+                    &camera.framerate_n,
+                )
+                .await?;
+            pipelines.push(hls_pipeline);
+        }
 
-        // if snapshot_settings.enabled {
-        //     let snapshot_pipeline = self
-        //         .make_jpeg_snapshot_pipeline(
-        //             SNAPSHOT_PIPELINE,
-        //             CAMERA_PIPELINE,
-        //             &snapshot_settings.path,
-        //             &camera,
-        //         )
-        //         .await?;
-        //     pipelines.push(snapshot_pipeline);
-        // }
+        if snapshot_settings.enabled {
+            let snapshot_pipeline = self
+                .make_jpeg_snapshot_pipeline(
+                    SNAPSHOT_PIPELINE,
+                    CAMERA_PIPELINE,
+                    &snapshot_settings.path,
+                    &camera,
+                )
+                .await?;
+            pipelines.push(snapshot_pipeline);
+        }
 
         for pipeline in pipelines.iter() {
             info!("Setting pipeline name={} state=PAUSED", pipeline.name);
