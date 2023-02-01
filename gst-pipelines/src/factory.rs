@@ -93,16 +93,16 @@ impl PrintNannyPipelineFactory {
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
-            ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} \
             ! v4l2convert name=camera_v4l2convert \
-            ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry} sync=false",
+            ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d} \
+            ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d} sync=false",
             camera_name=camera.device_name,
             width=camera.width,
             height=camera.height,
             framerate_n=camera.framerate_n,
             framerate_d=camera.framerate_d,
-            format=camera.format,
-            colorimetry=camera.colorimetry
+            // format=camera.format,
+            // colorimetry=camera.colorimetry
         );
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -138,18 +138,17 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format={format},colorimetry={colorimetry}  \
-            ! v4l2convert name=h264_v4l2convert \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d} \
             ! v4l2h264enc extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
             ! capssetter caps=video/x-h264,level=(string)4,profile=(string)high \
             ! interpipesink name={interpipesink} sync=false",
             width=camera.width,
             height=camera.height,
-            format=camera.format,
+            // format=camera.format,
             framerate_n=camera.framerate_n,
             framerate_d=camera.framerate_d,
-            colorimetry=camera.colorimetry
+            // colorimetry=camera.colorimetry
         );
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -214,7 +213,7 @@ impl PrintNannyPipelineFactory {
 
         let tensor_format = "RGB"; // model expects pixel data to be in RGB format
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 caps=video/x-raw,width={width},height={height},format={format},colorimetry={colorimetry}  \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 caps=video/x-raw,width={width},height={height} \
             ! v4l2convert ! videoscale ! videorate ! capsfilter caps=video/x-raw,format={tensor_format},width={tensor_width},height={tensor_height},framerate=0/1 \
             ! tensor_converter \
             ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1 \
@@ -223,8 +222,8 @@ impl PrintNannyPipelineFactory {
             ! interpipesink name={interpipesink} sync=false",
             width=camera.width,
             height=camera.height,
-            format=camera.format,
-            colorimetry=camera.colorimetry
+            // format=camera.format,
+            // colorimetry=camera.colorimetry
         );
 
         self.make_pipeline(pipeline_name, &description).await
