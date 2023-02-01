@@ -106,14 +106,14 @@ impl PrintNannyPipelineFactory {
 
         let caps = match camera.device_name.contains("imx219") {
             true => format!(
-                "x-video/raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2",
+                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2",
                 width = camera.width,
                 height = camera.height,
                 framerate_n = camera.framerate_n,
                 framerate_d = camera.framerate_d
             ),
             false => format!(
-                "x-video/raw,width={width},height={height},framerate={framerate_n}/{framerate_d}",
+                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d}",
                 width = camera.width,
                 height = camera.height,
                 framerate_n = camera.framerate_n,
