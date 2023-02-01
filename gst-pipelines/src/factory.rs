@@ -91,18 +91,41 @@ impl PrintNannyPipelineFactory {
         camera: &CameraSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
+
+        // imx219 sensor shows blue-tinted video feed when caps format/colorimetry are automatically negotiated
+        // to reproduce this, run the following commands:
+
+        // Normal colors:
+        // GST_DEBUG=GST_CAPS:4 gst-launch-1.0 -vvv libcamerasrc ! 'video/x-raw,width=1280,height=720,format=YUY2' ! v4l2convert ! v4l2h264enc extra-controls="controls,repeat_sequence_header=1" ! h264parse ! 'video/x-h264,level=(string)4' ! rtph264pay ! udpsink host=localhost port=20001
+
+        // Blue colors:
+        // GST_DEBUG=GST_CAPS:4 gst-launch-1.0 -vvv libcamerasrc ! 'video/x-raw,width=1280,height=720' ! v4l2convert ! v4l2h264enc extra-controls="controls,repeat_sequence_header=1" ! h264parse ! 'video/x-h264,level=(string)4' ! rtph264pay ! udpsink host=localhost port=20001
+
+        // So we manually specify the YUY2 format
+        // NOTE this appears to be an interaction with the v4l2h264enc element, which forces upstream caps to YUY2
+
+        let caps = match camera.device_name.contains("imx219") {
+            true => format!(
+                "width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2",
+                width = camera.width,
+                height = camera.height,
+                framerate_n = camera.framerate_n,
+                framerate_d = camera.framerate_d
+            ),
+            false => format!(
+                "width={width},height={height},framerate={framerate_n}/{framerate_d}",
+                width = camera.width,
+                height = camera.height,
+                framerate_n = camera.framerate_n,
+                framerate_d = camera.framerate_d
+            ),
+        };
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
-            ! v4l2convert name=camera_v4l2convert \
-            ! capsfilter caps=video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d} \
+            ! capsfilter caps={caps} \
+            ! v4l2convert \
             ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true sync=false",
             camera_name=camera.device_name,
-            width=camera.width,
-            height=camera.height,
-            framerate_n=camera.framerate_n,
-            framerate_d=camera.framerate_d,
-            // format=camera.format,
-            // colorimetry=camera.colorimetry
         );
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -164,6 +187,7 @@ impl PrintNannyPipelineFactory {
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
             ! rtph264pay config-interval=1 aggregate-mode=zero-latency pt=96 \
+            ! queue2 \
             ! udpsink port={port}");
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -214,7 +238,7 @@ impl PrintNannyPipelineFactory {
         let tensor_format = "RGB"; // model expects pixel data to be in RGB format
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 format=3 \
-            ! v4l2convert ! videoscale ! videorate ! capsfilter caps=video/x-raw,format={tensor_format},width={tensor_width},height={tensor_height},framerate=0/1 \
+            ! videoconvert ! videoscale ! videorate ! capsfilter caps=video/x-raw,format={tensor_format},width={tensor_width},height={tensor_height},framerate=0/1 \
             ! tensor_converter \
             ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1 \
             ! capsfilter caps=other/tensors,format=static \
@@ -483,36 +507,36 @@ impl PrintNannyPipelineFactory {
             camera_pipeline,
             h264_pipeline,
             rtp_pipeline,
-            inference_pipeline,
-            bb_pipeline,
-            df_pipeline,
+            // inference_pipeline,
+            // bb_pipeline,
+            // df_pipeline,
         ];
 
-        if hls_settings.enabled {
-            let hls_pipeline = self
-                .make_hls_pipeline(
-                    HLS_PIPELINE,
-                    H264_PIPELINE,
-                    &hls_settings.segments,
-                    &hls_settings.playlist,
-                    &hls_settings.playlist_root,
-                    &camera.framerate_n,
-                )
-                .await?;
-            pipelines.push(hls_pipeline);
-        }
+        // if hls_settings.enabled {
+        //     let hls_pipeline = self
+        //         .make_hls_pipeline(
+        //             HLS_PIPELINE,
+        //             H264_PIPELINE,
+        //             &hls_settings.segments,
+        //             &hls_settings.playlist,
+        //             &hls_settings.playlist_root,
+        //             &camera.framerate_n,
+        //         )
+        //         .await?;
+        //     pipelines.push(hls_pipeline);
+        // }
 
-        if snapshot_settings.enabled {
-            let snapshot_pipeline = self
-                .make_jpeg_snapshot_pipeline(
-                    SNAPSHOT_PIPELINE,
-                    CAMERA_PIPELINE,
-                    &snapshot_settings.path,
-                    &camera,
-                )
-                .await?;
-            pipelines.push(snapshot_pipeline);
-        }
+        // if snapshot_settings.enabled {
+        //     let snapshot_pipeline = self
+        //         .make_jpeg_snapshot_pipeline(
+        //             SNAPSHOT_PIPELINE,
+        //             CAMERA_PIPELINE,
+        //             &snapshot_settings.path,
+        //             &camera,
+        //         )
+        //         .await?;
+        //     pipelines.push(snapshot_pipeline);
+        // }
 
         for pipeline in pipelines.iter() {
             info!("Setting pipeline name={} state=PAUSED", pipeline.name);
