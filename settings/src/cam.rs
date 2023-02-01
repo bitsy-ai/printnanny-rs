@@ -493,7 +493,7 @@ impl VideoStreamSettings {
         let selected_camera = *(self.camera.clone());
         // if no camera sources are found, return
         if camera_sources.is_empty() {
-            return Ok(self);
+            Ok(self)
         } else {
             // is device_name among camera sources?
             for camera in camera_sources.iter() {
@@ -512,7 +512,7 @@ impl VideoStreamSettings {
                 format: selected.caps.format.clone(),
                 ..selected_camera
             });
-            return Ok(self);
+            Ok(self)
         }
     }
 }
