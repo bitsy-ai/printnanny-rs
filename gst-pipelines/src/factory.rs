@@ -122,8 +122,8 @@ impl PrintNannyPipelineFactory {
         };
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
-            ! v4l2convert \
             ! capsfilter caps={caps} \
+            ! v4l2convert \
             ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true sync=false",
             camera_name=camera.device_name,
         );
@@ -135,7 +135,7 @@ impl PrintNannyPipelineFactory {
         pipeline_name: &str,
         listen_to: &str,
         filesink_location: &str,
-        camera: &CameraSettings,
+        _camera: &CameraSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
@@ -156,7 +156,7 @@ impl PrintNannyPipelineFactory {
         &self,
         pipeline_name: &str,
         listen_to: &str,
-        camera: &CameraSettings,
+        _camera: &CameraSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
@@ -229,7 +229,7 @@ impl PrintNannyPipelineFactory {
         tensor_width: i32,
         tensor_height: i32,
         tflite_model_file: &str,
-        camera: &CameraSettings,
+        _camera: &CameraSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
