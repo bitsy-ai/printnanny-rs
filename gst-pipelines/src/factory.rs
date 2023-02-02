@@ -272,7 +272,7 @@ impl PrintNannyPipelineFactory {
             ),
         };
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 format=3 caps={caps} \
-            ! v4l2convert ! videoscale ! videorate ! capsfilter caps=video/x-raw,format={tensor_format},width={tensor_width},height={tensor_height},framerate=0/1 \
+            ! v4l2convert ! videoscale ! capsfilter caps=video/x-raw,format={tensor_format},width={tensor_width},height={tensor_height} \
             ! tensor_converter \
             ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1 \
             ! capsfilter caps=other/tensors,format=static \
