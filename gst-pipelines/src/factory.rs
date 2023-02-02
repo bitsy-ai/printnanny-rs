@@ -121,7 +121,7 @@ impl PrintNannyPipelineFactory {
         //     ),
         // };
         let caps = format!(
-            "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,colorimetry=bt709",
+            "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2",
             width = camera.width,
             height = camera.height,
             framerate_n = camera.framerate_n,
@@ -260,7 +260,7 @@ impl PrintNannyPipelineFactory {
                                    //     ),
                                    // };
         let caps = format!(
-            "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,colorimetry=bt709",
+            "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2",
             width = camera.width,
             height = camera.height,
             framerate_n = camera.framerate_n,
