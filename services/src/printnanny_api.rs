@@ -26,6 +26,8 @@ use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::apis::videos_api;
 use printnanny_api_client::models;
 
+use printnanny_edge_db::diesel;
+
 use crate::cpuinfo::RpiCpuInfo;
 use crate::crash_report::write_crash_report_zip;
 use crate::error::{ServiceError, VideoRecordingUpdateOrCreateError};
@@ -243,12 +245,15 @@ impl ApiService {
         &self,
         edge_pi: printnanny_edge_db::cloud::Pi,
     ) -> Result<models::Pi, ServiceError> {
+        // async PrintNanny Cloud SystemInfo model
         info!(
             "Synchronizing models for Pi with id={}: system_info_update_or_create()",
             edge_pi.id
         );
         let system_info = self.system_info_update_or_create(edge_pi.id).await?;
         info!("Success! Updated SystemInfo model: {:?}", system_info);
+
+        // sync PrintNanny Cloud OctoPrintServer model
         match &edge_pi.octoprint_server_id {
             Some(octoprint_server_id) => {
                 let octoprint_server = self
@@ -262,10 +267,42 @@ impl ApiService {
             None => (),
         }
 
+        // sync PrintNanny Cloud Pi model
         let pi = self.pi_retrieve(edge_pi.id).await?;
         let pi_id = pi.id;
         let changeset: printnanny_edge_db::cloud::UpdatePi = pi.clone().into();
         printnanny_edge_db::cloud::Pi::update(&self.sqlite_connection, pi_id, changeset)?;
+
+        // sync PrintNanny Cloud PiNatsApp model
+        match printnanny_edge_db::nats_app::NatsApp::get(&self.sqlite_connection) {
+            Ok(nats_app) => {
+                let row = *pi
+                    .nats_app
+                    .clone()
+                    .expect("Expected PiNatsApp to be available on cloud model");
+                printnanny_edge_db::nats_app::NatsApp::update(
+                    &self.sqlite_connection,
+                    nats_app.id,
+                    row.into(),
+                )?;
+            }
+            Err(e) => match e {
+                diesel::result::Error::NotFound => {
+                    let row = *pi
+                        .nats_app
+                        .clone()
+                        .expect("Expected PiNatsApp to be available on cloud model");
+                    printnanny_edge_db::nats_app::NatsApp::insert(
+                        &self.sqlite_connection,
+                        row.into(),
+                    )?;
+                }
+                _ => {
+                    error!("Error sychronizing PiNatsApp: {}", e);
+                }
+            },
+        };
+
         Ok(pi)
     }
 
