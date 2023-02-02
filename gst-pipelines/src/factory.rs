@@ -104,29 +104,23 @@ impl PrintNannyPipelineFactory {
         // So we manually specify the YUY2 format
         // NOTE this appears to be an interaction with the v4l2h264enc element, which forces upstream caps to YUY2
 
-        // let caps = match camera.device_name.contains("imx219") {
-        //     true => format!(
-        //         "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2",
-        //         width = camera.width,
-        //         height = camera.height,
-        //         framerate_n = camera.framerate_n,
-        //         framerate_d = camera.framerate_d
-        //     ),
-        //     false => format!(
-        //         "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d}",
-        //         width = camera.width,
-        //         height = camera.height,
-        //         framerate_n = camera.framerate_n,
-        //         framerate_d = camera.framerate_d
-        //     ),
-        // };
-        let caps = format!(
-            "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2",
-            width = camera.width,
-            height = camera.height,
-            framerate_n = camera.framerate_n,
-            framerate_d = camera.framerate_d
-        );
+        let caps = match camera.device_name.contains("imx219") {
+            true => format!(
+                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive,colorimetry=bt709",
+                width = camera.width,
+                height = camera.height,
+                framerate_n = camera.framerate_n,
+                framerate_d = camera.framerate_d
+            ),
+            false => format!(
+                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive",
+                width = camera.width,
+                height = camera.height,
+                framerate_n = camera.framerate_n,
+                framerate_d = camera.framerate_d
+            ),
+        };
+
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
             ! capsfilter caps={caps} \
@@ -163,12 +157,29 @@ impl PrintNannyPipelineFactory {
         &self,
         pipeline_name: &str,
         listen_to: &str,
-        _camera: &CameraSettings,
+        camera: &CameraSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true \
+
+        let caps = match camera.device_name.contains("imx219") {
+            true => format!(
+                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive,colorimetry=bt709",
+                width = camera.width,
+                height = camera.height,
+                framerate_n = camera.framerate_n,
+                framerate_d = camera.framerate_d
+            ),
+            false => format!(
+                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive",
+                width = camera.width,
+                height = camera.height,
+                framerate_n = camera.framerate_n,
+                framerate_d = camera.framerate_d
+            ),
+        };
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true caps={caps} \
             ! v4l2h264enc extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
             ! capssetter caps=video/x-h264,level=(string)4,profile=(string)high \
@@ -243,29 +254,23 @@ impl PrintNannyPipelineFactory {
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
 
         let tensor_format = "RGB"; // model expects pixel data to be in RGB format
-                                   // let caps = match camera.device_name.contains("imx219") {
-                                   //     true => format!(
-                                   //         "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2",
-                                   //         width = camera.width,
-                                   //         height = camera.height,
-                                   //         framerate_n = camera.framerate_n,
-                                   //         framerate_d = camera.framerate_d
-                                   //     ),
-                                   //     false => format!(
-                                   //         "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d}",
-                                   //         width = camera.width,
-                                   //         height = camera.height,
-                                   //         framerate_n = camera.framerate_n,
-                                   //         framerate_d = camera.framerate_d
-                                   //     ),
-                                   // };
-        let caps = format!(
-            "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2",
-            width = camera.width,
-            height = camera.height,
-            framerate_n = camera.framerate_n,
-            framerate_d = camera.framerate_d
-        );
+
+        let caps = match camera.device_name.contains("imx219") {
+            true => format!(
+                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive,colorimetry=bt709",
+                width = camera.width,
+                height = camera.height,
+                framerate_n = camera.framerate_n,
+                framerate_d = camera.framerate_d
+            ),
+            false => format!(
+                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive",
+                width = camera.width,
+                height = camera.height,
+                framerate_n = camera.framerate_n,
+                framerate_d = camera.framerate_d
+            ),
+        };
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 format=3 caps={caps} \
             ! v4l2convert ! videoscale ! videorate ! capsfilter caps=video/x-raw,format={tensor_format},width={tensor_width},height={tensor_height},framerate=0/1 \
             ! tensor_converter \
