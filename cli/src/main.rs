@@ -130,11 +130,6 @@ async fn main() -> Result<()> {
             .about("Initialize PrintNanny OS")
             .version(GIT_VERSION))
 
-        // dash
-        .subcommand(Command::new("dash")
-            .author(crate_authors!())
-            .about("PrintNanny device dashboard and system status")
-            .version(GIT_VERSION))
 
         // janus-admin
         .subcommand(Command::new("janus-admin")
