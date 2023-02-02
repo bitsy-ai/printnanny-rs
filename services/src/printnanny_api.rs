@@ -283,7 +283,7 @@ impl ApiService {
                 printnanny_edge_db::nats_app::NatsApp::update(
                     &self.sqlite_connection,
                     nats_app.id,
-                    row,
+                    row.into(),
                 )?;
             }
             Err(e) => match e {
