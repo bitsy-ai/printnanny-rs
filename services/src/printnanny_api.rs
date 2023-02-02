@@ -8,7 +8,6 @@ use std::path::{Path, PathBuf};
 
 use serde;
 use serde_json;
-use tempfile::NamedTempFile;
 use tokio::fs;
 
 // edge db
@@ -129,7 +128,11 @@ impl ApiService {
         posthog_session: Option<&str>,
         crash_report_paths: Vec<PathBuf>,
     ) -> Result<models::CrashReport, ServiceError> {
-        let file = NamedTempFile::new()?;
+        let file = tempfile::Builder::new()
+            .prefix("crash-report")
+            .suffix(".zip")
+            .rand_bytes(6)
+            .tempfile()?;
         let (file, filename) = &file.keep()?;
 
         write_crash_report_zip(file, crash_report_paths).await?;
@@ -172,7 +175,11 @@ impl ApiService {
         crash_report_paths: Vec<PathBuf>,
     ) -> Result<models::CrashReport, ServiceError> {
         let os_release = OsRelease::new()?;
-        let file = NamedTempFile::new()?;
+        let file = tempfile::Builder::new()
+            .prefix("crash-report")
+            .suffix(".zip")
+            .rand_bytes(6)
+            .tempfile()?;
         let (file, filename) = &file.keep()?;
 
         write_crash_report_zip(file, crash_report_paths).await?;
