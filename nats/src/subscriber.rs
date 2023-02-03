@@ -93,7 +93,13 @@ where
     pub fn new(args: &ArgMatches) -> Self {
         let default_nats_subject = get_default_nats_subject();
 
-        let subject = args.value_of("subject").unwrap_or(&default_nats_subject);
+        let subject = args
+            .value_of("subject")
+            .unwrap_or(&default_nats_subject)
+            .to_string()
+            // always subscribe to lowercased hostname pattern
+            // see https://github.com/bitsy-ai/printnanny-os/issues/238
+            .to_lowercase();
 
         // check if uri requires tls
         let nats_server_uri: &str = args.value_of("nats_server_uri").unwrap_or(DEFAULT_NATS_URI);
@@ -119,7 +125,7 @@ where
         let workers: usize = args.value_of_t("workers").unwrap_or(8);
         Self {
             hostname,
-            subject: subject.to_string(),
+            subject,
             nats_server_uri: nats_server_uri.to_string(),
             nats_creds,
             require_tls,
