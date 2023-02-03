@@ -112,7 +112,7 @@ where
         let hostname = args
             .value_of("hostname")
             .unwrap_or(&system_hostname)
-            .into()
+            .to_string()
             // always subscribe to lowercased hostname pattern
             // see https://github.com/bitsy-ai/printnanny-os/issues/238
             .to_lowercase();
