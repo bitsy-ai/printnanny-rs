@@ -109,7 +109,13 @@ where
         let nats_creds = nats_creds.map(PathBuf::from);
 
         let system_hostname = sys_info::hostname().unwrap_or_else(|_| "localhost".into());
-        let hostname = args.value_of("hostname").unwrap_or(&system_hostname).into();
+        let hostname = args
+            .value_of("hostname")
+            .unwrap_or(&system_hostname)
+            .into()
+            // always subscribe to lowercased hostname pattern
+            // see https://github.com/bitsy-ai/printnanny-os/issues/238
+            .to_lowercase();
         let workers: usize = args.value_of_t("workers").unwrap_or(8);
         Self {
             hostname,
