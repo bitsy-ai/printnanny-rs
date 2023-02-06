@@ -3,6 +3,8 @@ use std::io;
 use std::io::Write;
 use std::path::PathBuf;
 
+use log::{debug, error};
+
 use tokio::fs;
 use tokio::process::Command;
 
@@ -101,17 +103,73 @@ pub async fn write_crash_report_zip(
     for path in crash_report_paths {
         // read all files in directory
         if path.is_dir() {
-            let mut dir_entries = fs::read_dir(&path).await?;
-            while let Some(entry) = dir_entries.next_entry().await? {
-                let dir_file_path = entry.path();
-                zip.start_file(dir_file_path.display().to_string(), options)?;
-                let contents = fs::read(dir_file_path).await?;
-                zip.write_all(&contents)?;
+            match fs::read_dir(&path).await {
+                Ok(mut dir_entries) => {
+                    while let Ok(Some(entry)) = dir_entries.next_entry().await {
+                        let dir_file_path = entry.path();
+                        match zip.start_file(dir_file_path.display().to_string(), options) {
+                            Ok(_) => match fs::read(&dir_file_path).await {
+                                Ok(contents) => match zip.write_all(&contents) {
+                                    Ok(_) => debug!(
+                                        "Added file={} to zip={:?}",
+                                        dir_file_path.display(),
+                                        file
+                                    ),
+                                    Err(e) => {
+                                        error!("Failed to write file={} error={}, contents will be empty in crash report zip", dir_file_path.display(), e);
+                                    }
+                                },
+                                Err(e) => {
+                                    error!(
+                                        "Failed to read file={} error={}, unable to copy file to crash report zip",
+                                        dir_file_path.display(),
+                                        e
+                                    );
+                                }
+                            },
+                            Err(e) => {
+                                error!(
+                                    "Failed to start file={} in crash report zip error={}",
+                                    dir_file_path.display(),
+                                    e
+                                );
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to read directory {} while building crash report, error={}",
+                        path.display(),
+                        e
+                    );
+                }
             }
         } else {
-            let contents = fs::read(&path).await?;
-            zip.start_file(path.display().to_string(), options)?;
-            zip.write_all(&contents)?;
+            match fs::read(&path).await {
+                Ok(content) => match zip.start_file(path.display().to_string(), options) {
+                    Ok(_) => match zip.write_all(&content) {
+                        Ok(_) => {
+                            debug!("Added file={} to zip={:?}", path.display(), file)
+                        }
+                        Err(e) => {}
+                    },
+                    Err(e) => {
+                        error!(
+                            "Failed to start file={} in crash report zip error={}",
+                            path.display(),
+                            e
+                        );
+                    }
+                },
+                Err(e) => {
+                    error!(
+                        "Failed to read file={} error={}, unable to copy file to crash report zip",
+                        path.display(),
+                        e
+                    );
+                }
+            };
         }
     }
 
