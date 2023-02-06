@@ -2,7 +2,7 @@
 
 use anyhow::{ Result };
 use env_logger::Builder;
-use log::{ LevelFilter};
+use log::{ LevelFilter, error};
 use clap::{ 
     Arg, Command
 };
@@ -19,6 +19,7 @@ use printnanny_services::setup::printnanny_os_init;
 use printnanny_settings::{SettingsFormat};
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_settings::printnanny::PrintNannySettings;
+use printnanny_settings::paths::PrintNannyPaths;
 use printnanny_cli::settings::{SettingsCommand};
 use printnanny_cli::cloud_data::CloudDataCommand;
 use printnanny_cli::os::{OsCommand};
@@ -319,9 +320,16 @@ async fn main() -> Result<()> {
         },
         Some(("crash-report", sub_m)) => {
             let id = sub_m.value_of("id");
-            let settings = PrintNannySettings::new().await?;
-            let api_service = ApiService::from(&settings);
 
+            let settings = match PrintNannySettings::new().await {
+                Ok(settings) => settings,
+                Err(e) => {
+                    error!("Failed to initialize PrintNannySettings with error={}. Falling back to PrintNannySettings::default()", e);
+                    PrintNannySettings::default()
+                }
+            };
+
+            let api_service = ApiService::from(&settings);
             let crash_report_paths = settings.paths.crash_report_paths();
 
             let report = match id {
