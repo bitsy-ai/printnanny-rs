@@ -19,6 +19,7 @@ use printnanny_services::setup::printnanny_os_init;
 use printnanny_settings::{SettingsFormat};
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_settings::printnanny::PrintNannySettings;
+use printnanny_settings::paths::PrintNannyPaths;
 use printnanny_cli::settings::{SettingsCommand};
 use printnanny_cli::cloud_data::CloudDataCommand;
 use printnanny_cli::os::{OsCommand};
