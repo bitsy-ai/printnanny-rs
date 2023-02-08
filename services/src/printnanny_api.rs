@@ -103,11 +103,9 @@ impl ApiService {
         self.sync().await?;
         let pi_id = printnanny_edge_db::cloud::Pi::get_id(&self.sqlite_connection)?;
 
-        // download license
-        if settings.paths.license_zip().exists() {
-            // download credential and device identity bundled in license.zip
-            self.pi_download_license(pi_id, false).await?;
-        }
+        // refresh NATS nkey credentials
+        self.refresh_nats_creds().await?;
+
         // mark setup complete
         let req = models::PatchedPiRequest {
             setup_finished: Some(true),
@@ -118,6 +116,12 @@ impl ApiService {
         };
         self.pi_partial_update(pi_id, req).await?;
         Ok(self)
+    }
+
+    pub async fn refresh_nats_creds(&self) -> Result<(), ServiceError> {
+        let pi_id = printnanny_edge_db::cloud::Pi::get_id(&self.sqlite_connection)?;
+        self.pi_download_license(pi_id, false).await?;
+        Ok(())
     }
 
     pub async fn crash_report_create(
