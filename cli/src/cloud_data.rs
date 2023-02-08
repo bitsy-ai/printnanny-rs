@@ -19,7 +19,9 @@ impl CloudDataCommand {
             Some(("sync-models", _args)) => {
                 let service = ApiService::from(&settings);
                 service.sync().await?;
+                service.refresh_nats_creds().await?;
             }
+
             Some(("sync-video-recordings", args)) => {
                 let id = args.value_of("id");
                 match id {
