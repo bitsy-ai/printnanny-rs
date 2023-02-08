@@ -6,15 +6,11 @@ use printnanny_services::video_recording_sync::{
 use printnanny_settings::printnanny::PrintNannySettings;
 use std::io::{self, Write};
 
-use printnanny_edge_db::cloud::Pi;
-
 pub struct CloudDataCommand;
 
 impl CloudDataCommand {
     pub async fn handle(sub_m: &clap::ArgMatches) -> Result<(), ServiceError> {
         let settings = PrintNannySettings::new().await?;
-        let sqlite_connection = settings.paths.db().display().to_string();
-
         match sub_m.subcommand() {
             Some(("sync-models", _args)) => {
                 let service = ApiService::from(&settings);
@@ -30,7 +26,8 @@ impl CloudDataCommand {
                 }
             }
             Some(("show", _args)) => {
-                let pi = Pi::get(&sqlite_connection)?;
+                let service = ApiService::from(&settings);
+                let pi = service.pi_retrieve(None).await?;
                 let v = serde_json::to_vec_pretty(&pi)?;
                 io::stdout().write_all(&v)?;
             }

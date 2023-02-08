@@ -272,7 +272,7 @@ impl ApiService {
         }
 
         // sync PrintNanny Cloud Pi model
-        let pi = self.pi_retrieve(edge_pi.id).await?;
+        let pi = self.pi_retrieve(Some(edge_pi.id)).await?;
         let pi_id = pi.id;
         let changeset: printnanny_edge_db::cloud::UpdatePi = pi.clone().into();
         printnanny_edge_db::cloud::Pi::update(&self.sqlite_connection, pi_id, changeset)?;
@@ -346,7 +346,11 @@ impl ApiService {
         }
     }
 
-    pub async fn pi_retrieve(&self, pi_id: i32) -> Result<models::Pi, ServiceError> {
+    pub async fn pi_retrieve(&self, pi_id: Option<i32>) -> Result<models::Pi, ServiceError> {
+        let pi_id = match pi_id {
+            Some(i) => Ok(i),
+            None => printnanny_edge_db::cloud::Pi::get_id(&self.sqlite_connection),
+        }?;
         let res = devices_api::pis_retrieve(&self.reqwest_config(), pi_id).await?;
         Ok(res)
     }

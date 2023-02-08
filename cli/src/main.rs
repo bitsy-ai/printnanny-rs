@@ -167,7 +167,8 @@ async fn main() -> Result<()> {
                 .author(crate_authors!())
                 .about(crate_description!())
                 .version(GIT_VERSION)
-                .about("Print printnanny_edge_db::cloud::Pi to console")            
+                .about("Print PrintNanny Cloud models to console")    
+                
             )
             .subcommand(Command::new("sync-models")
                 .author(crate_authors!())
