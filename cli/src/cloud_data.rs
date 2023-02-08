@@ -30,7 +30,8 @@ impl CloudDataCommand {
                 }
             }
             Some(("show", _args)) => {
-                let pi = Pi::get(&sqlite_connection)?;
+                let service = ApiService::from(&settings);
+                let pi = service.pi_retrieve(None).await?;
                 let v = serde_json::to_vec_pretty(&pi)?;
                 io::stdout().write_all(&v)?;
             }
