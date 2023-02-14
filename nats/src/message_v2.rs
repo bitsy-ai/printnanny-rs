@@ -13,8 +13,8 @@ use tokio::fs;
 
 use printnanny_dbus::printnanny_asyncapi_models;
 use printnanny_dbus::printnanny_asyncapi_models::{
-    CameraRecordingLoadReply, CameraRecordingStarted, CameraRecordingStopped, CamerasLoadReply,
-    CrashReportOsLogsReply, CrashReportOsLogsRequest, DeviceInfoLoadReply,
+    CameraRecordingLoadReply, CameraRecordingStarted, CameraRecordingStopped, CameraStatus,
+    CamerasLoadReply, CrashReportOsLogsReply, CrashReportOsLogsRequest, DeviceInfoLoadReply,
     PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, PrintNannyCloudSyncReply, SettingsApp,
     SettingsFile, SettingsFileApplyReply, SettingsFileApplyRequest, SettingsFileLoadReply,
     SettingsFileRevertReply, SettingsFileRevertRequest, SystemdManagerDisableUnitsReply,
@@ -35,7 +35,7 @@ use printnanny_settings::vcs::VersionControlledSettings;
 
 use printnanny_services::printnanny_api::ApiService;
 
-use printnanny_gst_pipelines::factory::PrintNannyPipelineFactory;
+use printnanny_gst_pipelines::factory::{ PrintNannyPipelineFactory, CAMERA_PIPELINE, MP4_RECORDING_PIPELINE };
 
 #[async_trait]
 pub trait NatsRequestHandler {
@@ -94,6 +94,8 @@ pub enum NatsRequest {
     CameraSettingsFileApplyRequest(VideoStreamSettings),
     #[serde(rename = "pi.{pi_id}.settings.camera.load")]
     CameraSettingsFileLoadRequest,
+    #[serde(rename = "pi.{pi_id}.settings.camera.status")]
+    CameraStatusRequest,
 
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
@@ -159,6 +161,8 @@ pub enum NatsReply {
     CameraSettingsFileApplyReply(VideoStreamSettings),
     #[serde(rename = "pi.{pi_id}.settings.camera.load")]
     CameraSettingsFileLoadReply(VideoStreamSettings),
+    #[serde(rename = "pi.{pi_id}.settings.camera.status")]
+    CameraStatusReply(CameraStatus),
 
     // pi.{pi_id}.dbus.org.freedesktop.systemd1.*
     #[serde(rename = "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit")]
@@ -453,6 +457,19 @@ impl NatsRequest {
 
         Ok(NatsReply::CameraLoadReply(
             printnanny_asyncapi_models::cameras_load_reply::CamerasLoadReply { cameras },
+        ))
+    }
+
+    pub async fn handle_camera_status() -> Result<NatsReply> {
+        let factory = PrintNannyPipelineFactory::default();
+        let streaming = factory.get_pipeline(CAMERA_PIPELINE).await {
+            Ok(pipeline) => {},
+            Err(e) => {
+                error!("Error loading pipeline name={} error={}", CAMERA_PIPELINE, e);
+                false
+            }
+        };
+        Ok(NatsReply::CameraLoadReply(
         ))
     }
 
@@ -948,6 +965,8 @@ impl NatsRequestHandler for NatsRequest {
                 serde_json::from_slice::<VideoStreamSettings>(payload.as_ref())?,
             )),
             "pi.{pi_id}.settings.camera.load" => Ok(NatsRequest::CameraSettingsFileLoadRequest),
+            "pi.{pi_id}.settings.camera.status" => Ok(NatsRequest::CameraStatusRequest),
+
             "pi.{pi_id}.dbus.org.freedesktop.systemd1.Manager.DisableUnit" => {
                 Ok(NatsRequest::SystemdManagerDisableUnitsRequest(
                     serde_json::from_slice::<SystemdManagerUnitFilesRequest>(payload.as_ref())?,
@@ -1003,6 +1022,8 @@ impl NatsRequestHandler for NatsRequest {
             NatsRequest::PrintNannyCloudSyncRequest => Self::handle_cloud_sync().await,
             // pi.{pi_id}.cameras.load
             NatsRequest::CameraLoadRequest => Self::handle_cameras_load().await,
+            // pi.{pi_id}.settings.camera.status
+            NatsRequest::CameraStatusRequest => Self::handle_cameras_status().await,
             // "pi.{pi_id}.crash_reports.os"
             NatsRequest::CrashReportOsLogsRequest(request) => {
                 Self::handle_crash_report(request).await
