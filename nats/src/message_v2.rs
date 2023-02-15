@@ -22,7 +22,8 @@ use printnanny_dbus::printnanny_asyncapi_models::{
     SystemdManagerGetUnitReply, SystemdManagerGetUnitRequest, SystemdManagerRestartUnitReply,
     SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
     SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdManagerUnitFilesRequest,
-    SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState, VideoStreamSettings,
+    SystemdUnitActiveState, SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState,
+    VideoStreamSettings,
 };
 use printnanny_dbus::systemd1::models::PRINTNANNY_RECORDING_SERVICE_TEMPLATE;
 
@@ -35,7 +36,7 @@ use printnanny_settings::vcs::VersionControlledSettings;
 
 use printnanny_services::printnanny_api::ApiService;
 
-use printnanny_gst_pipelines::factory::{ PrintNannyPipelineFactory, CAMERA_PIPELINE, MP4_RECORDING_PIPELINE };
+use printnanny_gst_pipelines::factory::PrintNannyPipelineFactory;
 
 #[async_trait]
 pub trait NatsRequestHandler {
@@ -380,20 +381,6 @@ impl NatsRequest {
             }
         })
         .await?;
-
-        // let ifaddrs = ifaddrs
-        //     .map(
-        //         |v| printnanny_settings::printnanny_asyncapi_models::NetworkInterfaceAddress {
-        //             interface_name: v.interface_name,
-        //             flags: v.flags.bits(),
-        //             address: v.address.map(|v| v.to_string()),
-        //             netmask: v.netmask.map(|v| v.to_string()),
-        //             destination: v.destination.map(|v| v.to_string()),
-        //             broadcast: v.broadcast.map(|v| v.to_string()),
-        //         },
-        //     )
-        //     .collect();
-
         Ok(NatsReply::DeviceInfoLoadReply(DeviceInfoLoadReply {
             issue,
             os_release,
@@ -461,16 +448,29 @@ impl NatsRequest {
     }
 
     pub async fn handle_camera_status() -> Result<NatsReply> {
-        let factory = PrintNannyPipelineFactory::default();
-        let streaming = factory.get_pipeline(CAMERA_PIPELINE).await {
-            Ok(pipeline) => {},
+        let unit = Self::get_systemd_unit("printnanny-vision.service".into()).await;
+        let streaming = match unit {
+            Ok(unit) => match *unit.active_state {
+                SystemdUnitActiveState::Active => true,
+                _ => false,
+            },
             Err(e) => {
-                error!("Error loading pipeline name={} error={}", CAMERA_PIPELINE, e);
+                error!("Error reading printnanny-vision.service state: {}", e);
                 false
             }
         };
-        Ok(NatsReply::CameraLoadReply(
-        ))
+        let settings = PrintNannySettings::new().await?;
+        let recording = printnanny_edge_db::video_recording::VideoRecording::get_current(
+            &settings.paths.db().display().to_string(),
+        )?;
+        info!(
+            "CameraStatus streaming={} recording={:#?}",
+            streaming, recording
+        );
+        Ok(NatsReply::CameraStatusReply(CameraStatus {
+            streaming,
+            recording: recording.is_some(),
+        }))
     }
 
     pub async fn handle_printnanny_settings_revert(
@@ -1023,7 +1023,7 @@ impl NatsRequestHandler for NatsRequest {
             // pi.{pi_id}.cameras.load
             NatsRequest::CameraLoadRequest => Self::handle_cameras_load().await,
             // pi.{pi_id}.settings.camera.status
-            NatsRequest::CameraStatusRequest => Self::handle_cameras_status().await,
+            NatsRequest::CameraStatusRequest => Self::handle_camera_status().await,
             // "pi.{pi_id}.crash_reports.os"
             NatsRequest::CrashReportOsLogsRequest(request) => {
                 Self::handle_crash_report(request).await

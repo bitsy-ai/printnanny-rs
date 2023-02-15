@@ -51,9 +51,6 @@ impl PrintNannyPipelineFactory {
     fn to_interpipesink_name(pipeline_name: &str) -> String {
         format!("{pipeline_name}_sink")
     }
-
-    async fn get_pipeline(&self, pipeline_name: &str) -> Result<gst_client::resources::Pipeline> {}
-
     async fn make_pipeline(
         &self,
         pipeline_name: &str,
