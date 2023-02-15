@@ -450,10 +450,17 @@ impl NatsRequest {
     pub async fn handle_camera_status() -> Result<NatsReply> {
         let unit = Self::get_systemd_unit("printnanny-vision.service".into()).await;
         let streaming = match unit {
-            Ok(unit) => match *unit.active_state {
-                SystemdUnitActiveState::Active => true,
-                _ => false,
-            },
+            Ok(unit) => {
+                let active_state = *unit.active_state;
+                info!(
+                    "Got ActiveState={:#?} for printnanny-vision.service",
+                    &active_state
+                );
+                match active_state {
+                    SystemdUnitActiveState::Active => true,
+                    _ => false,
+                }
+            }
             Err(e) => {
                 error!("Error reading printnanny-vision.service state: {}", e);
                 false
