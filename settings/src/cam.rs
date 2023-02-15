@@ -11,9 +11,9 @@ use gst::prelude::DeviceProviderExtManual;
 
 use crate::error::PrintNannySettingsError;
 
-const DEFAULT_COLORIMETRY: &str = "bt701";
-const DEFAULT_PIXEL_FORMAT: &str = "NV21";
-const COMPAT_PIXEL_FORMATS: [&str; 2] = ["NV21", "YUY2"];
+const DEFAULT_COLORIMETRY: &str = "bt709";
+const DEFAULT_PIXEL_FORMAT: &str = "YUY2";
+const COMPAT_PIXEL_FORMATS: [&str; 1] = ["YUY2"];
 
 #[derive(Debug, Clone, clap::ValueEnum, Deserialize, Serialize, PartialEq, Eq)]
 pub enum VideoSrcType {
@@ -167,17 +167,12 @@ impl CameraVideoSource {
                                         let format: Result<String, gst::structure::GetError<_>> =
                                             s.get("format");
                                         
-                                        let colorimetry: String = s.get("colorimetry").unwrap_or_else(|e|{
-                                            error!("Failed to get colorimetry caps, using default: {} error={}", DEFAULT_COLORIMETRY, e);
-                                            DEFAULT_COLORIMETRY.into()
-                                        });
-
                                         if let (Ok(height), Ok(width), Ok(format)) =
                                             (&height, &width, &format)
                                         {
                                             let media_type = s.name().into();
                                             Some(printnanny_asyncapi_models::GstreamerCaps {
-                                                colorimetry,
+                                                colorimetry: DEFAULT_COLORIMETRY.into(),
                                                 height: *height,
                                                 width: *width,
                                                 format: format.into(),
