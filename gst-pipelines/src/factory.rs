@@ -8,15 +8,15 @@ use printnanny_settings::printnanny_asyncapi_models::{CameraSettings, DetectionS
 
 use anyhow::Result;
 
-const CAMERA_PIPELINE: &str = "camera";
-const H264_PIPELINE: &str = "h264";
-const RTP_PIPELINE: &str = "rtp";
-const INFERENCE_PIPELINE: &str = "tflite_inference";
-const BB_PIPELINE: &str = "bounding_boxes";
-const DF_WINDOW_PIPELINE: &str = "df";
-const SNAPSHOT_PIPELINE: &str = "snapshot";
-const HLS_PIPELINE: &str = "hls";
-const MP4_PIPELINE: &str = "mp4";
+pub const CAMERA_PIPELINE: &str = "camera";
+pub const H264_PIPELINE: &str = "h264";
+pub const RTP_PIPELINE: &str = "rtp";
+pub const INFERENCE_PIPELINE: &str = "tflite_inference";
+pub const BB_PIPELINE: &str = "bounding_boxes";
+pub const DF_WINDOW_PIPELINE: &str = "df";
+pub const SNAPSHOT_PIPELINE: &str = "snapshot";
+pub const HLS_PIPELINE: &str = "hls";
+pub const MP4_RECORDING_PIPELINE: &str = "mp4";
 
 const GST_BUS_TIMEOUT: i32 = 6e+10 as i32; // 60 seconds (in nanoseconds)
 
@@ -51,7 +51,6 @@ impl PrintNannyPipelineFactory {
     fn to_interpipesink_name(pipeline_name: &str) -> String {
         format!("{pipeline_name}_sink")
     }
-
     async fn make_pipeline(
         &self,
         pipeline_name: &str,
@@ -430,7 +429,7 @@ impl PrintNannyPipelineFactory {
         let filesink_element_name = "mp4_filesink";
         let pipeline = self
             .make_mp4_filesink_pipeline(
-                MP4_PIPELINE,
+                MP4_RECORDING_PIPELINE,
                 H264_PIPELINE,
                 filename,
                 filesink_element_name,
@@ -445,10 +444,12 @@ impl PrintNannyPipelineFactory {
         // set a filter for eos signal
         let bus = pipeline.bus();
         bus.set_filter("eos").await?;
-        info!("Set filter for EOS events on {MP4_PIPELINE} pipeline bus");
+        info!("Set filter for EOS events on {MP4_RECORDING_PIPELINE} pipeline bus");
         // set timeout for eos signal
         bus.set_timeout(GST_BUS_TIMEOUT).await?;
-        info!("Set timeout ns={GST_BUS_TIMEOUT} for events on {MP4_PIPELINE} pipeline bus");
+        info!(
+            "Set timeout ns={GST_BUS_TIMEOUT} for events on {MP4_RECORDING_PIPELINE} pipeline bus"
+        );
 
         pipeline.pause().await?;
         pipeline.play().await?;
@@ -457,21 +458,21 @@ impl PrintNannyPipelineFactory {
 
     pub async fn stop_video_recording_pipeline(&self) -> Result<()> {
         let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
-        let pipeline = client.pipeline(MP4_PIPELINE);
-        info!("Sending EOS signal to pipeline name={MP4_PIPELINE}");
+        let pipeline = client.pipeline(MP4_RECORDING_PIPELINE);
+        info!("Sending EOS signal to pipeline name={MP4_RECORDING_PIPELINE}");
         let bus = pipeline.bus();
         pipeline.emit_event_eos().await?;
         // wait for eos signal to be emitted by pipeline bus
         match bus.read().await {
             Ok(res) => {
                 info!(
-                    "Event on pipeline name={MP4_PIPELINE} message bus event={:#?}",
+                    "Event on pipeline name={MP4_RECORDING_PIPELINE} message bus event={:#?}",
                     res
                 );
             }
             Err(e) => {
                 error!(
-                    "Error reading events on pipeline name={MP4_PIPELINE} error={}",
+                    "Error reading events on pipeline name={MP4_RECORDING_PIPELINE} error={}",
                     e
                 )
             }

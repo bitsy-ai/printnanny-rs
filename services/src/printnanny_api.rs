@@ -10,9 +10,6 @@ use serde;
 use serde_json;
 use tokio::fs;
 
-// edge db
-// use printnanny_edge_db::cloud::PrintNannyCloudApiConfig;
-
 // settings modules
 use printnanny_settings::error::PrintNannySettingsError;
 use printnanny_settings::printnanny::{PrintNannyApiConfig, PrintNannySettings};
