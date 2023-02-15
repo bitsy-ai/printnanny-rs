@@ -230,7 +230,7 @@ pub async fn write_crash_report_zip(
     };
 
     let fname = "ifconfig.txt";
-    match &netstat_statistics().await {
+    match &ifconfig().await {
         Ok(content) => {
             write_to_zipfile(fname, content, &mut zip, options);
         }
