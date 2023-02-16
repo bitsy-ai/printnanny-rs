@@ -140,7 +140,9 @@ impl PrintNannyPipelineFactory {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 \
+        let max_buffers = 3;
+
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers={max_buffers} leaky-type=2 \
             ! v4l2jpegenc ! multifilesink location={filesink_location} max-files=2",
             // width=camera.width,
             // height=camera.height,
@@ -270,13 +272,15 @@ impl PrintNannyPipelineFactory {
                 framerate_d = camera.framerate_d
             ),
         };
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers=3 leaky-type=1 format=3 caps={caps} \
+
+        let max_buffers = 3;
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers={max_buffers} leaky-type=2 format=3 caps={caps} \
             ! v4l2convert ! videoscale ! capsfilter caps=video/x-raw,format={tensor_format},width={tensor_width},height={tensor_height} \
             ! tensor_converter \
             ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1 \
             ! capsfilter caps=other/tensors,format=static \
             ! tensor_filter framework=tensorflow2-lite model={tflite_model_file} \
-            ! interpipesink name={interpipesink} sync=false",
+            ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true sync=false",
             // width=camera.width,
             // height=camera.height,
             // format=camera.format,
@@ -310,7 +314,7 @@ impl PrintNannyPipelineFactory {
         //    (4): buffers          - GST_FORMAT_BUFFERS
         //    (5): percent          - GST_FORMAT_PERCENT
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
             ! tensor_decoder name=bb_tensor_decoder mode=bounding_boxes option1=mobilenet-ssd-postprocess option2={tflite_label_file} option3=0:1:2:3,{nms_threshold} option4={video_width}:{video_height} option5={tensor_width}:{tensor_height} \
             ! capsfilter caps=video/x-raw,width={video_width},height={video_height} \
             ! v4l2convert \
