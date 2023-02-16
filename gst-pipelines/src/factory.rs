@@ -316,19 +316,20 @@ impl PrintNannyPipelineFactory {
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false \
             ! tensor_decoder name=bb_tensor_decoder mode=bounding_boxes option1=mobilenet-ssd-postprocess option2={tflite_label_file} option3=0:1:2:3,{nms_threshold} option4={video_width}:{video_height} option5={tensor_width}:{tensor_height} \
-            ! capsfilter caps=video/x-raw,width={video_width},height={video_height} \
             ! v4l2convert \
+            ! videorate \
+            ! capsfilter caps=video/x-raw,width={video_width},height={video_height},framerate={framerate_n}/{framerate_d} \
             ! v4l2h264enc output-io-mode=mmap capture-io-mode=mmap extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
             ! capssetter caps=video/x-h264,level=(string)4,profile=(string)high \
             ! rtph264pay config-interval=1 aggregate-mode=zero-latency pt=96 \
-            ! udpsink port={port}
-            ",
+            ! udpsink port={port}",
             nms_threshold=detection.nms_threshold,
             tflite_label_file=detection.label_file,
             tensor_height=detection.tensor_height,
             tensor_width=detection.tensor_width,
-            // format=camera.format,
+            framerate_n=camera.framerate_n,
+            framerate_d=camera.framerate_d,
             video_width=camera.width,
             video_height=camera.height,
 
