@@ -40,7 +40,7 @@ impl Default for TfliteModelSettings {
         Self {
             label_file: "/usr/share/printnanny/model/labels.txt".into(),
             model_file: "/usr/share/printnanny/model/model.tflite".into(),
-            nms_threshold: 80,
+            nms_threshold: 66,
             tensor_batch_size: 40,
             tensor_channels: 3,
             tensor_height: 320,
@@ -440,7 +440,7 @@ impl Default for VideoStreamSettings {
             nats_server_uri: "nats://127.0.0.1:4223".into(),
             label_file: "/usr/share/printnanny/model/labels.txt".into(),
             model_file: "/usr/share/printnanny/model/model.tflite".into(),
-            nms_threshold: 80,
+            nms_threshold: 66,
             tensor_batch_size: 40,
             tensor_height: 320,
             tensor_width: 320,
