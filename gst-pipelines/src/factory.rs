@@ -142,7 +142,7 @@ impl PrintNannyPipelineFactory {
 
         let max_buffers = 3;
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers={max_buffers} leaky-type=2 \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false max-buffers={max_buffers} leaky-type=2 \
             ! v4l2jpegenc ! multifilesink location={filesink_location} max-files=2",
             // width=camera.width,
             // height=camera.height,
@@ -274,7 +274,7 @@ impl PrintNannyPipelineFactory {
         };
 
         let max_buffers = 3;
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers={max_buffers} leaky-type=2 caps={caps} \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false max-buffers={max_buffers} leaky-type=2 caps={caps} \
             ! v4l2convert ! videoscale ! capsfilter caps=video/x-raw,format={tensor_format},width={tensor_width},height={tensor_height} \
             ! tensor_converter \
             ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1 \
