@@ -341,8 +341,6 @@ impl PrintNannyPipelineFactory {
             tensor_width=detection.tensor_width,
             video_width=camera.width,
             video_height=camera.height,
-            framerate_n = camera.framerate_n,
-            framerate_d = camera.framerate_d
 
         );
         self.make_pipeline(pipeline_name, &description).await
