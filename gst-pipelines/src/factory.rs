@@ -326,7 +326,7 @@ impl PrintNannyPipelineFactory {
             ),
         };
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=true \
             ! tensor_decoder name=bb_tensor_decoder mode=bounding_boxes option1=mobilenet-ssd-postprocess option2={tflite_label_file} option3=0:1:2:3,{nms_threshold} option4={video_width}:{video_height} option5={tensor_width}:{tensor_height} \
             ! capsfilter caps={caps} \
             ! v4l2convert \
