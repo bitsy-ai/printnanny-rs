@@ -316,8 +316,9 @@ impl PrintNannyPipelineFactory {
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true \
             ! tensor_decoder name=bb_tensor_decoder mode=bounding_boxes option1=mobilenet-ssd-postprocess option2={tflite_label_file} option3=0:1:2:3,{nms_threshold} option4={video_width}:{video_height} option5={tensor_width}:{tensor_height} \
+            ! capsfilter caps=video/x-raw,width={video_width},height={video_height} \
             ! v4l2convert \
-            ! videorate \
+            ! videorate silent=true \
             ! capsfilter caps=video/x-raw,width={video_width},height={video_height},framerate={framerate_n}/{framerate_d} \
             ! v4l2h264enc output-io-mode=mmap capture-io-mode=mmap extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
