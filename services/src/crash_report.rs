@@ -3,7 +3,7 @@ use std::io;
 use std::io::Write;
 use std::path::PathBuf;
 
-use log::{debug, error};
+use log::{debug, error, warn};
 
 use tokio::fs;
 use tokio::process::Command;
@@ -99,8 +99,15 @@ pub async fn write_crash_report_zip(
     let options = FileOptions::default().unix_permissions(0o755);
 
     for path in crash_report_paths {
+        // handle path does not exist
+        if !path.exists() {
+            warn!(
+                "Path {} does not exist and will not be included in crash report",
+                path.display()
+            );
+        }
         // read all files in directory
-        if path.is_dir() {
+        else if path.is_dir() {
             match fs::read_dir(&path).await {
                 Ok(mut dir_entries) => {
                     while let Ok(Some(entry)) = dir_entries.next_entry().await {
