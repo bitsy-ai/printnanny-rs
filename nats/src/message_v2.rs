@@ -218,17 +218,12 @@ impl NatsRequest {
             .await?;
         let now = Utc::now();
         let update = printnanny_edge_db::video_recording::UpdateVideoRecording {
-            recording_status: Some("inprogress"),
             recording_start: Some(&now),
-            deleted: None,
-            gcode_file_name: None,
+            dir: None,
+            capture_done: None,
+            cloud_sync_done: None,
             recording_end: None,
-            mp4_upload_url: None,
-            mp4_download_url: None,
-            cloud_sync_percent: None,
-            cloud_sync_status: None,
-            cloud_sync_start: None,
-            cloud_sync_end: None,
+            gcode_file_name: None, // TODO
         };
         printnanny_edge_db::video_recording::VideoRecording::update(
             &sqlite_connection,
