@@ -208,33 +208,8 @@ impl NatsRequest {
     pub async fn handle_camera_recording_start() -> Result<NatsReply> {
         let settings = PrintNannySettings::new().await?;
         let sqlite_connection = settings.paths.db().display().to_string();
-        let recording = printnanny_edge_db::video_recording::VideoRecording::start_new(
-            &sqlite_connection,
-            settings.paths.video(),
-        )?;
-        let factory = PrintNannyPipelineFactory::default();
-        factory
-            .start_video_recording_pipeline(&recording.mp4_file_name)
-            .await?;
-        let now = Utc::now();
-        let update = printnanny_edge_db::video_recording::UpdateVideoRecording {
-            recording_start: Some(&now),
-            dir: None,
-            capture_done: None,
-            cloud_sync_done: None,
-            recording_end: None,
-            gcode_file_name: None, // TODO
-        };
-        printnanny_edge_db::video_recording::VideoRecording::update(
-            &sqlite_connection,
-            &recording.id,
-            update,
-        )?;
-        let recording = printnanny_edge_db::video_recording::VideoRecording::get_by_id(
-            &sqlite_connection,
-            &recording.id,
-        )?;
-
+        let api = ApiService::new(settings.api, sqlite_connection);
+        let recording = api.video_recordings_create(settings.paths.video()).await?;
         Ok(NatsReply::CameraRecordingStartReply(
             CameraRecordingStarted {
                 recording: Box::new(recording.into()),

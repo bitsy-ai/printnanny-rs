@@ -185,10 +185,10 @@ async fn sync_upload_urls(video_recordings: Vec<video_recording::VideoRecording>
     }
 }
 
-pub async fn sync_all_video_recordings() -> Result<(), VideoRecordingSyncError> {
+pub async fn _sync_all_video_recordings() -> Result<(), VideoRecordingSyncError> {
     let settings = PrintNannySettings::new().await?;
     let sqlite_connection = settings.paths.db().display().to_string();
-    // select all recordings that are finished, but not uploaded
+    // select all recording parts that have not been uploaded
     let video_recordings =
         video_recording::VideoRecording::get_ready_for_cloud_sync(&sqlite_connection)?;
     info!(
@@ -221,6 +221,32 @@ pub async fn sync_all_video_recordings() -> Result<(), VideoRecordingSyncError> 
             }
             Err(e) => {
                 error!("Failed to get upload url for VideoRecording error={}", e);
+            }
+        }
+    }
+    Ok(())
+}
+
+pub async fn sync_all_video_recordings() -> Result<(), VideoRecordingSyncError> {
+    let settings = PrintNannySettings::new().await?;
+    let sqlite_connection = settings.paths.db().display().to_string();
+    // select all recording parts that have not been uploaded
+    let parts = VideoRecordingPart::get_ready_for_cloud_sync()?;
+
+    info!("{} video recording parts ready for cloud sync", parts.count);
+
+    let mut set = JoinSet::new();
+    for part in parts {
+        set.spawn(upload_video_recording_part(part));
+    }
+
+    while let Some(Ok(res)) = set.join_next().await {
+        match res {
+            Ok(part) => {
+                info!("Finished syncing video recording part.id={}", part.id);
+            }
+            Err(e) => {
+                error!("Error syncing video recording part error={}", e);
             }
         }
     }

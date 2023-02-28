@@ -234,3 +234,30 @@ impl From<VideoRecording> for printnanny_asyncapi_models::VideoRecording {
         }
     }
 }
+
+impl From<VideoRecording> for models::VideoRecordingRequest {
+    fn from(obj: VideoRecording) -> Self {
+        Self {
+            id: Some(obj.id),
+            capture_done: Some(obj.capture_done),
+            cloud_sync_done: Some(obj.cloud_sync_done),
+            combine_done: Some(false),
+            recording_start: obj.recording_start.map(|v| v.to_string()),
+            recording_end: obj.recording_end.map(|v| v.to_string()),
+            gcode_file_name: obj.gcode_file_name,
+        }
+    }
+}
+
+impl VideoRecordingPart {
+    pub fn get_ready_for_cloud_sync(
+        connection_str: &str,
+    ) -> Result<Vec<VideoRecordingPart>, diesel::result::Error> {
+        use crate::schema::video_recording_parts::dsl::*;
+        let connection = &mut establish_sqlite_connection(connection_str);
+        let result = video_recording_parts
+            .filter(cloud_sync_done.eq(false))
+            .load::<VideoRecordingPart>(connection)?;
+        Ok(result)
+    }
+}

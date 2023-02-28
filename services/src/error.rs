@@ -22,9 +22,7 @@ pub enum VideoRecordingUpdateOrCreateError {
     SqliteDBError(#[from] diesel::result::Error),
 
     #[error(transparent)]
-    VideoRecordingsPartialUpdateError(
-        #[from] ApiError<videos_api::VideoRecordingsPartialUpdateError>,
-    ),
+    VideosCreateError(#[from] ApiError<videos_api::VideosCreateError>),
 
     #[error(transparent)]
     VideoRecordingsUpdateOrCreateError(
