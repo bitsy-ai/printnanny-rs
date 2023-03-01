@@ -318,12 +318,12 @@ impl VideoRecordingPart {
 
         let sync_start_value = obj.sync_start.as_ref().map(|v| {
             <chrono::DateTime<chrono::FixedOffset> as std::convert::Into<DateTime<Utc>>>::into(
-                DateTime::parse_from_rfc3339(v).unwrap().into(),
+                DateTime::parse_from_rfc3339(v).unwrap(),
             )
         });
         let sync_end_value = obj.sync_end.as_ref().map(|v| {
             <chrono::DateTime<chrono::FixedOffset> as std::convert::Into<DateTime<Utc>>>::into(
-                DateTime::parse_from_rfc3339(v).unwrap().into(),
+                DateTime::parse_from_rfc3339(v).unwrap(),
             )
         });
         let row_update = UpdateVideoRecordingPart {
