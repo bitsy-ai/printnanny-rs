@@ -4,6 +4,7 @@ use std::time::SystemTime;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
+use chrono::Utc;
 use log::{error, info, warn};
 use printnanny_settings::cam::CameraVideoSource;
 use serde::de::DeserializeOwned;
@@ -231,79 +232,34 @@ impl NatsRequest {
 
         // send EOS signal to gstreamer
         factory.stop_video_recording_pipeline().await?;
+        let now = Utc::now();
 
-        // TODO finalize recording
-        // if settings.video_stream.recording.cloud_sync {
-        //     match &recording {
-        //         Some(recording) => {
-        //             let connection = zbus::Connection::system().await?;
-        //             let proxy = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
-        //             let unit_name = format!(
-        //                 "{PRINTNANNY_RECORDING_SERVICE_TEMPLATE}{}.service",
-        //                 recording.id
-        //             );
-        //             info!("Attempting to start {}", &unit_name);
-        //             // ref: https://www.freedesktop.org/wiki/Software/systemd/dbus/
-        //             // StartUnit() enqeues a start job, and possibly depending jobs. Takes the unit to activate, plus a mode string.
-        //             // The mode needs to be one of replace, fail, isolate, ignore-dependencies, ignore-requirements.
-        //             // If "replace" the call will start the unit and its dependencies, possibly replacing already queued jobs that conflict with this.
-        //             // If "fail" the call will start the unit and its dependencies, but will fail if this would change an already queued job.
-        //             // If "isolate" the call will start the unit in question and terminate all units that aren't dependencies of it.
-        //             // If "ignore-dependencies" it will start a unit but ignore all its dependencies.
-        //             // If "ignore-requirements" it will start a unit but only ignore the requirement dependencies.
-        //             // It is not recommended to make use of the latter two options. Returns the newly created job object.
-        //             let job = proxy.start_unit(unit_name.to_string(), "fail".into()).await; // "fail"
-        //             match job {
-        //                 Ok(job) => {
-        //                     info!(
-        //                         "Success, submitted StartUnit job={} for unit={}",
-        //                         job.to_string(),
-        //                         &unit_name
-        //                     );
-        //                 }
-        //                 Err(e) => {
-        //                     error!(
-        //                         "Error submitting StartUnit job for {} error={}",
-        //                         &unit_name, e
-        //                     );
-        //                 }
-        //             }
-        //         }
-        //         None => {
-        //             warn!("handle_camera_recording_stop called, but no active recording was found. You may need to manually run `printnanny cloud sync-video-recordings` to backup recording to PrintNanny Cloud.");
-        //         }
-        //     }
-        // }
+        match &recording {
+            Some(current) => {
+                let row = printnanny_edge_db::video_recording::UpdateVideoRecording {
+                    capture_done: Some(&true),
+                    recording_end: Some(&now),
+                    cloud_sync_done: None,
+                    dir: None,
+                    recording_start: None,
+                    gcode_file_name: None,
+                };
+                info!(
+                    "Setting recording_end={} capture_done=true on video_recording with id={}",
+                    now.to_string(),
+                    &current.id
+                );
+                printnanny_edge_db::video_recording::VideoRecording::update(
+                    &sqlite_connection,
+                    &current.id,
+                    row,
+                )?;
+            }
+            None => {
+                warn!("handle_camera_recording_stop called, but no active recording was found");
+            }
+        };
 
-        // let recording = match recording {
-        //     Some(recording) => {
-        //         let now = Utc::now();
-        //         let update = printnanny_edge_db::video_recording::UpdateVideoRecording {
-        //             recording_status: Some("done"),
-        //             recording_end: Some(&now),
-        //             deleted: None,
-        //             recording_start: None,
-        //             gcode_file_name: None,
-        //             mp4_upload_url: None,
-        //             mp4_download_url: None,
-        //             cloud_sync_percent: None,
-        //             cloud_sync_status: None,
-        //             cloud_sync_start: None,
-        //             cloud_sync_end: None,
-        //         };
-        //         printnanny_edge_db::video_recording::VideoRecording::update(
-        //             &sqlite_connection,
-        //             &recording.id,
-        //             update,
-        //         )?;
-        //         let recording = printnanny_edge_db::video_recording::VideoRecording::get_by_id(
-        //             &sqlite_connection,
-        //             &recording.id,
-        //         )?;
-        //         Some(recording)
-        //     }
-        //     None => None,
-        // };
         Ok(NatsReply::CameraRecordingStopReply(
             CameraRecordingStopped {
                 recording: recording.map(|v| Box::new(v.into())),

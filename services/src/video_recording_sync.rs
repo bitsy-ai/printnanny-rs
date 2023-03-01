@@ -58,9 +58,8 @@ async fn upload_video_recording_part(
         video_recording: None,
     };
 
-    api.video_recording_pats_partial_update(&cloud_part.id, req)
+    api.video_recording_parts_partial_update(&cloud_part.id, req)
         .await?;
-
     Ok(part)
     // get or create VideoRecordingPart via cloud API
 }

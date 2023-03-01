@@ -82,6 +82,40 @@ pub struct UpdateVideoRecordingPart<'a> {
 }
 
 impl VideoRecording {
+    pub fn update_from_cloud(
+        connection_str: &str,
+        obj: &models::VideoRecording,
+    ) -> Result<(), diesel::result::Error> {
+        use crate::schema::video_recordings::dsl::*;
+        let connection = &mut establish_sqlite_connection(connection_str);
+
+        let r_start_value = obj.recording_start.as_ref().map(|v| {
+            <chrono::DateTime<chrono::FixedOffset> as std::convert::Into<DateTime<Utc>>>::into(
+                DateTime::parse_from_rfc3339(v).unwrap(),
+            )
+        });
+        let r_end_value = obj.recording_end.as_ref().map(|v| {
+            <chrono::DateTime<chrono::FixedOffset> as std::convert::Into<DateTime<Utc>>>::into(
+                DateTime::parse_from_rfc3339(v).unwrap(),
+            )
+        });
+
+        let row = UpdateVideoRecording {
+            capture_done: obj.capture_done.as_ref(),
+            recording_end: r_end_value.as_ref(),
+            recording_start: r_start_value.as_ref(),
+            gcode_file_name: None,
+            dir: None,
+            cloud_sync_done: obj.cloud_sync_done.as_ref(),
+        };
+
+        diesel::update(video_recordings.filter(id.eq(&obj.id.clone().unwrap())))
+            .set(row)
+            .execute(connection)?;
+
+        Ok(())
+    }
+
     pub fn update(
         connection_str: &str,
         row_id: &str,
