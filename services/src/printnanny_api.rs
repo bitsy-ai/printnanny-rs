@@ -466,7 +466,6 @@ impl ApiService {
         let update = printnanny_edge_db::video_recording::UpdateVideoRecording {
             recording_start: Some(&now),
             dir: None,
-            capture_done: None,
             cloud_sync_done: None,
             recording_end: None,
             gcode_file_name: None, // TODO

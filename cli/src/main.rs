@@ -312,6 +312,11 @@ async fn main() -> Result<()> {
                 )
             )
             .about("Interact with PrintNanny OS")
+
+            .subcommand(
+                Command::new("shutdown")
+                .about("Cleanup tasks that run before shutdown/restart/halt (final.target)")
+            )
         );
     
     
