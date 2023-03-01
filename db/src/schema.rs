@@ -72,20 +72,30 @@ diesel::table! {
     use diesel::sql_types::*;
     use diesel::sqlite::sql_types::*;
 
+    video_recording_parts (id) {
+        id -> Text,
+        part -> Integer,
+        size -> BigInt,
+        deleted -> Bool,
+        sync_start ->  Nullable<TimestamptzSqlite>,
+        sync_end ->  Nullable<TimestamptzSqlite>,
+        file_name -> Text,
+        video_recording_id -> Text,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use diesel::sqlite::sql_types::*;
+
     video_recordings (id) {
         id -> Text,
-        deleted -> Bool,
-        recording_status -> Text,
-        recording_start -> Nullable<TimestamptzSqlite>,
-        recording_end -> Nullable<TimestamptzSqlite>,
-        mp4_file_name -> Text,
-        mp4_upload_url -> Nullable<Text>,
-        mp4_download_url -> Nullable<Text>,
+        capture_done -> Bool,
+        cloud_sync_done -> Bool,
+        dir -> Text,
+        recording_start ->  Nullable<TimestamptzSqlite>,
+        recording_end ->  Nullable<TimestamptzSqlite>,
         gcode_file_name -> Nullable<Text>,
-        cloud_sync_status -> Text,
-        cloud_sync_percent -> Nullable<Integer>,
-        cloud_sync_start -> Nullable<TimestamptzSqlite>,
-        cloud_sync_end -> Nullable<TimestamptzSqlite>,
     }
 }
 
@@ -111,11 +121,14 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(video_recording_parts -> video_recordings (video_recording_id));
+
 diesel::allow_tables_to_appear_in_same_query!(
     nats_apps,
     octoprint_servers,
     pis,
     users,
+    video_recording_parts,
     video_recordings,
     webrtc_edge_servers,
 );

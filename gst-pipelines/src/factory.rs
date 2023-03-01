@@ -365,6 +365,32 @@ impl PrintNannyPipelineFactory {
         self.make_pipeline(pipeline_name, &description).await
     }
 
+    // subscribe to splitmuxsink-fragment-closed message
+    pub async fn on_splitmuxsink_fragment_closed(&self, pipeline_name: &str) -> Result<()> {
+        let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
+        let pipeline = client.pipeline(pipeline_name);
+        let bus = pipeline.bus();
+        // filter bus messages
+        bus.set_filter("splitmuxsink-fragment-closed").await?;
+        // read bus messages
+
+        loop {
+            let msg = bus.read().await;
+            match msg {
+                Ok(msg) => {
+                    info!(
+                        "Msg on gstreamer pipeline bus name={} msg={:?}",
+                        pipeline_name, msg
+                    );
+                }
+                Err(e) => {
+                    error!("Error reading gstreamer pipeline bus name={} filter=splitmuxsink-fragment-closed error={}", pipeline_name, e);
+                }
+            }
+        }
+        Ok(())
+    }
+
     async fn make_mp4_filesink_pipeline(
         &self,
         pipeline_name: &str,
@@ -375,8 +401,11 @@ impl PrintNannyPipelineFactory {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=true is-live=true allow-renegotiation=true \
-            ! mp4mux ! filesink location={filename} name={filesink_name}");
+        let location = format!("{filename}/%05d.mp4");
+        let max_duration = 60000000000_u64; // 1 minute (in nanoseconds)
+
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=true is-live=true allow-renegotiation=true \
+            ! splitmuxsink location={location} name={filesink_name} muxer-factory=mp4mux send-keyframe-requests=true max-size-time={max_duration} async-finalize=true");
         self.make_pipeline(pipeline_name, &description).await
     }
 

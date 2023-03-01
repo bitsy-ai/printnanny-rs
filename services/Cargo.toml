@@ -24,8 +24,9 @@ jsonwebtoken = "7"
 lazy_static = "1"            # A macro for declaring lazily evaluated statics in Rust.
 log = "0.4"
 parking_lot = "0.12.1"                  # More compact and efficient implementations of the standard synchronization primitives.
-printnanny-api-client = "0.126.0"
+printnanny-api-client = "0.127.2"
 printnanny-dbus = { path = "../dbus", version = "^0.5"}
+printnanny-gst-pipelines = { path = "../gst-pipelines", version = "^0.2", package="printnanny-gst-pipelines"}
 printnanny-settings = { path = "../settings", version = "^0.6"}
 printnanny-edge-db = { path = "../db", version = "^0.2"}
 procfs = "0.12"
