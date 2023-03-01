@@ -237,7 +237,6 @@ impl NatsRequest {
         match &recording {
             Some(current) => {
                 let row = printnanny_edge_db::video_recording::UpdateVideoRecording {
-                    capture_done: Some(&true),
                     recording_end: Some(&now),
                     cloud_sync_done: None,
                     dir: None,
