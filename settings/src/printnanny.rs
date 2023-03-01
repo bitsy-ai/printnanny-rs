@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use tokio::fs;
 
 use printnanny_dbus::zbus;
-use printnanny_dbus::zbus_systemd;
 
 use crate::cam::VideoStreamSettings;
 use crate::error::{PrintNannySettingsError, VersionControlledSettingsError};

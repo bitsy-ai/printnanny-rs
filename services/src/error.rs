@@ -25,6 +25,11 @@ pub enum VideoRecordingUpdateOrCreateError {
     VideosCreateError(#[from] ApiError<videos_api::VideosCreateError>),
 
     #[error(transparent)]
+    VideoRecordingPartsUpdateOrCreateError(
+        #[from] ApiError<videos_api::VideoRecordingPartsUpdateOrCreateError>,
+    ),
+
+    #[error(transparent)]
     VideoRecordingsUpdateOrCreateError(
         #[from] ApiError<videos_api::VideoRecordingsUpdateOrCreateError>,
     ),

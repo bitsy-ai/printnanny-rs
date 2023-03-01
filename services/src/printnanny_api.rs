@@ -6,6 +6,7 @@ use std::future::Future;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
+use chrono::{DateTime, Utc};
 use serde;
 use serde_json;
 use tokio::fs;
@@ -456,7 +457,8 @@ impl ApiService {
         let factory = PrintNannyPipelineFactory::default();
         factory
             .start_video_recording_pipeline(&recording.dir)
-            .await?;
+            .await
+            .expect("Failed to initialize connection to gstd");
 
         info!("Gstreamer mp4 recording pipeline is now playing");
 
@@ -485,6 +487,20 @@ impl ApiService {
 
         info!("Created PrintNanny Cloud VideoRecording {:?}", result);
         Ok(recording)
+    }
+
+    pub async fn video_recording_parts_update_or_create(
+        &self,
+        request: models::VideoRecordingPartRequest,
+    ) -> Result<models::VideoRecordingPart, VideoRecordingUpdateOrCreateError> {
+        let result = videos_api::video_recording_parts_update_or_create(
+            &self.reqwest_config(),
+            &request.id.clone(),
+            request,
+        )
+        .await?;
+
+        Ok(result)
     }
 
     // pub async fn video_recordings_partial_update(

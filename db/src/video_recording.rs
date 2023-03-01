@@ -31,7 +31,8 @@ pub struct VideoRecordingPart {
     pub part: i32,
     pub size: i64,
     pub deleted: bool,
-    pub cloud_sync_done: bool,
+    pub sync_start: Option<DateTime<Utc>>,
+    pub sync_end: Option<DateTime<Utc>>,
     pub file_name: String,
     pub video_recording_id: String,
 }
@@ -256,7 +257,19 @@ impl VideoRecordingPart {
         use crate::schema::video_recording_parts::dsl::*;
         let connection = &mut establish_sqlite_connection(connection_str);
         let result = video_recording_parts
-            .filter(cloud_sync_done.eq(false))
+            .filter(sync_start.is_null())
+            .load::<VideoRecordingPart>(connection)?;
+        Ok(result)
+    }
+
+    pub fn get_parts_by_video_recording_id(
+        connection_str: &str,
+        video_recording: &str,
+    ) -> Result<Vec<VideoRecordingPart>, diesel::result::Error> {
+        use crate::schema::video_recording_parts::dsl::*;
+        let connection = &mut establish_sqlite_connection(connection_str);
+        let result = video_recording_parts
+            .filter(video_recording_id.eq(video_recording))
             .load::<VideoRecordingPart>(connection)?;
         Ok(result)
     }
@@ -271,6 +284,21 @@ impl From<VideoRecordingPart> for models::VideoRecordingPartRequest {
             sync_start: None,
             sync_end: None,
             video_recording: obj.video_recording_id,
+        }
+    }
+}
+
+impl From<VideoRecordingPart> for printnanny_asyncapi_models::VideoRecordingPart {
+    fn from(obj: VideoRecordingPart) -> Self {
+        Self {
+            id: obj.id,
+            deleted: obj.deleted,
+            size: obj.size,
+            part: obj.part,
+            video_recording_id: obj.video_recording_id,
+            sync_start: obj.sync_start.map(|v| v.to_rfc3339()),
+            sync_end: obj.sync_end.map(|v| v.to_rfc3339()),
+            file_name: obj.file_name,
         }
     }
 }

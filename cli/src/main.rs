@@ -23,6 +23,8 @@ use printnanny_cli::settings::{SettingsCommand};
 use printnanny_cli::cloud_data::CloudDataCommand;
 use printnanny_cli::os::{OsCommand};
 
+use printnanny_gst_pipelines::factory::MP4_RECORDING_PIPELINE;
+
 const GIT_VERSION: &str = git_version!();
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 4)]
@@ -111,8 +113,33 @@ async fn main() -> Result<()> {
                         .long("http-port")
                         .default_value("5001")
                         .help("Attach to the server through a given port")
-            )    
-        ))
+            ))
+            .subcommand(Command::new("on-splitmuxsink-fragment-closed")
+                .author(crate_authors!())
+                .about(crate_description!())
+                .version(GIT_VERSION)
+                .about("Subscribe to splitmuxsink-fragment-closed messages on Gstreamer pipeline bus")      
+                .arg(
+                    Arg::new("http-address")
+                    .takes_value(true)
+                    .long("http-address")
+                    .default_value("127.0.0.1")
+                    .help("Attach to the server through a given address"))
+                .arg(
+                        Arg::new("http-port")
+                        .takes_value(true)
+                        .long("http-port")
+                        .default_value("5001")
+                        .help("Attach to the server through a given port"))
+                .arg(
+                    Arg::new("pipeline")
+                    .takes_value(true)
+                    .long("pipeline")
+                    .default_value(MP4_RECORDING_PIPELINE)
+                    .help("Name of pipeline to subscribe to")
+                )
+            )
+        )
         .subcommand(Command::new("crash-report")
             .author(crate_authors!())
             .about("Submit a crash report via PrintNanny Cloud API")

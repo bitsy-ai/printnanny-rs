@@ -77,7 +77,8 @@ diesel::table! {
         part -> Integer,
         size -> BigInt,
         deleted -> Bool,
-        cloud_sync_done -> Bool,
+        sync_start ->  Nullable<TimestamptzSqlite>,
+        sync_end ->  Nullable<TimestamptzSqlite>,
         file_name -> Text,
         video_recording_id -> Text,
     }
@@ -93,7 +94,7 @@ diesel::table! {
         cloud_sync_done -> Bool,
         dir -> Text,
         recording_start ->  Nullable<TimestamptzSqlite>,
-        recording_end -> Nullable<TimestamptzSqlite>,
+        recording_end ->  Nullable<TimestamptzSqlite>,
         gcode_file_name -> Nullable<Text>,
     }
 }

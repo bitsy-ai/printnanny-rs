@@ -1,8 +1,6 @@
 use printnanny_services::error::ServiceError;
 use printnanny_services::printnanny_api::ApiService;
-use printnanny_services::video_recording_sync::{
-    sync_all_video_recordings, sync_video_recording_by_id,
-};
+use printnanny_services::video_recording_sync::sync_all_video_recordings;
 use printnanny_settings::printnanny::PrintNannySettings;
 use std::io::{self, Write};
 
@@ -19,11 +17,13 @@ impl CloudDataCommand {
             }
 
             Some(("sync-video-recordings", args)) => {
-                let id = args.value_of("id");
-                match id {
-                    Some(id) => sync_video_recording_by_id(id).await?,
-                    None => sync_all_video_recordings().await?,
-                }
+                sync_all_video_recordings().await?;
+                // TODO
+                // let id = args.value_of("id");
+                // match id {
+                //     Some(id) => sync_video_recording_by_id(id).await?,
+                //     None => sync_all_video_recordings().await?,
+                // }
             }
             Some(("show", _args)) => {
                 let service = ApiService::from(&settings);

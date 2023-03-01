@@ -3,7 +3,7 @@ use std::io::Write;
 
 use anyhow::{Ok, Result};
 
-use printnanny_gst_pipelines::factory::PrintNannyPipelineFactory;
+use printnanny_gst_pipelines::factory::{PrintNannyPipelineFactory, MP4_RECORDING_PIPELINE};
 use printnanny_settings::{cam::CameraVideoSource, SettingsFormat};
 
 pub struct CameraCommand;
@@ -20,6 +20,16 @@ impl CameraCommand {
         };
         io::stdout().write_all(&v)?;
 
+        Ok(())
+    }
+
+    async fn on_splitmuxsink_fragment_closed(args: &clap::ArgMatches) -> Result<()> {
+        let address = args.value_of("http-address").unwrap();
+        let port: i32 = args.value_of_t("http-port").unwrap();
+        let factory = PrintNannyPipelineFactory::new(address.into(), port);
+        factory
+            .on_splitmuxsink_fragment_closed(MP4_RECORDING_PIPELINE)
+            .await?;
         Ok(())
     }
 
@@ -41,6 +51,9 @@ impl CameraCommand {
     pub async fn handle(args: &clap::ArgMatches) -> Result<()> {
         match args.subcommand() {
             Some(("list", args)) => Self::list(args).await,
+            Some(("on-splitmuxsink-fragment-closed", args)) => {
+                Self::on_splitmuxsink_fragment_closed(args).await
+            }
             Some(("start-pipelines", args)) => Self::start_pipelines(args).await,
             Some(("stop-pipelines", args)) => Self::stop_pipelines(args).await,
             _ => unimplemented!(),
