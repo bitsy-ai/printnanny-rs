@@ -18,12 +18,6 @@ impl CloudDataCommand {
 
             Some(("sync-video-recordings", _args)) => {
                 sync_all_video_recordings().await?;
-                // TODO
-                // let id = args.value_of("id");
-                // match id {
-                //     Some(id) => sync_video_recording_by_id(id).await?,
-                //     None => sync_all_video_recordings().await?,
-                // }
             }
             Some(("show", _args)) => {
                 let service = ApiService::from(&settings);

@@ -1,7 +1,3 @@
-use std::cmp::min;
-use std::fs;
-
-use futures::stream::StreamExt;
 use printnanny_settings::printnanny::PrintNannySettings;
 use reqwest::Body;
 use tokio::fs::File;
@@ -16,7 +12,7 @@ use crate::error::VideoRecordingSyncError;
 use crate::printnanny_api::ApiService;
 
 use printnanny_api_client::models;
-use printnanny_edge_db::video_recording::{self, UpdateVideoRecording};
+use printnanny_edge_db::video_recording;
 use printnanny_settings::printnanny::PrintNannyApiConfig;
 
 async fn upload_video_recording_part(

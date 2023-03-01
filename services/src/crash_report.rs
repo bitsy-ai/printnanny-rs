@@ -10,7 +10,6 @@ use tokio::process::Command;
 
 use printnanny_settings::error::PrintNannySettingsError;
 use zip::write::FileOptions;
-use zip::ZipWriter;
 
 async fn netstat_routes() -> io::Result<Vec<u8>> {
     let output = Command::new("netstat").args(["--route"]).output().await?;
