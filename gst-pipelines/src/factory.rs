@@ -416,7 +416,7 @@ impl PrintNannyPipelineFactory {
         let max_duration = 60000000000_u64; // 1 minute (in nanoseconds)
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
-            ! splitmuxsink location={location} name={filesink_name} muxer-factory=mp4mux send-keyframe-requests=false max-size-time={max_duration} async-finalize=true");
+            ! splitmuxsink location={location} name={location} muxer-factory=mp4mux send-keyframe-requests=false max-size-time={max_duration} async-finalize=true");
         self.make_pipeline(pipeline_name, &description).await
     }
 
