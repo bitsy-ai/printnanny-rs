@@ -16,7 +16,7 @@ impl CloudDataCommand {
                 service.refresh_nats_creds().await?;
             }
 
-            Some(("sync-video-recordings", args)) => {
+            Some(("sync-video-recordings", _args)) => {
                 sync_all_video_recordings().await?;
                 // TODO
                 // let id = args.value_of("id");

@@ -6,7 +6,7 @@ use std::future::Future;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
-use chrono::{DateTime, Utc};
+use chrono::{ Utc};
 use serde;
 use serde_json;
 use tokio::fs;
@@ -500,6 +500,20 @@ impl ApiService {
         )
         .await?;
 
+        Ok(result)
+    }
+
+    pub async fn video_recording_parts_partial_update(&self,
+        id: &str,
+        request: models::PatchedVideoRecordingPartRequest) -> Result<models::VideoRecordingPart, VideoRecordingUpdateOrCreateError> {
+        // apply patch request via cloud api
+        let result = videos_api::video_parts_partial_update(
+            &self.reqwest_config(),
+            id,
+            Some(request)
+        ).await?;
+        // update edge model
+        printnanny_edge_db::video_recording::VideoRecordingPart::update_from_cloud(&self.sqlite_connection, &result)?;
         Ok(result)
     }
 

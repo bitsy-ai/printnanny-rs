@@ -4,7 +4,6 @@ use std::time::SystemTime;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
-use chrono::prelude::*;
 use log::{error, info, warn};
 use printnanny_settings::cam::CameraVideoSource;
 use serde::de::DeserializeOwned;
@@ -25,8 +24,6 @@ use printnanny_dbus::printnanny_asyncapi_models::{
     SystemdUnitActiveState, SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState,
     VideoStreamSettings,
 };
-use printnanny_dbus::systemd1::models::PRINTNANNY_RECORDING_SERVICE_TEMPLATE;
-
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
@@ -189,11 +186,6 @@ impl NatsRequest {
     pub async fn handle_camera_recording_load() -> Result<NatsReply> {
         let settings = PrintNannySettings::new().await?;
         let sqlite_connection = settings.paths.db().display().to_string();
-        let recordings: Vec<printnanny_asyncapi_models::VideoRecording> =
-            printnanny_edge_db::video_recording::VideoRecording::get_all(&sqlite_connection)?
-                .into_iter()
-                .map(|v| (v).into())
-                .collect();
         let current =
             printnanny_edge_db::video_recording::VideoRecording::get_current(&sqlite_connection)?;
         match current {

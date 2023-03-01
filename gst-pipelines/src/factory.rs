@@ -373,7 +373,9 @@ impl PrintNannyPipelineFactory {
         // filter bus messages
         bus.set_filter("splitmuxsink-fragment-closed").await?;
         // read bus messages
-        while let msg = bus.read().await {
+
+        loop {
+            let msg = bus.read().await;
             match msg {
                 Ok(msg) => {
                     info!(

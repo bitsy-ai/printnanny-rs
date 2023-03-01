@@ -6,6 +6,7 @@ use printnanny_settings::printnanny::PrintNannySettings;
 use reqwest::Body;
 use tokio::fs::File;
 
+use chrono::Utc;
 use tokio::task::JoinSet;
 use tokio_util::codec::{BytesCodec, FramedRead};
 
@@ -17,216 +18,6 @@ use crate::printnanny_api::ApiService;
 use printnanny_api_client::models;
 use printnanny_edge_db::video_recording::{self, UpdateVideoRecording};
 use printnanny_settings::printnanny::PrintNannyApiConfig;
-
-struct VideoUploadProgress {
-    id: String,
-    uploaded: u64,
-    last_percent: u64,
-    interval: u64,
-}
-
-// fn progress_tick(
-//     sqlite_connection: &str,
-//     row_id: &str,
-//     uploaded: u64,
-//     chunk_size: u64,
-//     total_size: u64,
-//     last_emitted_percent: u64,
-//     interval: u64,
-// ) -> (u64, u64) {
-//     let uploaded = min(uploaded + chunk_size, total_size);
-
-//     let current_percent = total_size / uploaded;
-//     if current_percent - last_emitted_percent >= interval {
-//         video_recording::VideoRecording::set_cloud_sync_progress(
-//             sqlite_connection,
-//             row_id,
-//             &(current_percent as i32),
-//         )
-//         .expect("Failed to set set_cloud_sync_progress");
-//         info!(
-//             "VideoUploadProgress id={} percent={}",
-//             &row_id, &current_percent
-//         );
-//         return (uploaded, current_percent);
-//     }
-//     (uploaded, last_emitted_percent)
-// }
-
-// impl VideoUploadProgress {
-//     pub async fn start(
-//         &self,
-//         api: &ApiService,
-//         sqlite_connection: &str,
-//     ) -> Result<(), VideoRecordingSyncError> {
-//         video_recording::VideoRecording::start_cloud_sync(sqlite_connection, &self.id)?;
-//         let row = video_recording::VideoRecording::get_by_id(sqlite_connection, &self.id)?;
-//         api.video_recordings_partial_update(&row).await?;
-//         Ok(())
-//     }
-
-//     pub async fn finish(
-//         &self,
-//         api: &ApiService,
-//         sqlite_connection: &str,
-//     ) -> Result<(), VideoRecordingSyncError> {
-//         video_recording::VideoRecording::finish_cloud_sync(sqlite_connection, &self.id)?;
-//         let row = video_recording::VideoRecording::get_by_id(sqlite_connection, &self.id)?;
-//         api.video_recordings_partial_update(&row).await?;
-//         Ok(())
-//     }
-// }
-
-// pub async fn upload_video_recording(
-//     video_recording: printnanny_edge_db::video_recording::VideoRecording,
-// ) -> Result<video_recording::VideoRecording, VideoRecordingSyncError> {
-//     let settings = PrintNannySettings::new().await?;
-//     let upload_url = match video_recording.mp4_upload_url {
-//         Some(upload_url) => Ok(upload_url),
-//         None => Err(VideoRecordingSyncError::UploadUrlNotSet {
-//             id: video_recording.id.clone(),
-//             file_name: video_recording.mp4_file_name.clone(),
-//         }),
-//     }?;
-
-//     let file = File::open(&video_recording.mp4_file_name).await?;
-//     let total_size = file.metadata().await?.len();
-
-//     let mut byte_stream = FramedRead::new(file, BytesCodec::new());
-//     let mut progress = VideoUploadProgress {
-//         id: video_recording.id.clone(),
-//         uploaded: 0,
-//         last_percent: 0,
-//         interval: 2, // log progress every 2%
-//     };
-
-//     let row_id = video_recording.id.clone();
-
-//     let api_service = ApiService::from(&settings);
-//     let sqlite_connection = settings.paths.db().display().to_string();
-
-//     let async_stream = async_stream::stream! {
-//         let inner_conn = sqlite_connection.clone();
-//         match progress.start(&api_service, &inner_conn).await {
-//             Ok(()) => {},
-//             Err(e) => error!("Error in VideoUploadProgress.start error={}", e)
-//         };
-//         while let Some(chunk) = byte_stream.next().await {
-//             if let Ok(chunk) = &chunk {
-//                 let chunk_size = chunk.len() as u64;
-//                 let uploaded = progress.uploaded;
-//                 let last_percent = progress.last_percent;
-//                 let interval = progress.interval;
-//                 let row_id = row_id.clone();
-//                 let inner_sqlite_conn = inner_conn.clone();
-//                 match tokio::task::spawn_blocking(move ||{
-//                     progress_tick(&inner_sqlite_conn, &row_id, uploaded, chunk_size, total_size, last_percent, interval)
-//                 }).await {
-//                     Ok((uploaded, last_percent)) => {
-//                         progress.uploaded = uploaded;
-//                         progress.last_percent = last_percent;
-
-//                     },
-//                     Err(e) => {
-//                         error!("Error in VideoUploadProgress.tick error={}", e)
-//                     }
-//                 }
-//             }
-//             yield chunk;
-//         };
-//         match progress.finish(&api_service, &inner_conn).await {
-//             Ok(()) => {},
-//             Err(e) => error!("Error in VideoUploadProgress.finish error={}", e)
-//         };
-//     };
-//     let body = Body::wrap_stream(async_stream);
-
-//     let client = reqwest::Client::new();
-//     let res = client
-//         .put(upload_url)
-//         .header("content-type", "application/octet-stream")
-//         .body(body)
-//         .send()
-//         .await?;
-//     info!("upload_video_recording response: {:#?}", res);
-//     let sqlite_connection = settings.paths.db().display().to_string();
-//     let row = video_recording::VideoRecording::get_by_id(&sqlite_connection, &video_recording.id)?;
-//     Ok(row)
-// }
-
-// async fn generate_upload_url(
-//     recording: video_recording::VideoRecording,
-// ) -> Result<models::VideoRecording, VideoRecordingSyncError> {
-//     let settings = PrintNannySettings::new().await?;
-//     let api_service = ApiService::from(&settings);
-//     let recording = api_service
-//         .video_recording_update_or_create(&recording)
-//         .await?;
-//     Ok(recording)
-// }
-
-// async fn sync_upload_urls(video_recordings: Vec<video_recording::VideoRecording>) {
-//     // for each video recording, generate a new signed upload url
-//     let mut set = JoinSet::new();
-//     for recording in video_recordings {
-//         set.spawn(generate_upload_url(recording));
-//     }
-//     while let Some(Ok(res)) = set.join_next().await {
-//         match res {
-//             Ok(recording) => {
-//                 info!(
-//                     "Fetched upload url for VideoRecording id={:#?} mp4_upload_url={}",
-//                     &recording.id, recording.mp4_upload_url
-//                 );
-//             }
-//             Err(e) => {
-//                 error!("Failed to get upload url for VideoRecording error={}", e);
-//             }
-//         }
-//     }
-// }
-
-// pub async fn _sync_all_video_recordings() -> Result<(), VideoRecordingSyncError> {
-//     let settings = PrintNannySettings::new().await?;
-//     let sqlite_connection = settings.paths.db().display().to_string();
-//     // select all recording parts that have not been uploaded
-//     let video_recordings =
-//         video_recording::VideoRecording::get_ready_for_cloud_sync(&sqlite_connection)?;
-//     info!(
-//         "Starting cloud sync for VideoRecordings: {:?}",
-//         &video_recordings
-//     );
-//     sync_upload_urls(video_recordings).await;
-
-//     // select all recordings that are finished, but not uploaded - which now have an upload url field
-//     let video_recordings =
-//         video_recording::VideoRecording::get_ready_for_cloud_sync(&sqlite_connection)?;
-
-//     let mut set = JoinSet::new();
-//     for recording in video_recordings {
-//         set.spawn(upload_video_recording(recording));
-//     }
-//     while let Some(Ok(res)) = set.join_next().await {
-//         match res {
-//             Ok(recording) => {
-//                 let duration = match recording.cloud_sync_start {
-//                     Some(start) => recording
-//                         .cloud_sync_end
-//                         .map(|end| (end - start).num_seconds()),
-//                     None => None,
-//                 };
-//                 info!(
-//                     "Finished uploading VideoRecording id={} duration={:#?} seconds",
-//                     recording.id, duration
-//                 );
-//             }
-//             Err(e) => {
-//                 error!("Failed to get upload url for VideoRecording error={}", e);
-//             }
-//         }
-//     }
-//     Ok(())
-// }
 
 async fn upload_video_recording_part(
     part: video_recording::VideoRecordingPart,
@@ -245,17 +36,31 @@ async fn upload_video_recording_part(
     );
 
     let file = File::open(&part.file_name).await?;
-    let mut stream = FramedRead::new(file, BytesCodec::new());
+    let stream = FramedRead::new(file, BytesCodec::new());
     let body = Body::wrap_stream(stream);
     let client = reqwest::Client::new();
-    let res = client
+    let sync_start = Some(Utc::now().to_rfc3339());
+    client
         .put(&cloud_part.mp4_upload_url)
         .header("content-type", "application/octet-stream")
         .body(body)
         .send()
         .await?;
-
     info!("Finished uploading part={}", &cloud_part.id);
+
+    let sync_end = Some(Utc::now().to_rfc3339());
+    let req = models::PatchedVideoRecordingPartRequest {
+        sync_start,
+        sync_end,
+        id: None,
+        part: None,
+        size: None,
+        video_recording: None,
+    };
+
+    api.video_recording_pats_partial_update(&cloud_part.id, req)
+        .await?;
+
     Ok(part)
     // get or create VideoRecordingPart via cloud API
 }

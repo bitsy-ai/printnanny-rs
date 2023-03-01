@@ -10,6 +10,7 @@ use printnanny_api_client::models;
 use printnanny_asyncapi_models;
 
 use crate::connection::establish_sqlite_connection;
+use crate::schema::video_recording_parts;
 use crate::schema::video_recordings;
 
 #[derive(Queryable, Identifiable, Clone, Debug, PartialEq, Default)]
@@ -25,7 +26,7 @@ pub struct VideoRecording {
 }
 
 #[derive(Queryable, Identifiable, Clone, Debug, PartialEq, Default)]
-#[diesel(table_name = video_recordings)]
+#[diesel(table_name = video_recording_parts)]
 pub struct VideoRecordingPart {
     pub id: String,
     pub part: i32,
@@ -46,6 +47,17 @@ pub struct NewVideoRecording<'a> {
     pub dir: &'a str,
 }
 
+#[derive(Debug, Insertable)]
+#[diesel(table_name = video_recording_parts)]
+pub struct NewVideoRecordingPart<'a> {
+    pub id: &'a str,
+    pub part: &'a i32,
+    pub size: &'a i64,
+    pub deleted: &'a bool,
+    pub file_name: &'a str,
+    pub video_recording_id: &'a str,
+}
+
 #[derive(Clone, Debug, PartialEq, AsChangeset)]
 #[diesel(table_name = video_recordings)]
 pub struct UpdateVideoRecording<'a> {
@@ -55,6 +67,18 @@ pub struct UpdateVideoRecording<'a> {
     pub recording_start: Option<&'a DateTime<Utc>>,
     pub recording_end: Option<&'a DateTime<Utc>>,
     pub gcode_file_name: Option<&'a str>,
+}
+
+#[derive(Clone, Debug, PartialEq, AsChangeset)]
+#[diesel(table_name = video_recording_parts)]
+pub struct UpdateVideoRecordingPart<'a> {
+    pub part: Option<&'a i32>,
+    pub size: Option<&'a i64>,
+    pub deleted: Option<&'a bool>,
+    pub sync_start: Option<&'a DateTime<Utc>>,
+    pub sync_end: Option<&'a DateTime<Utc>>,
+    pub file_name: Option<&'a str>,
+    pub video_recording_id: Option<&'a str>,
 }
 
 impl VideoRecording {
@@ -243,14 +267,46 @@ impl From<VideoRecording> for models::VideoRecordingRequest {
             capture_done: Some(obj.capture_done),
             cloud_sync_done: Some(obj.cloud_sync_done),
             combine_done: Some(false),
-            recording_start: obj.recording_start.map(|v| v.to_string()),
-            recording_end: obj.recording_end.map(|v| v.to_string()),
+            recording_start: obj.recording_start.map(|v| v.to_rfc3339()),
+            recording_end: obj.recording_end.map(|v| v.to_rfc3339()),
             gcode_file_name: obj.gcode_file_name,
         }
     }
 }
 
 impl VideoRecordingPart {
+    pub fn update_from_cloud(
+        connection_str: &str,
+        obj: &models::VideoRecordingPart,
+    ) -> Result<(), diesel::result::Error> {
+        use crate::schema::video_recording_parts::dsl::*;
+        let connection = &mut establish_sqlite_connection(connection_str);
+
+        let sync_start_value = obj.sync_start.as_ref().map(|v| {
+            <chrono::DateTime<chrono::FixedOffset> as std::convert::Into<DateTime<Utc>>>::into(
+                DateTime::parse_from_rfc3339(v).unwrap().into(),
+            )
+        });
+        let sync_end_value = obj.sync_end.as_ref().map(|v| {
+            <chrono::DateTime<chrono::FixedOffset> as std::convert::Into<DateTime<Utc>>>::into(
+                DateTime::parse_from_rfc3339(v).unwrap().into(),
+            )
+        });
+        let row_update = UpdateVideoRecordingPart {
+            part: Some(&obj.part),
+            size: Some(&obj.size),
+            deleted: None,
+            sync_start: sync_start_value.as_ref(),
+            sync_end: sync_end_value.as_ref(),
+            video_recording_id: Some(&obj.video_recording),
+            file_name: None,
+        };
+        diesel::update(video_recording_parts.filter(id.eq(&obj.id)))
+            .set(row_update)
+            .execute(connection)?;
+        Ok(())
+    }
+
     pub fn get_ready_for_cloud_sync(
         connection_str: &str,
     ) -> Result<Vec<VideoRecordingPart>, diesel::result::Error> {
