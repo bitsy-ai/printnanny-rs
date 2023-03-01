@@ -91,37 +91,3 @@ pub async fn sync_all_video_recordings() -> Result<(), VideoRecordingSyncError> 
     info!("Finished syncing {} video recording parts", count);
     Ok(())
 }
-
-// pub async fn sync_video_recording_by_id(id: &str) -> Result<(), VideoRecordingSyncError> {
-//     let settings = PrintNannySettings::new().await?;
-//     let sqlite_connection = settings.paths.db().display().to_string();
-//     let video_recording = video_recording::VideoRecording::get_by_id(&sqlite_connection, id)?;
-//     let filename = video_recording.mp4_file_name.clone();
-//     info!(
-//         "Starting cloud sync for VideoRecording: {:?}",
-//         &video_recording
-//     );
-//     generate_upload_url(video_recording).await?;
-
-//     let video_recording = video_recording::VideoRecording::get_by_id(&sqlite_connection, id)?;
-//     upload_video_recording(video_recording).await?;
-
-//     info!("Removing local file: {}", &filename);
-//     fs::remove_file(&filename)?;
-//     let row = UpdateVideoRecording {
-//         deleted: Some(&true),
-//         cloud_sync_percent: None,
-//         cloud_sync_end: None,
-//         cloud_sync_status: None,
-//         gcode_file_name: None,
-//         recording_status: None,
-//         recording_start: None,
-//         recording_end: None,
-//         mp4_upload_url: None,
-//         mp4_download_url: None,
-//         cloud_sync_start: None,
-//     };
-//     video_recording::VideoRecording::update(&sqlite_connection, id, row)?;
-
-//     Ok(())
-// }
