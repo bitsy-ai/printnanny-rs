@@ -404,8 +404,8 @@ impl PrintNannyPipelineFactory {
         let location = format!("{filename}/%05d.mp4");
         let max_duration = 60000000000_u64; // 1 minute (in nanoseconds)
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=true is-live=true allow-renegotiation=true \
-            ! splitmuxsink location={location} name={filesink_name} muxer-factory=mp4mux send-keyframe-requests=true max-size-time={max_duration} async-finalize=true");
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
+            ! splitmuxsink location={location} name={filesink_name} muxer-factory=mp4mux send-keyframe-requests=false max-size-time={max_duration} async-finalize=true");
         self.make_pipeline(pipeline_name, &description).await
     }
 
