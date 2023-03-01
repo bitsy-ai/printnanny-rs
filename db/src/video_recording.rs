@@ -156,6 +156,38 @@ impl VideoRecording {
         Ok(result)
     }
 
+    pub fn finish_all(connection_str: &str) -> Result<(), diesel::result::Error> {
+        use crate::schema::video_recordings::dsl::*;
+        let connection = &mut establish_sqlite_connection(connection_str);
+
+        // select all unfinished recordings
+        let unfinished_recordings = video_recordings
+            .filter(recording_end.is_null())
+            .load::<VideoRecording>(connection)?;
+        let count = unfinished_recordings.len();
+
+        if count > 1 {
+            let now = Utc::now();
+            info!(
+                "Marking {} VideoRecording rows as finished",
+                unfinished_recordings.len()
+            );
+            let row = UpdateVideoRecording {
+                recording_end: Some(&now),
+                cloud_sync_done: None,
+                dir: None,
+                recording_start: None,
+                gcode_file_name: None,
+            };
+            diesel::update(video_recordings.filter(recording_end.is_null()))
+                .set(row)
+                .execute(connection)?;
+        } else {
+            info!("No unfinished VideoRecordings found");
+        }
+        Ok(())
+    }
+
     // pub fn get_ready_for_cloud_sync(
     //     connection_str: &str,
     // ) -> Result<Vec<VideoRecording>, diesel::result::Error> {
@@ -263,7 +295,6 @@ impl VideoRecording {
         info!("Created {}", dirname.display());
         let row = NewVideoRecording {
             id: &row_id,
-            capture_done: &false,
             cloud_sync_done: &false,
             dir: &dirname.display().to_string(),
         };
@@ -281,7 +312,6 @@ impl From<VideoRecording> for printnanny_asyncapi_models::VideoRecording {
         Self {
             id: obj.id,
             dir: obj.dir,
-            capture_done: obj.capture_done,
             cloud_sync_done: obj.cloud_sync_done,
             recording_start: obj.recording_start.map(|v| v.to_rfc3339()),
             recording_end: obj.recording_end.map(|v| v.to_rfc3339()),
@@ -294,7 +324,6 @@ impl From<VideoRecording> for models::VideoRecordingRequest {
     fn from(obj: VideoRecording) -> Self {
         Self {
             id: Some(obj.id),
-            capture_done: Some(obj.capture_done),
             cloud_sync_done: Some(obj.cloud_sync_done),
             combine_done: Some(false),
             recording_start: obj.recording_start.map(|v| v.to_rfc3339()),
