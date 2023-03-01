@@ -17,7 +17,6 @@ use crate::schema::video_recordings;
 #[diesel(table_name = video_recordings)]
 pub struct VideoRecording {
     pub id: String,
-    pub capture_done: bool,
     pub cloud_sync_done: bool,
     pub dir: String,
     pub recording_start: Option<DateTime<Utc>>,
@@ -42,7 +41,6 @@ pub struct VideoRecordingPart {
 #[diesel(table_name = video_recordings)]
 pub struct NewVideoRecording<'a> {
     pub id: &'a str,
-    pub capture_done: &'a bool,
     pub cloud_sync_done: &'a bool,
     pub dir: &'a str,
 }
@@ -61,7 +59,6 @@ pub struct NewVideoRecordingPart<'a> {
 #[derive(Clone, Debug, PartialEq, AsChangeset)]
 #[diesel(table_name = video_recordings)]
 pub struct UpdateVideoRecording<'a> {
-    pub capture_done: Option<&'a bool>,
     pub cloud_sync_done: Option<&'a bool>,
     pub dir: Option<&'a str>,
     pub recording_start: Option<&'a DateTime<Utc>>,
@@ -101,7 +98,6 @@ impl VideoRecording {
         });
 
         let row = UpdateVideoRecording {
-            capture_done: obj.capture_done.as_ref(),
             recording_end: r_end_value.as_ref(),
             recording_start: r_start_value.as_ref(),
             gcode_file_name: None,
@@ -153,7 +149,7 @@ impl VideoRecording {
         use crate::schema::video_recordings::dsl::*;
         let connection = &mut establish_sqlite_connection(connection_str);
         let result = video_recordings
-            .filter(capture_done.eq(false))
+            .filter(recording_end.is_null())
             .order(recording_start.desc())
             .first::<VideoRecording>(connection)
             .optional()?;

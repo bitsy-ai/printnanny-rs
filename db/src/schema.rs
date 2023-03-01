@@ -90,7 +90,6 @@ diesel::table! {
 
     video_recordings (id) {
         id -> Text,
-        capture_done -> Bool,
         cloud_sync_done -> Bool,
         dir -> Text,
         recording_start ->  Nullable<TimestamptzSqlite>,
