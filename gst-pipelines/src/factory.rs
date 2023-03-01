@@ -416,7 +416,7 @@ impl PrintNannyPipelineFactory {
         let max_duration = 60000000000_u64; // 1 minute (in nanoseconds)
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
-            ! splitmuxsink location={location} name={location} muxer-factory=mp4mux send-keyframe-requests=false max-size-time={max_duration} async-finalize=true");
+            ! splitmuxsink location={location} name={filesink_name} muxer-factory=mp4mux send-keyframe-requests=false max-size-time={max_duration} async-finalize=true");
         self.make_pipeline(pipeline_name, &description).await
     }
 
@@ -489,22 +489,6 @@ impl PrintNannyPipelineFactory {
                 filesink_element_name,
             )
             .await?;
-
-        // if pipeline was already created, ensure location property is set to filename
-        let filesink_element = pipeline.element(filesink_element_name);
-        filesink_element.set_property("location", filename).await?;
-        info!("Updated Gstreamer element name={filesink_element_name} with property location={filename}");
-
-        // set a filter for eos signal
-        let bus = pipeline.bus();
-        bus.set_filter("eos").await?;
-        info!("Set filter for EOS events on {MP4_RECORDING_PIPELINE} pipeline bus");
-        // set timeout for eos signal
-        bus.set_timeout(GST_BUS_TIMEOUT).await?;
-        info!(
-            "Set timeout ns={GST_BUS_TIMEOUT} for events on {MP4_RECORDING_PIPELINE} pipeline bus"
-        );
-
         pipeline.pause().await?;
         pipeline.play().await?;
         Ok(())
