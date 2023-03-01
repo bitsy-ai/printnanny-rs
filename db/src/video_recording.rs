@@ -260,7 +260,7 @@ impl VideoRecording {
         let connection = &mut establish_sqlite_connection(connection_str);
         let row_id = uuid::Uuid::new_v4().to_string();
         let dirname = video_path.join(&row_id);
-        fs::create_dir(&dirname).expect(&format!(
+        fs::create_dir_all(&dirname).expect(&format!(
             "Failed to create directory {}",
             &dirname.display()
         ));

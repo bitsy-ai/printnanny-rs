@@ -1,3 +1,5 @@
+use std::fs;
+
 use gst_client::reqwest;
 use gst_client::GstClient;
 use log::{error, info, warn};
@@ -388,7 +390,6 @@ impl PrintNannyPipelineFactory {
                 }
             }
         }
-        Ok(())
     }
 
     async fn make_mp4_filesink_pipeline(
@@ -400,6 +401,16 @@ impl PrintNannyPipelineFactory {
     ) -> Result<gst_client::resources::Pipeline> {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
+
+        // ensure directory exists
+        match fs::create_dir_all(&filename) {
+            Ok(_) => {
+                info!("Created directory={}", filename);
+            }
+            Err(e) => {
+                error!("Error creating directory={} error={}", filename, e);
+            }
+        };
 
         let location = format!("{filename}/%05d.mp4");
         let max_duration = 60000000000_u64; // 1 minute (in nanoseconds)
