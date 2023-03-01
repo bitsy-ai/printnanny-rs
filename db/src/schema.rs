@@ -75,7 +75,7 @@ diesel::table! {
     video_recording_parts (id) {
         id -> Text,
         part -> Integer,
-        size -> Integer,
+        size -> BigInt,
         deleted -> Bool,
         cloud_sync_done -> Bool,
         file_name -> Text,
@@ -93,7 +93,7 @@ diesel::table! {
         cloud_sync_done -> Bool,
         dir -> Text,
         recording_start ->  Nullable<TimestamptzSqlite>,
-        recording_end ->  Nullable<TimestamptzSqlite>,
+        recording_end -> Nullable<TimestamptzSqlite>,
         gcode_file_name -> Nullable<Text>,
     }
 }

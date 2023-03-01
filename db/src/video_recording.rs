@@ -29,7 +29,7 @@ pub struct VideoRecording {
 pub struct VideoRecordingPart {
     pub id: String,
     pub part: i32,
-    pub size: i32,
+    pub size: i64,
     pub deleted: bool,
     pub cloud_sync_done: bool,
     pub file_name: String,
@@ -259,5 +259,18 @@ impl VideoRecordingPart {
             .filter(cloud_sync_done.eq(false))
             .load::<VideoRecordingPart>(connection)?;
         Ok(result)
+    }
+}
+
+impl From<VideoRecordingPart> for models::VideoRecordingPartRequest {
+    fn from(obj: VideoRecordingPart) -> Self {
+        Self {
+            id: obj.id,
+            size: obj.size,
+            part: obj.part,
+            sync_start: None,
+            sync_end: None,
+            video_recording: obj.video_recording_id,
+        }
     }
 }
