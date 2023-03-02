@@ -288,7 +288,7 @@ async fn main() -> Result<()> {
         // os <issue|motd>
         .subcommand(Command::new("os")
             .author(crate_authors!())
-            .about(crate_description!())
+            .about("Interact with PrintNanny OS")
             .version(GIT_VERSION)
             .subcommand_required(true)
             .subcommand(
@@ -311,8 +311,6 @@ async fn main() -> Result<()> {
                     .help("Output format")
                 )
             )
-            .about("Interact with PrintNanny OS")
-
             .subcommand(
                 Command::new("shutdown")
                 .about("Cleanup tasks that run before shutdown/restart/halt (final.target)")
