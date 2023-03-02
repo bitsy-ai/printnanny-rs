@@ -38,9 +38,24 @@ impl CameraCommand {
         factory.stop_pipelines().await?;
         Ok(())
     }
+
+    async fn start_multifilesink_listener(args: &clap::ArgMatches) -> Result<()> {
+        let address = args.value_of("http-address").unwrap();
+        let port: i32 = args.value_of_t("http-port").unwrap();
+        let pipeline = args.value_of("pipeline").unwrap();
+        let factory = PrintNannyPipelineFactory::new(address.into(), port);
+        factory
+            .run_multifilesink_fragment_uploader(pipeline)
+            .await?;
+        Ok(())
+    }
+
     pub async fn handle(args: &clap::ArgMatches) -> Result<()> {
         match args.subcommand() {
             Some(("list", args)) => Self::list(args).await,
+            Some(("start-multifilesink-listener", args)) => {
+                Self::start_multifilesink_listener(args).await
+            }
             Some(("start-pipelines", args)) => Self::start_pipelines(args).await,
             Some(("stop-pipelines", args)) => Self::stop_pipelines(args).await,
             _ => unimplemented!(),
