@@ -1,5 +1,6 @@
 use std::fs;
 
+use anyhow::Result;
 use gst_client::reqwest;
 use gst_client::GstClient;
 use log::{error, info, warn};
@@ -8,7 +9,7 @@ use printnanny_settings::cam::VideoStreamSettings;
 use printnanny_settings::printnanny::PrintNannySettings;
 use printnanny_settings::printnanny_asyncapi_models::{CameraSettings, DetectionSettings};
 
-use anyhow::Result;
+use crate::message::GstMultiFileSinkMessage;
 
 pub const CAMERA_PIPELINE: &str = "camera";
 pub const H264_PIPELINE: &str = "h264";
@@ -368,22 +369,68 @@ impl PrintNannyPipelineFactory {
     }
 
     // subscribe to splitmuxsink-fragment-closed message
-    pub async fn on_splitmuxsink_fragment_closed(&self, pipeline_name: &str) -> Result<()> {
+    pub async fn run_multifilesink_fragment_uploader(&self, pipeline_name: &str) -> Result<()> {
+        let settings = PrintNannySettings::new().await?;
         let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
         let pipeline = client.pipeline(pipeline_name);
         let bus = pipeline.bus();
         // filter bus messages
-        bus.set_filter("splitmuxsink-fragment-closed").await?;
+        bus.set_filter("GstMultiFileSink").await?;
         // read bus messages
 
+        info!(
+            "Set filter for messages=GstMultiFileSink on pipeline={}",
+            pipeline_name
+        );
+
+        let mut tasks = vec![]
+        let sqlite_connection = settings.paths.db().display().to_string();
+        let mut recording =
+            printnanny_edge_db::video_recording::VideoRecording::get_current(&sqlite_connection)?;
         loop {
             let msg = bus.read().await;
             match msg {
                 Ok(msg) => {
                     info!(
-                        "Msg on gstreamer pipeline bus name={} msg={:?}",
+                        "Handling msg on gstreamer pipeline bus name={} msg={:?}",
                         pipeline_name, msg
                     );
+                    // attempt to deserialize msg
+                    let filesink_msg = serde::<GstMultiFileSinkMessage>::from_str(msg.message);
+                    match filesink_msg {
+                        Ok(filesink_msg) => {
+                            // try to get current recording
+                            recording =
+                            printnanny_edge_db::video_recording::VideoRecording::get_current(&sqlite_connection)?;
+                            if recording.is_none() {
+                                warn!("Refusing to process GstMultiFileSink msg, could not find active recording");
+                                continue;
+                            }
+                            let video_recording_id = recording.unwrap().id;
+                            // insert new VideoRecordingPart
+                            let row_id = format!("{recording_id}-{}", filesink_msg.index);
+                            let row = printnanny_edge_db::video_recording::NewVideoRecordingPart{
+                                id: row_id,
+                                buffer_index: &filesink_msg.index,
+                                buffer_ts: &filesink_msg.timestamp,
+                                buffer_streamtime: &filesink_msg.streamtime,
+                                buffer_runningtime: &filesink_msg.runningtime,
+                                buffer_duration: &filesink_msg.duration,
+                                buffer_offset: &filesink_msg.offset,
+                                buffer_offset_end: &filesink_msg.offset_end,
+                                deleted: &false,
+                                sync_start: None,
+                                sync_end: None,
+                                file_name: &filesink_msg.filename,
+                                video_recording_id: &video_recording_id
+                            };
+                            
+                        },
+                        Err(e) => {
+                            error!("Failed to deserialize GstMultiFileSinkMessage from msg={}", &msg.message);
+                        }
+                    }
+                    
                 }
                 Err(e) => {
                     error!("Error reading gstreamer pipeline bus name={} filter=splitmuxsink-fragment-closed error={}", pipeline_name, e);
@@ -414,9 +461,11 @@ impl PrintNannyPipelineFactory {
 
         let location = format!("{filename}/%05d.mp4");
         let max_duration = 60000000000_u64; // 1 minute (in nanoseconds)
+        let max_files = 50;
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
-            ! splitmuxsink location={location} name={filesink_name} muxer-factory=mp4mux send-keyframe-requests=false max-size-time={max_duration} async-finalize=true");
+            ! mpegtsmux \
+            ! multifilesink aggregate-gops=true post-messages=true location={location} name={filesink_name} max-file-duration={max_duration}, max-files={max_files}");
         self.make_pipeline(pipeline_name, &description).await
     }
 

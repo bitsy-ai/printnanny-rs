@@ -24,12 +24,19 @@ pub struct VideoRecording {
     pub gcode_file_name: Option<String>,
 }
 
+// sqlite does not support unsigned integers, so we need to cast to/from u32 and u64
 #[derive(Queryable, Identifiable, Clone, Debug, PartialEq, Default)]
 #[diesel(table_name = video_recording_parts)]
 pub struct VideoRecordingPart {
     pub id: String,
-    pub part: i32,
     pub size: i64,
+    pub buffer_index: i32,
+    pub buffer_ts: i64,
+    pub buffer_streamtime: i64,
+    pub buffer_runningtime: i64,
+    pub buffer_duration: i64,
+    pub buffer_offset: i64,
+    pub buffer_offset_end: i64,
     pub deleted: bool,
     pub sync_start: Option<DateTime<Utc>>,
     pub sync_end: Option<DateTime<Utc>>,
@@ -45,12 +52,19 @@ pub struct NewVideoRecording<'a> {
     pub dir: &'a str,
 }
 
+// sqlite does not support unsigned integers, so we need to cast to/from u32 and u64
 #[derive(Debug, Insertable)]
 #[diesel(table_name = video_recording_parts)]
 pub struct NewVideoRecordingPart<'a> {
     pub id: &'a str,
-    pub part: &'a i32,
     pub size: &'a i64,
+    pub buffer_index: &'a i32,
+    pub buffer_ts: &'a i64,
+    pub buffer_streamtime: &'a i64,
+    pub buffer_runningtime: &'a i64,
+    pub buffer_duration: &'a i64,
+    pub buffer_offset: &'a i64,
+    pub buffer_offset_end: &'a i64,
     pub deleted: &'a bool,
     pub file_name: &'a str,
     pub video_recording_id: &'a str,
@@ -69,13 +83,9 @@ pub struct UpdateVideoRecording<'a> {
 #[derive(Clone, Debug, PartialEq, AsChangeset)]
 #[diesel(table_name = video_recording_parts)]
 pub struct UpdateVideoRecordingPart<'a> {
-    pub part: Option<&'a i32>,
-    pub size: Option<&'a i64>,
     pub deleted: Option<&'a bool>,
     pub sync_start: Option<&'a DateTime<Utc>>,
     pub sync_end: Option<&'a DateTime<Utc>>,
-    pub file_name: Option<&'a str>,
-    pub video_recording_id: Option<&'a str>,
 }
 
 impl VideoRecording {
@@ -334,6 +344,18 @@ impl From<VideoRecording> for models::VideoRecordingRequest {
 }
 
 impl VideoRecordingPart {
+    pub fn insert(
+        connection_str: &str,
+        row: NewVideoRecordingPart,
+    ) -> Result<(), diesel::result::Error> {
+        use crate::schema::video_recording_parts::dsl::*;
+        let connection = &mut establish_sqlite_connection(connection_str);
+        diesel::insert_into(video_recording_parts)
+            .values(&row)
+            .execute(connection)?;
+        Ok(())
+    }
+
     pub fn update_from_cloud(
         connection_str: &str,
         obj: &models::VideoRecordingPart,
@@ -352,13 +374,9 @@ impl VideoRecordingPart {
             )
         });
         let row_update = UpdateVideoRecordingPart {
-            part: Some(&obj.part),
-            size: Some(&obj.size),
             deleted: None,
             sync_start: sync_start_value.as_ref(),
             sync_end: sync_end_value.as_ref(),
-            video_recording_id: Some(&obj.video_recording),
-            file_name: None,
         };
         diesel::update(video_recording_parts.filter(id.eq(&obj.id)))
             .set(row_update)
@@ -395,10 +413,17 @@ impl From<VideoRecordingPart> for models::VideoRecordingPartRequest {
         Self {
             id: obj.id,
             size: obj.size,
-            part: obj.part,
+            buffer_index: obj.buffer_index as i64,
+            buffer_duration: obj.buffer_duration,
+            buffer_ts: obj.buffer_ts,
+            buffer_runningtime: obj.buffer_runningtime,
+            buffer_streamtime: obj.buffer_streamtime,
+            buffer_offset: obj.buffer_offset,
+            buffer_offset_end: obj.buffer_offset_end,
             sync_start: None,
             sync_end: None,
             video_recording: obj.video_recording_id,
+            file_name: obj.file_name,
         }
     }
 }
@@ -409,7 +434,14 @@ impl From<VideoRecordingPart> for printnanny_asyncapi_models::VideoRecordingPart
             id: obj.id,
             deleted: obj.deleted,
             size: obj.size,
-            part: obj.part,
+            buffer_duration: obj.buffer_duration,
+            buffer_index: obj.buffer_index,
+            buffer_ts: obj.buffer_ts,
+            buffer_runningtime: obj.buffer_runningtime,
+            buffer_streamtime: obj.buffer_streamtime,
+            buffer_offset: obj.buffer_offset,
+            buffer_offset_end: obj.buffer_offset_end,
+
             video_recording_id: obj.video_recording_id,
             sync_start: obj.sync_start.map(|v| v.to_rfc3339()),
             sync_end: obj.sync_end.map(|v| v.to_rfc3339()),
