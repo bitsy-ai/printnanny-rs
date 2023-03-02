@@ -49,9 +49,16 @@ async fn upload_video_recording_part(
         sync_start,
         sync_end,
         id: None,
-        part: None,
         size: None,
         video_recording: None,
+        buffer_index: None,
+        buffer_ts: None,
+        buffer_streamtime: None,
+        buffer_runningtime: None,
+        buffer_duration: None,
+        buffer_offset: None,
+        buffer_offset_end: None,
+        file_name: None,
     };
 
     api.video_recording_parts_partial_update(&cloud_part.id, req)
