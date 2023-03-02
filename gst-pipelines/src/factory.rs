@@ -465,7 +465,7 @@ impl PrintNannyPipelineFactory {
         let listen_to = Self::to_interpipesink_name(listen_to);
 
         // ensure directory exists
-        match fs::create_dir_all(&filename) {
+        match fs::create_dir_all(filename) {
             Ok(_) => {
                 info!("Created directory={}", filename);
             }

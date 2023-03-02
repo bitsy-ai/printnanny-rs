@@ -156,7 +156,9 @@ pub async fn write_crash_report_zip(
                         Ok(_) => {
                             debug!("Added file={} to zip={:?}", path.display(), file)
                         }
-                        Err(e) => {}
+                        Err(e) => {
+                            error!("Error handling crash report file={} error={}", &path, e)
+                        }
                     },
                     Err(e) => {
                         error!(
