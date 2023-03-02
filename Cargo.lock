@@ -3625,7 +3625,10 @@ dependencies = [
  "anyhow",
  "gst-client-rs",
  "log",
+ "printnanny-edge-db",
  "printnanny-settings",
+ "serde 1.0.152",
+ "serde_json",
 ]
 
 [[package]]
