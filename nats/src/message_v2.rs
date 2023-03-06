@@ -50,27 +50,6 @@ pub trait NatsRequestHandler {
     async fn handle(&self) -> Result<Self::Reply>;
 }
 
-// trait for handling one-way NATS event messages
-#[async_trait]
-pub trait NatsEventHandler {
-    type Event: Serialize + DeserializeOwned + Clone + Debug + NatsEventHandler;
-
-    fn replace_subject_pattern(subject: &str, pattern: &str, replace: &str) -> String {
-        // replace only first instance of pattern
-        subject.replacen(pattern, replace, 1)
-    }
-    fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Event>;
-    async fn handle(&self) -> Result<()>;
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "subject_pattern")]
-pub enum NatsEvent {
-    // pi.{pi_id}.event.camera.recording.part
-    #[serde(rename = "pi.{pi_id}.event.camera.recording.part")]
-    VideoRecordingPart(VideoRecordingPart),
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "subject_pattern")]
 pub enum NatsRequest {

@@ -15,7 +15,8 @@ use printnanny_settings::sys_info;
 
 use crate::error::RequestErrorMsg;
 
-use super::message_v2::{NatsEventHandler, NatsRequestHandler};
+use super::event::NatsEventHandler;
+use super::message_v2::NatsRequestHandler;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NatsSubscriber<Event, Request, Reply>

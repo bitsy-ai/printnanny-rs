@@ -4,6 +4,7 @@ pub mod cloud_publisher;
 pub mod cloud_worker;
 pub mod error;
 // pub mod message;
+pub mod event;
 pub mod message_v2;
 pub mod subjects;
 pub mod subscriber;
