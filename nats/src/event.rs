@@ -1,4 +1,8 @@
+use std::fmt::Debug;
+
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use bytes::Bytes;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +29,11 @@ pub enum NatsEvent {
     VideoRecordingPart(VideoRecordingPart),
 }
 
-impl NatsEventHandler {}
+impl NatsEventHandler {
+    async fn handle_video_recording_part(event: &VideoRecordingPart) -> Result<()> {
+        Ok(())
+    }
+}
 
 #[async_trait]
 impl NatsEventHandler for NatsEvent {
@@ -43,5 +51,9 @@ impl NatsEventHandler for NatsEvent {
         }
     }
 
-    async fn handle(&self) -> Result<()> {}
+    async fn handle(&self) -> Result<()> {
+        match self {
+            NatsEvent::VideoRecordingPart(event) => Self::handle_video_recording_part(event),
+        }
+    }
 }
