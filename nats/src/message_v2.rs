@@ -23,7 +23,7 @@ use printnanny_dbus::printnanny_asyncapi_models::{
     SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
     SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdManagerUnitFilesRequest,
     SystemdUnitActiveState, SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState,
-    VideoStreamSettings,
+    VideoRecordingPart, VideoStreamSettings,
 };
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
@@ -36,6 +36,7 @@ use printnanny_services::printnanny_api::ApiService;
 
 use printnanny_gst_pipelines::factory::PrintNannyPipelineFactory;
 
+// trait for handling NATS request / reply messages
 #[async_trait]
 pub trait NatsRequestHandler {
     type Request: Serialize + DeserializeOwned + Clone + Debug + NatsRequestHandler;
@@ -47,6 +48,27 @@ pub trait NatsRequestHandler {
     }
     fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Request>;
     async fn handle(&self) -> Result<Self::Reply>;
+}
+
+// trait for handling one-way NATS event messages
+#[async_trait]
+pub trait NatsEventHandler {
+    type Event: Serialize + DeserializeOwned + Clone + Debug + NatsEventHandler;
+
+    fn replace_subject_pattern(subject: &str, pattern: &str, replace: &str) -> String {
+        // replace only first instance of pattern
+        subject.replacen(pattern, replace, 1)
+    }
+    fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Event>;
+    async fn handle(&self) -> Result<()>;
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "subject_pattern")]
+pub enum NatsEvent {
+    // pi.{pi_id}.event.camera.recording.part
+    #[serde(rename = "pi.{pi_id}.event.camera.recording.part")]
+    VideoRecordingPart(VideoRecordingPart),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

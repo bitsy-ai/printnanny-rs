@@ -15,11 +15,12 @@ use printnanny_settings::sys_info;
 
 use crate::error::RequestErrorMsg;
 
-use super::message_v2::NatsRequestHandler;
+use super::message_v2::{NatsEventHandler, NatsRequestHandler};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NatsSubscriber<Request, Reply>
+pub struct NatsSubscriber<Event, Request, Reply>
 where
+    Event: Serialize + DeserializeOwned + Debug + NatsEventHandler,
     Request: Serialize + DeserializeOwned + Debug + NatsRequestHandler,
     Reply: Serialize + DeserializeOwned + Debug,
 {
@@ -29,6 +30,7 @@ where
     require_tls: bool,
     workers: usize,
     nats_creds: Option<PathBuf>,
+    _event: PhantomData<Event>,
     _request: PhantomData<Request>,
     _response: PhantomData<Reply>,
 }
@@ -44,8 +46,9 @@ pub fn get_default_nats_subject() -> String {
     format!("pi.{}.>", hostname)
 }
 
-impl<Request, Reply> NatsSubscriber<Request, Reply>
+impl<Event, Request, Reply> NatsSubscriber<Event, Request, Reply>
 where
+    Event: Serialize + DeserializeOwned + Debug + NatsEventHandler<Event = Event>,
     Request: Serialize
         + DeserializeOwned
         + Debug
@@ -130,6 +133,7 @@ where
             nats_creds,
             require_tls,
             workers,
+            _event: PhantomData,
             _request: PhantomData,
             _response: PhantomData,
         }
@@ -166,21 +170,28 @@ where
                     "Extracted subject_pattern {} from subject {} using hostname {}",
                     &subject_pattern, &message.subject, &self.hostname
                 );
-                match Request::deserialize_payload(&subject_pattern, &message.payload) {
-                    Ok(request) => {
-                        debug!("Received NATS Message: {:?}", message);
-                        if let Some(reply_inbox) = message.reply {
-                            let payload = self.handle_request(request, &subject_pattern).await;
-                            match &nats_client.publish(reply_inbox, payload.into()).await {
-                                Ok(_) => (),
-                                Err(e) => {
-                                    error!("Error publishing msg: {}", e);
+                debug!("Attempting to handle NATS Message: {:?}", message);
+                match message.reply {
+                    // request / reply pattern
+                    Some(reply_inbox) => {
+                        let payload = self
+                            .handle_request(&message.payload, &subject_pattern)
+                            .await;
+                        match payload {
+                            Some(payload) => {
+                                match &nats_client.publish(reply_inbox, payload.into()).await {
+                                    Ok(_) => (),
+                                    Err(e) => {
+                                        error!("Error publishing msg: {}", e);
+                                    }
                                 }
                             }
+                            None => {}
                         }
                     }
-                    Err(e) => {
-                        error!("Error deserializing NATS message: {}", e);
+                    // one-way event handler
+                    None => {
+                        self.handle_event(&message.payload, &subject_pattern).await;
                     }
                 }
             })
@@ -209,16 +220,38 @@ where
         Ok(())
     }
 
-    async fn handle_request(&self, request: Request, subject_pattern: &str) -> Vec<u8> {
-        match request.handle().await {
-            Ok(r) => serde_json::to_vec(&r).unwrap(),
+    async fn handle_request(
+        &self,
+        payload: &bytes::Bytes,
+        subject_pattern: &str,
+    ) -> Option<Vec<u8>> {
+        match Request::deserialize_payload(subject_pattern, payload) {
+            Ok(request) => match request.handle().await {
+                Ok(r) => Some(serde_json::to_vec(&r).unwrap()),
+                Err(e) => {
+                    let r = RequestErrorMsg {
+                        error: e.to_string(),
+                        subject_pattern: subject_pattern.to_string(),
+                        request,
+                    };
+                    Some(serde_json::to_vec(&r).unwrap())
+                }
+            },
             Err(e) => {
-                let r = RequestErrorMsg {
-                    error: e.to_string(),
-                    subject_pattern: subject_pattern.to_string(),
-                    request,
-                };
-                serde_json::to_vec(&r).unwrap()
+                error!("Error deserializing NATS request error={}", e);
+                None
+            }
+        }
+    }
+
+    async fn handle_event(&self, payload: &bytes::Bytes, subject_pattern: &str) {
+        match Event::deserialize_payload(subject_pattern, payload) {
+            Ok(event) => match event.handle().await {
+                Ok(_) => debug!("Success handling event={}", subject_pattern),
+                Err(e) => error!("Error handling event={} error={}", subject_pattern, e),
+            },
+            Err(e) => {
+                error!("Error deserializing NATS event error={}", e);
             }
         }
     }
