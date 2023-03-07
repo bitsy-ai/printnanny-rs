@@ -386,10 +386,7 @@ impl NatsRequest {
                     "Got ActiveState={:#?} for printnanny-vision.service",
                     &active_state
                 );
-                match active_state {
-                    SystemdUnitActiveState::Active => true,
-                    _ => false,
-                }
+                matches!(active_state, SystemdUnitActiveState::Active)
             }
             Err(e) => {
                 error!("Error reading printnanny-vision.service state: {}", e);

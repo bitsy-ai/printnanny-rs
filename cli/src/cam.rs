@@ -45,7 +45,7 @@ impl CameraCommand {
         let pipeline = args.value_of("pipeline").unwrap();
         let factory = PrintNannyPipelineFactory::new(address.into(), port);
         factory
-            .run_multifilesink_fragment_uploader(pipeline)
+            .run_multifilesink_fragment_publisher(pipeline)
             .await?;
         Ok(())
     }

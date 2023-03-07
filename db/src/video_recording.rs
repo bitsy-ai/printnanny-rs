@@ -459,7 +459,7 @@ impl From<&printnanny_asyncapi_models::VideoRecordingPart> for VideoRecordingPar
         let sync_end: Option<DateTime<Utc>> = obj
             .sync_end
             .as_ref()
-            .map(|v| DateTime::parse_from_rfc3339(&v).unwrap().into());
+            .map(|v| DateTime::parse_from_rfc3339(v).unwrap().into());
         Self {
             id: obj.id.clone(),
             deleted: obj.deleted,

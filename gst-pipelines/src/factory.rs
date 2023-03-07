@@ -10,6 +10,8 @@ use printnanny_settings::cam::VideoStreamSettings;
 use printnanny_settings::printnanny::PrintNannySettings;
 use printnanny_settings::printnanny_asyncapi_models::{CameraSettings, DetectionSettings};
 
+use printnanny_nats::subscriber::wait_for_nats_client;
+
 use crate::message::GstMultiFileSinkMessage;
 
 pub const CAMERA_PIPELINE: &str = "camera";
@@ -22,7 +24,7 @@ pub const SNAPSHOT_PIPELINE: &str = "snapshot";
 pub const HLS_PIPELINE: &str = "hls";
 pub const MP4_RECORDING_PIPELINE: &str = "mp4";
 
-const GST_BUS_TIMEOUT: i32 = 6e+10 as i32; // 60 seconds (in nanoseconds)
+const GST_BUS_TIMEOUT: i32 = 6e+11 as i32; // 600 seconds (in nanoseconds)
 
 pub struct PrintNannyPipelineFactory {
     pub address: String,
@@ -370,13 +372,20 @@ impl PrintNannyPipelineFactory {
     }
 
     // subscribe to splitmuxsink-fragment-closed message
-    pub async fn run_multifilesink_fragment_uploader(&self, pipeline_name: &str) -> Result<()> {
+    pub async fn run_multifilesink_fragment_publisher(&self, pipeline_name: &str) -> Result<()> {
         let settings = PrintNannySettings::new().await?;
+
+        let nats_client = wait_for_nats_client(DEFAULT_NATS_URI, None, false).await?;
+
         let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
         let pipeline = client.pipeline(pipeline_name);
         let bus = pipeline.bus();
         // filter bus messages
         bus.set_filter("GstMultiFileSink").await?;
+
+        // set timeout
+        bus.set_timeout(GST_BUS_TIMEOUT).await?;
+
         // read bus messages
 
         info!(
@@ -385,8 +394,6 @@ impl PrintNannyPipelineFactory {
         );
 
         let sqlite_connection = settings.paths.db().display().to_string();
-        let mut recording =
-            printnanny_edge_db::video_recording::VideoRecording::get_current(&sqlite_connection)?;
         loop {
             let msg = bus.read().await;
             match msg {
@@ -404,7 +411,7 @@ impl PrintNannyPipelineFactory {
                             match filesink_msg {
                                 Ok(filesink_msg) => {
                                     // try to get current recording
-                                    recording =
+                                    let recording =
                                     printnanny_edge_db::video_recording::VideoRecording::get_current(&sqlite_connection)?;
                                     if recording.is_none() {
                                         warn!("Refusing to process GstMultiFileSink msg, could not find active recording");

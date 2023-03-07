@@ -12,7 +12,6 @@ use crate::error::VideoRecordingSyncError;
 use crate::printnanny_api::ApiService;
 
 use printnanny_api_client::models;
-use printnanny_edge_db::printnanny_asyncapi_models;
 use printnanny_edge_db::video_recording;
 use printnanny_settings::printnanny::PrintNannyApiConfig;
 
