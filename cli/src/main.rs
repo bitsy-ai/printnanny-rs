@@ -13,6 +13,7 @@ use printnanny_cli::cam::CameraCommand;
 use printnanny_nats::cloud_publisher::DEFAULT_NATS_CLOUD_PUBLISHER_APP_NAME;
 use printnanny_nats::subscriber::{ DEFAULT_NATS_EDGE_APP_NAME, NatsSubscriber};
 use printnanny_nats::message_v2::{NatsReply, NatsRequest};
+use printnanny_nats::event::{NatsEvent};
 use printnanny_nats::cloud_worker::DEFAULT_NATS_CLOUD_APP_NAME;
 use printnanny_services::printnanny_api::ApiService;
 use printnanny_services::setup::printnanny_os_init;
@@ -278,7 +279,7 @@ async fn main() -> Result<()> {
             ))
 
         // nats-edge-worker
-        .subcommand(NatsSubscriber::<NatsRequest, NatsReply>::clap_command(Some(DEFAULT_NATS_EDGE_APP_NAME.to_string())))
+        .subcommand(NatsSubscriber::<NatsEvent, NatsRequest, NatsReply>::clap_command(Some(DEFAULT_NATS_EDGE_APP_NAME.to_string())))
         // TODO
         // .subcommand(printnanny_nats::subscriber::NatsSubscriber::<NatsRequest, NatsReply>::clap_command(None))
         // nats-cloud-worker
@@ -379,7 +380,7 @@ async fn main() -> Result<()> {
         },
 
         Some((DEFAULT_NATS_EDGE_APP_NAME, sub_m)) => {
-            let worker = NatsSubscriber::<NatsRequest, NatsReply>::new(sub_m);
+            let worker = NatsSubscriber::<NatsEvent, NatsRequest, NatsReply>::new(sub_m);
             worker.run().await?;
         },
 

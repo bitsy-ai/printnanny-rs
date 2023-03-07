@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
+use log::warn;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -29,7 +30,7 @@ pub enum NatsEvent {
     VideoRecordingPart(VideoRecordingPart),
 }
 
-impl NatsEventHandler {
+impl NatsEvent {
     async fn handle_video_recording_part(event: &VideoRecordingPart) -> Result<()> {
         Ok(())
     }
@@ -48,12 +49,16 @@ impl NatsEventHandler for NatsEvent {
                     payload.as_ref()
                 )?))
             }
+            _ => Err(anyhow!(
+                " NatsEventHandler not implemented for subject pattern {}",
+                subject_pattern
+            )),
         }
     }
 
     async fn handle(&self) -> Result<()> {
         match self {
-            NatsEvent::VideoRecordingPart(event) => Self::handle_video_recording_part(event),
+            NatsEvent::VideoRecordingPart(event) => Self::handle_video_recording_part(event).await,
         }
     }
 }

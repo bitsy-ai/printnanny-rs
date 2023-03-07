@@ -1,5 +1,6 @@
 use anyhow::Result;
-use printnanny_nats::message_v2::{NatsEvent, NatsReply, NatsRequest};
+use printnanny_nats::event::NatsEvent;
+use printnanny_nats::message_v2::{NatsReply, NatsRequest};
 use printnanny_nats::subscriber::NatsSubscriber;
 
 #[tokio::main]

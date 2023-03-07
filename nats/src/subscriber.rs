@@ -187,7 +187,12 @@ where
                                     }
                                 }
                             }
-                            None => {}
+                            None => {
+                                warn!(
+                                    "Expected reply payload for {}, but received None",
+                                    &reply_inbox
+                                )
+                            }
                         }
                     }
                     // one-way event handler
