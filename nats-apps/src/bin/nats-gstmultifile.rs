@@ -1,20 +1,38 @@
-use anyhow::Result;
-use printnanny_gst_pipelines::factory::PrintNannyPipelineFactory;
-use printnanny_nats::subscriber::wait_for_nats_client;
+#[macro_use]
+extern crate clap;
 
+use anyhow::Result;
+use clap::{Arg, Command};
+
+use env_logger::Builder;
+use git_version::git_version;
+use log::{error, info, warn, LevelFilter};
+use tokio::fs;
+
+use printnanny_gst_pipelines::factory::{PrintNannyPipelineFactory, MP4_RECORDING_PIPELINE};
+use printnanny_gst_pipelines::gst_client;
 use printnanny_gst_pipelines::message::GstMultiFileSinkMessage;
+use printnanny_nats_client::client::wait_for_nats_client;
+use printnanny_settings::printnanny::PrintNannySettings;
 
 const DEFAULT_NATS_URI: &str = "nats://localhost:4223";
+const DEFAULT_NATS_WAIT: u64 = 2000; // sleep 2 seconds between connection attempts
+const GST_BUS_TIMEOUT: i32 = 6e+11 as i32; // 600 seconds (in nanoseconds)
+const GIT_VERSION: &str = git_version!();
 
 // Subscribe to GstMultiFileSink messages on gstreamer bus, re-publish NATS message
 
 // subscribe to splitmuxsink-fragment-closed message
-pub async fn run_multifilesink_fragment_publisher(pipeline_name: &str) -> Result<()> {
+pub async fn run_multifilesink_fragment_publisher(
+    factory: PrintNannyPipelineFactory,
+    pipeline_name: &str,
+) -> Result<()> {
     let settings = PrintNannySettings::new().await?;
 
-    let nats_client = wait_for_nats_client(DEFAULT_NATS_URI, None, false).await?;
+    let nats_client =
+        wait_for_nats_client(DEFAULT_NATS_URI, &None, false, DEFAULT_NATS_WAIT).await?;
 
-    let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
+    let client = gst_client::GstClient::build(&factory.uri).expect("Failed to build GstClient");
     let pipeline = client.pipeline(pipeline_name);
     let bus = pipeline.bus();
     // filter bus messages
@@ -36,7 +54,7 @@ pub async fn run_multifilesink_fragment_publisher(pipeline_name: &str) -> Result
         match msg {
             Ok(msg) => {
                 match msg.response {
-                    gstd_types::ResponseT::Bus(Some(msg)) => {
+                    gst_client::gstd_types::ResponseT::Bus(Some(msg)) => {
                         info!(
                             "Handling msg on gstreamer pipeline bus name={} msg={:?}",
                             pipeline_name, msg
@@ -56,7 +74,7 @@ pub async fn run_multifilesink_fragment_publisher(pipeline_name: &str) -> Result
                                 }
                                 let video_recording_id = recording.unwrap().id;
 
-                                let size = fs::metadata(&filesink_msg.filename)?.len() as i64;
+                                let size = fs::metadata(&filesink_msg.filename).await?.len() as i64;
 
                                 // insert new VideoRecordingPart
                                 let row_id = format!("{video_recording_id}-{}", filesink_msg.index);
@@ -96,4 +114,62 @@ pub async fn run_multifilesink_fragment_publisher(pipeline_name: &str) -> Result
             }
         }
     }
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let mut builder = Builder::new();
+    let app_name = "printnanny-nats-gstmultifile";
+    let app = Command::new(app_name)
+        .subcommand_required(true)
+        .author(crate_authors!())
+        .about(crate_description!())
+        .version(GIT_VERSION)
+        .arg(
+            Arg::new("v")
+                .short('v')
+                .multiple_occurrences(true)
+                .help("Sets the level of verbosity. Info: -v Debug: -vv Trace: -vvv"),
+        )
+        .arg(
+            Arg::new("http-address")
+                .takes_value(true)
+                .long("http-address")
+                .default_value("127.0.0.1")
+                .help("Attach to the server through a given address"),
+        )
+        .arg(
+            Arg::new("http-port")
+                .takes_value(true)
+                .long("http-port")
+                .default_value("5001")
+                .help("Attach to the server through a given port"),
+        )
+        .arg(
+            Arg::new("pipeline")
+                .takes_value(true)
+                .long("pipeline")
+                .default_value(MP4_RECORDING_PIPELINE)
+                .help("Name of pipeline"),
+        );
+    let args = app.get_matches();
+    // Vary the output based on how many times the user used the "verbose" flag
+    // (i.e. 'printnanny v v v' or 'printnanny vvv' vs 'printnanny v'
+    let verbosity = args.occurrences_of("v");
+    match verbosity {
+        0 => {
+            builder.filter_level(LevelFilter::Warn).init();
+        }
+        1 => {
+            builder.filter_level(LevelFilter::Info).init();
+        }
+        2 => {
+            builder.filter_level(LevelFilter::Debug).init();
+        }
+        _ => builder.filter_level(LevelFilter::Trace).init(),
+    };
+
+    let factory = PrintNannyPipelineFactory::from(&args);
+
+    Ok(())
 }

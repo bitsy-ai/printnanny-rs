@@ -1,6 +1,7 @@
 use std::fs;
 
 use anyhow::Result;
+use clap::ArgMatches;
 use gst_client::reqwest;
 use gst_client::GstClient;
 use log::{error, info, warn};
@@ -19,8 +20,6 @@ pub const SNAPSHOT_PIPELINE: &str = "snapshot";
 pub const HLS_PIPELINE: &str = "hls";
 pub const MP4_RECORDING_PIPELINE: &str = "mp4";
 
-const GST_BUS_TIMEOUT: i32 = 6e+11 as i32; // 600 seconds (in nanoseconds)
-
 pub struct PrintNannyPipelineFactory {
     pub address: String,
     pub port: i32,
@@ -33,6 +32,15 @@ impl Default for PrintNannyPipelineFactory {
         let port = 5002;
         let uri = Self::uri(&address, port);
         Self { address, port, uri }
+    }
+}
+
+impl From<&ArgMatches> for PrintNannyPipelineFactory {
+    fn from(args: &ArgMatches) -> Self {
+        let defaults = PrintNannyPipelineFactory::default();
+        let address = args.value_of("http-address").unwrap_or(&defaults.address);
+        let port: i32 = args.value_of_t("http-port").unwrap_or(defaults.port);
+        Self::new(address.to_string(), port)
     }
 }
 

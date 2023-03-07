@@ -3622,6 +3622,7 @@ name = "printnanny-gst-pipelines"
 version = "0.2.0"
 dependencies = [
  "anyhow",
+ "clap",
  "gst-client-rs",
  "log",
  "printnanny-edge-db",

@@ -11,6 +11,7 @@ rust-version = "1.66"
 
 [dependencies]
 anyhow = "1"                                   # Flexible concrete Error type built on std::error::Error
+clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
 gst-client = { package="gst-client-rs", path = "../gst-client-rs", version="^0.2" }
 printnanny-edge-db = { path = "../db", version = "^0.2"}
 printnanny-settings = { package="printnanny-settings", version = "^0.6", path="../settings" }

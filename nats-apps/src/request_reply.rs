@@ -7,7 +7,6 @@ use bytes::Bytes;
 use chrono::Utc;
 use log::{error, info, warn};
 use printnanny_settings::cam::CameraVideoSource;
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 
