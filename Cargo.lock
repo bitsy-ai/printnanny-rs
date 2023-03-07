@@ -641,6 +641,7 @@ dependencies = [
  "js-sys",
  "num-integer",
  "num-traits 0.2.15",
+ "serde 1.0.152",
  "time 0.1.45",
  "wasm-bindgen",
  "winapi",

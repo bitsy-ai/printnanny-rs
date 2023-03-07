@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use log::info;
+use serde::{Deserialize, Serialize};
 use uuid;
 
 use printnanny_api_client::models;
@@ -13,7 +14,7 @@ use crate::connection::establish_sqlite_connection;
 use crate::schema::video_recording_parts;
 use crate::schema::video_recordings;
 
-#[derive(Queryable, Identifiable, Clone, Debug, PartialEq, Default)]
+#[derive(Queryable, Identifiable, Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[diesel(table_name = video_recordings)]
 pub struct VideoRecording {
     pub id: String,
@@ -25,7 +26,7 @@ pub struct VideoRecording {
 }
 
 // sqlite does not support unsigned integers, so we need to cast to/from u32 and u64
-#[derive(Queryable, Identifiable, Clone, Debug, PartialEq, Default)]
+#[derive(Queryable, Identifiable, Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[diesel(table_name = video_recording_parts)]
 pub struct VideoRecordingPart {
     pub id: String,
@@ -354,6 +355,16 @@ impl VideoRecordingPart {
             .values(&row)
             .execute(connection)?;
         Ok(())
+    }
+
+    pub fn get_by_id(
+        connection_str: &str,
+        row_id: &str,
+    ) -> Result<VideoRecordingPart, diesel::result::Error> {
+        use crate::schema::video_recording_parts::dsl::*;
+        let connection = &mut establish_sqlite_connection(connection_str);
+        let result = video_recording_parts.find(&row_id).first(connection)?;
+        Ok(result)
     }
 
     pub fn update_from_cloud(
