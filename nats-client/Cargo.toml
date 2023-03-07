@@ -1,24 +1,12 @@
 [package]
-name = "printnanny-nats"
-description = "Library of MQTT, API, and other services used by PrintNanny.ai"
+name = "printnanny-nats-client"
+description = "PrintNanny.ai edge/cloud NATS clients"
 license = "AGPL-3.0-or-later"
 version = "0.33.0"
 authors = ["Leigh Johnson <leigh@printnanny.ai>"]
 edition = "2021"
 rust-version = "1.66"
 repository = "https://github.com/bitsy-ai/printnanny-rs.git"
-
-[[bin]]
-name = "dbus-systemd-nats-adapter"
-
-[[bin]]
-name = "nats-cloud-publisher"
-
-[[bin]]
-name = "nats-cloud-worker"
-
-[[bin]]
-name = "nats-edge-worker"
 
 [features]
 default = []
@@ -39,12 +27,9 @@ futures-util = "0.3.25"        # Common utilities and extension traits for the f
 git-version = "0.3"
 log = "0.4"
 nix = {version = "0.26.1", features = ["net"]}
-printnanny-api-client = "0.127.4"
 printnanny-dbus = { path = "../dbus", version = "^0.5"}
 printnanny-edge-db = { path = "../db", version = "^0.2"}
-printnanny-gst-pipelines = { path = "../gst-pipelines", version = "^0.2", package="printnanny-gst-pipelines"}
 printnanny-settings = { path = "../settings", version = "^0.6"}
-printnanny-services = {path = "../services", version = "^0.33.0"}
 serde = { version = "1", features = ["derive"] }
 serde_bytes = "0.11"
 serde_json = "1"

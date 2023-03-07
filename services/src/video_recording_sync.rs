@@ -15,7 +15,7 @@ use printnanny_api_client::models;
 use printnanny_edge_db::video_recording;
 use printnanny_settings::printnanny::PrintNannyApiConfig;
 
-async fn upload_video_recording_part(
+pub async fn upload_video_recording_part(
     part: video_recording::VideoRecordingPart,
     api_config: PrintNannyApiConfig,
     sqlite_connection: String,

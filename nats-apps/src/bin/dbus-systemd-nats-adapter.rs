@@ -5,10 +5,9 @@ use clap::{crate_authors, crate_description, Arg, Command};
 use env_logger::Builder;
 use futures_util::StreamExt;
 use git_version::git_version;
+use log::info;
 use log::LevelFilter;
-use log::{info, warn};
 use printnanny_dbus::printnanny_asyncapi_models::SystemdUnitActiveState;
-use tokio::time::{sleep, Duration};
 
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
@@ -18,7 +17,7 @@ use printnanny_settings::printnanny_asyncapi_models::{
 };
 use printnanny_settings::sys_info;
 
-use printnanny_nats::client::try_init_nats_client;
+use printnanny_nats_client::client::wait_for_nats_client;
 
 const DEFAULT_NATS_URI: &str = "nats://localhost:4223";
 const GIT_VERSION: &str = git_version!();
@@ -28,23 +27,10 @@ async fn receive_active_state_change(
     nats_server_uri: String,
     nats_creds: Option<PathBuf>,
 ) -> Result<()> {
-    let mut nats_client: Option<async_nats::Client> = None;
     let hostname = sys_info::hostname()?;
     let subject = format!("pi.{}.dbus.org.freedesktop.systemd1.Unit", &hostname);
-    while nats_client.is_none() {
-        match try_init_nats_client(&nats_server_uri, nats_creds.clone(), false).await {
-            Ok(nc) => {
-                nats_client = Some(nc);
-            }
-            Err(_) => {
-                warn!(
-                    "Waiting for NATS server to be available before initializing dbus subscriber threads"
-                );
-                sleep(Duration::from_millis(2000)).await;
-            }
-        }
-    }
-    let nats_client = nats_client.unwrap();
+    let nats_client =
+        wait_for_nats_client(&nats_server_uri, &nats_creds.clone(), false, 2000).await?;
 
     let connection = zbus::Connection::system().await?;
     let manager = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
@@ -89,23 +75,10 @@ async fn receive_unit_file_state_change(
     nats_server_uri: String,
     nats_creds: Option<PathBuf>,
 ) -> Result<()> {
-    let mut nats_client: Option<async_nats::Client> = None;
     let hostname = sys_info::hostname()?;
     let subject = format!("pi.{}.dbus.org.freedesktop.systemd1.Unit", &hostname);
-    while nats_client.is_none() {
-        match try_init_nats_client(&nats_server_uri, nats_creds.clone(), false).await {
-            Ok(nc) => {
-                nats_client = Some(nc);
-            }
-            Err(_) => {
-                warn!(
-                    "Waiting for NATS server to be available before initializing dbus subscriber threads"
-                );
-                sleep(Duration::from_millis(2000)).await;
-            }
-        }
-    }
-    let nats_client = nats_client.unwrap();
+    let nats_client =
+        wait_for_nats_client(&nats_server_uri, &nats_creds.clone(), false, 2000).await?;
 
     let connection = zbus::Connection::system().await?;
     let manager = zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;

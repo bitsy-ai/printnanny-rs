@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use log::info;
+use serde::{Deserialize, Serialize};
 use uuid;
 
 use printnanny_api_client::models;
@@ -13,7 +14,7 @@ use crate::connection::establish_sqlite_connection;
 use crate::schema::video_recording_parts;
 use crate::schema::video_recordings;
 
-#[derive(Queryable, Identifiable, Clone, Debug, PartialEq, Default)]
+#[derive(Queryable, Identifiable, Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[diesel(table_name = video_recordings)]
 pub struct VideoRecording {
     pub id: String,
@@ -25,7 +26,7 @@ pub struct VideoRecording {
 }
 
 // sqlite does not support unsigned integers, so we need to cast to/from u32 and u64
-#[derive(Queryable, Identifiable, Clone, Debug, PartialEq, Default)]
+#[derive(Queryable, Identifiable, Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[diesel(table_name = video_recording_parts)]
 pub struct VideoRecordingPart {
     pub id: String,
@@ -356,6 +357,16 @@ impl VideoRecordingPart {
         Ok(())
     }
 
+    pub fn get_by_id(
+        connection_str: &str,
+        row_id: &str,
+    ) -> Result<VideoRecordingPart, diesel::result::Error> {
+        use crate::schema::video_recording_parts::dsl::*;
+        let connection = &mut establish_sqlite_connection(connection_str);
+        let result = video_recording_parts.find(&row_id).first(connection)?;
+        Ok(result)
+    }
+
     pub fn update_from_cloud(
         connection_str: &str,
         obj: &models::VideoRecordingPart,
@@ -446,6 +457,35 @@ impl From<VideoRecordingPart> for printnanny_asyncapi_models::VideoRecordingPart
             sync_start: obj.sync_start.map(|v| v.to_rfc3339()),
             sync_end: obj.sync_end.map(|v| v.to_rfc3339()),
             file_name: obj.file_name,
+        }
+    }
+}
+
+impl From<&printnanny_asyncapi_models::VideoRecordingPart> for VideoRecordingPart {
+    fn from(obj: &printnanny_asyncapi_models::VideoRecordingPart) -> Self {
+        let sync_start: Option<DateTime<Utc>> = obj
+            .sync_start
+            .as_ref()
+            .map(|v| DateTime::parse_from_rfc3339(v).unwrap().into());
+        let sync_end: Option<DateTime<Utc>> = obj
+            .sync_end
+            .as_ref()
+            .map(|v| DateTime::parse_from_rfc3339(v).unwrap().into());
+        Self {
+            id: obj.id.clone(),
+            deleted: obj.deleted,
+            size: obj.size,
+            buffer_duration: obj.buffer_duration,
+            buffer_index: obj.buffer_index,
+            buffer_ts: obj.buffer_ts,
+            buffer_runningtime: obj.buffer_runningtime,
+            buffer_streamtime: obj.buffer_streamtime,
+            buffer_offset: obj.buffer_offset,
+            buffer_offset_end: obj.buffer_offset_end,
+            video_recording_id: obj.video_recording_id.clone(),
+            file_name: obj.file_name.clone(),
+            sync_start,
+            sync_end,
         }
     }
 }

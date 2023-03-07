@@ -9,7 +9,8 @@ members = [
     "snapshot",
     "settings",
     "services",
-    "nats",
+    "nats-client",
+    "nats-apps"
 ]
 
 

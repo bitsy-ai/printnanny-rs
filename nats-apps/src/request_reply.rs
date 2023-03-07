@@ -7,7 +7,6 @@ use bytes::Bytes;
 use chrono::Utc;
 use log::{error, info, warn};
 use printnanny_settings::cam::CameraVideoSource;
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 
@@ -36,18 +35,7 @@ use printnanny_services::printnanny_api::ApiService;
 
 use printnanny_gst_pipelines::factory::PrintNannyPipelineFactory;
 
-#[async_trait]
-pub trait NatsRequestHandler {
-    type Request: Serialize + DeserializeOwned + Clone + Debug + NatsRequestHandler;
-    type Reply: Serialize + DeserializeOwned + Clone + Debug;
-
-    fn replace_subject_pattern(subject: &str, pattern: &str, replace: &str) -> String {
-        // replace only first instance of pattern
-        subject.replacen(pattern, replace, 1)
-    }
-    fn deserialize_payload(subject_pattern: &str, payload: &Bytes) -> Result<Self::Request>;
-    async fn handle(&self) -> Result<Self::Reply>;
-}
+use printnanny_nats_client::request_reply::NatsRequestHandler;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "subject_pattern")]
@@ -385,10 +373,7 @@ impl NatsRequest {
                     "Got ActiveState={:#?} for printnanny-vision.service",
                     &active_state
                 );
-                match active_state {
-                    SystemdUnitActiveState::Active => true,
-                    _ => false,
-                }
+                matches!(active_state, SystemdUnitActiveState::Active)
             }
             Err(e) => {
                 error!("Error reading printnanny-vision.service state: {}", e);

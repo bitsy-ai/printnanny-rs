@@ -16,6 +16,8 @@ use printnanny_settings::toml;
 
 use printnanny_settings::error::{PrintNannySettingsError, VersionControlledSettingsError};
 
+use printnanny_nats_client::error::NatsError;
+
 #[derive(Error, Debug)]
 pub enum VideoRecordingUpdateOrCreateError {
     #[error(transparent)]
@@ -186,23 +188,6 @@ pub enum ServiceError {
 
     #[error(transparent)]
     TaskJoinError(#[from] tokio::task::JoinError),
-}
-
-#[derive(Error, Debug)]
-pub enum NatsError {
-    #[error("Connection to {path} failed")]
-    UnixSocketNotFound { path: String },
-    #[error("NatsConnection error {msg}")]
-    NatsConnection { msg: String },
-
-    #[error("Nats PublishError {error}")]
-    PublishError { error: String },
-
-    #[error(transparent)]
-    SerdeJsonError(#[from] serde_json::Error),
-
-    #[error(transparent)]
-    AnyhowError(#[from] anyhow::Error),
 }
 
 #[derive(Error, Debug)]

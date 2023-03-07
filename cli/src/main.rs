@@ -8,17 +8,13 @@ use clap::{
 };
 use git_version::git_version;
 
-
-use printnanny_cli::cam::CameraCommand;
-use printnanny_nats::cloud_publisher::DEFAULT_NATS_CLOUD_PUBLISHER_APP_NAME;
-use printnanny_nats::subscriber::{ DEFAULT_NATS_EDGE_APP_NAME, NatsSubscriber};
-use printnanny_nats::message_v2::{NatsReply, NatsRequest};
-use printnanny_nats::cloud_worker::DEFAULT_NATS_CLOUD_APP_NAME;
 use printnanny_services::printnanny_api::ApiService;
 use printnanny_services::setup::printnanny_os_init;
 use printnanny_settings::{SettingsFormat};
 use printnanny_services::janus::{ JanusAdminEndpoint, janus_admin_api_call };
 use printnanny_settings::printnanny::PrintNannySettings;
+
+use printnanny_cli::cam::CameraCommand;
 use printnanny_cli::settings::{SettingsCommand};
 use printnanny_cli::cloud_data::CloudDataCommand;
 use printnanny_cli::os::{OsCommand};
@@ -276,15 +272,6 @@ async fn main() -> Result<()> {
                     .help("Output format")
                 )            
             ))
-
-        // nats-edge-worker
-        .subcommand(NatsSubscriber::<NatsRequest, NatsReply>::clap_command(Some(DEFAULT_NATS_EDGE_APP_NAME.to_string())))
-        // TODO
-        // .subcommand(printnanny_nats::subscriber::NatsSubscriber::<NatsRequest, NatsReply>::clap_command(None))
-        // nats-cloud-worker
-        .subcommand(printnanny_nats::cloud_worker::NatsCloudWorker::clap_command(Some(DEFAULT_NATS_CLOUD_APP_NAME.to_string())))
-        // nats-cloud-publisher
-        .subcommand(printnanny_nats::cloud_publisher::CloudEventPublisher::clap_command(Some(DEFAULT_NATS_CLOUD_PUBLISHER_APP_NAME.to_string())))
         // os <issue|motd>
         .subcommand(Command::new("os")
             .author(crate_authors!())
@@ -368,20 +355,6 @@ async fn main() -> Result<()> {
         Some(("init", _sub_m)) => {
             printnanny_os_init().await?;
         }
-        Some(("nats-publisher", sub_m)) => {
-            let app = printnanny_nats::cloud_publisher::CloudEventPublisher::new(sub_m).await?;
-            app.run().await?;
-        },
-
-        Some((DEFAULT_NATS_CLOUD_APP_NAME, sub_m)) => {
-            let app = printnanny_nats::cloud_worker::NatsCloudWorker::new(sub_m).await?;
-            app.run().await?;
-        },
-
-        Some((DEFAULT_NATS_EDGE_APP_NAME, sub_m)) => {
-            let worker = NatsSubscriber::<NatsRequest, NatsReply>::new(sub_m);
-            worker.run().await?;
-        },
 
         Some(("settings", subm)) => {
             SettingsCommand::handle(subm).await?;
