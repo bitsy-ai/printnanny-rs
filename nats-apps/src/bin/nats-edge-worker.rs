@@ -1,7 +1,7 @@
 use anyhow::Result;
-use printnanny_nats::event::NatsEvent;
-use printnanny_nats::message_v2::{NatsReply, NatsRequest};
-use printnanny_nats::subscriber::NatsSubscriber;
+use printnanny_nats_apps::event::NatsEvent;
+use printnanny_nats_apps::request_reply::{NatsReply, NatsRequest};
+use printnanny_nats_client::subscriber::NatsSubscriber;
 
 #[tokio::main]
 async fn main() -> Result<()> {

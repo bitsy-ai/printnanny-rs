@@ -3576,7 +3576,6 @@ dependencies = [
  "printnanny-dbus",
  "printnanny-edge-db",
  "printnanny-gst-pipelines",
- "printnanny-nats",
  "printnanny-services",
  "printnanny-settings",
  "serde 1.0.152",
@@ -3626,6 +3625,7 @@ dependencies = [
  "gst-client-rs",
  "log",
  "printnanny-edge-db",
+ "printnanny-nats-client",
  "printnanny-settings",
  "serde 1.0.152",
  "serde_json",
@@ -3666,7 +3666,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "printnanny-nats"
+name = "printnanny-nats-apps"
 version = "0.33.0"
 dependencies = [
  "anyhow",
@@ -3687,7 +3687,42 @@ dependencies = [
  "printnanny-dbus",
  "printnanny-edge-db",
  "printnanny-gst-pipelines",
+ "printnanny-nats-client",
  "printnanny-services",
+ "printnanny-settings",
+ "serde 1.0.152",
+ "serde-reflection",
+ "serde_bytes",
+ "serde_json",
+ "serde_variant",
+ "test-log",
+ "thiserror",
+ "tokio",
+ "tokio-serde",
+ "tokio-util",
+ "uuid 1.2.2",
+]
+
+[[package]]
+name = "printnanny-nats-client"
+version = "0.33.0"
+dependencies = [
+ "anyhow",
+ "async-nats",
+ "async-process",
+ "async-trait",
+ "bytes",
+ "chrono",
+ "clap",
+ "env_logger",
+ "figment",
+ "futures",
+ "futures-util",
+ "git-version",
+ "log",
+ "nix 0.26.2",
+ "printnanny-dbus",
+ "printnanny-edge-db",
  "printnanny-settings",
  "serde 1.0.152",
  "serde-reflection",
@@ -3731,6 +3766,7 @@ dependencies = [
  "printnanny-dbus",
  "printnanny-edge-db",
  "printnanny-gst-pipelines",
+ "printnanny-nats-client",
  "printnanny-settings",
  "procfs",
  "rand 0.8.5",

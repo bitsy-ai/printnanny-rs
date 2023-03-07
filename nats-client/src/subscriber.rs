@@ -4,19 +4,17 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::{crate_authors, Arg, ArgMatches, Command};
-use futures::stream::StreamExt;
+use futures_util::StreamExt;
 use log::{debug, error, info, warn};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use tokio::time::{sleep, Duration};
 
-use printnanny_services::error::NatsError;
 use printnanny_settings::sys_info;
 
-use crate::error::RequestErrorMsg;
-
+use super::client::wait_for_nats_client;
 use super::event::NatsEventHandler;
-use super::message_v2::NatsRequestHandler;
+use super::request_reply::NatsRequestHandler;
+use crate::error::{NatsError, RequestErrorMsg};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NatsSubscriber<Event, Request, Reply>
@@ -45,62 +43,6 @@ pub const DEFAULT_NATS_EDGE_SUBJECT: &str = "pi.localhost.>";
 pub fn get_default_nats_subject() -> String {
     let hostname = sys_info::hostname().unwrap();
     format!("pi.{}.>", hostname)
-}
-
-pub async fn try_init_nats_client(
-    nats_server_uri: &str,
-    nats_creds: &Option<PathBuf>,
-    require_tls: bool,
-) -> Result<async_nats::Client, std::io::Error> {
-    match nats_creds {
-        Some(nats_creds) => match nats_creds.exists() {
-            true => {
-                async_nats::ConnectOptions::with_credentials_file(nats_creds.clone())
-                    .await?
-                    .require_tls(require_tls)
-                    .connect(nats_server_uri)
-                    .await
-            }
-            false => {
-                warn!(
-                    "Failed to read {}. Initializing NATS client without credentials",
-                    nats_creds.display()
-                );
-                async_nats::ConnectOptions::new()
-                    .require_tls(require_tls)
-                    .connect(nats_server_uri)
-                    .await
-            }
-        },
-        None => {
-            async_nats::ConnectOptions::new()
-                .require_tls(require_tls)
-                .connect(nats_server_uri)
-                .await
-        }
-    }
-}
-
-pub async fn wait_for_nats_client(
-    nats_server_uri: &str,
-    nats_creds: &Option<PathBuf>,
-    require_tls: bool,
-    wait: u64,
-) -> Result<async_nats::Client, std::io::Error> {
-    // wait for NATS to be available
-    let mut nats_client: Option<async_nats::Client> = None;
-    while nats_client.is_none() {
-        match try_init_nats_client(nats_server_uri, nats_creds, require_tls).await {
-            Ok(nc) => {
-                nats_client = Some(nc);
-            }
-            Err(_) => {
-                warn!("Waiting for NATS server to be available");
-                sleep(Duration::from_millis(wait)).await;
-            }
-        }
-    }
-    Ok(nats_client.unwrap())
 }
 
 impl<Event, Request, Reply> NatsSubscriber<Event, Request, Reply>

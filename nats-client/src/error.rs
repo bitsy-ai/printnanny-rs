@@ -4,6 +4,23 @@ use std::fmt::Debug;
 use serde::Serialize;
 use thiserror::Error;
 
+#[derive(Error, Debug)]
+pub enum NatsError {
+    #[error("Connection to {path} failed")]
+    UnixSocketNotFound { path: String },
+    #[error("NatsConnection error {msg}")]
+    NatsConnection { msg: String },
+
+    #[error("Nats PublishError {error}")]
+    PublishError { error: String },
+
+    #[error(transparent)]
+    SerdeJsonError(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    AnyhowError(#[from] anyhow::Error),
+}
+
 #[derive(Error, Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct RequestErrorMsg<Request: Serialize + Debug> {
     pub subject_pattern: String,
