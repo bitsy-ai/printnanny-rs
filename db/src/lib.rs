@@ -9,3 +9,4 @@ pub mod user;
 pub mod video_recording;
 
 pub use diesel;
+pub use printnanny_asyncapi_models;

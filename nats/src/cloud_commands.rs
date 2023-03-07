@@ -24,7 +24,7 @@ pub fn build_boot_status_payload(
     // emit status event to pi.$id.<topic>.commands.$command_id
     let subject = format!("pi.{pi_id}.status.boot", pi_id = cmd.pi);
     let id = Some(Uuid::new_v4().to_string());
-    let created_dt: DateTime<Utc> = SystemTime::now().into();
+    let created_dt: DateTime<Utc> = Utc::now();
     let created_dt = Some(created_dt.to_rfc3339());
 
     let request = PolymorphicPiEventRequest::PiBootStatusRequest(

@@ -3,11 +3,12 @@ use std::fmt::Debug;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
-use log::warn;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use printnanny_dbus::printnanny_asyncapi_models::VideoRecordingPart;
+use printnanny_services::video_recording_sync::upload_video_recording_part;
+use printnanny_settings::printnanny::PrintNannySettings;
 
 // trait for handling one-way NATS event messages
 #[async_trait]
@@ -32,6 +33,9 @@ pub enum NatsEvent {
 
 impl NatsEvent {
     async fn handle_video_recording_part(event: &VideoRecordingPart) -> Result<()> {
+        let settings = PrintNannySettings::new().await?;
+        let sqlite_connection = settings.paths.db().display().to_string();
+        upload_video_recording_part(event.into(), settings.cloud, sqlite_connection).await?;
         Ok(())
     }
 }

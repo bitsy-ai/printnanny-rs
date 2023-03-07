@@ -23,7 +23,7 @@ use printnanny_dbus::printnanny_asyncapi_models::{
     SystemdManagerRestartUnitRequest, SystemdManagerStartUnitReply, SystemdManagerStartUnitRequest,
     SystemdManagerStopUnitReply, SystemdManagerStopUnitRequest, SystemdManagerUnitFilesRequest,
     SystemdUnitActiveState, SystemdUnitChange, SystemdUnitChangeState, SystemdUnitFileState,
-    VideoRecordingPart, VideoStreamSettings,
+    VideoStreamSettings,
 };
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;

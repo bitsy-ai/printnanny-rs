@@ -449,3 +449,32 @@ impl From<VideoRecordingPart> for printnanny_asyncapi_models::VideoRecordingPart
         }
     }
 }
+
+impl From<&printnanny_asyncapi_models::VideoRecordingPart> for VideoRecordingPart {
+    fn from(obj: &printnanny_asyncapi_models::VideoRecordingPart) -> Self {
+        let sync_start: Option<DateTime<Utc>> = obj
+            .sync_start
+            .as_ref()
+            .map(|v| DateTime::parse_from_rfc3339(v).unwrap().into());
+        let sync_end: Option<DateTime<Utc>> = obj
+            .sync_end
+            .as_ref()
+            .map(|v| DateTime::parse_from_rfc3339(&v).unwrap().into());
+        Self {
+            id: obj.id.clone(),
+            deleted: obj.deleted,
+            size: obj.size,
+            buffer_duration: obj.buffer_duration,
+            buffer_index: obj.buffer_index,
+            buffer_ts: obj.buffer_ts,
+            buffer_runningtime: obj.buffer_runningtime,
+            buffer_streamtime: obj.buffer_streamtime,
+            buffer_offset: obj.buffer_offset,
+            buffer_offset_end: obj.buffer_offset_end,
+            video_recording_id: obj.video_recording_id.clone(),
+            file_name: obj.file_name.clone(),
+            sync_start,
+            sync_end,
+        }
+    }
+}
