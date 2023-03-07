@@ -4,7 +4,8 @@ use anyhow::Result;
 use clap::ArgMatches;
 use gst_client::reqwest;
 use gst_client::GstClient;
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
+use tokio::time::{sleep, Duration};
 
 use printnanny_settings::cam::VideoStreamSettings;
 use printnanny_settings::printnanny::PrintNannySettings;
@@ -91,6 +92,23 @@ impl PrintNannyPipelineFactory {
             }
         }?;
         Ok(pipeline)
+    }
+
+    // wait for pipeline to be available
+    pub async fn wait_for_pipeline(&self, pipeline_name: &str) -> Result<()> {
+        let client = gst_client::GstClient::build(&self.uri).expect("Failed to build GstClient");
+        let pipeline = client.pipeline(pipeline_name);
+        let wait = 2000;
+        warn!("Waiting for {} to become available", pipeline_name);
+        while pipeline.graph().await.is_err() {
+            debug!(
+                "Pipeline {} unavailable, waiting {} ms",
+                pipeline_name, wait
+            );
+            sleep(Duration::from_millis(wait)).await;
+        }
+        warn!("Pipeline {} is now available", pipeline_name);
+        Ok(())
     }
 
     async fn make_camera_pipeline(

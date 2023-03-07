@@ -100,8 +100,9 @@ pub async fn run_multifilesink_fragment_publisher(
                             }
                             Err(e) => {
                                 error!(
-                                    "Failed to deserialize GstMultiFileSinkMessage from msg={}",
-                                    &msg.message
+                                    "Failed to deserialize GstMultiFileSinkMessage from msg={} error={}",
+                                    &msg.message,
+                                    e
                                 );
                             }
                         }
@@ -170,6 +171,8 @@ async fn main() -> Result<()> {
     };
 
     let factory = PrintNannyPipelineFactory::from(&args);
+    let pipeline = args.value_of("pipeline").unwrap();
+    factory.wait_for_pipeline(pipeline).await?;
 
     Ok(())
 }
