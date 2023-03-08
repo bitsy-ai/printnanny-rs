@@ -7,7 +7,7 @@ use std::fs;
 
 use env_logger::Builder;
 use git_version::git_version;
-use log::{error, info, warn, LevelFilter};
+use log::{error, info, LevelFilter};
 
 use printnanny_gst_pipelines::factory::{PrintNannyPipelineFactory, MP4_RECORDING_PIPELINE};
 use printnanny_gst_pipelines::gst_client;
@@ -88,7 +88,7 @@ async fn run_multifilesink_fragment_publisher(
     let client = gst_client::GstClient::build(&factory.uri).expect("Failed to build GstClient");
     let pipeline = client.pipeline(pipeline_name);
     let bus = pipeline.bus();
-    let subject: String = NatsEvent::replace_subject_pattern(SUBJECT_PATTERN, &hostname, "{pi_id}");
+    let subject: String = NatsEvent::replace_subject_pattern(SUBJECT_PATTERN, hostname, "{pi_id}");
 
     // filter bus messages
     bus.set_filter("GstMultiFileSink").await?;
@@ -218,7 +218,10 @@ async fn main() -> Result<()> {
 
     let factory = PrintNannyPipelineFactory::from(&args);
     let pipeline = args.value_of("pipeline").unwrap();
+    let hostname = args.value_of("hostname").unwrap();
+
     factory.wait_for_pipeline(pipeline).await?;
+    run_multifilesink_fragment_publisher(factory, pipeline, hostname).await?;
 
     Ok(())
 }
