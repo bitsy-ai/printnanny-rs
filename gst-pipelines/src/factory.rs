@@ -417,7 +417,7 @@ impl PrintNannyPipelineFactory {
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
             ! mpegtsmux \
-            ! multifilesink aggregate-gops=true post-messages=true location={location} name={filesink_name} max-file-duration={max_duration}, max-files={max_files}");
+            ! multifilesink aggregate-gops=true post-messages=true location={location} name={filesink_name} max-file-duration={max_duration} max-files={max_files}");
         self.make_pipeline(pipeline_name, &description).await
     }
 
