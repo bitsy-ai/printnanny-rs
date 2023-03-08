@@ -64,6 +64,12 @@ where
             .author(crate_authors!())
             .about("Run NATS-based pub/sub workers")
             .arg(
+                Arg::new("v")
+                    .short('v')
+                    .multiple_occurrences(true)
+                    .help("Sets the level of verbosity. Info: -v Debug: -vv Trace: -vvv"),
+            )
+            .arg(
                 Arg::new("subject")
                     .long("subject")
                     .takes_value(true)
