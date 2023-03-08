@@ -12,4 +12,4 @@ repository = "https://github.com/bitsy-ai/printnanny-rs.git"
 
 [dependencies]
 rocket = "0.5.0-rc.2"                    # Web framework for nightly with a focus on ease-of-use, expressibility, and speed.
-printnanny-settings = { path = "../settings", version = "^0.6"}
+printnanny-settings = { path = "../settings", version = "^0.7"}

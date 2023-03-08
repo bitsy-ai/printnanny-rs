@@ -29,7 +29,7 @@ log = "0.4"
 nix = {version = "0.26.1", features = ["net"]}
 printnanny-dbus = { path = "../dbus", version = "^0.5"}
 printnanny-edge-db = { path = "../db", version = "^0.2"}
-printnanny-settings = { path = "../settings", version = "^0.6"}
+printnanny-settings = { path = "../settings", version = "^0.7"}
 serde = { version = "1", features = ["derive"] }
 serde_bytes = "0.11"
 serde_json = "1"

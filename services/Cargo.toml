@@ -28,7 +28,7 @@ printnanny-api-client = "0.127.4"
 printnanny-dbus = { path = "../dbus", version = "^0.5"}
 printnanny-nats-client = {path = "../nats-client", version = "^0.1.0"}
 printnanny-gst-pipelines = { path = "../gst-pipelines", version = "^0.2", package="printnanny-gst-pipelines"}
-printnanny-settings = { path = "../settings", version = "^0.6"}
+printnanny-settings = { path = "../settings", version = "^0.7"}
 printnanny-edge-db = { path = "../db", version = "^0.2"}
 procfs = "0.12"
 rustls = "0.19"

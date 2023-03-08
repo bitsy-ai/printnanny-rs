@@ -14,7 +14,7 @@ anyhow = "1"                                   # Flexible concrete Error type bu
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
 gst-client = { package="gst-client-rs", path = "../gst-client-rs", version="^0.2" }
 printnanny-edge-db = { path = "../db", version = "^0.2"}
-printnanny-settings = { package="printnanny-settings", version = "^0.6", path="../settings" }
+printnanny-settings = { package="printnanny-settings", version = "^0.7", path="../settings" }
 printnanny-nats-client = {path = "../nats-client", version = "^0.1.0"}
 log = "0.4"                  # A lightweight logging facade for Rust 
 serde = { version = "1", features = ["derive"] }
