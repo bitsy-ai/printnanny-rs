@@ -10,7 +10,7 @@ description = "ORM library for PrintNanny SQLite (edge) database models"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = { version = "0.4" }                 # Date and time library for Rust
+chrono = { version = "0.4", features = ["clock", "serde"] }
 diesel = { version = "2.0.2", features = ["sqlite", "extras", "serde_json"] }
 diesel_migrations = "2.0.0"       # Migration management for diesel
 log = "0.4"
