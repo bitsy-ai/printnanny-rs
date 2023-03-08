@@ -8,13 +8,11 @@ use log::LevelFilter;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init();
-
+    let mut builder = Builder::new();
     let app = NatsSubscriber::<NatsEvent, NatsRequest, NatsReply>::clap_command(None);
     let args = app.get_matches();
     // Vary the output based on how many times the user used the "verbose" flag
     // (i.e. 'printnanny v v v' or 'printnanny vvv' vs 'printnanny v'
-    let mut builder = Builder::new();
     let verbosity = args.occurrences_of("v");
     match verbosity {
         0 => {
