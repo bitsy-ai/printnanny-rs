@@ -2,7 +2,7 @@
 name = "printnanny-nats-apps"
 description = "Edge NATS applications"
 license = "AGPL-3.0-or-later"
-version = "0.33.0"
+version = "0.1.0"
 authors = ["Leigh Johnson <leigh@printnanny.ai>"]
 edition = "2021"
 rust-version = "1.66"
@@ -37,7 +37,7 @@ printnanny-api-client = "0.127.4"
 printnanny-dbus = { path = "../dbus", version = "^0.5"}
 printnanny-edge-db = { path = "../db", version = "^0.2"}
 printnanny-gst-pipelines = { path = "../gst-pipelines", version = "^0.2", package="printnanny-gst-pipelines"}
-printnanny-nats-client = {path = "../nats-client", version = "^0.33.0"}
+printnanny-nats-client = {path = "../nats-client", version = "^0.1.0"}
 printnanny-settings = { path = "../settings", version = "^0.6"}
 printnanny-services = {path = "../services", version = "^0.33.0"}
 serde = { version = "1", features = ["derive"] }
