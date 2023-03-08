@@ -29,7 +29,8 @@ async fn main() -> Result<()> {
         _ => builder.filter_level(LevelFilter::Trace).init(),
     };
 
-    let worker = NatsSubscriber::<NatsEvent, NatsRequest, NatsReply>::new(&app.get_matches());
+    let worker = NatsSubscriber::<NatsEvent, NatsRequest, NatsReply>::new(&args);
+
     worker.run().await?;
     Ok(())
 }
