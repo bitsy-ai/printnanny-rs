@@ -3670,7 +3670,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-nats-apps"
-version = "0.1.0"
+version = "0.33.1"
 dependencies = [
  "anyhow",
  "async-nats",
@@ -3708,7 +3708,7 @@ dependencies = [
 
 [[package]]
 name = "printnanny-nats-client"
-version = "0.1.0"
+version = "0.33.1"
 dependencies = [
  "anyhow",
  "async-nats",
