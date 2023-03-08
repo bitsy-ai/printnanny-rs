@@ -14,6 +14,9 @@ name = "dbus-systemd-nats-adapter"
 [[bin]]
 name = "nats-edge-worker"
 
+[[bin]]
+name = "nats-gstmultifile"
+
 [features]
 default = []
 systemd = []
