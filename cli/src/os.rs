@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use clap::ArgMatches;
-use log::error;
+use log::{error, warn};
 use std::fs;
 
 use printnanny_services::metadata;
@@ -58,11 +58,18 @@ fn handle_system_info(args: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
+fn handle_shutdown() -> Result<()> {
+    // mark all captures as done
+    warn!("PrintNanny OS is shutting down");
+    Ok(())
+}
+
 impl OsCommand {
     pub async fn handle(sub_m: &clap::ArgMatches) -> Result<()> {
         match sub_m.subcommand() {
             Some(("issue", _args)) => handle_issue().await,
             Some(("motd", _args)) => handle_motd().await,
+            Some(("shutdown", _args)) => handle_shutdown(),
             Some(("system-info", args)) => handle_system_info(args),
 
             _ => Err(anyhow!("Unhandled subcommand")),
