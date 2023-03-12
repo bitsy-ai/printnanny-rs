@@ -19,7 +19,7 @@ use printnanny_cli::settings::{SettingsCommand};
 use printnanny_cli::cloud_data::CloudDataCommand;
 use printnanny_cli::os::{OsCommand};
 
-use printnanny_gst_pipelines::factory::MP4_RECORDING_PIPELINE;
+use printnanny_gst_pipelines::factory::H264_RECORDING_PIPELINE;
 
 const GIT_VERSION: &str = git_version!();
 
@@ -131,7 +131,7 @@ async fn main() -> Result<()> {
                     Arg::new("pipeline")
                     .takes_value(true)
                     .long("pipeline")
-                    .default_value(MP4_RECORDING_PIPELINE)
+                    .default_value(H264_RECORDING_PIPELINE)
                     .help("Name of pipeline to watch")
                 )
             )

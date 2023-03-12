@@ -6,6 +6,16 @@ use std::io::{self, Write};
 
 pub struct CloudDataCommand;
 
+async fn on_splitmuxsink_fragment_closed(args: &clap::ArgMatches) -> Result<()> {
+    let address = args.value_of("http-address").unwrap();
+    let port: i32 = args.value_of_t("http-port").unwrap();
+    let factory = PrintNannyPipelineFactory::new(address.into(), port);
+    factory
+        .on_splitmuxsink_fragment_closed(H264_RECORDING_PIPELINE)
+        .await?;
+    Ok(())
+}
+
 impl CloudDataCommand {
     pub async fn handle(sub_m: &clap::ArgMatches) -> Result<(), ServiceError> {
         let settings = PrintNannySettings::new().await?;
