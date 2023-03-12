@@ -9,7 +9,7 @@ use env_logger::Builder;
 use git_version::git_version;
 use log::{error, info, LevelFilter};
 
-use printnanny_gst_pipelines::factory::{PrintNannyPipelineFactory, MP4_RECORDING_PIPELINE};
+use printnanny_gst_pipelines::factory::{PrintNannyPipelineFactory, H264_RECORDING_PIPELINE};
 use printnanny_gst_pipelines::gst_client;
 use printnanny_gst_pipelines::message::GstMultiFileSinkMessage;
 
@@ -196,7 +196,7 @@ async fn main() -> Result<()> {
             Arg::new("pipeline")
                 .takes_value(true)
                 .long("pipeline")
-                .default_value(MP4_RECORDING_PIPELINE)
+                .default_value(H264_RECORDING_PIPELINE)
                 .help("Name of pipeline"),
         );
     let args = app.get_matches();

@@ -12,14 +12,14 @@ use printnanny_settings::printnanny::PrintNannySettings;
 use printnanny_settings::printnanny_asyncapi_models::{CameraSettings, DetectionSettings};
 
 pub const CAMERA_PIPELINE: &str = "camera";
-pub const H264_PIPELINE: &str = "h264";
+pub const H264_ENCODING_PIPELINE: &str = "h264_encode";
 pub const RTP_PIPELINE: &str = "rtp";
 pub const INFERENCE_PIPELINE: &str = "tflite_inference";
 pub const BB_PIPELINE: &str = "bounding_boxes";
 pub const DF_WINDOW_PIPELINE: &str = "df";
 pub const SNAPSHOT_PIPELINE: &str = "snapshot";
 pub const HLS_PIPELINE: &str = "hls";
-pub const MP4_RECORDING_PIPELINE: &str = "mp4";
+pub const H264_RECORDING_PIPELINE: &str = "h264_record";
 
 pub struct PrintNannyPipelineFactory {
     pub address: String,
@@ -391,12 +391,13 @@ impl PrintNannyPipelineFactory {
             ! nats_sink nats-address={nats_server_uri}");
         self.make_pipeline(pipeline_name, &description).await
     }
-    async fn make_mp4_filesink_pipeline(
+    async fn make_h264_multifilesink_pipeline(
         &self,
         pipeline_name: &str,
         listen_to: &str,
         filename: &str,
         filesink_name: &str,
+        camera: &CameraSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
@@ -411,12 +412,12 @@ impl PrintNannyPipelineFactory {
             }
         };
 
-        let location = format!("{filename}/%05d.mp4");
-        let max_duration = 60000000000_u64; // 1 minute (in nanoseconds)
+        let location = format!("{filename}/%05d.h264");
         let max_files = 50;
 
+        let max_duration = ((60_u64 / camera.framerate_n as u64) * 1000000000_u64) + 1;
+
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
-            ! mpegtsmux \
             ! multifilesink aggregate-gops=true post-messages=true location={location} name={filesink_name} max-file-duration={max_duration} max-files={max_files}");
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -463,7 +464,7 @@ impl PrintNannyPipelineFactory {
         let hls_pipeline = self
             .make_hls_pipeline(
                 HLS_PIPELINE,
-                H264_PIPELINE,
+                H264_ENCODING_PIPELINE,
                 &hls_settings.segments,
                 &hls_settings.playlist,
                 &hls_settings.playlist_root,
@@ -481,13 +482,17 @@ impl PrintNannyPipelineFactory {
     }
 
     pub async fn start_video_recording_pipeline(&self, filename: &str) -> Result<()> {
-        let filesink_element_name = "mp4_filesink";
+        let filesink_element_name = "h264_multifilesink";
+        let settings = PrintNannySettings::new().await?;
+        let camera = *settings.video_stream.camera;
+
         let pipeline = self
-            .make_mp4_filesink_pipeline(
-                MP4_RECORDING_PIPELINE,
-                H264_PIPELINE,
+            .make_h264_multifilesink_pipeline(
+                H264_RECORDING_PIPELINE,
+                H264_ENCODING_PIPELINE,
                 filename,
                 filesink_element_name,
+                &camera,
             )
             .await?;
         pipeline.pause().await?;
@@ -497,21 +502,21 @@ impl PrintNannyPipelineFactory {
 
     pub async fn stop_video_recording_pipeline(&self) -> Result<()> {
         let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
-        let pipeline = client.pipeline(MP4_RECORDING_PIPELINE);
-        info!("Sending EOS signal to pipeline name={MP4_RECORDING_PIPELINE}");
+        let pipeline = client.pipeline(H264_RECORDING_PIPELINE);
+        info!("Sending EOS signal to pipeline name={H264_RECORDING_PIPELINE}");
         let bus = pipeline.bus();
         pipeline.emit_event_eos().await?;
         // wait for eos signal to be emitted by pipeline bus
         match bus.read().await {
             Ok(res) => {
                 info!(
-                    "Event on pipeline name={MP4_RECORDING_PIPELINE} message bus event={:#?}",
+                    "Event on pipeline name={H264_RECORDING_PIPELINE} message bus event={:#?}",
                     res
                 );
             }
             Err(e) => {
                 error!(
-                    "Error reading events on pipeline name={MP4_RECORDING_PIPELINE} error={}",
+                    "Error reading events on pipeline name={H264_RECORDING_PIPELINE} error={}",
                     e
                 )
             }
@@ -540,11 +545,15 @@ impl PrintNannyPipelineFactory {
         let camera_pipeline = self.make_camera_pipeline(CAMERA_PIPELINE, &camera).await?;
 
         let h264_pipeline = self
-            .make_h264_pipeline(H264_PIPELINE, CAMERA_PIPELINE, &camera)
+            .make_h264_pipeline(H264_ENCODING_PIPELINE, CAMERA_PIPELINE, &camera)
             .await?;
 
         let rtp_pipeline = self
-            .make_rtp_pipeline(RTP_PIPELINE, H264_PIPELINE, rtp_settings.video_udp_port)
+            .make_rtp_pipeline(
+                RTP_PIPELINE,
+                H264_ENCODING_PIPELINE,
+                rtp_settings.video_udp_port,
+            )
             .await?;
 
         let inference_pipeline = self
@@ -590,7 +599,7 @@ impl PrintNannyPipelineFactory {
             let hls_pipeline = self
                 .make_hls_pipeline(
                     HLS_PIPELINE,
-                    H264_PIPELINE,
+                    H264_ENCODING_PIPELINE,
                     &hls_settings.segments,
                     &hls_settings.playlist,
                     &hls_settings.playlist_root,
