@@ -20,6 +20,7 @@ pub const DF_WINDOW_PIPELINE: &str = "df";
 pub const SNAPSHOT_PIPELINE: &str = "snapshot";
 pub const HLS_PIPELINE: &str = "hls";
 pub const H264_RECORDING_PIPELINE: &str = "h264_record";
+pub const H264_SPLITMUXSINK: &str = "h264_splitmuxsink";
 
 pub struct PrintNannyPipelineFactory {
     pub address: String,
@@ -482,7 +483,6 @@ impl PrintNannyPipelineFactory {
     }
 
     pub async fn start_video_recording_pipeline(&self, filename: &str) -> Result<()> {
-        let filesink_element_name = "h264_multifilesink";
         let settings = PrintNannySettings::new().await?;
         let camera = *settings.video_stream.camera;
 
@@ -491,7 +491,7 @@ impl PrintNannyPipelineFactory {
                 H264_RECORDING_PIPELINE,
                 H264_ENCODING_PIPELINE,
                 filename,
-                filesink_element_name,
+                H264_SPLITMUXSINK,
                 &camera,
             )
             .await?;
