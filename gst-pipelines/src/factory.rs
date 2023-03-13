@@ -419,7 +419,7 @@ impl PrintNannyPipelineFactory {
         let max_duration = ((60_u64 / camera.framerate_n as u64) * 1000000000_u64) + 1;
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
-            ! splitmuxsink name={filesink_name} max-files={max_files} location={location} max-size-time={max_duration}");
+            ! splitmuxsink name={filesink_name} max-files={max_files} location={location} max-size-time={max_duration} send-keyframe-requests=true async-finalize=true");
         self.make_pipeline(pipeline_name, &description).await
     }
 

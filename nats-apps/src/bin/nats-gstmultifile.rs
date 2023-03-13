@@ -239,7 +239,6 @@ async fn main() -> Result<()> {
     let hostname = sys_info::hostname()?;
 
     let app = Command::new(app_name)
-        .subcommand_required(true)
         .author(crate_authors!())
         .about(crate_description!())
         .version(GIT_VERSION)
