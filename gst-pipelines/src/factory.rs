@@ -412,12 +412,13 @@ impl PrintNannyPipelineFactory {
             }
         };
 
-        let location = format!("{filename}/%05d.h264");
+        let location = format!("{filename}/%05d.mp4");
         let max_files = 50;
 
         let max_duration = ((60_u64 / camera.framerate_n as u64) * 1000000000_u64) + 1;
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
+            ! splitmuxsink name={filesink_name} max-files={max_files} location={location} max-size-time={max_duration} \
             ! multifilesink aggregate-gops=true post-messages=true location={location} name={filesink_name} max-file-duration={max_duration} max-files={max_files}");
         self.make_pipeline(pipeline_name, &description).await
     }

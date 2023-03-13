@@ -13,3 +13,13 @@ pub struct GstMultiFileSinkMessage {
     pub offset: u64,
     pub offset_end: u64,
 }
+
+pub const GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_CLOSED: &str = "splitmuxsink-fragment-closed";
+pub const GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_OPENED: &str = "splitmuxsink-fragment-opened";
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct GstSplitMuxSinkFragmentMessage {
+    pub location: String,
+    #[serde(rename = "running-time")]
+    pub running_time: u64,
+}

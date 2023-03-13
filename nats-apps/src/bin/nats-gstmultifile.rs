@@ -11,7 +11,9 @@ use log::{error, info, LevelFilter};
 
 use printnanny_gst_pipelines::factory::{PrintNannyPipelineFactory, H264_RECORDING_PIPELINE};
 use printnanny_gst_pipelines::gst_client;
-use printnanny_gst_pipelines::message::GstMultiFileSinkMessage;
+use printnanny_gst_pipelines::message::{
+    GstSplitMuxSinkFragmentMessage, GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_CLOSED,
+};
 
 use printnanny_nats_client::client::wait_for_nats_client;
 use printnanny_nats_client::event::NatsEventHandler;
@@ -75,6 +77,80 @@ fn handle_filesink_msg(
 }
 
 // subscribe to splitmuxsink-fragment-closed message
+async fn run_splitmuxsink_fragment_publisher(
+    factory: PrintNannyPipelineFactory,
+    pipeline_name: &str,
+    hostname: &str,
+) -> Result<()> {
+    let settings = PrintNannySettings::new().await?;
+    let nats_client =
+        wait_for_nats_client(DEFAULT_NATS_URI, &None, false, DEFAULT_NATS_WAIT).await?;
+    let client = gst_client::GstClient::build(&factory.uri).expect("Failed to build GstClient");
+    let pipeline = client.pipeline(pipeline_name);
+    let bus = pipeline.bus();
+    let subject: String = NatsEvent::replace_subject_pattern(SUBJECT_PATTERN, hostname, "{pi_id}");
+
+    // filter bus messages
+    bus.set_filter(GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_CLOSED)
+        .await?;
+
+    // set timeout
+    bus.set_timeout(GST_BUS_TIMEOUT).await?;
+    // read bus messages
+    info!(
+        "Set filter for messages={} on pipeline={}",
+        GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_CLOSED, pipeline_name
+    );
+
+    loop {
+        let msg = bus.read().await;
+        match msg {
+            Ok(msg) => match msg.response {
+                gst_client::gstd_types::ResponseT::Bus(Some(msg)) => {
+                    info!(
+                        "Handling msg on gstreamer pipeline bus name={} msg={:?}",
+                        pipeline_name, msg
+                    );
+
+                    // attempt to deserialize msg
+                    let filesink_msg =
+                        serde_json::from_str::<GstSplitMuxSinkFragmentMessage>(&msg.message);
+                    match filesink_msg {
+                        Ok(filesink_msg) => {
+                            // insert filesink msg row
+                            info!("Deserialized msg: {:?}", filesink_msg);
+                            // let result = handle_filesink_msg(filesink_msg, &sqlite_connection);
+                            // match result {
+                            //     Ok(result) => {
+                            //         // publish NATS message
+                            //         let payload = serde_json::to_vec(&result)?;
+                            //         nats_client.publish(subject.clone(), payload.into()).await?;
+                            //         info!("Published subject={} id={}", &subject, &result.id)
+                            //     }
+                            //     Err(e) => {
+                            //         error!("Failed to insert VideoRecordingPart row error={}", e)
+                            //     }
+                            // }
+                        }
+                        Err(e) => {
+                            error!(
+                                "Failed to deserialize GstSplitMuxSinkFragmentMessage from msg={} error={}",
+                                &msg.message,
+                                e
+                            );
+                        }
+                    }
+                }
+                _ => error!("Failed to process response={:#?}", msg.response),
+            },
+            Err(e) => {
+                error!("Error reading gstreamer pipeline bus name={} filter=splitmuxsink-fragment-closed error={}", pipeline_name, e);
+            }
+        }
+    }
+    Ok(())
+}
+
 async fn run_multifilesink_fragment_publisher(
     factory: PrintNannyPipelineFactory,
     pipeline_name: &str,
@@ -221,7 +297,8 @@ async fn main() -> Result<()> {
     let hostname = args.value_of("hostname").unwrap();
 
     factory.wait_for_pipeline(pipeline).await?;
-    run_multifilesink_fragment_publisher(factory, pipeline, hostname).await?;
+    // run_multifilesink_fragment_publisher(factory, pipeline, hostname).await?;
+    run_splitmuxsink_fragment_publisher(factory, pipeline, hostname).await?;
 
     Ok(())
 }
