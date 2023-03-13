@@ -12,7 +12,8 @@ use log::{error, info, LevelFilter};
 use printnanny_gst_pipelines::factory::{PrintNannyPipelineFactory, H264_RECORDING_PIPELINE};
 use printnanny_gst_pipelines::gst_client;
 use printnanny_gst_pipelines::message::{
-    GstSplitMuxSinkFragmentMessage, GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_CLOSED,
+    GstMultiFileSinkMessage, GstSplitMuxSinkFragmentMessage,
+    GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_CLOSED,
 };
 
 use printnanny_nats_client::client::wait_for_nats_client;
