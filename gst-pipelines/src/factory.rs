@@ -152,7 +152,7 @@ impl PrintNannyPipelineFactory {
             "libcamerasrc camera-name={camera_name} \
             ! capsfilter caps={caps} \
             ! v4l2convert \
-            ! interpipesink name={interpipesink} sync=false async=false",
+            ! interpipesink name={interpipesink} sync=true async=false",
             camera_name = camera.device_name,
         );
         self.make_pipeline(pipeline_name, &description).await
@@ -392,7 +392,7 @@ impl PrintNannyPipelineFactory {
             ! nats_sink nats-address={nats_server_uri}");
         self.make_pipeline(pipeline_name, &description).await
     }
-    async fn make_h264_multifilesink_pipeline(
+    async fn make_recording_pipeline(
         &self,
         pipeline_name: &str,
         listen_to: &str,
@@ -416,10 +416,11 @@ impl PrintNannyPipelineFactory {
         let location = format!("{filename}/%05d.mp4");
         let max_files = 50;
 
-        let max_duration = ((60_u64 / camera.framerate_n as u64) * 1000000000_u64) + 1;
+        let max_duration = (60_u64 / camera.framerate_n as u64) * 1000000000_u64;
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
-            ! splitmuxsink name={filesink_name} max-files={max_files} location={location} max-size-time={max_duration} send-keyframe-requests=false");
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 stream-sync=passthrough-ts \
+            ! h264parse \
+            ! splitmuxsink muxer=mpegtsmux name={filesink_name} max-files={max_files} location={location} max-size-time={max_duration} send-keyframe-requests=false");
         self.make_pipeline(pipeline_name, &description).await
     }
 
@@ -487,7 +488,7 @@ impl PrintNannyPipelineFactory {
         let camera = *settings.video_stream.camera;
 
         let pipeline = self
-            .make_h264_multifilesink_pipeline(
+            .make_recording_pipeline(
                 H264_RECORDING_PIPELINE,
                 H264_ENCODING_PIPELINE,
                 filename,
