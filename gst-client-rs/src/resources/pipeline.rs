@@ -57,6 +57,22 @@ impl Pipeline {
         self.client.process_resp(resp).await
     }
 
+    /// Performs `GET /pipelines/{name}/state` API request
+    /// parsed [`gstd_types::Response`]
+    /// # Errors
+    ///
+    /// If API request cannot be performed, or fails.
+    /// See [`Error`] for details.
+    ///
+    pub async fn state(&self) -> Result<gstd_types::Response, Error> {
+        let url = self
+            .client
+            .base_url
+            .join(&format!("pipelines/{}/state", &self.name))
+            .map_err(Error::IncorrectApiUrl)?;
+        let resp = self.client.get(url).await?;
+        self.client.process_resp(resp).await
+    }
     /// Performs `GET /pipelines/{name}/graph` API request, returning the
     /// parsed [`gstd_types::Response`]
     ///

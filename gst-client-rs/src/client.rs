@@ -148,11 +148,51 @@ impl From<&Url> for GstClient {
 #[cfg(test)]
 mod spec {
     use super::*;
-    const BASE_URL: &'static str = "http://10.211.55.4:5000";
+    use http;
+    const BASE_URL: &'static str = "http://localhost:5002";
     const PIPELINE_NAME: &'static str = "test pipeline";
+
+    const STATE_RESPONSE: &'static str = r#"
+    {
+        "code" : 0,
+        "description" : "Success",
+        "response" : {
+          "name" : "state",
+          "value" : "playing",
+          "param" : {
+              "description" : "The state of the pipeline",
+              "type" : "GstdStateEnum",
+              "access" : "((GstdParamFlags) READ | 2)"
+          }
+        }
+      }
+    "#;
 
     fn expect_url() -> Url {
         Url::parse(BASE_URL).unwrap()
+    }
+
+    #[tokio::test]
+    async fn process_state_response() {
+        let client = GstClient::build(BASE_URL).unwrap();
+        let response = http::Response::builder()
+            .status(200)
+            .body(STATE_RESPONSE)
+            .unwrap();
+
+        let res = client.process_resp(response.into()).await.unwrap();
+
+        let expected = gstd_types::ResponseT::Property(gstd_types::Property {
+            name: "state".into(),
+            value: gstd_types::PropertyValue::String("playing".into()),
+            param: gstd_types::Param {
+                description: "The state of the pipeline".into(),
+                _type: "GstdStateEnum".into(),
+                access: "((GstdParamFlags) READ | 2)".into(),
+            },
+        });
+
+        assert_eq!(res.response, expected);
     }
 
     #[ignore]

@@ -31,3 +31,4 @@ default-features = false
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros"] }
+http = "0.2"

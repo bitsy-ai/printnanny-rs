@@ -10,7 +10,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 /// Response returned by [`GStreamer Daemon`][1] API.
 ///
 /// [1]: https://developer.ridgerun.com/wiki/index.php/GStreamer_Daemon
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Response {
     /// Status of response.
     pub code: ResponseCode,
@@ -67,7 +67,7 @@ pub enum ResponseCode {
     MissingName = 18,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(untagged)]
 pub enum ResponseT {
     Bus(Option<Bus>),
@@ -75,7 +75,7 @@ pub enum ResponseT {
     Property(Property),
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Param {
     pub description: String,
     #[serde(rename = "type")]
@@ -85,14 +85,14 @@ pub struct Param {
 
 /// Possible result in [`Response::response`] after
 /// `GET /pipelines` API request
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Properties {
     pub properties: Vec<Property>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nodes: Option<Vec<Node>>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Node {
     /// The name of [`GStreamer element`]
     ///
@@ -103,14 +103,14 @@ pub struct Node {
 
 /// Possible result in [`Response::response`] after
 /// `GET /pipelines/{pipeline_name}/graph` API request
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Property {
     pub name: String,
     pub value: PropertyValue,
     pub param: Param,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(untagged)]
 pub enum PropertyValue {
     String(String),
@@ -120,7 +120,7 @@ pub enum PropertyValue {
 
 /// Possible result in [`Response::response`] after
 /// `GET /pipelines/{name}/bus/message` API request
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Bus {
     pub r#type: String,
     pub source: String,
