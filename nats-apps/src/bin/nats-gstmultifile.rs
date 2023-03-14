@@ -259,7 +259,7 @@ async fn main() -> Result<()> {
             Arg::new("http-port")
                 .takes_value(true)
                 .long("http-port")
-                .default_value("5001")
+                .default_value("5002")
                 .help("Attach to the server through a given port"),
         )
         .arg(
