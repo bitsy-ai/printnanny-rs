@@ -82,7 +82,7 @@ impl PrintNannyPipelineFactory {
 
     pub async fn pipeline_state(&self, pipeline_name: &str) -> GstPipelineState {
         let client = self.gst_client();
-        match client.pipeline(H264_RECORDING_PIPELINE).state().await {
+        match client.pipeline(pipeline_name).state().await {
             Ok(state_res) => match state_res.response {
                 gst_client::gstd_types::ResponseT::Property(prop) => match prop.value {
                     gst_client::gstd_types::PropertyValue::String(state) => {
@@ -95,7 +95,7 @@ impl PrintNannyPipelineFactory {
             Err(e) => {
                 error!(
                     "Error getting gst pipeline state name={} error={}",
-                    H264_RECORDING_PIPELINE, e
+                    pipeline_name, e
                 );
                 GstPipelineState::Null
             }
