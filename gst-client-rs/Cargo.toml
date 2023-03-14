@@ -1,6 +1,6 @@
 [package]
 name = "gst-client-rs"
-version = "0.2.1"
+version = "0.2.2"
 description = "Provides bindings for the main functionalities of the GStreamer Daemon"
 authors = ["ALLATRA IT <it@allatra.org>", "Leigh Johnson <leigh@printnanny.ai>"]
 edition = "2021"
