@@ -22,10 +22,31 @@ pub const HLS_PIPELINE: &str = "hls";
 pub const H264_RECORDING_PIPELINE: &str = "h264_record";
 pub const H264_SPLITMUXSINK: &str = "h264_splitmuxsink";
 
+#[derive(Clone, Debug)]
 pub struct PrintNannyPipelineFactory {
     pub address: String,
     pub port: i32,
     pub uri: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum GstPipelineState {
+    Paused,
+    Playing,
+    Ready,
+    Null,
+}
+
+impl From<&str> for GstPipelineState {
+    fn from(value: &str) -> Self {
+        match value.to_lowercase().as_ref() {
+            "playing" => GstPipelineState::Playing,
+            "paused" => GstPipelineState::Paused,
+            "ready" => GstPipelineState::Ready,
+            "null" => GstPipelineState::Null,
+            _ => GstPipelineState::Null,
+        }
+    }
 }
 
 impl Default for PrintNannyPipelineFactory {
@@ -55,8 +76,30 @@ impl PrintNannyPipelineFactory {
         format!("http://{}:{}", address, port)
     }
 
-    pub fn gst_client(&self) -> Result<GstClient, gst_client::Error> {
-        GstClient::build(&self.uri)
+    pub fn gst_client(&self) -> GstClient {
+        GstClient::build(&self.uri).expect("Failed to build GstClient")
+    }
+
+    pub async fn pipeline_state(&self, pipeline_name: &str) -> GstPipelineState {
+        let client = self.gst_client();
+        match client.pipeline(H264_RECORDING_PIPELINE).state().await {
+            Ok(state_res) => match state_res.response {
+                gst_client::gstd_types::ResponseT::Property(prop) => match prop.value {
+                    gst_client::gstd_types::PropertyValue::String(state) => {
+                        GstPipelineState::from(state.as_ref())
+                    }
+                    _ => GstPipelineState::Null,
+                },
+                _ => GstPipelineState::Null,
+            },
+            Err(e) => {
+                error!(
+                    "Error getting gst pipeline state name={} error={}",
+                    H264_RECORDING_PIPELINE, e
+                );
+                GstPipelineState::Null
+            }
+        }
     }
 
     fn to_interpipesrc_name(pipeline_name: &str) -> String {
@@ -101,11 +144,9 @@ impl PrintNannyPipelineFactory {
 
     // wait for pipeline to be available
     pub async fn wait_for_pipeline(&self, pipeline_name: &str) -> Result<()> {
-        let client = gst_client::GstClient::build(&self.uri).expect("Failed to build GstClient");
-        let pipeline = client.pipeline(pipeline_name);
         let wait = 2000;
         warn!("Waiting for {} to become available", pipeline_name);
-        while pipeline.graph().await.is_err() {
+        while self.pipeline_state(pipeline_name).await != GstPipelineState::Playing {
             debug!(
                 "Pipeline {} unavailable, waiting {} ms",
                 pipeline_name, wait
