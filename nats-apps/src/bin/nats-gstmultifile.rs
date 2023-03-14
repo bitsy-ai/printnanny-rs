@@ -86,7 +86,7 @@ async fn run_splitmuxsink_fragment_publisher(
     let settings = PrintNannySettings::new().await?;
     let nats_client =
         wait_for_nats_client(DEFAULT_NATS_URI, &None, false, DEFAULT_NATS_WAIT).await?;
-    let client = gst_client::GstClient::build(&factory.uri).expect("Failed to build GstClient");
+    let client = factory.gst_client();
     let pipeline = client.pipeline(pipeline_name);
     let bus = pipeline.bus();
     let subject: String = NatsEvent::replace_subject_pattern(SUBJECT_PATTERN, hostname, "{pi_id}");
