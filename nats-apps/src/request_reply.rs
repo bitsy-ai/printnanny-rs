@@ -33,7 +33,9 @@ use printnanny_settings::vcs::VersionControlledSettings;
 
 use printnanny_services::printnanny_api::ApiService;
 
-use printnanny_gst_pipelines::factory::{PrintNannyPipelineFactory, H264_RECORDING_PIPELINE};
+use printnanny_gst_pipelines::factory::{
+    GstPipelineState, PrintNannyPipelineFactory, H264_RECORDING_PIPELINE,
+};
 use printnanny_gst_pipelines::gst_client;
 
 use printnanny_nats_client::request_reply::NatsRequestHandler;
@@ -381,27 +383,11 @@ impl NatsRequest {
                 false
             }
         };
-        let settings = PrintNannySettings::new().await?;
         let factory = PrintNannyPipelineFactory::default();
-        let gst_client = factory.gst_client()?;
-        let recording = match gst_client.pipeline(H264_RECORDING_PIPELINE).state().await {
-            Ok(state_res) => match state_res.response {
-                gst_client::gstd_types::ResponseT::Property(prop) => match prop.value {
-                    gst_client::gstd_types::PropertyValue::String(state) => match state.as_ref() {
-                        "playing" => true,
-                        _ => false,
-                    },
-                    _ => false,
-                },
-                _ => false,
-            },
-            Err(e) => {
-                error!(
-                    "Error getting pipeline name={} state error={}",
-                    H264_RECORDING_PIPELINE, e
-                );
-                false
-            }
+
+        let recording = match factory.pipeline_state(H264_RECORDING_PIPELINE).await {
+            GstPipelineState::Playing => true,
+            _ => false,
         };
 
         info!(
