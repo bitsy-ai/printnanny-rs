@@ -152,8 +152,8 @@ impl PrintNannyPipelineFactory {
             "libcamerasrc camera-name={camera_name} \
             ! capsfilter caps={caps} \
             ! v4l2convert \
-            ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true sync=false",
-            camera_name=camera.device_name,
+            ! interpipesink name={interpipesink} sync=false async=false",
+            camera_name = camera.device_name,
         );
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -212,7 +212,7 @@ impl PrintNannyPipelineFactory {
             ! v4l2h264enc extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse \
             ! capssetter caps=video/x-h264,level=(string)4,profile=(string)high \
-            ! interpipesink name={interpipesink} sync=false",
+            ! interpipesink name={interpipesink} sync=false async=false",
             // width=camera.width,
             // height=camera.height,
             // format=camera.format,
@@ -308,7 +308,7 @@ impl PrintNannyPipelineFactory {
             ! tensor_transform mode=arithmetic option=typecast:uint8,add:0,div:1 \
             ! capsfilter caps=other/tensors,format=static \
             ! tensor_filter framework=tensorflow2-lite model={tflite_model_file} \
-            ! interpipesink name={interpipesink} forward-events=true forward-eos=true emit-signals=true sync=false",
+            ! interpipesink name={interpipesink} sync=false async=false",
             // width=camera.width,
             // height=camera.height,
             // format=camera.format,
