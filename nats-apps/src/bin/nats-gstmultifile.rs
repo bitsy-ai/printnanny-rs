@@ -97,7 +97,7 @@ async fn run_splitmuxsink_fragment_publisher(
 
     // set timeout
     bus.set_timeout(GST_BUS_TIMEOUT).await?;
-    // read bus messages
+    // read bus messageszz
     info!(
         "Set filter for messages={} on pipeline={}",
         GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_CLOSED, pipeline_name

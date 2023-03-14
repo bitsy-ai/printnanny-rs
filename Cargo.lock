@@ -1786,6 +1786,7 @@ name = "gst-client-rs"
 version = "0.2.1"
 dependencies = [
  "derive_more",
+ "http",
  "mime",
  "mime_serde_shim",
  "reqwest",
