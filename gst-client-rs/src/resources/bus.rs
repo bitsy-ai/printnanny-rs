@@ -7,6 +7,7 @@
 //! [1]: https://developer.ridgerun.com/wiki/index.php/GStreamer_Daemon_-_C_API#Bus
 //! [2]: https://gstreamer.freedesktop.org/documentation/additional/design/gstbus.html
 use crate::{gstd_types, resources::Pipeline, Error, GstClient};
+use log::debug;
 
 /// Performs requests to `pipelines/{name}/bus` endpoints
 #[derive(Debug, Clone)]
@@ -30,11 +31,13 @@ impl PipelineBus {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn read(&self) -> Result<gstd_types::Response, Error> {
-        let url = self.client.base_url.join(&format!("pipelines/{}/bus/message", self.pipeline.name)).map_err(Error::IncorrectApiUrl)?;
-        let resp = self
+        let url = self
             .client
-            .get(url)
-            .await?;
+            .base_url
+            .join(&format!("pipelines/{}/bus/message", self.pipeline.name))
+            .map_err(Error::IncorrectApiUrl)?;
+        let resp = self.client.get(url).await?;
+        debug!("Gst pipeline message: {:?}", resp);
         self.client.process_resp(resp).await
     }
     /// Performs `PUT pipelines/{name}?timeout={time_ns}`
@@ -45,15 +48,16 @@ impl PipelineBus {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn set_timeout(&self, time_ns: i32) -> Result<gstd_types::Response, Error> {
-        let url = self.client.base_url.join(&format!(
+        let url = self
+            .client
+            .base_url
+            .join(&format!(
                 "pipelines/{}/bus/timeout?name={time_ns}",
                 self.pipeline.name
-            )).map_err(Error::IncorrectApiUrl)?;
+            ))
+            .map_err(Error::IncorrectApiUrl)?;
 
-        let resp = self
-            .client
-            .put(url)
-            .await?;
+        let resp = self.client.put(url).await?;
         self.client.process_resp(resp).await
     }
     /// Performs `PUT pipelines/{name}?types={filter}`
@@ -64,15 +68,16 @@ impl PipelineBus {
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
     pub async fn set_filter(&self, filter: &str) -> Result<gstd_types::Response, Error> {
-        let url = self.client.base_url.join(&format!(
+        let url = self
+            .client
+            .base_url
+            .join(&format!(
                 "pipelines/{}/bus/types?name={filter}",
                 self.pipeline.name
-            )).map_err(Error::IncorrectApiUrl)?;
+            ))
+            .map_err(Error::IncorrectApiUrl)?;
 
-        let resp = self
-            .client
-            .put(url)
-            .await?;
+        let resp = self.client.put(url).await?;
         self.client.process_resp(resp).await
     }
 }
