@@ -51,8 +51,12 @@ impl PrintNannyPipelineFactory {
         let uri = Self::uri(&address, port);
         Self { address, port, uri }
     }
-    fn uri(address: &str, port: i32) -> String {
+    pub fn uri(address: &str, port: i32) -> String {
         format!("http://{}:{}", address, port)
+    }
+
+    pub fn gst_client(&self) -> Result<GstClient, gst_client::Error> {
+        GstClient::build(&self.uri)
     }
 
     fn to_interpipesrc_name(pipeline_name: &str) -> String {
