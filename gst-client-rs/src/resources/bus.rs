@@ -58,6 +58,8 @@ impl PipelineBus {
             .map_err(Error::IncorrectApiUrl)?;
 
         let resp = self.client.put(url).await?;
+        debug!("gstd set_timeout response: {:?}", resp);
+
         self.client.process_resp(resp).await
     }
     /// Performs `PUT pipelines/{name}?types={filter}`
@@ -78,6 +80,8 @@ impl PipelineBus {
             .map_err(Error::IncorrectApiUrl)?;
 
         let resp = self.client.put(url).await?;
+        debug!("gstd set_filter response: {:?}", resp);
+
         self.client.process_resp(resp).await
     }
 }
