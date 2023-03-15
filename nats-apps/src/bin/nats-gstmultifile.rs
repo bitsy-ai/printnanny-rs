@@ -92,9 +92,8 @@ async fn run_splitmuxsink_fragment_publisher(
     let subject: String = NatsEvent::replace_subject_pattern(SUBJECT_PATTERN, hostname, "{pi_id}");
 
     // filter bus messages
-    info!("Setting gstd filter pipeline={pipeline_name} msg={GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_CLOSED}");
-    bus.set_filter(GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_CLOSED)
-        .await?;
+    info!("Setting gstd filter pipeline={pipeline_name} filter=element");
+    bus.set_filter("element").await?;
 
     // set timeout
     info!("Setting timeout on pipeline={pipeline_name} timeout={GST_BUS_TIMEOUT}");
@@ -107,6 +106,7 @@ async fn run_splitmuxsink_fragment_publisher(
 
     loop {
         let msg = bus.read().await;
+        info!("Received msg={:?}", msg);
         match msg {
             Ok(msg) => match msg.response {
                 gst_client::gstd_types::ResponseT::Bus(Some(msg)) => {
