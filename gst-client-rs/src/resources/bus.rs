@@ -47,7 +47,7 @@ impl PipelineBus {
     ///
     /// If API request cannot be performed, or fails.
     /// See [`Error`] for details.
-    pub async fn set_timeout(&self, time_ns: i32) -> Result<gstd_types::Response, Error> {
+    pub async fn set_timeout(&self, time_ns: u64) -> Result<gstd_types::Response, Error> {
         let url = self
             .client
             .base_url
