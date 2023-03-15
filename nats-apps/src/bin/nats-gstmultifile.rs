@@ -27,7 +27,7 @@ use printnanny_nats_apps::event::NatsEvent;
 const SUBJECT_PATTERN: &str = "pi.{pi_id}.event.camera.recording.part";
 const DEFAULT_NATS_URI: &str = "nats://localhost:4223";
 const DEFAULT_NATS_WAIT: u64 = 2000; // sleep 2 seconds between connection attempts
-const GST_BUS_TIMEOUT: i32 = 6e+11 as i32; // 600 seconds (in nanoseconds)
+const GST_BUS_TIMEOUT: u64 = 600000000000_u64; // 600 seconds (in nanoseconds)
 const GIT_VERSION: &str = git_version!();
 
 // Subscribe to GstMultiFileSink messages on gstreamer bus, re-publish NATS message
