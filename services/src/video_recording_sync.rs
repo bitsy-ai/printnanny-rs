@@ -52,12 +52,7 @@ pub async fn upload_video_recording_part(
         size: None,
         video_recording: None,
         buffer_index: None,
-        buffer_ts: None,
-        buffer_streamtime: None,
         buffer_runningtime: None,
-        buffer_duration: None,
-        buffer_offset: None,
-        buffer_offset_end: None,
         file_name: None,
     };
 
