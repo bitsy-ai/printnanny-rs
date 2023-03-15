@@ -4,6 +4,7 @@ extern crate clap;
 use anyhow::{anyhow, Result};
 use clap::{Arg, Command};
 use std::fs;
+use std::path::PathBuf;
 
 use env_logger::Builder;
 use git_version::git_version;
@@ -30,11 +31,39 @@ const DEFAULT_NATS_WAIT: u64 = 2000; // sleep 2 seconds between connection attem
 const GST_BUS_TIMEOUT: u64 = 600000000000_u64; // 600 seconds (in nanoseconds)
 const GIT_VERSION: &str = git_version!();
 
+// parse recording id from path like: /home/printnanny/.local/share/printnanny/video/66b3a3a0-30b5-41f2-9907-a335de57c921/00025.mp4
+fn parse_video_recording_id(filename: &str) -> String {
+    let path = PathBuf::from(filename);
+    let mut components = path.components();
+    components
+        .nth_back(1)
+        .unwrap()
+        .as_os_str()
+        .to_str()
+        .unwrap()
+        .into()
+}
+
+fn parse_video_recording_index(filename: &str) -> i32 {
+    let path = PathBuf::from(filename);
+    let mut components = path.components();
+    let last: String = components
+        .nth_back(0)
+        .unwrap()
+        .as_os_str()
+        .to_str()
+        .unwrap()
+        .into();
+    last.split(".").nth(0).unwrap().parse().unwrap()
+}
+
 // Subscribe to GstMultiFileSink messages on gstreamer bus, re-publish NATS message
 fn handle_filesink_msg(
-    filesink_msg: GstMultiFileSinkMessage,
+    filesink_msg: GstSplitMuxSinkFragmentMessage,
     sqlite_connection: &str,
 ) -> Result<printnanny_edge_db::video_recording::VideoRecordingPart> {
+    // parse recording id from filesink_msg
+
     // try to get current recording
     let recording =
         printnanny_edge_db::video_recording::VideoRecording::get_current(sqlite_connection)?;
@@ -45,28 +74,24 @@ fn handle_filesink_msg(
     }
     let video_recording_id = recording.unwrap().id;
 
-    let size = fs::metadata(&filesink_msg.filename)?.len() as i64;
+    let size = fs::metadata(&filesink_msg.location)?.len() as i64;
+    let index = parse_video_recording_index(&filesink_msg.location);
 
     // insert new VideoRecordingPart
-    let row_id = format!("{video_recording_id}-{}", filesink_msg.index);
+    let row_id = format!("{video_recording_id}-{index}");
     let row = printnanny_edge_db::video_recording::NewVideoRecordingPart {
         id: &row_id,
-        buffer_index: &(filesink_msg.index as i32),
-        buffer_ts: &(filesink_msg.timestamp as i64),
-        buffer_streamtime: &(filesink_msg.streamtime as i64),
-        buffer_runningtime: &(filesink_msg.runningtime as i64),
-        buffer_duration: &(filesink_msg.duration as i64),
-        buffer_offset: &(filesink_msg.offset as i64),
-        buffer_offset_end: &(filesink_msg.offset_end as i64),
+        buffer_index: &index,
+        buffer_runningtime: &(filesink_msg.running_time as i64),
         deleted: &false,
-        file_name: &filesink_msg.filename,
+        file_name: &filesink_msg.location,
         video_recording_id: &video_recording_id,
         size: &size,
     };
     match printnanny_edge_db::video_recording::VideoRecordingPart::insert(sqlite_connection, row) {
         Ok(()) => info!(
             "Inserted VideoRecordingPart video_recording_id={} id={} file_name={}",
-            &video_recording_id, &row_id, &filesink_msg.filename
+            &video_recording_id, &row_id, &filesink_msg.location
         ),
         Err(e) => error!("Failed to insert VideoRecordingPart row, error={}", e),
     }
@@ -84,6 +109,7 @@ async fn run_splitmuxsink_fragment_publisher(
     hostname: &str,
 ) -> Result<()> {
     let settings = PrintNannySettings::new().await?;
+    let sqlite_connection = settings.paths.db().display().to_string();
     let nats_client =
         wait_for_nats_client(DEFAULT_NATS_URI, &None, false, DEFAULT_NATS_WAIT).await?;
     let client = factory.gst_client();
@@ -122,18 +148,18 @@ async fn run_splitmuxsink_fragment_publisher(
                         Ok(filesink_msg) => {
                             // insert filesink msg row
                             info!("Deserialized msg: {:?}", filesink_msg);
-                            // let result = handle_filesink_msg(filesink_msg, &sqlite_connection);
-                            // match result {
-                            //     Ok(result) => {
-                            //         // publish NATS message
-                            //         let payload = serde_json::to_vec(&result)?;
-                            //         nats_client.publish(subject.clone(), payload.into()).await?;
-                            //         info!("Published subject={} id={}", &subject, &result.id)
-                            //     }
-                            //     Err(e) => {
-                            //         error!("Failed to insert VideoRecordingPart row error={}", e)
-                            //     }
-                            // }
+                            let result = handle_filesink_msg(filesink_msg, &sqlite_connection);
+                            match result {
+                                Ok(result) => {
+                                    // publish NATS message
+                                    let payload = serde_json::to_vec(&result)?;
+                                    nats_client.publish(subject.clone(), payload.into()).await?;
+                                    info!("Published subject={} id={}", &subject, &result.id)
+                                }
+                                Err(e) => {
+                                    error!("Failed to insert VideoRecordingPart row error={}", e)
+                                }
+                            }
                         }
                         Err(e) => {
                             error!(
@@ -152,86 +178,6 @@ async fn run_splitmuxsink_fragment_publisher(
         }
     }
     Ok(())
-}
-
-async fn run_multifilesink_fragment_publisher(
-    factory: PrintNannyPipelineFactory,
-    pipeline_name: &str,
-    hostname: &str,
-) -> Result<()> {
-    let settings = PrintNannySettings::new().await?;
-
-    let nats_client =
-        wait_for_nats_client(DEFAULT_NATS_URI, &None, false, DEFAULT_NATS_WAIT).await?;
-
-    let client = gst_client::GstClient::build(&factory.uri).expect("Failed to build GstClient");
-    let pipeline = client.pipeline(pipeline_name);
-    let bus = pipeline.bus();
-    let subject: String = NatsEvent::replace_subject_pattern(SUBJECT_PATTERN, hostname, "{pi_id}");
-
-    // filter bus messages
-    bus.set_filter("GstMultiFileSink").await?;
-
-    // set timeout
-    bus.set_timeout(GST_BUS_TIMEOUT).await?;
-
-    // read bus messages
-    info!(
-        "Set filter for messages=GstMultiFileSink on pipeline={}",
-        pipeline_name
-    );
-
-    let sqlite_connection = settings.paths.db().display().to_string();
-    loop {
-        let msg = bus.read().await;
-        match msg {
-            Ok(msg) => {
-                match msg.response {
-                    gst_client::gstd_types::ResponseT::Bus(Some(msg)) => {
-                        info!(
-                            "Handling msg on gstreamer pipeline bus name={} msg={:?}",
-                            pipeline_name, msg
-                        );
-
-                        // attempt to deserialize msg
-                        let filesink_msg =
-                            serde_json::from_str::<GstMultiFileSinkMessage>(&msg.message);
-                        match filesink_msg {
-                            Ok(filesink_msg) => {
-                                // insert filesink msg row
-                                let result = handle_filesink_msg(filesink_msg, &sqlite_connection);
-                                match result {
-                                    Ok(result) => {
-                                        // publish NATS message
-                                        let payload = serde_json::to_vec(&result)?;
-                                        nats_client
-                                            .publish(subject.clone(), payload.into())
-                                            .await?;
-                                        info!("Published subject={} id={}", &subject, &result.id)
-                                    }
-                                    Err(e) => error!(
-                                        "Failed to insert VideoRecordingPart row error={}",
-                                        e
-                                    ),
-                                }
-                            }
-                            Err(e) => {
-                                error!(
-                                    "Failed to deserialize GstMultiFileSinkMessage from msg={} error={}",
-                                    &msg.message,
-                                    e
-                                );
-                            }
-                        }
-                    }
-                    _ => error!("Failed to process response={:#?}", msg.response),
-                }
-            }
-            Err(e) => {
-                error!("Error reading gstreamer pipeline bus name={} filter=splitmuxsink-fragment-closed error={}", pipeline_name, e);
-            }
-        }
-    }
 }
 
 #[tokio::main]
@@ -299,8 +245,28 @@ async fn main() -> Result<()> {
     let hostname = args.value_of("hostname").unwrap();
 
     factory.wait_for_pipeline(pipeline).await?;
-    // run_multifilesink_fragment_publisher(factory, pipeline, hostname).await?;
     run_splitmuxsink_fragment_publisher(factory, pipeline, hostname).await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_video_recording_id() {
+        let filename = "/home/printnanny/.local/share/printnanny/video/66b3a3a0-30b5-41f2-9907-a335de57c921/00025.mp4";
+        let expected = "66b3a3a0-30b5-41f2-9907-a335de57c921";
+        let result = parse_video_recording_id(filename);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_parse_video_recording_index() {
+        let filename = "/home/printnanny/.local/share/printnanny/video/66b3a3a0-30b5-41f2-9907-a335de57c921/00025.mp4";
+        let expected = 25;
+        let result = parse_video_recording_index(filename);
+        assert_eq!(result, expected);
+    }
 }
