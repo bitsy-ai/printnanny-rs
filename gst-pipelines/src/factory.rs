@@ -93,10 +93,18 @@ impl PrintNannyPipelineFactory {
                 _ => GstPipelineState::Null,
             },
             Err(e) => {
-                error!(
-                    "Error getting gst pipeline state name={} error={}",
-                    pipeline_name, e
-                );
+                // H264_RECORDING_PIPELINE state is polled every N seconds, 404ing when pipeline doesn't exist
+                // log these at the debug! level, and all other pipelines at the error! level
+                match pipeline_name {
+                    H264_RECORDING_PIPELINE => debug!(
+                        "Error getting gst pipeline state name={} error={}",
+                        pipeline_name, e
+                    ),
+                    _ => error!(
+                        "Error getting gst pipeline state name={} error={}",
+                        pipeline_name, e
+                    ),
+                }
                 GstPipelineState::Null
             }
         }
