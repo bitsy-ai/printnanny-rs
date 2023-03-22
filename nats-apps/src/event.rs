@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
-use printnanny_dbus::printnanny_asyncapi_models::VideoRecordingPart;
+use printnanny_dbus::printnanny_os_models::VideoRecordingPart;
 use printnanny_services::video_recording_sync::upload_video_recording_part;
 use printnanny_settings::printnanny::PrintNannySettings;
 

@@ -13,14 +13,14 @@ pub use clap;
 pub use figment;
 pub use git2;
 pub use printnanny_api_client; // OpenAPI v3 client
-pub use printnanny_asyncapi_models; // AsyncAPI 2.x Models
+pub use printnanny_os_models; // AsyncAPI 2.x Models
 pub use sys_info;
 pub use toml;
 
 use clap::{ArgEnum, PossibleValue};
 use serde::{Deserialize, Serialize};
 
-use printnanny_asyncapi_models::SettingsFormat as SettingsFormatPayload;
+use printnanny_os_models::SettingsFormat as SettingsFormatPayload;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ArgEnum, Deserialize, Serialize)]
 pub enum SettingsFormat {

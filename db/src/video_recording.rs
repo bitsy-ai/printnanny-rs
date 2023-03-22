@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use uuid;
 
 use printnanny_api_client::models;
-use printnanny_asyncapi_models;
+use printnanny_os_models;
 
 use crate::connection::establish_sqlite_connection;
 use crate::schema::video_recording_parts;
@@ -308,7 +308,7 @@ impl VideoRecording {
     }
 }
 
-impl From<VideoRecording> for printnanny_asyncapi_models::VideoRecording {
+impl From<VideoRecording> for printnanny_os_models::VideoRecording {
     fn from(obj: VideoRecording) -> Self {
         Self {
             id: obj.id,
@@ -424,7 +424,7 @@ impl From<VideoRecordingPart> for models::VideoRecordingPartRequest {
     }
 }
 
-impl From<VideoRecordingPart> for printnanny_asyncapi_models::VideoRecordingPart {
+impl From<VideoRecordingPart> for printnanny_os_models::VideoRecordingPart {
     fn from(obj: VideoRecordingPart) -> Self {
         Self {
             id: obj.id,
@@ -440,8 +440,8 @@ impl From<VideoRecordingPart> for printnanny_asyncapi_models::VideoRecordingPart
     }
 }
 
-impl From<&printnanny_asyncapi_models::VideoRecordingPart> for VideoRecordingPart {
-    fn from(obj: &printnanny_asyncapi_models::VideoRecordingPart) -> Self {
+impl From<&printnanny_os_models::VideoRecordingPart> for VideoRecordingPart {
+    fn from(obj: &printnanny_os_models::VideoRecordingPart) -> Self {
         let sync_start: Option<DateTime<Utc>> = obj
             .sync_start
             .as_ref()

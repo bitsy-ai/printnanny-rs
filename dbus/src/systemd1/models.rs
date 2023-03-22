@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use zbus_systemd::systemd1::UnitProxy;
 
 use crate::error::SystemdError;
-use printnanny_asyncapi_models;
+use printnanny_os_models;
 
 pub const PRINTNANNY_RECORDING_SERVICE_TEMPLATE: &str = "printnanny-recording-sync@";
 
@@ -167,72 +167,50 @@ impl SystemdUnit {
     }
 }
 
-impl From<SystemdUnit> for printnanny_asyncapi_models::SystemdUnit {
-    fn from(unit: SystemdUnit) -> printnanny_asyncapi_models::SystemdUnit {
+impl From<SystemdUnit> for printnanny_os_models::SystemdUnit {
+    fn from(unit: SystemdUnit) -> printnanny_os_models::SystemdUnit {
         let active_state = match unit.active_state {
-            SystemdActiveState::Active => {
-                printnanny_asyncapi_models::SystemdUnitActiveState::Active
-            }
-            SystemdActiveState::Loaded => {
-                printnanny_asyncapi_models::SystemdUnitActiveState::Loaded
-            }
+            SystemdActiveState::Active => printnanny_os_models::SystemdUnitActiveState::Active,
+            SystemdActiveState::Loaded => printnanny_os_models::SystemdUnitActiveState::Loaded,
             SystemdActiveState::Activating => {
-                printnanny_asyncapi_models::SystemdUnitActiveState::Activating
+                printnanny_os_models::SystemdUnitActiveState::Activating
             }
-            SystemdActiveState::Inactive => {
-                printnanny_asyncapi_models::SystemdUnitActiveState::Inactive
-            }
+            SystemdActiveState::Inactive => printnanny_os_models::SystemdUnitActiveState::Inactive,
             SystemdActiveState::Reloading => {
-                printnanny_asyncapi_models::SystemdUnitActiveState::Reloading
+                printnanny_os_models::SystemdUnitActiveState::Reloading
             }
             SystemdActiveState::Deactivating => {
-                printnanny_asyncapi_models::SystemdUnitActiveState::Deactivating
+                printnanny_os_models::SystemdUnitActiveState::Deactivating
             }
-            SystemdActiveState::Failed => {
-                printnanny_asyncapi_models::SystemdUnitActiveState::Failed
-            }
+            SystemdActiveState::Failed => printnanny_os_models::SystemdUnitActiveState::Failed,
         };
 
         let load_state = match unit.load_state {
-            SystemdLoadState::Masked => printnanny_asyncapi_models::SystemdUnitLoadState::Masked,
-            SystemdLoadState::Error => printnanny_asyncapi_models::SystemdUnitLoadState::Error,
-            SystemdLoadState::Loaded => printnanny_asyncapi_models::SystemdUnitLoadState::Loaded,
-            SystemdLoadState::NotFound => {
-                printnanny_asyncapi_models::SystemdUnitLoadState::NotMinusFound
-            }
+            SystemdLoadState::Masked => printnanny_os_models::SystemdUnitLoadState::Masked,
+            SystemdLoadState::Error => printnanny_os_models::SystemdUnitLoadState::Error,
+            SystemdLoadState::Loaded => printnanny_os_models::SystemdUnitLoadState::Loaded,
+            SystemdLoadState::NotFound => printnanny_os_models::SystemdUnitLoadState::NotMinusFound,
         };
 
         let unit_file_state = match unit.unit_file_state {
-            SystemdUnitFileState::Enabled => {
-                printnanny_asyncapi_models::SystemdUnitFileState::Enabled
-            }
+            SystemdUnitFileState::Enabled => printnanny_os_models::SystemdUnitFileState::Enabled,
             SystemdUnitFileState::EnabledRuntime => {
-                printnanny_asyncapi_models::SystemdUnitFileState::EnabledMinusRuntime
+                printnanny_os_models::SystemdUnitFileState::EnabledMinusRuntime
             }
-            SystemdUnitFileState::Disabled => {
-                printnanny_asyncapi_models::SystemdUnitFileState::Disabled
-            }
-            SystemdUnitFileState::Linked => {
-                printnanny_asyncapi_models::SystemdUnitFileState::Linked
-            }
+            SystemdUnitFileState::Disabled => printnanny_os_models::SystemdUnitFileState::Disabled,
+            SystemdUnitFileState::Linked => printnanny_os_models::SystemdUnitFileState::Linked,
             SystemdUnitFileState::LinkedRuntime => {
-                printnanny_asyncapi_models::SystemdUnitFileState::LinkedMinusRuntime
+                printnanny_os_models::SystemdUnitFileState::LinkedMinusRuntime
             }
-            SystemdUnitFileState::Masked => {
-                printnanny_asyncapi_models::SystemdUnitFileState::Masked
-            }
+            SystemdUnitFileState::Masked => printnanny_os_models::SystemdUnitFileState::Masked,
             SystemdUnitFileState::MaskedRuntime => {
-                printnanny_asyncapi_models::SystemdUnitFileState::MaskedMinusRuntime
+                printnanny_os_models::SystemdUnitFileState::MaskedMinusRuntime
             }
-            SystemdUnitFileState::Static => {
-                printnanny_asyncapi_models::SystemdUnitFileState::Static
-            }
-            SystemdUnitFileState::Invalid => {
-                printnanny_asyncapi_models::SystemdUnitFileState::Invalid
-            }
+            SystemdUnitFileState::Static => printnanny_os_models::SystemdUnitFileState::Static,
+            SystemdUnitFileState::Invalid => printnanny_os_models::SystemdUnitFileState::Invalid,
         };
 
-        printnanny_asyncapi_models::SystemdUnit {
+        printnanny_os_models::SystemdUnit {
             id: unit.id,
             fragment_path: unit.fragment_path,
             active_state: Box::new(active_state),

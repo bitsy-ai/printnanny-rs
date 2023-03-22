@@ -41,7 +41,7 @@ pub fn octoprint_api_client(
 //         .get(url)
 //         .send()
 //         .await?
-//         .json::<printnanny_asyncapi_models::OctoPrintCurrentJob>()
+//         .json::<printnanny_os_models::OctoPrintCurrentJob>()
 //         .await?;
 //     match (result.job).file {
 //         Some(file) => match file.name {

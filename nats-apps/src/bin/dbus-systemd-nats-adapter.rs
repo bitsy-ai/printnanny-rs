@@ -7,12 +7,12 @@ use futures_util::StreamExt;
 use git_version::git_version;
 use log::info;
 use log::LevelFilter;
-use printnanny_dbus::printnanny_asyncapi_models::SystemdUnitActiveState;
+use printnanny_dbus::printnanny_os_models::SystemdUnitActiveState;
 
 use printnanny_dbus::zbus;
 use printnanny_dbus::zbus_systemd;
 
-use printnanny_settings::printnanny_asyncapi_models::{
+use printnanny_settings::printnanny_os_models::{
     SystemdUnit, SystemdUnitActiveStateChanged, SystemdUnitFileState, SystemdUnitFileStateChanged,
 };
 use printnanny_settings::sys_info;
