@@ -103,7 +103,7 @@ pub struct CameraVideoSource {
     pub device_name: String,
     pub label: String,
     // #[serde(skip_serializing_if = "Option::is_none")]
-    pub caps: printnanny_asyncapi_models::GstreamerCaps,
+    pub caps: printnanny_os_models::GstreamerCaps,
 }
 
 impl Default for CameraVideoSource {
@@ -118,8 +118,8 @@ impl Default for CameraVideoSource {
 }
 
 impl CameraVideoSource {
-    pub fn default_caps() -> printnanny_asyncapi_models::GstreamerCaps {
-        printnanny_asyncapi_models::GstreamerCaps {
+    pub fn default_caps() -> printnanny_os_models::GstreamerCaps {
+        printnanny_os_models::GstreamerCaps {
             colorimetry: DEFAULT_COLORIMETRY.into(),
             media_type: "video/x-raw".into(),
             format: DEFAULT_PIXEL_FORMAT.into(),
@@ -128,14 +128,14 @@ impl CameraVideoSource {
         }
     }
 
-    pub fn camera_source_type(&self) -> printnanny_asyncapi_models::CameraSourceType {
+    pub fn camera_source_type(&self) -> printnanny_os_models::CameraSourceType {
         match &self.device_name.contains("usb") {
-            true => printnanny_asyncapi_models::CameraSourceType::Usb,
-            false => printnanny_asyncapi_models::CameraSourceType::Csi,
+            true => printnanny_os_models::CameraSourceType::Usb,
+            false => printnanny_os_models::CameraSourceType::Csi,
         }
     }
 
-    pub fn list_available_caps(&self) -> Vec<printnanny_asyncapi_models::GstreamerCaps> {
+    pub fn list_available_caps(&self) -> Vec<printnanny_os_models::GstreamerCaps> {
         gst::init().unwrap();
         let get_factory = gst::DeviceProviderFactory::find("libcameraprovider");
         let results = if let Some(libcamera_device_provider_factory) = get_factory {
@@ -171,7 +171,7 @@ impl CameraVideoSource {
                                             (&height, &width, &format)
                                         {
                                             let media_type = s.name().into();
-                                            Some(printnanny_asyncapi_models::GstreamerCaps {
+                                            Some(printnanny_os_models::GstreamerCaps {
                                                 colorimetry: DEFAULT_COLORIMETRY.into(),
                                                 height: *height,
                                                 width: *width,
@@ -315,11 +315,11 @@ pub enum VideoSource {
     Uri(MediaVideoSource),
 }
 
-impl From<&CameraVideoSource> for printnanny_asyncapi_models::camera::Camera {
-    fn from(obj: &CameraVideoSource) -> printnanny_asyncapi_models::camera::Camera {
+impl From<&CameraVideoSource> for printnanny_os_models::camera::Camera {
+    fn from(obj: &CameraVideoSource) -> printnanny_os_models::camera::Camera {
         let src_type = obj.camera_source_type();
         let available_caps = obj.list_available_caps();
-        printnanny_asyncapi_models::camera::Camera {
+        printnanny_os_models::camera::Camera {
             selected_caps: Box::new(obj.caps.clone()),
             available_caps,
             index: obj.index,
@@ -330,10 +330,10 @@ impl From<&CameraVideoSource> for printnanny_asyncapi_models::camera::Camera {
     }
 }
 
-impl From<printnanny_asyncapi_models::Camera> for VideoSource {
-    fn from(camera: printnanny_asyncapi_models::Camera) -> VideoSource {
+impl From<printnanny_os_models::Camera> for VideoSource {
+    fn from(camera: printnanny_os_models::Camera) -> VideoSource {
         match *camera.src_type {
-            printnanny_asyncapi_models::CameraSourceType::Csi => {
+            printnanny_os_models::CameraSourceType::Csi => {
                 VideoSource::CSI(CameraVideoSource {
                     caps: *camera.selected_caps,
                     index: camera.index,
@@ -341,7 +341,7 @@ impl From<printnanny_asyncapi_models::Camera> for VideoSource {
                     label: camera.label,
                 })
             }
-            printnanny_asyncapi_models::CameraSourceType::Usb => {
+            printnanny_os_models::CameraSourceType::Usb => {
                 VideoSource::USB(CameraVideoSource {
                     caps: *camera.selected_caps,
 
@@ -354,20 +354,20 @@ impl From<printnanny_asyncapi_models::Camera> for VideoSource {
     }
 }
 
-impl From<VideoSource> for printnanny_asyncapi_models::Camera {
-    fn from(obj: VideoSource) -> printnanny_asyncapi_models::Camera {
+impl From<VideoSource> for printnanny_os_models::Camera {
+    fn from(obj: VideoSource) -> printnanny_os_models::Camera {
         match &obj {
-            VideoSource::CSI(camera) => printnanny_asyncapi_models::Camera {
+            VideoSource::CSI(camera) => printnanny_os_models::Camera {
                 selected_caps: Box::new(camera.caps.clone()),
-                src_type: Box::new(printnanny_asyncapi_models::CameraSourceType::Csi),
+                src_type: Box::new(printnanny_os_models::CameraSourceType::Csi),
                 index: camera.index,
                 label: camera.label.clone(),
                 device_name: camera.device_name.clone(),
                 available_caps: camera.list_available_caps(),
             },
-            VideoSource::USB(camera) => printnanny_asyncapi_models::Camera {
+            VideoSource::USB(camera) => printnanny_os_models::Camera {
                 selected_caps: Box::new(camera.caps.clone()),
-                src_type: Box::new(printnanny_asyncapi_models::CameraSourceType::Usb),
+                src_type: Box::new(printnanny_os_models::CameraSourceType::Usb),
                 index: camera.index,
                 label: camera.label.clone(),
                 device_name: camera.device_name.clone(),
@@ -382,22 +382,22 @@ impl From<VideoSource> for printnanny_asyncapi_models::Camera {
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct VideoStreamSettings {
     #[serde(rename = "camera")]
-    pub camera: Box<printnanny_asyncapi_models::CameraSettings>,
+    pub camera: Box<printnanny_os_models::CameraSettings>,
     #[serde(rename = "detection")]
-    pub detection: Box<printnanny_asyncapi_models::DetectionSettings>,
+    pub detection: Box<printnanny_os_models::DetectionSettings>,
     #[serde(rename = "hls")]
-    pub hls: Box<printnanny_asyncapi_models::HlsSettings>,
+    pub hls: Box<printnanny_os_models::HlsSettings>,
     #[serde(rename = "recording")]
-    pub recording: Box<printnanny_asyncapi_models::RecordingSettings>,
+    pub recording: Box<printnanny_os_models::RecordingSettings>,
     #[serde(rename = "rtp")]
-    pub rtp: Box<printnanny_asyncapi_models::RtpSettings>,
+    pub rtp: Box<printnanny_os_models::RtpSettings>,
     #[serde(rename = "snapshot")]
-    pub snapshot: Box<printnanny_asyncapi_models::SnapshotSettings>,
+    pub snapshot: Box<printnanny_os_models::SnapshotSettings>,
 }
 
-impl From<VideoStreamSettings> for printnanny_asyncapi_models::VideoStreamSettings {
-    fn from(obj: VideoStreamSettings) -> printnanny_asyncapi_models::VideoStreamSettings {
-        printnanny_asyncapi_models::VideoStreamSettings {
+impl From<VideoStreamSettings> for printnanny_os_models::VideoStreamSettings {
+    fn from(obj: VideoStreamSettings) -> printnanny_os_models::VideoStreamSettings {
+        printnanny_os_models::VideoStreamSettings {
             camera: obj.camera,
             detection: obj.detection,
             hls: obj.hls,
@@ -408,8 +408,8 @@ impl From<VideoStreamSettings> for printnanny_asyncapi_models::VideoStreamSettin
     }
 }
 
-impl From<printnanny_asyncapi_models::VideoStreamSettings> for VideoStreamSettings {
-    fn from(obj: printnanny_asyncapi_models::VideoStreamSettings) -> VideoStreamSettings {
+impl From<printnanny_os_models::VideoStreamSettings> for VideoStreamSettings {
+    fn from(obj: printnanny_os_models::VideoStreamSettings) -> VideoStreamSettings {
         VideoStreamSettings {
             camera: obj.camera,
             detection: obj.detection,
@@ -423,7 +423,7 @@ impl From<printnanny_asyncapi_models::VideoStreamSettings> for VideoStreamSettin
 
 impl Default for VideoStreamSettings {
     fn default() -> Self {
-        let camera = Box::new(printnanny_asyncapi_models::CameraSettings {
+        let camera = Box::new(printnanny_os_models::CameraSettings {
             width: 640,
             height: 480,
             framerate_n: 16,
@@ -434,7 +434,7 @@ impl Default for VideoStreamSettings {
             colorimetry: DEFAULT_COLORIMETRY.into()
         });
 
-        let detection = Box::new(printnanny_asyncapi_models::DetectionSettings {
+        let detection = Box::new(printnanny_os_models::DetectionSettings {
             graphs: true,
             overlay: true,
             nats_server_uri: "nats://127.0.0.1:4223".into(),
@@ -447,25 +447,25 @@ impl Default for VideoStreamSettings {
             tensor_framerate: 2,
         });
 
-        let hls = Box::new(printnanny_asyncapi_models::HlsSettings {
+        let hls = Box::new(printnanny_os_models::HlsSettings {
             enabled: true,
             segments: "/var/run/printnanny-hls/segment%05d.ts".into(),
             playlist: "/var/run/printnanny-hls/playlist.m3u8".into(),
             playlist_root: "/printnanny-hls/".into(),
         });
 
-        let recording = Box::new(printnanny_asyncapi_models::RecordingSettings {
+        let recording = Box::new(printnanny_os_models::RecordingSettings {
             path: "/home/printnanny/.local/share/printnanny/video".into(),
             auto_start: true,
             cloud_sync: true,
         });
 
-        let rtp = Box::new(printnanny_asyncapi_models::RtpSettings {
+        let rtp = Box::new(printnanny_os_models::RtpSettings {
             video_udp_port: 20001,
             overlay_udp_port: 20002,
         });
 
-        let snapshot = Box::new(printnanny_asyncapi_models::SnapshotSettings {
+        let snapshot = Box::new(printnanny_os_models::SnapshotSettings {
             path: "/var/run/printnanny-snapshot/snapshot-%d.jpg".into(),
             enabled: true,
         });
@@ -499,7 +499,7 @@ impl VideoStreamSettings {
             }
             // if settings model device isn't plugged in, set default to first available source
             let selected = camera_sources.first().unwrap();
-            self.camera = Box::new(printnanny_asyncapi_models::CameraSettings {
+            self.camera = Box::new(printnanny_os_models::CameraSettings {
                 device_name: selected.device_name.clone(),
                 label: selected.label.clone(),
                 height: selected.caps.height,

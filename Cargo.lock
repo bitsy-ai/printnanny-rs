@@ -3555,16 +3555,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "printnanny-asyncapi-models"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcc16bfd805cddc08aaef801c284cb43c98079fb3c3ee85116dca9192fca4313"
-dependencies = [
- "serde 1.0.152",
- "serde_json",
-]
-
-[[package]]
 name = "printnanny-cli"
 version = "0.33.1"
 dependencies = [
@@ -3596,7 +3586,7 @@ dependencies = [
  "async-trait",
  "env_logger",
  "log",
- "printnanny-asyncapi-models",
+ "printnanny-os-models",
  "serde 1.0.152",
  "thiserror",
  "tokio",
@@ -3613,7 +3603,7 @@ dependencies = [
  "diesel_migrations",
  "log",
  "printnanny-api-client",
- "printnanny-asyncapi-models",
+ "printnanny-os-models",
  "printnanny-settings",
  "serde 1.0.152",
  "serde_json",
@@ -3743,6 +3733,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "printnanny-os-models"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1b4eb7dd17b100697a39ca3adfdbcb61ad95f1ac97b9c0ea417f39f6dfd0150"
+dependencies = [
+ "serde 1.0.152",
+ "serde_json",
+]
+
+[[package]]
 name = "printnanny-services"
 version = "0.33.1"
 dependencies = [
@@ -3809,8 +3809,8 @@ dependencies = [
  "log",
  "predicates 2.1.5",
  "printnanny-api-client",
- "printnanny-asyncapi-models",
  "printnanny-dbus",
+ "printnanny-os-models",
  "regex",
  "serde 1.0.152",
  "serde_json",

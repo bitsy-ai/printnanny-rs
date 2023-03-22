@@ -5,7 +5,7 @@ use tokio::fs;
 use async_trait::async_trait;
 use git2::{DiffFormat, DiffOptions, Repository};
 use log::{debug, info, warn};
-use printnanny_asyncapi_models::{SettingsApp, SettingsFile};
+use printnanny_os_models::{SettingsApp, SettingsFile};
 use serde::{Deserialize, Serialize};
 
 use crate::error::VersionControlledSettingsError;
@@ -290,8 +290,8 @@ impl<'repo> From<git2::Commit<'repo>> for GitCommit {
     }
 }
 
-impl From<&printnanny_asyncapi_models::GitCommit> for GitCommit {
-    fn from(commit: &printnanny_asyncapi_models::GitCommit) -> GitCommit {
+impl From<&printnanny_os_models::GitCommit> for GitCommit {
+    fn from(commit: &printnanny_os_models::GitCommit) -> GitCommit {
         GitCommit {
             oid: commit.oid.clone(),
             header: commit.header.clone(),
@@ -301,9 +301,9 @@ impl From<&printnanny_asyncapi_models::GitCommit> for GitCommit {
     }
 }
 
-impl From<&GitCommit> for printnanny_asyncapi_models::GitCommit {
-    fn from(commit: &GitCommit) -> printnanny_asyncapi_models::GitCommit {
-        printnanny_asyncapi_models::GitCommit {
+impl From<&GitCommit> for printnanny_os_models::GitCommit {
+    fn from(commit: &GitCommit) -> printnanny_os_models::GitCommit {
+        printnanny_os_models::GitCommit {
             oid: commit.oid.clone(),
             header: commit.header.clone(),
             message: commit.message.clone(),

@@ -9,7 +9,7 @@ use tokio::time::{sleep, Duration};
 
 use printnanny_settings::cam::VideoStreamSettings;
 use printnanny_settings::printnanny::PrintNannySettings;
-use printnanny_settings::printnanny_asyncapi_models::{CameraSettings, DetectionSettings};
+use printnanny_settings::printnanny_os_models::{CameraSettings, DetectionSettings};
 
 pub const CAMERA_PIPELINE: &str = "camera";
 pub const H264_ENCODING_PIPELINE: &str = "h264_encode";

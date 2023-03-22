@@ -10,8 +10,8 @@ use printnanny_settings::cam::CameraVideoSource;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 
-use printnanny_dbus::printnanny_asyncapi_models;
-use printnanny_dbus::printnanny_asyncapi_models::{
+use printnanny_dbus::printnanny_os_models;
+use printnanny_dbus::printnanny_os_models::{
     CameraRecordingLoadReply, CameraRecordingStarted, CameraRecordingStopped, CameraStatus,
     CamerasLoadReply, CrashReportOsLogsReply, CrashReportOsLogsRequest, DeviceInfoLoadReply,
     PrintNannyCloudAuthReply, PrintNannyCloudAuthRequest, PrintNannyCloudSyncReply, SettingsApp,
@@ -285,7 +285,7 @@ impl NatsRequest {
         let ifaddrs = tokio::task::spawn_blocking(|| match nix::ifaddrs::getifaddrs() {
             Ok(result) => result
                 .map(
-                    |v| printnanny_settings::printnanny_asyncapi_models::NetworkInterfaceAddress {
+                    |v| printnanny_settings::printnanny_os_models::NetworkInterfaceAddress {
                         interface_name: v.interface_name,
                         flags: v.flags.bits(),
                         address: v.address.map(|v| v.to_string()),
@@ -355,15 +355,14 @@ impl NatsRequest {
     }
 
     pub async fn handle_cameras_load() -> Result<NatsReply> {
-        let cameras: Vec<printnanny_asyncapi_models::Camera> =
-            CameraVideoSource::from_libcamera_list()
-                .await?
-                .iter()
-                .map(|v| v.into())
-                .collect();
+        let cameras: Vec<printnanny_os_models::Camera> = CameraVideoSource::from_libcamera_list()
+            .await?
+            .iter()
+            .map(|v| v.into())
+            .collect();
 
         Ok(NatsReply::CameraLoadReply(
-            printnanny_asyncapi_models::cameras_load_reply::CamerasLoadReply { cameras },
+            printnanny_os_models::cameras_load_reply::CamerasLoadReply { cameras },
         ))
     }
 
@@ -463,7 +462,7 @@ impl NatsRequest {
         files: Vec<SettingsFile>,
     ) -> Result<NatsReply> {
         let git_head_commit = settings.get_git_head_commit()?.oid;
-        let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
+        let git_history: Vec<printnanny_os_models::GitCommit> =
             settings.get_rev_list()?.iter().map(|r| r.into()).collect();
         Ok(NatsReply::SettingsFileRevertReply(
             SettingsFileRevertReply {
@@ -531,7 +530,7 @@ impl NatsRequest {
         file: SettingsFile,
     ) -> Result<NatsReply> {
         let git_head_commit = settings.get_git_head_commit()?.oid;
-        let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
+        let git_history: Vec<printnanny_os_models::GitCommit> =
             settings.get_rev_list()?.iter().map(|r| r.into()).collect();
         Ok(NatsReply::SettingsFileApplyReply(SettingsFileApplyReply {
             file: Box::new(file),
@@ -579,7 +578,7 @@ impl NatsRequest {
         let settings = PrintNannySettings::new().await?;
 
         let git_head_commit = settings.get_git_head_commit()?.oid;
-        let git_history: Vec<printnanny_asyncapi_models::GitCommit> =
+        let git_history: Vec<printnanny_os_models::GitCommit> =
             settings.get_rev_list()?.iter().map(|r| r.into()).collect();
 
         let mut files = Self::handle_printnanny_settings_load().await?;
@@ -729,16 +728,14 @@ impl NatsRequest {
         ))
     }
 
-    async fn get_systemd_unit(
-        unit_name: String,
-    ) -> Result<printnanny_asyncapi_models::SystemdUnit> {
+    async fn get_systemd_unit(unit_name: String) -> Result<printnanny_os_models::SystemdUnit> {
         let connection = zbus::Connection::system().await?;
         let proxy = printnanny_dbus::zbus_systemd::systemd1::ManagerProxy::new(&connection).await?;
         let unit_path = proxy.load_unit(unit_name.clone()).await?; // load_unit is similar to get_unit, but will first attempt to load unit file
         let unit =
             printnanny_dbus::systemd1::models::SystemdUnit::from_owned_object_path(unit_path)
                 .await?;
-        let unit = printnanny_asyncapi_models::SystemdUnit::from(unit);
+        let unit = printnanny_os_models::SystemdUnit::from(unit);
         Ok(unit)
     }
 
@@ -1126,7 +1123,7 @@ mod tests {
 
             let reply = runtime.block_on(request.handle()).unwrap();
             if let NatsReply::CameraSettingsFileLoadReply(reply) = reply {
-                let expected: printnanny_asyncapi_models::VideoStreamSettings =
+                let expected: printnanny_os_models::VideoStreamSettings =
                     settings.video_stream.into();
                 assert_eq!(expected, reply)
             }
@@ -1539,7 +1536,7 @@ mod tests {
         if let NatsReply::SystemdManagerRestartUnitReply(reply) = reply {
             assert_eq!(
                 *(*reply.unit).load_state,
-                printnanny_asyncapi_models::SystemdUnitLoadState::Loaded
+                printnanny_os_models::SystemdUnitLoadState::Loaded
             );
         } else {
             panic!("Expected NatsReply::SystemdManagerRestartUniReply")
@@ -1566,7 +1563,7 @@ mod tests {
         if let NatsReply::SystemdManagerStartUnitReply(reply) = reply {
             assert_eq!(
                 *(*reply.unit).load_state,
-                printnanny_asyncapi_models::SystemdUnitLoadState::Loaded
+                printnanny_os_models::SystemdUnitLoadState::Loaded
             );
         } else {
             panic!("Expected NatsReply::SystemdManagerStartUnitReply")
@@ -1606,7 +1603,7 @@ mod tests {
         if let NatsReply::SystemdManagerStopUnitReply(reply) = reply {
             assert_eq!(
                 *(*reply.unit).load_state,
-                printnanny_asyncapi_models::SystemdUnitLoadState::Loaded
+                printnanny_os_models::SystemdUnitLoadState::Loaded
             );
         } else {
             panic!("Expected NatsReply::SystemdManagerStopUnitReply")
