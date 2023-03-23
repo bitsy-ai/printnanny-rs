@@ -1,15 +1,20 @@
 #[macro_use]
 extern crate clap;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use clap::{Arg, Command};
+use printnanny_services::printnanny_api::ApiService;
 use std::fs;
 use std::path::PathBuf;
 
+use chrono::{DateTime, Utc};
 use env_logger::Builder;
 use git_version::git_version;
 use log::{error, info, LevelFilter};
+use tokio::fs::File;
+use tokio::io::{self, AsyncReadExt};
 
+use printnanny_api_client::models;
 use printnanny_gst_pipelines::factory::{PrintNannyPipelineFactory, H264_RECORDING_PIPELINE};
 use printnanny_gst_pipelines::gst_client;
 
@@ -58,8 +63,8 @@ fn parse_video_recording_index(filename: &str) -> i32 {
     last.split(".").nth(0).unwrap().parse().unwrap()
 }
 
-// Subscribe to GstMultiFileSink messages on gstreamer bus, re-publish NATS message
-fn handle_filesink_msg(
+// Insert local VideoRecordingPart row
+fn handle_filesink_msg_opened(
     filesink_msg: GstSplitMuxSinkFragmentMessage,
     sqlite_connection: &str,
 ) -> Result<printnanny_edge_db::video_recording::VideoRecordingPart> {
@@ -92,6 +97,81 @@ fn handle_filesink_msg(
         &row_id,
     )?;
     Ok(result)
+}
+
+async fn handle_file_upload(url: &str, filename: &str) -> Result<()> {
+    let mut file = File::open(filename).await?;
+    let mut vec = Vec::new();
+    file.read_to_end(&mut vec);
+    let client = reqwest::Client::new();
+    let res = client
+        .put(url)
+        .header("content-type", "application/octet-stream")
+        .body(vec)
+        .send()
+        .await?;
+}
+
+// upload VideoRecordingPart and publish NATS message
+async fn handle_filesink_msg_closed(
+    filesink_msg: GstSplitMuxSinkFragmentMessage,
+    sqlite_connection: &str,
+) -> Result<printnanny_edge_db::video_recording::VideoRecordingPart> {
+    // parse recording id from filesink_msg
+    let video_recording_id = parse_video_recording_id(&filesink_msg.location);
+
+    let size = fs::metadata(&filesink_msg.location)?.len() as i64;
+    let index = parse_video_recording_index(&filesink_msg.location);
+    let row_id = format!("{video_recording_id}-{index}");
+
+    let start = Utc::now();
+
+    let row = printnanny_edge_db::video_recording::UpdateVideoRecordingPart {
+        sync_start: Some(&start),
+        deleted: None,
+        sync_end: None,
+    };
+    // update local model
+    printnanny_edge_db::video_recording::VideoRecordingPart::update(
+        sqlite_connection: &str,
+        &row_id,
+        row,
+    )?;
+    let row = printnanny_edge_db::video_recording::VideoRecordingPart::get_by_id(
+        sqlite_connection,
+        &row_id,
+    )?;
+
+    // create/update cloud model
+    let settings = PrintNannySettings::new().await?;
+    let api = ApiService::new(settings.cloud, sqlite_connection.to_string());
+    let remote = api
+        .video_recording_parts_update_or_create(row.into())
+        .await?;
+
+    handle_file_upload(&row.file_name, &url).await?;
+    let end = Utc::now();
+    let duration = end.signed_duration_since(start);
+    logger.info(
+        "Finished uploading VideoRecordingPart id={} in ms=",
+        &row_id,
+        duration.num_milliseconds(),
+    );
+
+    let request = models::PatchedVideoRecordingPartRequest {
+        id: None,
+        sync_end: Some(end.to_rfc3339()),
+        size: None,
+        buffer_index: None,
+        buffer_runningtime: None,
+        file_name: None,
+        sync_start: None,
+        video_recording: None,
+    };
+    let result = api
+        .video_recording_parts_partial_update(&row_id, request)
+        .await?;
+    Ok(result.into())
 }
 
 // subscribe to splitmuxsink-fragment-closed message
@@ -127,13 +207,29 @@ async fn run_splitmuxsink_fragment_publisher(
         info!("Received msg={:?}", msg);
         match msg {
             Ok(msg) => match msg.response {
+                gst_client::gstd_types::ResponseT::GstSplitMuxSinkFragmentOpened(msg) => {
+                    info!(
+                        "Handling msg on gstreamer pipeline bus name={} msg={:?}",
+                        pipeline_name, msg
+                    );
+                    // insert filesink msg row
+                    let result = handle_filesink_msg_opened(msg.message, &sqlite_connection);
+                    match result {
+                        Ok(result) => {
+                            info!("Inserted VideoRecordingPart id={}", result.id);
+                        }
+                        Err(e) => {
+                            error!("Failed to insert VideoRecordingPart row error={}", e)
+                        }
+                    }
+                }
                 gst_client::gstd_types::ResponseT::GstSplitMuxSinkFragmentClosed(msg) => {
                     info!(
                         "Handling msg on gstreamer pipeline bus name={} msg={:?}",
                         pipeline_name, msg
                     );
                     // insert filesink msg row
-                    let result = handle_filesink_msg(msg.message, &sqlite_connection);
+                    let result = handle_filesink_msg_closed(msg.message, &sqlite_connection).await;
                     match result {
                         Ok(result) => {
                             // publish NATS message
@@ -142,7 +238,7 @@ async fn run_splitmuxsink_fragment_publisher(
                             info!("Published subject={} id={}", &subject, &result.id)
                         }
                         Err(e) => {
-                            error!("Failed to insert VideoRecordingPart row error={}", e)
+                            error!("Failed to upload VideoRecordingPart row error={}", e)
                         }
                     }
                 }

@@ -410,6 +410,20 @@ impl VideoRecordingPart {
             .load::<VideoRecordingPart>(connection)?;
         Ok(result)
     }
+
+    pub fn update(
+        connection_str: &str,
+        row_id: &str,
+        row: UpdateVideoRecordingPart,
+    ) -> Result<(), diesel::result::Error> {
+        use crate::schema::video_recording_parts::dsl::*;
+        let connection = &mut establish_sqlite_connection(connection_str);
+        diesel::update(video_recording_parts.filter(id.eq(row_id)))
+            .set(row)
+            .execute(connection)?;
+        info!("Updated VideoRecordingPart with id {}", row_id);
+        Ok(())
+    }
 }
 
 impl From<VideoRecordingPart> for models::VideoRecordingPartRequest {
@@ -419,8 +433,8 @@ impl From<VideoRecordingPart> for models::VideoRecordingPartRequest {
             size: obj.size,
             buffer_index: obj.buffer_index as i64,
             buffer_runningtime: obj.buffer_runningtime,
-            sync_start: None,
-            sync_end: None,
+            sync_start: obj.sync_start.map(|v| v.to_rfc3339()),
+            sync_end: obj.sync_end.map(|v| v.to_rfc3339()),
             video_recording: obj.video_recording_id,
             file_name: obj.file_name,
         }
