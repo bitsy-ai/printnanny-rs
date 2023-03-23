@@ -7,6 +7,9 @@ use derive_more::{Display, Error};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
+pub const GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_CLOSED: &str = "splitmuxsink-fragment-closed";
+pub const GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_OPENED: &str = "splitmuxsink-fragment-opened";
+
 /// Response returned by [`GStreamer Daemon`][1] API.
 ///
 /// [1]: https://developer.ridgerun.com/wiki/index.php/GStreamer_Daemon
@@ -73,6 +76,8 @@ pub enum ResponseT {
     Bus(Option<Bus>),
     Properties(Properties),
     Property(Property),
+    GstSplitMuxSinkFragmentOpened(GstSplitMuxSinkFragmentOpened),
+    GstSplitMuxSinkFragmentClosed(GstSplitMuxSinkFragmentClosed),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -128,4 +133,32 @@ pub struct Bus {
     pub seqnum: i64,
     pub message: String,
     pub debug: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct GstSplitMuxSinkFragmentMessage {
+    pub location: String,
+    #[serde(rename = "running-time")]
+    pub running_time: u64,
+    pub sink: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct GstSplitMuxSinkFragmentOpened {
+    pub r#type: String,
+    pub source: String,
+    pub timestamp: String,
+    pub seqnum: i64,
+    #[serde(rename = "splitmuxsink-fragment-opened")]
+    pub message: GstSplitMuxSinkFragmentMessage,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct GstSplitMuxSinkFragmentClosed {
+    pub r#type: String,
+    pub source: String,
+    pub timestamp: String,
+    pub seqnum: i64,
+    #[serde(rename = "splitmuxsink-fragment-closed")]
+    pub message: GstSplitMuxSinkFragmentMessage,
 }
