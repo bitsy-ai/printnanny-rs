@@ -19,8 +19,7 @@ use printnanny_gst_pipelines::factory::{PrintNannyPipelineFactory, H264_RECORDIN
 use printnanny_gst_pipelines::gst_client;
 
 use gst_client::gstd_types::{
-    GstSplitMuxSinkFragmentClosed, GstSplitMuxSinkFragmentMessage,
-    GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_CLOSED,
+    GstSplitMuxSinkFragmentMessage, GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_CLOSED,
 };
 
 use printnanny_nats_client::client::wait_for_nats_client;
@@ -60,7 +59,7 @@ fn parse_video_recording_index(filename: &str) -> i32 {
         .to_str()
         .unwrap()
         .into();
-    last.split(".").nth(0).unwrap().parse().unwrap()
+    last.split('.').nth(0).unwrap().parse().unwrap()
 }
 
 // Insert local VideoRecordingPart row
@@ -121,7 +120,6 @@ async fn handle_filesink_msg_closed(
     // parse recording id from filesink_msg
     let video_recording_id = parse_video_recording_id(&filesink_msg.location);
 
-    let size = fs::metadata(&filesink_msg.location)?.len() as i64;
     let index = parse_video_recording_index(&filesink_msg.location);
     let row_id = format!("{video_recording_id}-{index}");
 
@@ -134,7 +132,7 @@ async fn handle_filesink_msg_closed(
     };
     // update local model
     printnanny_edge_db::video_recording::VideoRecordingPart::update(
-        sqlite_connection: &str,
+        sqlite_connection,
         &row_id,
         row,
     )?;
@@ -150,7 +148,7 @@ async fn handle_filesink_msg_closed(
         .video_recording_parts_update_or_create(row.into())
         .await?;
 
-    handle_file_upload(&row.file_name, &url).await?;
+    handle_file_upload(&filesink_msg.location, &remote.mp4_upload_url).await?;
     let end = Utc::now();
     let duration = end.signed_duration_since(start);
     info!(
@@ -175,8 +173,7 @@ async fn handle_filesink_msg_closed(
         sync_start: None,
         video_recording: None,
     };
-    let result = api
-        .video_recording_parts_partial_update(&row_id, request)
+    api.video_recording_parts_partial_update(&row_id, request)
         .await?;
     let row = printnanny_edge_db::video_recording::VideoRecordingPart::get_by_id(
         sqlite_connection,
