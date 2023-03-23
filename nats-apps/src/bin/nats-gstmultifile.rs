@@ -12,8 +12,9 @@ use log::{error, info, LevelFilter};
 
 use printnanny_gst_pipelines::factory::{PrintNannyPipelineFactory, H264_RECORDING_PIPELINE};
 use printnanny_gst_pipelines::gst_client;
-use printnanny_gst_pipelines::message::{
-    GstMultiFileSinkMessage, GstSplitMuxSinkFragmentMessage,
+
+use gst_client::gstd_types::{
+    GstSplitMuxSinkFragmentClosed, GstSplitMuxSinkFragmentMessage,
     GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_CLOSED,
 };
 
@@ -126,38 +127,22 @@ async fn run_splitmuxsink_fragment_publisher(
         info!("Received msg={:?}", msg);
         match msg {
             Ok(msg) => match msg.response {
-                gst_client::gstd_types::ResponseT::Bus(Some(msg)) => {
+                gst_client::gstd_types::ResponseT::GstSplitMuxSinkFragmentClosed(msg) => {
                     info!(
                         "Handling msg on gstreamer pipeline bus name={} msg={:?}",
                         pipeline_name, msg
                     );
-
-                    // attempt to deserialize msg
-                    let filesink_msg =
-                        serde_json::from_str::<GstSplitMuxSinkFragmentMessage>(&msg.message);
-                    match filesink_msg {
-                        Ok(filesink_msg) => {
-                            // insert filesink msg row
-                            info!("Deserialized msg: {:?}", filesink_msg);
-                            let result = handle_filesink_msg(filesink_msg, &sqlite_connection);
-                            match result {
-                                Ok(result) => {
-                                    // publish NATS message
-                                    let payload = serde_json::to_vec(&result)?;
-                                    nats_client.publish(subject.clone(), payload.into()).await?;
-                                    info!("Published subject={} id={}", &subject, &result.id)
-                                }
-                                Err(e) => {
-                                    error!("Failed to insert VideoRecordingPart row error={}", e)
-                                }
-                            }
+                    // insert filesink msg row
+                    let result = handle_filesink_msg(msg.message, &sqlite_connection);
+                    match result {
+                        Ok(result) => {
+                            // publish NATS message
+                            let payload = serde_json::to_vec(&result)?;
+                            nats_client.publish(subject.clone(), payload.into()).await?;
+                            info!("Published subject={} id={}", &subject, &result.id)
                         }
                         Err(e) => {
-                            error!(
-                                "Failed to deserialize GstSplitMuxSinkFragmentMessage from msg={} error={}",
-                                &msg.message,
-                                e
-                            );
+                            error!("Failed to insert VideoRecordingPart row error={}", e)
                         }
                     }
                 }

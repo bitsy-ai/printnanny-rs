@@ -168,6 +168,42 @@ mod spec {
       }
     "#;
 
+    const SPLITMUXSINK_FRAGMENT_OPENED: &'static str = r#"
+    {
+        "code" : 0,
+        "description" : "Success",
+        "response" : {
+          "type" : "element",
+          "source" : "h264_splitmuxsink",
+          "timestamp" : "99:99:99.999999999",
+          "seqnum" : 7535,
+          "splitmuxsink-fragment-opened" : {
+              "location" : "/home/printnanny/.local/share/printnanny/video/88e1cc18-962f-4ec4-baeb-656b752520e5/00004.mp4",
+              "running-time" : 1020189067077,
+              "sink" : "(GstFileSink) sink"
+          }
+        }
+      }
+    "#;
+
+    const SPLITMUXSINK_FRAGMENT_CLOSED: &'static str = r#"
+    {
+        "code" : 0,
+        "description" : "Success",
+        "response" : {
+          "type" : "element",
+          "source" : "h264_splitmuxsink",
+          "timestamp" : "99:99:99.999999999",
+          "seqnum" : 7535,
+          "splitmuxsink-fragment-closed" : {
+              "location" : "/home/printnanny/.local/share/printnanny/video/88e1cc18-962f-4ec4-baeb-656b752520e5/00004.mp4",
+              "running-time" : 1020189067077,
+              "sink" : "(GstFileSink) sink"
+          }
+        }
+      }
+    "#;
+
     fn expect_url() -> Url {
         Url::parse(BASE_URL).unwrap()
     }
@@ -179,7 +215,6 @@ mod spec {
             .status(200)
             .body(STATE_RESPONSE)
             .unwrap();
-
         let res = client.process_resp(response.into()).await.unwrap();
 
         let expected = gstd_types::ResponseT::Property(gstd_types::Property {
@@ -191,6 +226,60 @@ mod spec {
                 access: "((GstdParamFlags) READ | 2)".into(),
             },
         });
+
+        assert_eq!(res.response, expected);
+    }
+
+    #[tokio::test]
+    async fn process_splitmuxsink_fragment_opened() {
+        let client = GstClient::build(BASE_URL).unwrap();
+        let response = http::Response::builder()
+            .status(200)
+            .body(SPLITMUXSINK_FRAGMENT_OPENED)
+            .unwrap();
+
+        let res = client.process_resp(response.into()).await.unwrap();
+
+        let expected = gstd_types::ResponseT::GstSplitMuxSinkFragmentOpened(
+            gstd_types::GstSplitMuxSinkFragmentOpened {
+                r#type: "element".to_string(),
+                source: "h264_splitmuxsink".to_string(),
+                timestamp: "99:99:99.999999999".to_string(),
+                seqnum: 7535,
+                message: gstd_types::GstSplitMuxSinkFragmentMessage {
+                    location:  "/home/printnanny/.local/share/printnanny/video/88e1cc18-962f-4ec4-baeb-656b752520e5/00004.mp4".to_string(),
+                    running_time: 1020189067077,
+                    sink: "(GstFileSink) sink".to_string()
+                }
+            },
+        );
+
+        assert_eq!(res.response, expected);
+    }
+
+    #[tokio::test]
+    async fn process_splitmuxsink_fragment_closed() {
+        let client = GstClient::build(BASE_URL).unwrap();
+        let response = http::Response::builder()
+            .status(200)
+            .body(SPLITMUXSINK_FRAGMENT_CLOSED)
+            .unwrap();
+
+        let res = client.process_resp(response.into()).await.unwrap();
+
+        let expected = gstd_types::ResponseT::GstSplitMuxSinkFragmentClosed(
+            gstd_types::GstSplitMuxSinkFragmentClosed {
+                r#type: "element".to_string(),
+                source: "h264_splitmuxsink".to_string(),
+                timestamp: "99:99:99.999999999".to_string(),
+                seqnum: 7535,
+                message: gstd_types::GstSplitMuxSinkFragmentMessage {
+                    location:  "/home/printnanny/.local/share/printnanny/video/88e1cc18-962f-4ec4-baeb-656b752520e5/00004.mp4".to_string(),
+                    running_time: 1020189067077,
+                    sink: "(GstFileSink) sink".to_string()
+                }
+            },
+        );
 
         assert_eq!(res.response, expected);
     }
