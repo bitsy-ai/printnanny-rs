@@ -453,7 +453,7 @@ impl PrintNannyPipelineFactory {
         listen_to: &str,
         filename: &str,
         filesink_name: &str,
-        camera: &CameraSettings,
+        _camera: &CameraSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);

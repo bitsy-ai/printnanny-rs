@@ -7,12 +7,12 @@ use printnanny_services::printnanny_api::ApiService;
 use std::fs;
 use std::path::PathBuf;
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use env_logger::Builder;
 use git_version::git_version;
 use log::{error, info, LevelFilter};
 use tokio::fs::File;
-use tokio::io::{self, AsyncReadExt};
+use tokio::io::AsyncReadExt;
 
 use printnanny_api_client::models;
 use printnanny_gst_pipelines::factory::{PrintNannyPipelineFactory, H264_RECORDING_PIPELINE};
@@ -59,7 +59,7 @@ fn parse_video_recording_index(filename: &str) -> i32 {
         .to_str()
         .unwrap()
         .into();
-    last.split('.').nth(0).unwrap().parse().unwrap()
+    last.split('.').next().unwrap().parse().unwrap()
 }
 
 // Insert local VideoRecordingPart row
@@ -101,9 +101,9 @@ fn handle_filesink_msg_opened(
 async fn handle_file_upload(url: &str, filename: &str) -> Result<()> {
     let mut file = File::open(filename).await?;
     let mut vec = Vec::new();
-    file.read_to_end(&mut vec);
+    file.read_to_end(&mut vec).await?;
     let client = reqwest::Client::new();
-    let res = client
+    client
         .put(url)
         .header("content-type", "application/octet-stream")
         .body(vec)
