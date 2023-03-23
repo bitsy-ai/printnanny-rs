@@ -63,16 +63,7 @@ fn handle_filesink_msg(
     sqlite_connection: &str,
 ) -> Result<printnanny_edge_db::video_recording::VideoRecordingPart> {
     // parse recording id from filesink_msg
-
-    // try to get current recording
-    let recording =
-        printnanny_edge_db::video_recording::VideoRecording::get_current(sqlite_connection)?;
-    if recording.is_none() {
-        return Err(anyhow!(
-            "Refusing to process GstMultiFileSink msg, could not find active recording"
-        ));
-    }
-    let video_recording_id = recording.unwrap().id;
+    let video_recording_id = parse_video_recording_id(&filesink_msg.location);
 
     let size = fs::metadata(&filesink_msg.location)?.len() as i64;
     let index = parse_video_recording_index(&filesink_msg.location);

@@ -154,12 +154,14 @@ impl PrintNannyPipelineFactory {
     pub async fn wait_for_pipeline(&self, pipeline_name: &str) -> Result<()> {
         let wait = 2000;
         warn!("Waiting for {} to become available", pipeline_name);
-        while self.pipeline_state(pipeline_name).await != GstPipelineState::Playing {
+        let mut status = self.pipeline_state(pipeline_name).await;
+        while status != GstPipelineState::Playing {
             debug!(
-                "Pipeline {} unavailable, waiting {} ms",
-                pipeline_name, wait
+                "Pipeline {} unavailable, status={:?} waiting {} ms",
+                pipeline_name, status, wait
             );
             sleep(Duration::from_millis(wait)).await;
+            status = self.pipeline_state(pipeline_name).await;
         }
         warn!("Pipeline {} is now available", pipeline_name);
         Ok(())
