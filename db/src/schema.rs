@@ -93,6 +93,8 @@ diesel::table! {
         id -> Text,
         cloud_sync_done -> Bool,
         dir -> Text,
+        finalize_start -> Nullable<TimestamptzSqlite>,
+        finalize_end -> Nullable<TimestamptzSqlite>,
         recording_start -> Nullable<TimestamptzSqlite>,
         recording_end -> Nullable<TimestamptzSqlite>,
         gcode_file_name -> Nullable<Text>,

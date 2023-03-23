@@ -20,6 +20,8 @@ pub struct VideoRecording {
     pub id: String,
     pub cloud_sync_done: bool,
     pub dir: String,
+    pub finalize_start: Option<DateTime<Utc>>,
+    pub finalize_end: Option<DateTime<Utc>>,
     pub recording_start: Option<DateTime<Utc>>,
     pub recording_end: Option<DateTime<Utc>>,
     pub gcode_file_name: Option<String>,
@@ -325,8 +327,9 @@ impl From<VideoRecording> for models::VideoRecordingRequest {
     fn from(obj: VideoRecording) -> Self {
         Self {
             id: Some(obj.id),
+            finalize_start: obj.finalize_start.map(|v| v.to_rfc3339()),
+            finalize_end: obj.finalize_end.map(|v| v.to_rfc3339()),
             cloud_sync_done: Some(obj.cloud_sync_done),
-            combine_done: Some(false),
             recording_start: obj.recording_start.map(|v| v.to_rfc3339()),
             recording_end: obj.recording_end.map(|v| v.to_rfc3339()),
             gcode_file_name: obj.gcode_file_name,
