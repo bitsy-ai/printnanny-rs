@@ -110,6 +110,7 @@ async fn handle_file_upload(url: &str, filename: &str) -> Result<()> {
         .body(vec)
         .send()
         .await?;
+    Ok(())
 }
 
 // upload VideoRecordingPart and publish NATS message
@@ -152,10 +153,16 @@ async fn handle_filesink_msg_closed(
     handle_file_upload(&row.file_name, &url).await?;
     let end = Utc::now();
     let duration = end.signed_duration_since(start);
-    logger.info(
-        "Finished uploading VideoRecordingPart id={} in ms=",
+    info!(
+        "Finished uploading VideoRecordingPart id={} in ms={}",
         &row_id,
         duration.num_milliseconds(),
+    );
+
+    tokio::fs::remove_file(&filesink_msg.location).await?;
+    info!(
+        "Deleted file VideoRecordingPart id={} file={}",
+        &row_id, &filesink_msg.location
     );
 
     let request = models::PatchedVideoRecordingPartRequest {
@@ -171,7 +178,12 @@ async fn handle_filesink_msg_closed(
     let result = api
         .video_recording_parts_partial_update(&row_id, request)
         .await?;
-    Ok(result.into())
+    let row = printnanny_edge_db::video_recording::VideoRecordingPart::get_by_id(
+        sqlite_connection,
+        &row_id,
+    )?;
+
+    Ok(row)
 }
 
 // subscribe to splitmuxsink-fragment-closed message
