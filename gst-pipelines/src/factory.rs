@@ -468,7 +468,7 @@ impl PrintNannyPipelineFactory {
             }
         };
 
-        let location = format!("{filename}/%05d.mp4");
+        let location = format!("{filename}/%d.mp4");
         let max_files = 50;
 
         let max_bytes = 5242880; // 5MB (bytes)
