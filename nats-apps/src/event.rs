@@ -3,12 +3,8 @@ use std::fmt::Debug;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
-use log::{debug, info};
+use log::info;
 use serde::{Deserialize, Serialize};
-
-use printnanny_dbus::printnanny_os_models::VideoRecordingPart;
-use printnanny_services::video_recording_sync::upload_video_recording_part;
-use printnanny_settings::printnanny::PrintNannySettings;
 
 use printnanny_nats_client::event::NatsEventHandler;
 use printnanny_octoprint_models;

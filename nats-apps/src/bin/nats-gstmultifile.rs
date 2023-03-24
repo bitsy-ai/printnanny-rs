@@ -240,7 +240,7 @@ async fn run_splitmuxsink_fragment_publisher(
                     // insert filesink msg row
                     let result = handle_filesink_msg_closed(msg.message, &sqlite_connection).await;
                     match result {
-                        Ok(result) => {
+                        Ok(_result) => {
                             // publish NATS message
                             // let payload = serde_json::to_vec(&result)?;
                             // nats_client.publish(subject.clone(), payload.into()).await?;
