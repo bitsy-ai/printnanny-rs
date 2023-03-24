@@ -191,8 +191,8 @@ async fn run_splitmuxsink_fragment_publisher(
 ) -> Result<()> {
     let settings = PrintNannySettings::new().await?;
     let sqlite_connection = settings.paths.db().display().to_string();
-    let nats_client =
-        wait_for_nats_client(DEFAULT_NATS_URI, &None, false, DEFAULT_NATS_WAIT).await?;
+    // let nats_client =
+    //     wait_for_nats_client(DEFAULT_NATS_URI, &None, false, DEFAULT_NATS_WAIT).await?;
     let client = factory.gst_client();
     let pipeline = client.pipeline(pipeline_name);
     let bus = pipeline.bus();
@@ -242,9 +242,9 @@ async fn run_splitmuxsink_fragment_publisher(
                     match result {
                         Ok(result) => {
                             // publish NATS message
-                            let payload = serde_json::to_vec(&result)?;
-                            nats_client.publish(subject.clone(), payload.into()).await?;
-                            info!("Published subject={} id={}", &subject, &result.id)
+                            // let payload = serde_json::to_vec(&result)?;
+                            // nats_client.publish(subject.clone(), payload.into()).await?;
+                            // info!("Published subject={} id={}", &subject, &result.id)
                         }
                         Err(e) => {
                             error!("Failed to upload VideoRecordingPart row error={}", e)

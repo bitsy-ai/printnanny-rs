@@ -36,7 +36,6 @@ use printnanny_services::printnanny_api::ApiService;
 use printnanny_gst_pipelines::factory::{
     GstPipelineState, PrintNannyPipelineFactory, H264_RECORDING_PIPELINE,
 };
-use printnanny_gst_pipelines::gst_client;
 
 use printnanny_nats_client::request_reply::NatsRequestHandler;
 
