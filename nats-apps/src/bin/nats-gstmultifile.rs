@@ -224,9 +224,7 @@ async fn run_splitmuxsink_fragment_publisher(
                     // insert filesink msg row
                     let result = handle_filesink_msg_opened(msg.message, &sqlite_connection);
                     match result {
-                        Ok(result) => {
-                            info!("Inserted VideoRecordingPart id={}", result.id);
-                        }
+                        Ok(_result) => (),
                         Err(e) => {
                             error!("Failed to insert VideoRecordingPart row error={}", e)
                         }
