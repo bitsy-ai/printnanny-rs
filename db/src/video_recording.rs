@@ -445,7 +445,7 @@ mod tests {
     fn test_row_id_format() {
         let filename = "/home/printnanny/.local/share/printnanny/video/66b3a3a0-30b5-41f2-9907-a335de57c921/00025.mp4";
         let result = VideoRecordingPart::row_id_from_filename(filename);
-        let expected = "66b3a3a0-30b5-41f2-9907-a335de57c921__0002";
+        let expected = "66b3a3a0-30b5-41f2-9907-a335de57c921__25";
 
         assert_eq!(result, expected);
     }
