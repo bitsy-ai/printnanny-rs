@@ -202,6 +202,8 @@ impl NatsRequest {
     pub async fn handle_camera_recording_start() -> Result<NatsReply> {
         let settings = PrintNannySettings::new().await?;
         let sqlite_connection = settings.paths.db().display().to_string();
+        printnanny_edge_db::video_recording::VideoRecording::finish_all(&sqlite_connection)?;
+
         let api = ApiService::new(settings.cloud, sqlite_connection);
         let recording = api.video_recordings_create(settings.paths.video()).await?;
         Ok(NatsReply::CameraRecordingStartReply(
