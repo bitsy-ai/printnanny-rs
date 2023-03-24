@@ -12,6 +12,8 @@ use printnanny_octoprint_models;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "subject_pattern")]
 pub enum NatsEvent {
+    
+
     #[serde(rename = "pi.{pi_id}.octoprint.event.server.startup")]
     OctoPrintServerStartup(printnanny_octoprint_models::OctoPrintServerStatusChanged),
 

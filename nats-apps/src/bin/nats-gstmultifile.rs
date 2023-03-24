@@ -18,6 +18,8 @@ use printnanny_api_client::models;
 use printnanny_gst_pipelines::factory::{PrintNannyPipelineFactory, H264_RECORDING_PIPELINE};
 use printnanny_gst_pipelines::gst_client;
 
+use printnanny_edge_db::video_recording::{parse_video_recording_id, parse_video_recording_index};
+
 use gst_client::gstd_types::{
     GstSplitMuxSinkFragmentMessage, GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_CLOSED,
 };
@@ -36,32 +38,6 @@ const DEFAULT_NATS_WAIT: u64 = 2000; // sleep 2 seconds between connection attem
 const GST_BUS_TIMEOUT: u64 = 600000000000_u64; // 600 seconds (in nanoseconds)
 const GIT_VERSION: &str = git_version!();
 
-// parse recording id from path like: /home/printnanny/.local/share/printnanny/video/66b3a3a0-30b5-41f2-9907-a335de57c921/00025.mp4
-fn parse_video_recording_id(filename: &str) -> String {
-    let path = PathBuf::from(filename);
-    let mut components = path.components();
-    components
-        .nth_back(1)
-        .unwrap()
-        .as_os_str()
-        .to_str()
-        .unwrap()
-        .into()
-}
-
-fn parse_video_recording_index(filename: &str) -> i32 {
-    let path = PathBuf::from(filename);
-    let mut components = path.components();
-    let last: String = components
-        .nth_back(0)
-        .unwrap()
-        .as_os_str()
-        .to_str()
-        .unwrap()
-        .into();
-    last.split('.').next().unwrap().parse().unwrap()
-}
-
 // Insert local VideoRecordingPart row
 fn handle_filesink_msg_opened(
     filesink_msg: GstSplitMuxSinkFragmentMessage,
@@ -70,11 +46,14 @@ fn handle_filesink_msg_opened(
     // parse recording id from filesink_msg
     let video_recording_id = parse_video_recording_id(&filesink_msg.location);
 
-    let size = fs::metadata(&filesink_msg.location)?.len() as i64;
     let index = parse_video_recording_index(&filesink_msg.location);
 
-    // insert new VideoRecordingPart
-    let row_id = format!("{video_recording_id}-{index}");
+    let size = fs::metadata(&filesink_msg.location)?.len() as i64;
+
+    let row_id = printnanny_edge_db::video_recording::VideoRecordingPart::row_id_from_filename(
+        &filesink_msg.location,
+    );
+
     let row = printnanny_edge_db::video_recording::NewVideoRecordingPart {
         id: &row_id,
         buffer_index: &index,
@@ -117,11 +96,9 @@ async fn handle_filesink_msg_closed(
     filesink_msg: GstSplitMuxSinkFragmentMessage,
     sqlite_connection: &str,
 ) -> Result<printnanny_edge_db::video_recording::VideoRecordingPart> {
-    // parse recording id from filesink_msg
-    let video_recording_id = parse_video_recording_id(&filesink_msg.location);
-
-    let index = parse_video_recording_index(&filesink_msg.location);
-    let row_id = format!("{video_recording_id}-{index}");
+    let row_id = printnanny_edge_db::video_recording::VideoRecordingPart::row_id_from_filename(
+        &filesink_msg.location,
+    );
 
     let start = Utc::now();
 
@@ -327,25 +304,4 @@ async fn main() -> Result<()> {
     run_splitmuxsink_fragment_publisher(factory, pipeline, hostname).await?;
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_video_recording_id() {
-        let filename = "/home/printnanny/.local/share/printnanny/video/66b3a3a0-30b5-41f2-9907-a335de57c921/00025.mp4";
-        let expected = "66b3a3a0-30b5-41f2-9907-a335de57c921";
-        let result = parse_video_recording_id(filename);
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_parse_video_recording_index() {
-        let filename = "/home/printnanny/.local/share/printnanny/video/66b3a3a0-30b5-41f2-9907-a335de57c921/00025.mp4";
-        let expected = 25;
-        let result = parse_video_recording_index(filename);
-        assert_eq!(result, expected);
-    }
 }

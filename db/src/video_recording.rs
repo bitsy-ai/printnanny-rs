@@ -191,98 +191,6 @@ impl VideoRecording {
         Ok(())
     }
 
-    // pub fn get_ready_for_cloud_sync(
-    //     connection_str: &str,
-    // ) -> Result<Vec<VideoRecording>, diesel::result::Error> {
-    //     use crate::schema::video_recordings::dsl::*;
-    //     let connection = &mut establish_sqlite_connection(connection_str);
-    //     let result = video_recordings
-    //         .filter(
-    //             recording_status
-    //                 .eq("done")
-    //                 .and(cloud_sync_status.eq("pending"))
-    //                 .and(cloud_sync_start.is_null()),
-    //         )
-    //         .load::<VideoRecording>(connection)?;
-
-    //     info!("VideoRecording rows ready for cloud sync: {:#?}", &result);
-    //     Ok(result)
-    // }
-
-    // pub fn start_cloud_sync(
-    //     connection_str: &str,
-    //     row_id: &str,
-    // ) -> Result<(), diesel::result::Error> {
-    //     let now = Utc::now();
-    //     let row = UpdateVideoRecording {
-    //         cloud_sync_start: Some(&now),
-    //         cloud_sync_status: Some("inprogress"),
-    //         deleted: None,
-    //         cloud_sync_percent: None,
-    //         gcode_file_name: None,
-    //         recording_status: None,
-    //         recording_start: None,
-    //         recording_end: None,
-    //         mp4_upload_url: None,
-    //         mp4_download_url: None,
-    //         cloud_sync_end: None,
-    //     };
-    //     Self::update(connection_str, row_id, row)
-    // }
-
-    // pub fn set_cloud_sync_progress(
-    //     connection_str: &str,
-    //     row_id: &str,
-    //     progress: &i32,
-    // ) -> Result<(), diesel::result::Error> {
-    //     let row = UpdateVideoRecording {
-    //         cloud_sync_percent: Some(progress),
-    //         deleted: None,
-    //         gcode_file_name: None,
-    //         recording_status: None,
-    //         recording_start: None,
-    //         recording_end: None,
-    //         mp4_upload_url: None,
-    //         mp4_download_url: None,
-    //         cloud_sync_status: None,
-    //         cloud_sync_start: None,
-    //         cloud_sync_end: None,
-    //     };
-    //     Self::update(connection_str, row_id, row)
-    // }
-
-    // pub fn finish_cloud_sync(
-    //     connection_str: &str,
-    //     row_id: &str,
-    // ) -> Result<(), diesel::result::Error> {
-    //     let now = Utc::now();
-    //     let row = UpdateVideoRecording {
-    //         cloud_sync_percent: Some(&100),
-    //         cloud_sync_end: Some(&now),
-    //         cloud_sync_status: None,
-    //         deleted: None,
-    //         gcode_file_name: None,
-    //         recording_status: None,
-    //         recording_start: None,
-    //         recording_end: None,
-    //         mp4_upload_url: None,
-    //         mp4_download_url: None,
-    //         cloud_sync_start: None,
-    //     };
-    //     Self::update(connection_str, row_id, row)
-    // }
-
-    // pub fn stop_all(connection: &str) -> Result<(), diesel::result::Error> {
-    //     use crate::schema::video_recordings::dsl::*;
-    //     let connection = &mut establish_sqlite_connection(connection);
-
-    //     diesel::update(video_recordings)
-    //         .set(recording_status.eq("done"))
-    //         .execute(connection)?;
-    //     info!("Set existing VideoRecording.recording_status = done");
-    //     Ok(())
-    // }
-
     pub fn start_new(
         connection_str: &str,
         video_path: PathBuf,
@@ -337,7 +245,39 @@ impl From<VideoRecording> for models::VideoRecordingRequest {
     }
 }
 
+// parse recording id from path like: /home/printnanny/.local/share/printnanny/video/66b3a3a0-30b5-41f2-9907-a335de57c921/00025.mp4
+pub fn parse_video_recording_id(filename: &str) -> String {
+    let path = PathBuf::from(filename);
+    let mut components = path.components();
+    components
+        .nth_back(1)
+        .unwrap()
+        .as_os_str()
+        .to_str()
+        .unwrap()
+        .into()
+}
+
+pub fn parse_video_recording_index(filename: &str) -> i32 {
+    let path = PathBuf::from(filename);
+    let mut components = path.components();
+    let last: String = components
+        .nth_back(0)
+        .unwrap()
+        .as_os_str()
+        .to_str()
+        .unwrap()
+        .into();
+    last.split('.').next().unwrap().parse().unwrap()
+}
+
 impl VideoRecordingPart {
+    pub fn row_id_from_filename(filename: &str) -> String {
+        let video_recording_id = parse_video_recording_id(filename);
+        let index = parse_video_recording_index(filename);
+        format!("{video_recording_id}__{index}")
+    }
+
     pub fn insert(
         connection_str: &str,
         row: NewVideoRecordingPart,
@@ -478,5 +418,35 @@ impl From<&printnanny_os_models::VideoRecordingPart> for VideoRecordingPart {
             sync_start,
             sync_end,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_video_recording_id() {
+        let filename = "/home/printnanny/.local/share/printnanny/video/66b3a3a0-30b5-41f2-9907-a335de57c921/00025.mp4";
+        let expected = "66b3a3a0-30b5-41f2-9907-a335de57c921";
+        let result = parse_video_recording_id(filename);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_parse_video_recording_index() {
+        let filename = "/home/printnanny/.local/share/printnanny/video/66b3a3a0-30b5-41f2-9907-a335de57c921/00025.mp4";
+        let expected = 25;
+        let result = parse_video_recording_index(filename);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_row_id_format() {
+        let filename = "/home/printnanny/.local/share/printnanny/video/66b3a3a0-30b5-41f2-9907-a335de57c921/00025.mp4";
+        let result = VideoRecordingPart::row_id_from_filename(filename);
+        let expected = "66b3a3a0-30b5-41f2-9907-a335de57c921__25";
+
+        assert_eq!(result, expected);
     }
 }
