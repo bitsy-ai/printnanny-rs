@@ -272,7 +272,7 @@ impl PrintNannyPipelineFactory {
         };
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true caps={caps} \
             ! v4l2h264enc extra-controls=controls,repeat_sequence_header=1 \
-            ! h264parse \
+            ! h264parse name={pipeline_name}_h264parse \
             ! capssetter caps=video/x-h264,level=(string)4,profile=(string)high \
             ! interpipesink name={interpipesink} sync=false async=false",
             // width=camera.width,
@@ -481,7 +481,6 @@ impl PrintNannyPipelineFactory {
         let max_bytes = 5242880; // 5MB (bytes)
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 stream-sync=passthrough-ts \
-            ! h264parse \
             ! splitmuxsink muxer=mpegtsmux name={filesink_name} max-files={max_files} location={location} max-size-bytes={max_bytes} send-keyframe-requests=false");
         self.make_pipeline(pipeline_name, &description).await
     }
