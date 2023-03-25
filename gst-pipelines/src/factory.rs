@@ -137,7 +137,7 @@ impl PrintNannyPipelineFactory {
         let pipeline = client.pipeline(pipeline_name);
         match pipeline.create(description).await {
             Ok(result) => {
-                info!("Created camera pipeline: {:?}", result);
+                info!("Created pipeline={}: {:?}", pipeline_name, result);
                 Ok(())
             }
             Err(e) => {
@@ -244,7 +244,7 @@ impl PrintNannyPipelineFactory {
         self.make_pipeline(pipeline_name, &description).await
     }
 
-    async fn make_h264_pipeline(
+    async fn make_h264_encode_pipeline(
         &self,
         pipeline_name: &str,
         listen_to: &str,
@@ -274,7 +274,7 @@ impl PrintNannyPipelineFactory {
             ! v4l2h264enc extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse name={pipeline_name}_h264parse \
             ! capssetter caps=video/x-h264,level=(string)4,profile=(string)high \
-            ! interpipesink name={interpipesink} sync=false async=false",
+            ! interpipesink name={interpipesink} sync=false async=false forward-events=true forward-eos=true",
             // width=camera.width,
             // height=camera.height,
             // format=camera.format,
@@ -418,6 +418,7 @@ impl PrintNannyPipelineFactory {
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=true \
             ! tensor_decoder name=bb_tensor_decoder mode=bounding_boxes option1=mobilenet-ssd-postprocess option2={tflite_label_file} option3=0:1:2:3,{nms_threshold} option4={video_width}:{video_height} option5={tensor_width}:{tensor_height} \
+            ! queue \
             ! v4l2convert \
             ! capsfilter caps={caps} \
             ! v4l2h264enc extra-controls=controls,repeat_sequence_header=1 \
@@ -478,9 +479,10 @@ impl PrintNannyPipelineFactory {
         let location = format!("{filename}/%d.mp4");
         let max_files = 50;
 
-        let max_bytes = 5242880; // 5MB (bytes)
+        let max_bytes = 10000000; // 10MB (bytes)
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 stream-sync=passthrough-ts \
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=true is-live=true allow-renegotiation=true format=3 stream-sync=passthrough-ts \
+            ! queue \
             ! splitmuxsink muxer=mpegtsmux name={filesink_name} max-files={max_files} location={location} max-size-bytes={max_bytes} send-keyframe-requests=false");
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -601,7 +603,7 @@ impl PrintNannyPipelineFactory {
         let camera_pipeline = self.make_camera_pipeline(CAMERA_PIPELINE, &camera).await?;
 
         let h264_pipeline = self
-            .make_h264_pipeline(H264_ENCODING_PIPELINE, CAMERA_PIPELINE, &camera)
+            .make_h264_encode_pipeline(H264_ENCODING_PIPELINE, CAMERA_PIPELINE, &camera)
             .await?;
 
         let rtp_pipeline = self
