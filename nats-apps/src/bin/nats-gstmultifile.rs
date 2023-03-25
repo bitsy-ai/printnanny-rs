@@ -125,7 +125,7 @@ async fn handle_filesink_msg_closed(
         .video_recording_parts_update_or_create(row.into())
         .await?;
 
-    handle_file_upload(&filesink_msg.location, &remote.mp4_upload_url).await?;
+    handle_file_upload(&remote.mp4_upload_url, &filesink_msg.location).await?;
     let end = Utc::now();
     let duration = end.signed_duration_since(start);
     info!(
