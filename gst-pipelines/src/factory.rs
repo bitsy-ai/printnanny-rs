@@ -117,6 +117,13 @@ impl PrintNannyPipelineFactory {
     fn to_interpipesink_name(pipeline_name: &str) -> String {
         format!("{pipeline_name}_sink")
     }
+
+    async fn delete_pipeline(&self, pipeline_name: &str) -> Result<gst_client::Response> {
+        let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
+        let pipeline = client.pipeline(pipeline_name);
+        Ok(pipeline.delete().await?)
+    }
+
     async fn make_pipeline(
         &self,
         pipeline_name: &str,
@@ -541,6 +548,14 @@ impl PrintNannyPipelineFactory {
     pub async fn start_video_recording_pipeline(&self, filename: &str) -> Result<()> {
         let settings = PrintNannySettings::new().await?;
         let camera = *settings.video_stream.camera;
+
+        match self.delete_pipeline(H264_RECORDING_PIPELINE).await {
+            Ok(_) => info!("Deleted existing pipeline={H264_RECORDING_PIPELINE}",),
+            Err(e) => info!(
+                "Failed to delete pipeline={H264_RECORDING_PIPELINE} error={}",
+                e
+            ),
+        };
 
         let pipeline = self
             .make_recording_pipeline(
