@@ -1,5 +1,5 @@
 pub mod client;
-mod error;
+pub mod error;
 pub mod gstd_types;
 pub mod resources;
 
