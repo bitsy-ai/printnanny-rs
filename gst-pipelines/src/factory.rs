@@ -574,26 +574,12 @@ impl PrintNannyPipelineFactory {
     pub async fn stop_video_recording_pipeline(&self) -> Result<()> {
         let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
         let pipeline = client.pipeline(H264_RECORDING_PIPELINE);
-        info!("Sending EOS signal to pipeline name={H264_RECORDING_PIPELINE}");
-        let bus = pipeline.bus();
         pipeline.emit_event_eos().await?;
-        // wait for eos signal to be emitted by pipeline bus
-        match bus.read().await {
-            Ok(res) => {
-                info!(
-                    "Event on pipeline name={H264_RECORDING_PIPELINE} message bus event={:#?}",
-                    res
-                );
-            }
-            Err(e) => {
-                error!(
-                    "Error reading events on pipeline name={H264_RECORDING_PIPELINE} error={}",
-                    e
-                )
-            }
-        };
-
+        info!("Sent EOS signal to pipeline name={H264_RECORDING_PIPELINE}");
         pipeline.stop().await?;
+        info!("Stopped pipeline name={H264_RECORDING_PIPELINE}");
+        pipeline.delete().await?;
+        info!("Deleted pipeline name={H264_RECORDING_PIPELINE}");
         Ok(())
     }
 
