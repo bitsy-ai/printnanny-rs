@@ -36,7 +36,7 @@ futures-util = "0.3.25"        # Common utilities and extension traits for the f
 git-version = "0.3"
 log = "0.4"
 nix = {version = "0.26.1", features = ["net"]}
-printnanny-api-client = "0.129.6"
+printnanny-api-client = "0.129.7"
 printnanny-dbus = { path = "../dbus", version = "^0.5"}
 printnanny-edge-db = { path = "../db", version = "^0.2"}
 printnanny-gst-pipelines = { path = "../gst-pipelines", version = "^0.2", package="printnanny-gst-pipelines"}
