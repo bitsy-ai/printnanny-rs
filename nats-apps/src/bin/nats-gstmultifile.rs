@@ -4,6 +4,7 @@ extern crate clap;
 use anyhow::Result;
 use clap::{Arg, Command};
 use printnanny_services::printnanny_api::ApiService;
+use printnanny_services::video_recording_sync::upload_video_recording_part;
 use std::fs;
 use std::path::PathBuf;
 
@@ -99,63 +100,12 @@ async fn handle_filesink_msg_closed(
     let row_id = printnanny_edge_db::video_recording::VideoRecordingPart::row_id_from_filename(
         &filesink_msg.location,
     );
-
-    let start = Utc::now();
-
-    let row = printnanny_edge_db::video_recording::UpdateVideoRecordingPart {
-        sync_start: Some(&start),
-        deleted: None,
-        sync_end: None,
-    };
-    // update local model
-    printnanny_edge_db::video_recording::VideoRecordingPart::update(
-        sqlite_connection,
-        &row_id,
-        row,
-    )?;
     let row = printnanny_edge_db::video_recording::VideoRecordingPart::get_by_id(
         sqlite_connection,
         &row_id,
     )?;
 
-    // create/update cloud model
-    let settings = PrintNannySettings::new().await?;
-    let api = ApiService::new(settings.cloud, sqlite_connection.to_string());
-    let remote = api
-        .video_recording_parts_update_or_create(row.into())
-        .await?;
-
-    handle_file_upload(&remote.mp4_upload_url, &filesink_msg.location).await?;
-    let end = Utc::now();
-    let duration = end.signed_duration_since(start);
-    info!(
-        "Finished uploading VideoRecordingPart id={} in ms={}",
-        &row_id,
-        duration.num_milliseconds(),
-    );
-
-    tokio::fs::remove_file(&filesink_msg.location).await?;
-    info!(
-        "Deleted file VideoRecordingPart id={} file={}",
-        &row_id, &filesink_msg.location
-    );
-
-    let request = models::PatchedVideoRecordingPartRequest {
-        id: None,
-        sync_end: Some(end.to_rfc3339()),
-        size: None,
-        buffer_index: None,
-        buffer_runningtime: None,
-        file_name: None,
-        sync_start: None,
-        video_recording: None,
-    };
-    api.video_recording_parts_partial_update(&row_id, request)
-        .await?;
-    let row = printnanny_edge_db::video_recording::VideoRecordingPart::get_by_id(
-        sqlite_connection,
-        &row_id,
-    )?;
+    let row = upload_video_recording_part(row).await?;
 
     Ok(row)
 }

@@ -1,65 +1,52 @@
-use printnanny_settings::printnanny::PrintNannySettings;
-use reqwest::Body;
-use tokio::fs::File;
-
-use chrono::Utc;
-use tokio::task::JoinSet;
-use tokio_util::codec::{BytesCodec, FramedRead};
-
+use chrono::{DateTime, Utc};
 use log::{error, info};
+use tokio::task::JoinSet;
 
 use crate::error::VideoRecordingSyncError;
 use crate::printnanny_api::ApiService;
 
-use printnanny_api_client::models;
 use printnanny_edge_db::video_recording;
-use printnanny_settings::printnanny::PrintNannyApiConfig;
+use printnanny_settings::printnanny::{PrintNannyApiConfig, PrintNannySettings};
 
 pub async fn upload_video_recording_part(
-    part: video_recording::VideoRecordingPart,
-    api_config: PrintNannyApiConfig,
-    sqlite_connection: String,
+    row: video_recording::VideoRecordingPart,
 ) -> Result<video_recording::VideoRecordingPart, VideoRecordingSyncError> {
-    // upload part to PrintNanny OS
-    let api = ApiService::new(api_config, sqlite_connection);
+    // create/update cloud model
+    let settings = PrintNannySettings::new().await?;
+    let sqlite_connection = settings.paths.db().display().to_string();
 
-    let cloud_part = api
-        .video_recording_parts_update_or_create(part.clone().into())
-        .await?;
+    let api = ApiService::new(settings.cloud, sqlite_connection.clone());
+    let result = api.video_recording_part_create(&row).await?;
+
+    let row = printnanny_edge_db::video_recording::VideoRecordingPart::get_by_id(
+        &sqlite_connection,
+        &row.id,
+    )?;
+
+    let sync_start_value = <chrono::DateTime<chrono::FixedOffset> as std::convert::Into<
+        DateTime<Utc>,
+    >>::into(DateTime::parse_from_rfc3339(&result.sync_start).unwrap());
+    let sync_end_value = <chrono::DateTime<chrono::FixedOffset> as std::convert::Into<
+        DateTime<Utc>,
+    >>::into(DateTime::parse_from_rfc3339(&result.sync_end).unwrap());
+
+    let duration = sync_start_value.signed_duration_since(sync_end_value);
     info!(
-        "Uploading part id={} to url={}",
-        &cloud_part.id, &cloud_part.mp4_upload_url
+        "Finished uploading VideoRecordingPart id={} in ms={}",
+        &row.id,
+        duration.num_milliseconds(),
     );
 
-    let file = File::open(&part.file_name).await?;
-    let stream = FramedRead::new(file, BytesCodec::new());
-    let body = Body::wrap_stream(stream);
-    let client = reqwest::Client::new();
-    let sync_start = Some(Utc::now().to_rfc3339());
-    client
-        .put(&cloud_part.mp4_upload_url)
-        .header("content-type", "application/octet-stream")
-        .body(body)
-        .send()
-        .await?;
-    info!("Finished uploading part={}", &cloud_part.id);
-
-    let sync_end = Some(Utc::now().to_rfc3339());
-    let req = models::PatchedVideoRecordingPartRequest {
-        sync_start,
-        sync_end,
-        id: None,
-        size: None,
-        video_recording: None,
-        buffer_index: None,
-        buffer_runningtime: None,
-        file_name: None,
-    };
-
-    api.video_recording_parts_partial_update(&cloud_part.id, req)
-        .await?;
-    Ok(part)
-    // get or create VideoRecordingPart via cloud API
+    tokio::fs::remove_file(&row.file_name).await?;
+    info!(
+        "Deleted file VideoRecordingPart id={} file={}",
+        &row.id, &row.file_name
+    );
+    let row = printnanny_edge_db::video_recording::VideoRecordingPart::get_by_id(
+        &sqlite_connection,
+        &row.id,
+    )?;
+    Ok(row)
 }
 
 pub async fn sync_all_video_recordings() -> Result<(), VideoRecordingSyncError> {
@@ -73,11 +60,7 @@ pub async fn sync_all_video_recordings() -> Result<(), VideoRecordingSyncError> 
 
     let mut set = JoinSet::new();
     for part in parts {
-        set.spawn(upload_video_recording_part(
-            part,
-            settings.cloud.clone(),
-            sqlite_connection.clone(),
-        ));
+        set.spawn(upload_video_recording_part(part));
     }
 
     while let Some(Ok(res)) = set.join_next().await {
