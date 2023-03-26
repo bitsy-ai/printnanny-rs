@@ -30,7 +30,7 @@ use printnanny_gst_pipelines::factory::PrintNannyPipelineFactory;
 
 use crate::cpuinfo::RpiCpuInfo;
 use crate::crash_report::write_crash_report_zip;
-use crate::error::{ServiceError, VideoRecordingUpdateOrCreateError};
+use crate::error::{ServiceError, VideoRecordingError};
 use crate::file::open;
 use crate::metadata;
 use crate::os_release::OsRelease;
@@ -443,10 +443,7 @@ impl ApiService {
     pub async fn video_recordings_create(
         &self,
         video_path: PathBuf,
-    ) -> Result<
-        printnanny_edge_db::video_recording::VideoRecording,
-        VideoRecordingUpdateOrCreateError,
-    > {
+    ) -> Result<printnanny_edge_db::video_recording::VideoRecording, VideoRecordingError> {
         let recording = printnanny_edge_db::video_recording::VideoRecording::start_new(
             &self.sqlite_connection,
             video_path,
@@ -491,8 +488,8 @@ impl ApiService {
     pub async fn video_recording_part_create(
         &self,
         row: &printnanny_edge_db::video_recording::VideoRecordingPart,
-    ) -> Result<models::VideoRecordingPart, VideoRecordingUpdateOrCreateError> {
-        let size = fs::metadata(row.file_name)?.len() as i64;
+    ) -> Result<models::VideoRecordingPart, VideoRecordingError> {
+        let size = tokio::fs::metadata(&row.file_name).await?.len() as i64;
         let sync_start = Utc::now();
         let result = videos_api::video_parts_create(
             &self.reqwest_config(),
@@ -501,15 +498,11 @@ impl ApiService {
             row.buffer_index,
             row.buffer_runningtime,
             &row.file_name,
+            PathBuf::from(&row.file_name),
+            sync_start.to_rfc3339(),
             &row.video_recording_id,
-            Some(PathBuf::from(&row.file_name)),
-            Some(sync_start.to_rfc3339()),
         )
         .await?;
-
-        let result =
-            videos_api::video_recording_parts_update_or_create(&self.reqwest_config(), request)
-                .await?;
 
         printnanny_edge_db::video_recording::VideoRecordingPart::update_from_cloud(
             &self.sqlite_connection,
@@ -523,7 +516,7 @@ impl ApiService {
         &self,
         id: &str,
         request: models::PatchedVideoRecordingRequest,
-    ) -> Result<models::VideoRecording, VideoRecordingUpdateOrCreateError> {
+    ) -> Result<models::VideoRecording, VideoRecordingError> {
         let result =
             videos_api::videos_partial_update(&self.reqwest_config(), id, Some(request)).await?;
         // update edge model

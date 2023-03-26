@@ -259,7 +259,7 @@ pub fn parse_video_recording_id(filename: &str) -> String {
         .into()
 }
 
-pub fn parse_video_recording_index(filename: &str) -> i32 {
+pub fn parse_video_recording_index(filename: &str) -> i64 {
     let path = PathBuf::from(filename);
     let mut components = path.components();
     let last: String = components
@@ -362,6 +362,46 @@ impl VideoRecordingPart {
             .execute(connection)?;
         info!("Updated VideoRecordingPart with id {}", row_id);
         Ok(())
+    }
+}
+
+impl From<VideoRecordingPart> for printnanny_os_models::VideoRecordingPart {
+    fn from(obj: VideoRecordingPart) -> Self {
+        Self {
+            id: obj.id,
+            deleted: obj.deleted,
+            size: obj.size,
+            buffer_index: obj.buffer_index,
+            buffer_runningtime: obj.buffer_runningtime,
+            video_recording_id: obj.video_recording_id,
+            sync_start: obj.sync_start.map(|v| v.to_rfc3339()),
+            sync_end: obj.sync_end.map(|v| v.to_rfc3339()),
+            file_name: obj.file_name,
+        }
+    }
+}
+
+impl From<&printnanny_os_models::VideoRecordingPart> for VideoRecordingPart {
+    fn from(obj: &printnanny_os_models::VideoRecordingPart) -> Self {
+        let sync_start: Option<DateTime<Utc>> = obj
+            .sync_start
+            .as_ref()
+            .map(|v| DateTime::parse_from_rfc3339(v).unwrap().into());
+        let sync_end: Option<DateTime<Utc>> = obj
+            .sync_end
+            .as_ref()
+            .map(|v| DateTime::parse_from_rfc3339(v).unwrap().into());
+        Self {
+            id: obj.id.clone(),
+            deleted: obj.deleted,
+            size: obj.size,
+            buffer_index: obj.buffer_index,
+            buffer_runningtime: obj.buffer_runningtime,
+            video_recording_id: obj.video_recording_id.clone(),
+            file_name: obj.file_name.clone(),
+            sync_start,
+            sync_end,
+        }
     }
 }
 

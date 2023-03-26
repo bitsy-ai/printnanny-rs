@@ -19,7 +19,7 @@ use printnanny_settings::error::{PrintNannySettingsError, VersionControlledSetti
 use printnanny_nats_client::error::NatsError;
 
 #[derive(Error, Debug)]
-pub enum VideoRecordingUpdateOrCreateError {
+pub enum VideoRecordingError {
     #[error(transparent)]
     SqliteDBError(#[from] diesel::result::Error),
 
@@ -27,12 +27,17 @@ pub enum VideoRecordingUpdateOrCreateError {
     VideosCreateError(#[from] ApiError<videos_api::VideosCreateError>),
 
     #[error(transparent)]
-    VideoRecordingPartsCreateError(#[from] ApiError<videos_api::VideoRecordingPartsCreateError>),
+    VideoRecordingPartsCreateError(#[from] ApiError<videos_api::VideoPartsCreateError>),
+
+    #[error(transparent)]
+    VideosPartialUpdateError(#[from] ApiError<videos_api::VideosPartialUpdateError>),
 
     #[error(transparent)]
     VideoRecordingsUpdateOrCreateError(
         #[from] ApiError<videos_api::VideoRecordingsUpdateOrCreateError>,
     ),
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
 }
 
 #[derive(Error, Debug)]
@@ -52,7 +57,7 @@ pub enum VideoRecordingSyncError {
     IoError(#[from] std::io::Error),
 
     #[error(transparent)]
-    VideoRecordingsUpdateOrCreateError(#[from] VideoRecordingUpdateOrCreateError),
+    VideoRecordingsUpdateOrCreateError(#[from] VideoRecordingError),
 }
 
 #[derive(Error, Debug)]
