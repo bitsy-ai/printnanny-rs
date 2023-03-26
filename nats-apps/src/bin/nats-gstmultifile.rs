@@ -228,12 +228,16 @@ async fn run_splitmuxsink_fragment_publisher(
                 }
                 _ => error!("Failed to process response={:#?}", msg.response),
             },
-            Err(e) => {
-                match e {
-                    gst_client::error::Error::BadStatus(reqwest::StatusCode::NOT_FOUND, _ ) => (),
-                    _ => error!("Error reading gstreamer pipeline bus name={} filter=splitmuxsink-fragment-closed error={}", pipeline_name, e)
+            Err(e) => match e {
+                gst_client::error::Error::BadStatus(reqwest::StatusCode::NOT_FOUND, _) => (),
+                _ => {
+                    error!(
+                        "Error reading gstreamer pipeline bus name={} error={}",
+                        pipeline_name, e
+                    );
+                    break;
                 }
-            }
+            },
         }
     }
     Ok(())
