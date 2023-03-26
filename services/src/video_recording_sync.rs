@@ -10,12 +10,12 @@ use printnanny_settings::printnanny::{PrintNannyApiConfig, PrintNannySettings};
 
 pub async fn upload_video_recording_part(
     row: video_recording::VideoRecordingPart,
-    api_config: PrintNannyApiConfig,
-    sqlite_connection: String,
 ) -> Result<video_recording::VideoRecordingPart, VideoRecordingSyncError> {
     // create/update cloud model
     let settings = PrintNannySettings::new().await?;
-    let api = ApiService::new(settings.cloud, sqlite_connection.to_string());
+    let sqlite_connection = settings.paths.db().display().to_string();
+
+    let api = ApiService::new(settings.cloud, sqlite_connection.clone());
     let result = api.video_recording_part_create(&row).await?;
 
     let row = printnanny_edge_db::video_recording::VideoRecordingPart::get_by_id(
@@ -60,11 +60,7 @@ pub async fn sync_all_video_recordings() -> Result<(), VideoRecordingSyncError> 
 
     let mut set = JoinSet::new();
     for part in parts {
-        set.spawn(upload_video_recording_part(
-            part,
-            settings.cloud.clone(),
-            sqlite_connection.clone(),
-        ));
+        set.spawn(upload_video_recording_part(part, sqlite_connection.clone()));
     }
 
     while let Some(Ok(res)) = set.join_next().await {

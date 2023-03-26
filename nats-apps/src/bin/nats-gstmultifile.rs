@@ -4,6 +4,7 @@ extern crate clap;
 use anyhow::Result;
 use clap::{Arg, Command};
 use printnanny_services::printnanny_api::ApiService;
+use printnanny_services::video_recording_sync::upload_video_recording_part;
 use std::fs;
 use std::path::PathBuf;
 
@@ -103,6 +104,8 @@ async fn handle_filesink_msg_closed(
         sqlite_connection,
         &row_id,
     )?;
+
+    upload_video_recording_part(row).await?;
 
     Ok(row)
 }
