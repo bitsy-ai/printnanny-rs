@@ -139,55 +139,43 @@ async fn run_splitmuxsink_fragment_publisher(
     );
 
     loop {
-        let msg = bus.read().await;
+        let msg = bus.read().await?;
         info!("Received msg={:?}", msg);
-        match msg {
-            Ok(msg) => match msg.response {
-                gst_client::gstd_types::ResponseT::GstSplitMuxSinkFragmentOpened(msg) => {
-                    info!(
-                        "Handling msg on gstreamer pipeline bus name={} msg={:?}",
-                        pipeline_name, msg
-                    );
-                    // insert filesink msg row
-                    let result = handle_filesink_msg_opened(msg.message, &sqlite_connection);
-                    match result {
-                        Ok(_result) => (),
-                        Err(e) => {
-                            error!("Failed to insert VideoRecordingPart row error={}", e)
-                        }
+        match msg.response {
+            gst_client::gstd_types::ResponseT::GstSplitMuxSinkFragmentOpened(msg) => {
+                info!(
+                    "Handling msg on gstreamer pipeline bus name={} msg={:?}",
+                    pipeline_name, msg
+                );
+                // insert filesink msg row
+                let result = handle_filesink_msg_opened(msg.message, &sqlite_connection);
+                match result {
+                    Ok(_result) => (),
+                    Err(e) => {
+                        error!("Failed to insert VideoRecordingPart row error={}", e)
                     }
                 }
-                gst_client::gstd_types::ResponseT::GstSplitMuxSinkFragmentClosed(msg) => {
-                    info!(
-                        "Handling msg on gstreamer pipeline bus name={} msg={:?}",
-                        pipeline_name, msg
-                    );
-                    // insert filesink msg row
-                    let result = handle_filesink_msg_closed(msg.message, &sqlite_connection).await;
-                    match result {
-                        Ok(_result) => {
-                            // publish NATS message
-                            // let payload = serde_json::to_vec(&result)?;
-                            // nats_client.publish(subject.clone(), payload.into()).await?;
-                            // info!("Published subject={} id={}", &subject, &result.id)
-                        }
-                        Err(e) => {
-                            error!("Failed to upload VideoRecordingPart row error={}", e)
-                        }
+            }
+            gst_client::gstd_types::ResponseT::GstSplitMuxSinkFragmentClosed(msg) => {
+                info!(
+                    "Handling msg on gstreamer pipeline bus name={} msg={:?}",
+                    pipeline_name, msg
+                );
+                // insert filesink msg row
+                let result = handle_filesink_msg_closed(msg.message, &sqlite_connection).await;
+                match result {
+                    Ok(_result) => {
+                        // publish NATS message
+                        // let payload = serde_json::to_vec(&result)?;
+                        // nats_client.publish(subject.clone(), payload.into()).await?;
+                        // info!("Published subject={} id={}", &subject, &result.id)
+                    }
+                    Err(e) => {
+                        error!("Failed to upload VideoRecordingPart row error={}", e)
                     }
                 }
-                _ => error!("Failed to process response={:#?}", msg.response),
-            },
-            Err(e) => match e {
-                gst_client::error::Error::BadStatus(reqwest::StatusCode::NOT_FOUND, _) => (),
-                _ => {
-                    error!(
-                        "Error reading gstreamer pipeline bus name={} error={}",
-                        pipeline_name, e
-                    );
-                    break;
-                }
-            },
+            }
+            _ => error!("Failed to process response={:#?}", msg.response),
         }
     }
     Ok(())
