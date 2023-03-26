@@ -105,7 +105,7 @@ async fn handle_filesink_msg_closed(
         &row_id,
     )?;
 
-    upload_video_recording_part(row).await?;
+    let row = upload_video_recording_part(row).await?;
 
     Ok(row)
 }
