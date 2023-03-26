@@ -33,7 +33,7 @@ pub struct VideoRecording {
 pub struct VideoRecordingPart {
     pub id: String,
     pub size: i64,
-    pub buffer_index: i32,
+    pub buffer_index: i64,
     pub buffer_runningtime: i64,
     pub deleted: bool,
     pub sync_start: Option<DateTime<Utc>>,
@@ -56,7 +56,7 @@ pub struct NewVideoRecording<'a> {
 pub struct NewVideoRecordingPart<'a> {
     pub id: &'a str,
     pub size: &'a i64,
-    pub buffer_index: &'a i32,
+    pub buffer_index: &'a i64,
     pub buffer_runningtime: &'a i64,
     pub deleted: &'a bool,
     pub file_name: &'a str,
@@ -197,6 +197,7 @@ impl VideoRecording {
     ) -> Result<VideoRecording, diesel::result::Error> {
         use crate::schema::video_recordings::dsl::*;
         let connection = &mut establish_sqlite_connection(connection_str);
+
         let row_id = uuid::Uuid::new_v4().to_string();
         let dirname = video_path.join(&row_id);
         fs::create_dir_all(&dirname).expect(&format!(
@@ -307,20 +308,18 @@ impl VideoRecordingPart {
         use crate::schema::video_recording_parts::dsl::*;
         let connection = &mut establish_sqlite_connection(connection_str);
 
-        let sync_start_value = obj.sync_start.as_ref().map(|v| {
+        let sync_start_value =
             <chrono::DateTime<chrono::FixedOffset> as std::convert::Into<DateTime<Utc>>>::into(
-                DateTime::parse_from_rfc3339(v).unwrap(),
-            )
-        });
-        let sync_end_value = obj.sync_end.as_ref().map(|v| {
-            <chrono::DateTime<chrono::FixedOffset> as std::convert::Into<DateTime<Utc>>>::into(
-                DateTime::parse_from_rfc3339(v).unwrap(),
-            )
-        });
+                DateTime::parse_from_rfc3339(&obj.sync_start).unwrap(),
+            );
+        let sync_end_value = <chrono::DateTime<chrono::FixedOffset> as std::convert::Into<
+            DateTime<Utc>,
+        >>::into(DateTime::parse_from_rfc3339(&obj.sync_end).unwrap());
+
         let row_update = UpdateVideoRecordingPart {
             deleted: None,
-            sync_start: sync_start_value.as_ref(),
-            sync_end: sync_end_value.as_ref(),
+            sync_start: Some(&sync_start_value),
+            sync_end: Some(&sync_end_value),
         };
         diesel::update(video_recording_parts.filter(id.eq(&obj.id)))
             .set(row_update)
@@ -363,61 +362,6 @@ impl VideoRecordingPart {
             .execute(connection)?;
         info!("Updated VideoRecordingPart with id {}", row_id);
         Ok(())
-    }
-}
-
-impl From<VideoRecordingPart> for models::VideoRecordingPartRequest {
-    fn from(obj: VideoRecordingPart) -> Self {
-        Self {
-            id: obj.id,
-            size: obj.size,
-            buffer_index: obj.buffer_index as i64,
-            buffer_runningtime: obj.buffer_runningtime,
-            sync_start: obj.sync_start.map(|v| v.to_rfc3339()),
-            sync_end: obj.sync_end.map(|v| v.to_rfc3339()),
-            video_recording: obj.video_recording_id,
-            file_name: obj.file_name,
-        }
-    }
-}
-
-impl From<VideoRecordingPart> for printnanny_os_models::VideoRecordingPart {
-    fn from(obj: VideoRecordingPart) -> Self {
-        Self {
-            id: obj.id,
-            deleted: obj.deleted,
-            size: obj.size,
-            buffer_index: obj.buffer_index,
-            buffer_runningtime: obj.buffer_runningtime,
-            video_recording_id: obj.video_recording_id,
-            sync_start: obj.sync_start.map(|v| v.to_rfc3339()),
-            sync_end: obj.sync_end.map(|v| v.to_rfc3339()),
-            file_name: obj.file_name,
-        }
-    }
-}
-
-impl From<&printnanny_os_models::VideoRecordingPart> for VideoRecordingPart {
-    fn from(obj: &printnanny_os_models::VideoRecordingPart) -> Self {
-        let sync_start: Option<DateTime<Utc>> = obj
-            .sync_start
-            .as_ref()
-            .map(|v| DateTime::parse_from_rfc3339(v).unwrap().into());
-        let sync_end: Option<DateTime<Utc>> = obj
-            .sync_end
-            .as_ref()
-            .map(|v| DateTime::parse_from_rfc3339(v).unwrap().into());
-        Self {
-            id: obj.id.clone(),
-            deleted: obj.deleted,
-            size: obj.size,
-            buffer_index: obj.buffer_index,
-            buffer_runningtime: obj.buffer_runningtime,
-            video_recording_id: obj.video_recording_id.clone(),
-            file_name: obj.file_name.clone(),
-            sync_start,
-            sync_end,
-        }
     }
 }
 

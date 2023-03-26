@@ -1,7 +1,7 @@
 CREATE TABLE video_recording_parts (
   id VARCHAR PRIMARY KEY NOT NULL,
   size UNSIGNED BIGINT NOT NULL,
-  buffer_index UNSIGNED INTEGER NOT NULL,
+  buffer_index UNSIGNED BIGINT NOT NULL,
   buffer_runningtime UNSIGNED BIGINT NOT NULL,
   deleted BOOLEAN NOT NULL,
   sync_start DATETIME,

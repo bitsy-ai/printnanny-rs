@@ -121,9 +121,7 @@ async fn handle_filesink_msg_closed(
     // create/update cloud model
     let settings = PrintNannySettings::new().await?;
     let api = ApiService::new(settings.cloud, sqlite_connection.to_string());
-    let remote = api
-        .video_recording_parts_update_or_create(row.into())
-        .await?;
+    let remote = api.video_recording_parts_create(&row).await?;
 
     handle_file_upload(&remote.mp4_upload_url, &filesink_msg.location).await?;
     let end = Utc::now();

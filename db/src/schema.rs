@@ -75,7 +75,7 @@ diesel::table! {
     video_recording_parts (id) {
         id -> Text,
         size -> BigInt,
-        buffer_index -> Integer,
+        buffer_index -> BigInt,
         buffer_runningtime -> BigInt,
         deleted -> Bool,
         sync_start -> Nullable<TimestamptzSqlite>,
