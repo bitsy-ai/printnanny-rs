@@ -78,20 +78,6 @@ fn handle_filesink_msg_opened(
     Ok(result)
 }
 
-async fn handle_file_upload(url: &str, filename: &str) -> Result<()> {
-    let mut file = File::open(filename).await?;
-    let mut vec = Vec::new();
-    file.read_to_end(&mut vec).await?;
-    let client = reqwest::Client::new();
-    client
-        .put(url)
-        .header("content-type", "application/octet-stream")
-        .body(vec)
-        .send()
-        .await?;
-    Ok(())
-}
-
 // upload VideoRecordingPart and publish NATS message
 async fn handle_filesink_msg_closed(
     filesink_msg: GstSplitMuxSinkFragmentMessage,
