@@ -60,7 +60,7 @@ pub async fn sync_all_video_recordings() -> Result<(), VideoRecordingSyncError> 
 
     let mut set = JoinSet::new();
     for part in parts {
-        set.spawn(upload_video_recording_part(part, sqlite_connection.clone()));
+        set.spawn(upload_video_recording_part(part));
     }
 
     while let Some(Ok(res)) = set.join_next().await {
