@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use chrono::Utc;
 use log::{error, info, warn};
+use printnanny_services::video_recording_sync::sync_all_video_recordings;
 use printnanny_settings::cam::CameraVideoSource;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
@@ -214,10 +215,10 @@ impl NatsRequest {
     }
 
     pub async fn handle_camera_recording_stop() -> Result<NatsReply> {
-        // start cloud sync service
         let settings = PrintNannySettings::new().await?;
         let sqlite_connection = settings.paths.db().display().to_string();
 
+        // get the active recording
         let recording =
             printnanny_edge_db::video_recording::VideoRecording::get_current(&sqlite_connection)?;
         let factory = PrintNannyPipelineFactory::default();
@@ -226,11 +227,14 @@ impl NatsRequest {
         factory.stop_video_recording_pipeline().await?;
         let now = Utc::now();
 
+        // sync all video recording parts
+        sync_all_video_recordings().await?;
+
         match &recording {
             Some(current) => {
                 let row = printnanny_edge_db::video_recording::UpdateVideoRecording {
                     recording_end: Some(&now),
-                    cloud_sync_done: None,
+                    cloud_sync_done: Some(&true),
                     dir: None,
                     recording_start: None,
                     gcode_file_name: None,
