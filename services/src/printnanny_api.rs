@@ -485,6 +485,22 @@ impl ApiService {
         Ok(recording)
     }
 
+    pub async fn video_recording_finalize(
+        &self,
+        video_recording_id: &str,
+    ) -> Result<(), VideoRecordingError> {
+        videos_api::video_recordings_finalize(&self.reqwest_config(), video_recording_id, None)
+            .await?;
+        let result =
+            videos_api::videos_retrieve(&self.reqwest_config(), video_recording_id).await?;
+
+        info!(
+            "Success! Finalizing VideoRecording in the cloud, id={:?} task={:?}",
+            result.id, result.finalize_task_id
+        );
+        Ok(())
+    }
+
     pub async fn video_recording_part_create(
         &self,
         row: &printnanny_edge_db::video_recording::VideoRecordingPart,
