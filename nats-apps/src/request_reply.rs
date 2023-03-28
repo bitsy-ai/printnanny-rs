@@ -225,30 +225,15 @@ impl NatsRequest {
 
         // send EOS signal to gstreamer
         factory.stop_video_recording_pipeline().await?;
-        let now = Utc::now();
 
         // sync all video recording parts
         sync_all_video_recordings().await?;
 
         match &recording {
             Some(current) => {
-                let row = printnanny_edge_db::video_recording::UpdateVideoRecording {
-                    recording_end: Some(&now),
-                    cloud_sync_done: Some(&true),
-                    dir: None,
-                    recording_start: None,
-                    gcode_file_name: None,
-                };
-                info!(
-                    "Setting recording_end={} capture_done=true on video_recording with id={}",
-                    now.to_string(),
-                    &current.id
-                );
-                printnanny_edge_db::video_recording::VideoRecording::update(
-                    &sqlite_connection,
-                    &current.id,
-                    row,
-                )?;
+                // send finalization request to cloud api
+                let api = ApiService::new(settings.cloud, sqlite_connection);
+                api.video_recording_finalize(&current.id);
             }
             None => {
                 warn!("handle_camera_recording_stop called, but no active recording was found");

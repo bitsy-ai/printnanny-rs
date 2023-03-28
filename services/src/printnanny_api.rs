@@ -485,6 +485,34 @@ impl ApiService {
         Ok(recording)
     }
 
+    pub async fn video_recording_finalize(
+        &self,
+        video_recording_id: &str,
+    ) -> Result<models::VideoRecording, VideoRecordingError> {
+        let recording_end = Utc::now();
+        let recording_end = recording_end.to_rfc3339();
+        let request = models::VideoRecordingFinalizeRequest {
+            recording_end: recording_end.clone(),
+        };
+
+        videos_api::video_recordings_finalize(&self.reqwest_config(), video_recording_id, request)
+            .await?;
+        let result =
+            videos_api::videos_retrieve(&self.reqwest_config(), video_recording_id).await?;
+
+        info!(
+            "Success! Finalizing VideoRecording in the cloud, id={:?} task={:?} recording_end={}",
+            result.id, result.finalize_task_id, &recording_end
+        );
+
+        printnanny_edge_db::video_recording::VideoRecording::update_from_cloud(
+            &self.sqlite_connection,
+            &result,
+        )?;
+
+        Ok(result)
+    }
+
     pub async fn video_recording_part_create(
         &self,
         row: &printnanny_edge_db::video_recording::VideoRecordingPart,
