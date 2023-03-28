@@ -6,8 +6,6 @@ use std::fs::File;
 use std::path::PathBuf;
 use tempfile::Builder;
 
-use printnanny_api_client::models::pi_software_update_payload_request::PiSoftwareUpdatePayloadRequest;
-
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Swupdate {
     swu_url: String,
@@ -50,14 +48,5 @@ impl Swupdate {
             .output()
             .await?;
         Ok(output)
-    }
-}
-
-impl From<PiSoftwareUpdatePayloadRequest> for Swupdate {
-    fn from(payload: PiSoftwareUpdatePayloadRequest) -> Self {
-        Self {
-            swu_url: payload.swu_url,
-            version: payload.version,
-        }
     }
 }
