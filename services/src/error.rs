@@ -41,6 +41,9 @@ pub enum VideoRecordingError {
     VideosRetrieveError(#[from] ApiError<videos_api::VideosRetrieveError>),
 
     #[error(transparent)]
+    VideoRecordingsFinalizeError(#[from] ApiError<videos_api::VideoRecordingsFinalizeError>),
+
+    #[error(transparent)]
     IoError(#[from] std::io::Error),
 }
 
