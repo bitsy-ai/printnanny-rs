@@ -376,7 +376,7 @@ impl ApiService {
         let email_alert_settings: models::EmailAlertSettings =
             self.email_alert_settings_retrieve().await?;
 
-        match printnanny_edge_db::cloud::Pi::get(&self.sqlite_connection) {
+        match printnanny_edge_db::cloud::EmailAlertSettings::get(&self.sqlite_connection) {
             Ok(_row) => {
                 printnanny_edge_db::cloud::EmailAlertSettings::update_from_cloud(
                     &self.sqlite_connection,
