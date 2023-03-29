@@ -508,16 +508,6 @@ impl ApiService {
             video_path,
         )?;
 
-        info!("Attempting to start new recording id={}", &recording.id);
-
-        let factory = PrintNannyPipelineFactory::default();
-        factory
-            .start_video_recording_pipeline(&recording.dir)
-            .await
-            .expect("Failed to initialize connection to gstd");
-
-        info!("Gstreamer mp4 recording pipeline is now playing");
-
         let now = Utc::now();
         let update = printnanny_edge_db::video_recording::UpdateVideoRecording {
             recording_start: Some(&now),
@@ -541,6 +531,15 @@ impl ApiService {
                 .await?;
 
         info!("Created PrintNanny Cloud VideoRecording {:?}", result);
+        info!("Attempting to start new recording id={}", &recording.id);
+
+        let factory = PrintNannyPipelineFactory::default();
+        factory
+            .start_video_recording_pipeline(&recording.dir)
+            .await
+            .expect("Failed to initialize connection to gstd");
+
+        info!("Gstreamer mp4 recording pipeline is now playing");
         Ok(recording)
     }
 
