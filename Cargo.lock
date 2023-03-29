@@ -3751,9 +3751,9 @@ dependencies = [
 
 [[package]]
 name = "printnanny-octoprint-models"
-version = "0.1.7"
+version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2db375bd116bac065e3e6451b784f71932b5ccca4b359514feeabe78765bd87a"
+checksum = "72836d92e1897dad506e0751f1a88bcf470ce3bb1ed6d813cb01a2cc32de411f"
 dependencies = [
  "serde 1.0.152",
  "serde_json",
