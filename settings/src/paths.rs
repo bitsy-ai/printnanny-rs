@@ -52,6 +52,20 @@ impl Default for PrintNannyPaths {
 }
 
 impl PrintNannyPaths {
+    pub fn latest_snapshot_file(self) -> Option<PathBuf> {
+        match std::fs::read_dir(&self.snapshot_dir) {
+            Ok(dir_entry) => match dir_entry.last() {
+                Some(Ok(last)) => Some(last.path()),
+                Some(Err(e)) => None,
+                None => None,
+            },
+            Err(_) => {
+                warn!("PrintNannyPaths.latest_snapshot_file called, but snapshot dir is empty");
+                None
+            }
+        }
+    }
+
     pub fn cloud(&self) -> PathBuf {
         self.data().join("PrintNannyCloudData.json")
     }

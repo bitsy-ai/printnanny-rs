@@ -3,10 +3,8 @@ extern crate clap;
 
 use anyhow::Result;
 use clap::{Arg, Command};
-use printnanny_services::printnanny_api::ApiService;
 use printnanny_services::video_recording_sync::upload_video_recording_part;
 use std::fs;
-use std::path::PathBuf;
 
 use chrono::Utc;
 use env_logger::Builder;
@@ -15,7 +13,6 @@ use log::{error, info, LevelFilter};
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
-use printnanny_api_client::models;
 use printnanny_gst_pipelines::factory::{PrintNannyPipelineFactory, H264_RECORDING_PIPELINE};
 use printnanny_gst_pipelines::gst_client;
 
@@ -25,7 +22,6 @@ use gst_client::gstd_types::{
     GstSplitMuxSinkFragmentMessage, GST_SPLIT_MUX_SINK_FRAGMENT_MESSAGE_CLOSED,
 };
 
-use printnanny_nats_client::client::wait_for_nats_client;
 use printnanny_nats_client::event::NatsEventHandler;
 
 use printnanny_settings::printnanny::PrintNannySettings;
@@ -34,8 +30,8 @@ use printnanny_settings::sys_info;
 use printnanny_nats_apps::event::NatsEvent;
 
 const SUBJECT_PATTERN: &str = "pi.{pi_id}.event.camera.recording.part";
-const DEFAULT_NATS_URI: &str = "nats://localhost:4223";
-const DEFAULT_NATS_WAIT: u64 = 2000; // sleep 2 seconds between connection attempts
+const _DEFAULT_NATS_URI: &str = "nats://localhost:4223";
+const _DEFAULT_NATS_WAIT: u64 = 2000; // sleep 2 seconds between connection attempts
 const GST_BUS_TIMEOUT: u64 = 600000000000_u64; // 600 seconds (in nanoseconds)
 const GIT_VERSION: &str = git_version!();
 

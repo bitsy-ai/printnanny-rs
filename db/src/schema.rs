@@ -4,6 +4,24 @@ diesel::table! {
     use diesel::sql_types::*;
     use diesel::sqlite::sql_types::*;
 
+    email_alert_settings (id) {
+        id -> Integer,
+        created_dt -> TimestamptzSqlite,
+        updated_dt -> TimestamptzSqlite,
+        progress_percent -> Integer,
+        print_quality_enabled -> Bool,
+        print_started_enabled -> Bool,
+        print_done_enabled -> Bool,
+        print_progress_enabled -> Bool,
+        print_paused_enabled -> Bool,
+        print_cancelled_enabled -> Bool,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use diesel::sqlite::sql_types::*;
+
     nats_apps (id) {
         id -> Integer,
         app_name -> Text,
@@ -126,6 +144,7 @@ diesel::table! {
 diesel::joinable!(video_recording_parts -> video_recordings (video_recording_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    email_alert_settings,
     nats_apps,
     octoprint_servers,
     pis,

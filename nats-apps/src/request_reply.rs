@@ -4,7 +4,6 @@ use std::time::SystemTime;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
-use chrono::Utc;
 use log::{error, info, warn};
 use printnanny_services::video_recording_sync::sync_all_video_recordings;
 use printnanny_settings::cam::CameraVideoSource;
@@ -374,10 +373,10 @@ impl NatsRequest {
         };
         let factory = PrintNannyPipelineFactory::default();
 
-        let recording = match factory.pipeline_state(H264_RECORDING_PIPELINE).await {
-            GstPipelineState::Playing => true,
-            _ => false,
-        };
+        let recording = matches!(
+            factory.pipeline_state(H264_RECORDING_PIPELINE).await,
+            GstPipelineState::Playing
+        );
 
         info!(
             "CameraStatus streaming={} recording={:#?}",

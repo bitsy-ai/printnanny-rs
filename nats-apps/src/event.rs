@@ -4,10 +4,13 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
 use log::info;
+use printnanny_api_client::models;
 use serde::{Deserialize, Serialize};
 
 use printnanny_nats_client::event::NatsEventHandler;
-use printnanny_octoprint_models;
+use printnanny_octoprint_models::{self, JobProgress};
+use printnanny_services::printnanny_api::ApiService;
+use printnanny_settings::printnanny::PrintNannySettings;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "subject_pattern")]
@@ -51,15 +54,40 @@ impl NatsEvent {
         Ok(())
     }
 
-    fn handle_octoprint_job_progress(
+    async fn handle_octoprint_job_progress(
         event: &printnanny_octoprint_models::JobProgress,
     ) -> Result<()> {
         info!("handle_octoprint_job_progress event={:?}", event);
+        let settings = PrintNannySettings::new().await?;
+        let sqlite_connection = settings.paths.db().display().to_string();
+        let email_alert_settings =
+            printnanny_edge_db::cloud::EmailAlertSettings::get(&sqlite_connection)?;
+
+        let completion = event
+            .completion
+            .expect("JobProgress.completion expected to be some value, but got None");
+
+        if email_alert_settings.print_progress_enabled
+            && completion % email_alert_settings.progress_percent as f64 == 0_f64
+        {
+            let api = ApiService::new(settings.cloud, sqlite_connection);
+            let latest_snapshot_file = settings.paths.latest_snapshot_file();
+
+            let alert = api
+                .print_job_alert_create(
+                    models::EventTypeEnum::PrintProgress,
+                    models::EventSourceEnum::Octoprint,
+                    latest_snapshot_file,
+                )
+                .await?;
+            info!("Success! Created PrintJobAlert id={}", alert.id);
+        }
+
         Ok(())
     }
 
     fn handle_octoprint_gcode(event: &printnanny_octoprint_models::OctoPrintGcode) -> Result<()> {
-        info!(" handle_octoprint_gcode event={:?}", event);
+        info!("handle_octoprint_gcode event={:?}", event);
         Ok(())
     }
 }
@@ -126,7 +154,7 @@ impl NatsEventHandler for NatsEvent {
 
             NatsEvent::PrinterStatusChanged(event) => Self::handle_octoprint_printer_status(event),
 
-            NatsEvent::JobProgress(event) => Self::handle_octoprint_job_progress(event),
+            NatsEvent::JobProgress(event) => Self::handle_octoprint_job_progress(event).await,
 
             NatsEvent::OctoPrintGcode(event) => Self::handle_octoprint_gcode(event),
         }
