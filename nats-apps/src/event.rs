@@ -25,7 +25,10 @@ pub enum NatsEvent {
     PrinterStatusChanged(printnanny_octoprint_models::PrinterStatusChanged),
 
     #[serde(rename = "pi.{pi_id}.octoprint.event.printer.job_progress")]
-    JobProgress(printnanny_octoprint_models::JobProgress),
+    JobProgressChanged(printnanny_octoprint_models::JobProgressChanged),
+
+    #[serde(rename = "pi.{pi_id}.octoprint.event.printer.job_status")]
+    JobStatusChanged(printnanny_octoprint_models::JobStatusChanged),
 
     #[serde(rename = "pi.{pi_id}.octoprint.event.gcode")]
     OctoPrintGcode(printnanny_octoprint_models::OctoPrintGcode),
@@ -54,8 +57,15 @@ impl NatsEvent {
         Ok(())
     }
 
+    async fn handle_octoprint_job_status_changed(
+        event: &printnanny_octoprint_models::JobStatusChanged,
+    ) -> Result<()> {
+        info!("handle_octoprint_job_status_changed event={:?}", event);
+        Ok(())
+    }
+
     async fn handle_octoprint_job_progress(
-        event: &printnanny_octoprint_models::JobProgress,
+        event: &printnanny_octoprint_models::JobProgressChanged,
     ) -> Result<()> {
         info!("handle_octoprint_job_progress event={:?}", event);
         let settings = PrintNannySettings::new().await?;
@@ -64,8 +74,11 @@ impl NatsEvent {
             printnanny_edge_db::cloud::EmailAlertSettings::get(&sqlite_connection)?;
 
         let completion = event
+            .progress
+            .as_ref()
+            .expect("JobProgress.progress expected to be some value, but got None")
             .completion
-            .expect("JobProgress.completion expected to be some value, but got None");
+            .expect("JobProgress.progress.completion expected to be some value, but got None");
 
         if email_alert_settings.print_progress_enabled
             && completion % email_alert_settings.progress_percent as f64 == 0_f64
@@ -122,10 +135,20 @@ impl NatsEventHandler for NatsEvent {
                 )?))
             }
 
+            "pi.{pi_id}.octoprint.event.printer.job_status" => {
+                Ok(NatsEvent::JobStatusChanged(serde_json::from_slice::<
+                    printnanny_octoprint_models::JobStatusChanged,
+                >(
+                    payload.as_ref()
+                )?))
+            }
+
             "pi.{pi_id}.octoprint.event.printer.job_progress" => {
-                Ok(NatsEvent::JobProgress(serde_json::from_slice::<
-                    printnanny_octoprint_models::JobProgress,
-                >(payload.as_ref())?))
+                Ok(NatsEvent::JobProgressChanged(serde_json::from_slice::<
+                    printnanny_octoprint_models::JobProgressChanged,
+                >(
+                    payload.as_ref()
+                )?))
             }
 
             "pi.{pi_id}.octoprint.event.gcode" => {
@@ -154,7 +177,13 @@ impl NatsEventHandler for NatsEvent {
 
             NatsEvent::PrinterStatusChanged(event) => Self::handle_octoprint_printer_status(event),
 
-            NatsEvent::JobProgress(event) => Self::handle_octoprint_job_progress(event).await,
+            NatsEvent::JobProgressChanged(event) => {
+                Self::handle_octoprint_job_progress(event).await
+            }
+
+            NatsEvent::JobStatusChanged(event) => {
+                Self::handle_octoprint_job_status_changed(event).await
+            }
 
             NatsEvent::OctoPrintGcode(event) => Self::handle_octoprint_gcode(event),
         }
