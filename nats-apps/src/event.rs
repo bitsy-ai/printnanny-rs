@@ -12,8 +12,6 @@ use printnanny_octoprint_models;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "subject_pattern")]
 pub enum NatsEvent {
-    
-
     #[serde(rename = "pi.{pi_id}.octoprint.event.server.startup")]
     OctoPrintServerStartup(printnanny_octoprint_models::OctoPrintServerStatusChanged),
 
@@ -56,7 +54,7 @@ impl NatsEvent {
     fn handle_octoprint_job_progress(
         event: &printnanny_octoprint_models::JobProgress,
     ) -> Result<()> {
-        info!("handle_octoprint_printer_status event={:?}", event);
+        info!("handle_octoprint_job_progress event={:?}", event);
         Ok(())
     }
 
