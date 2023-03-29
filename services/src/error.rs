@@ -101,6 +101,9 @@ pub enum ServiceError {
     TomlSerError(#[from] toml::ser::Error),
 
     #[error(transparent)]
+    AlertsPrintJobCreateError(#[from] ApiError<alerts_api::AlertsPrintJobCreateError>),
+
+    #[error(transparent)]
     CrashReportsCreateError(#[from] ApiError<crash_reports_api::CrashReportsCreateError>),
 
     #[error(transparent)]

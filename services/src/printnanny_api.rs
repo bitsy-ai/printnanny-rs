@@ -83,6 +83,24 @@ impl ApiService {
         Ok(result)
     }
 
+    pub async fn print_job_alert_create(
+        &self,
+        event_type: models::EventTypeEnum,
+        event_source: models::EventSourceEnum,
+        image: Option<PathBuf>,
+    ) -> Result<models::PrintJobAlert, ServiceError> {
+        let pi_id = printnanny_edge_db::cloud::Pi::get_id(&self.sqlite_connection)?;
+        let result = alerts_api::alerts_print_job_create(
+            &self.reqwest_config(),
+            event_type,
+            event_source,
+            pi_id,
+            image,
+        )
+        .await?;
+        Ok(result)
+    }
+
     pub async fn connect_cloud_account(
         mut self,
         api_base_path: String,
