@@ -1,9 +1,10 @@
 use diesel::prelude::*;
-use printnanny_settings::git2::Email;
 use serde::{Deserialize, Serialize};
 
 use chrono::{DateTime, Utc};
 use log::info;
+
+use printnanny_api_client::models;
 
 use crate::connection::establish_sqlite_connection;
 use crate::schema::email_alert_settings;
@@ -167,12 +168,12 @@ pub struct EmailAlertSettings {
 pub struct UpdateEmailAlertSettings<'a> {
     pub updated_dt: Option<&'a DateTime<Utc>>,
     pub progress_percent: Option<&'a i32>,
-    pub print_quality_enabled: Option<&'a bool>,
-    pub print_started_enabled: Option<&'a bool>,
-    pub print_done_enabled: Option<&'a bool>,
-    pub print_progress_enabled: Option<&'a bool>,
-    pub print_paused_enabled: Option<&'a bool>,
-    pub print_cancelled_enabled: Option<&'a bool>,
+    pub print_quality_enabled: Option<bool>,
+    pub print_started_enabled: Option<bool>,
+    pub print_done_enabled: Option<bool>,
+    pub print_progress_enabled: Option<bool>,
+    pub print_paused_enabled: Option<bool>,
+    pub print_cancelled_enabled: Option<bool>,
 }
 
 impl EmailAlertSettings {
@@ -180,7 +181,7 @@ impl EmailAlertSettings {
         use crate::schema::email_alert_settings::dsl::*;
 
         let connection = &mut establish_sqlite_connection(connection_str);
-        let result: EmailAlertSettings = email_alert_settings
+        let result = email_alert_settings
             .order_by(id)
             .first::<EmailAlertSettings>(connection)?;
         info!(
@@ -203,20 +204,139 @@ impl EmailAlertSettings {
         );
         Ok(())
     }
-    pub fn update(
+
+    pub fn update_from_cloud(
         connection_str: &str,
-        row_id: i32,
-        changeset: UpdateEmailAlertSettings,
+        obj: &models::EmailAlertSettings,
     ) -> Result<(), diesel::result::Error> {
+        use crate::schema::email_alert_settings::dsl::*;
         let mut connection = establish_sqlite_connection(connection_str);
-        let result =
-            diesel::update(email_alert_settings::table.filter(email_alert_settings::id.eq(row_id)))
-                .set(changeset)
-                .execute(&mut connection)?;
+
+        let updated_dt_v = <chrono::DateTime<chrono::FixedOffset> as std::convert::Into<
+            DateTime<Utc>,
+        >>::into(DateTime::parse_from_rfc3339(&obj.updated_dt).unwrap());
+
+        let row = match &obj.event_types {
+            Some(event_types) => {
+                let print_quality_enabled_v = (event_types)
+                    .into_iter()
+                    .any(|v| v == &models::EventTypesEnum::PrintQuality);
+
+                let print_started_enabled_v = (event_types)
+                    .into_iter()
+                    .any(|v| v == &models::EventTypesEnum::PrintStarted);
+
+                let print_done_enabled_v = (event_types)
+                    .into_iter()
+                    .any(|v| v == &models::EventTypesEnum::PrintDone);
+
+                let print_progress_enabled_v = (event_types)
+                    .into_iter()
+                    .any(|v| v == &models::EventTypesEnum::PrintProgress);
+
+                let print_paused_enabled_v = (event_types)
+                    .into_iter()
+                    .any(|v| v == &models::EventTypesEnum::PrintPaused);
+
+                let print_cancelled_enabled_v = (event_types)
+                    .into_iter()
+                    .any(|v| v == &models::EventTypesEnum::PrintCancelled);
+
+                UpdateEmailAlertSettings {
+                    updated_dt: Some(&updated_dt_v),
+                    progress_percent: obj.progress_percent.as_ref(),
+                    print_quality_enabled: Some(print_quality_enabled_v),
+                    print_started_enabled: Some(print_started_enabled_v),
+                    print_done_enabled: Some(print_done_enabled_v),
+                    print_progress_enabled: Some(print_progress_enabled_v),
+                    print_paused_enabled: Some(print_paused_enabled_v),
+                    print_cancelled_enabled: Some(print_cancelled_enabled_v),
+                }
+            }
+            None => UpdateEmailAlertSettings {
+                updated_dt: Some(&updated_dt_v),
+                progress_percent: obj.progress_percent.as_ref(),
+                print_quality_enabled: Some(false),
+                print_started_enabled: Some(false),
+                print_done_enabled: Some(false),
+                print_progress_enabled: Some(false),
+                print_paused_enabled: Some(false),
+                print_cancelled_enabled: Some(false),
+            },
+        };
+
+        let result = diesel::update(email_alert_settings.filter(id.eq(obj.id)))
+            .set(row)
+            .execute(&mut connection)?;
         info!(
             "printnanny_edge_db::cloud::EmailAlertSettings with id={} updated",
             &result
         );
         Ok(())
+    }
+}
+
+impl From<&models::EmailAlertSettings> for EmailAlertSettings {
+    fn from(obj: &models::EmailAlertSettings) -> EmailAlertSettings {
+        let created_dt_v = <chrono::DateTime<chrono::FixedOffset> as std::convert::Into<
+            DateTime<Utc>,
+        >>::into(DateTime::parse_from_rfc3339(&obj.created_dt).unwrap());
+
+        let updated_dt_v = <chrono::DateTime<chrono::FixedOffset> as std::convert::Into<
+            DateTime<Utc>,
+        >>::into(DateTime::parse_from_rfc3339(&obj.updated_dt).unwrap());
+
+        match &obj.event_types {
+            Some(event_types) => {
+                let print_quality_enabled_v = (event_types)
+                    .into_iter()
+                    .any(|v| v == &models::EventTypesEnum::PrintQuality);
+
+                let print_started_enabled_v = (event_types)
+                    .into_iter()
+                    .any(|v| v == &models::EventTypesEnum::PrintStarted);
+
+                let print_done_enabled_v = (event_types)
+                    .into_iter()
+                    .any(|v| v == &models::EventTypesEnum::PrintDone);
+
+                let print_progress_enabled_v = (event_types)
+                    .into_iter()
+                    .any(|v| v == &models::EventTypesEnum::PrintProgress);
+
+                let print_paused_enabled_v = (event_types)
+                    .into_iter()
+                    .any(|v| v == &models::EventTypesEnum::PrintPaused);
+
+                let print_cancelled_enabled_v = (event_types)
+                    .into_iter()
+                    .any(|v| v == &models::EventTypesEnum::PrintCancelled);
+
+                EmailAlertSettings {
+                    id: obj.id,
+                    created_dt: created_dt_v,
+                    updated_dt: updated_dt_v,
+                    progress_percent: obj.progress_percent.unwrap_or(25),
+                    print_quality_enabled: print_quality_enabled_v,
+                    print_started_enabled: print_started_enabled_v,
+                    print_done_enabled: print_done_enabled_v,
+                    print_progress_enabled: print_progress_enabled_v,
+                    print_paused_enabled: print_paused_enabled_v,
+                    print_cancelled_enabled: print_cancelled_enabled_v,
+                }
+            }
+            None => EmailAlertSettings {
+                id: obj.id,
+                created_dt: created_dt_v,
+                updated_dt: updated_dt_v,
+                progress_percent: obj.progress_percent.unwrap_or(25),
+                print_quality_enabled: false,
+                print_started_enabled: false,
+                print_done_enabled: false,
+                print_progress_enabled: false,
+                print_paused_enabled: false,
+                print_cancelled_enabled: false,
+            },
+        }
     }
 }

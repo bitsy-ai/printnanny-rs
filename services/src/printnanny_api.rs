@@ -17,6 +17,7 @@ use printnanny_settings::printnanny::{PrintNannyApiConfig, PrintNannySettings};
 use printnanny_settings::sys_info;
 
 use printnanny_api_client::apis::accounts_api;
+use printnanny_api_client::apis::alerts_api;
 use printnanny_api_client::apis::configuration::Configuration as ReqwestConfig;
 use printnanny_api_client::apis::crash_reports_api;
 use printnanny_api_client::apis::devices_api;
@@ -73,6 +74,13 @@ impl ApiService {
             bearer_access_token: self.api_config.api_bearer_access_token.clone(),
             ..ReqwestConfig::default()
         }
+    }
+
+    pub async fn email_alert_settings_retrieve(
+        &self,
+    ) -> Result<models::EmailAlertSettings, ServiceError> {
+        let result = alerts_api::email_alert_settings_retrieve(&self.reqwest_config()).await?;
+        Ok(result)
     }
 
     pub async fn connect_cloud_account(
@@ -334,8 +342,9 @@ impl ApiService {
 
     // syncs Raspberry Pi data with PrintNanny Cloud
     // performs any necessary one-time setup tasks
-    pub async fn sync(&self) -> Result<printnanny_api_client::models::Pi, ServiceError> {
-        match printnanny_edge_db::cloud::Pi::get(&self.sqlite_connection) {
+    pub async fn sync(&self) -> Result<(), ServiceError> {
+        // sync Pi model
+        let pi = match printnanny_edge_db::cloud::Pi::get(&self.sqlite_connection) {
             Ok(pi_sqlite) => self.sync_pi_models(pi_sqlite).await,
             Err(e) => match e {
                 // if edge Pi model isn't found, initialize
@@ -343,7 +352,37 @@ impl ApiService {
                 // re-raise all other errors
                 _ => Err(ServiceError::SqliteDBError(e)),
             },
-        }
+        }?;
+        info!("Success! Synchronized Pi id={}", pi.id);
+        // sync EmailAlertSettings
+        let email_alert_settings: models::EmailAlertSettings =
+            self.email_alert_settings_retrieve().await?;
+
+        match printnanny_edge_db::cloud::Pi::get(&self.sqlite_connection) {
+            Ok(row) => {
+                printnanny_edge_db::cloud::EmailAlertSettings::update_from_cloud(
+                    &self.sqlite_connection,
+                    &email_alert_settings,
+                )?;
+            }
+            Err(e) => match e {
+                // if edge Pi model isn't found, initialize
+                printnanny_edge_db::diesel::result::Error::NotFound => {
+                    printnanny_edge_db::cloud::EmailAlertSettings::insert(
+                        &self.sqlite_connection,
+                        (&email_alert_settings).into(),
+                    );
+                }
+                // re-raise all other errors
+                _ => Err(ServiceError::SqliteDBError(e)),
+            },
+        };
+        info!(
+            "Success! Synchronized EmailAlertSettings id={}",
+            email_alert_settings.id
+        );
+
+        Ok(())
     }
 
     pub async fn pi_retrieve(&self, pi_id: Option<i32>) -> Result<models::Pi, ServiceError> {
