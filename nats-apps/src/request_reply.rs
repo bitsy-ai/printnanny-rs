@@ -233,7 +233,7 @@ impl NatsRequest {
             Some(current) => {
                 // send finalization request to cloud api
                 let api = ApiService::new(settings.cloud, sqlite_connection);
-                api.video_recording_finalize(&current.id);
+                api.video_recording_finalize(&current.id).await?;
             }
             None => {
                 warn!("handle_camera_recording_stop called, but no active recording was found");
