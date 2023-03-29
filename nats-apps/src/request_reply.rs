@@ -373,10 +373,10 @@ impl NatsRequest {
         };
         let factory = PrintNannyPipelineFactory::default();
 
-        let recording = match factory.pipeline_state(H264_RECORDING_PIPELINE).await {
-            GstPipelineState::Playing => true,
-            _ => false,
-        };
+        let recording = matches!(
+            factory.pipeline_state(H264_RECORDING_PIPELINE).await,
+            GstPipelineState::Playing
+        );
 
         info!(
             "CameraStatus streaming={} recording={:#?}",
