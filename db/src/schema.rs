@@ -6,8 +6,8 @@ diesel::table! {
 
     email_alert_settings (id) {
         id -> Integer,
-        created_dt -> Nullable<Timestamp>,
-        updated_dt -> Nullable<Timestamp>,
+        created_dt -> TimestamptzSqlite,
+        updated_dt -> TimestamptzSqlite,
         progress_percent -> Integer,
         print_quality_enabled -> Bool,
         print_started_enabled -> Bool,

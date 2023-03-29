@@ -1,9 +1,12 @@
 use diesel::prelude::*;
+use printnanny_settings::git2::Email;
 use serde::{Deserialize, Serialize};
 
+use chrono::{DateTime, Utc};
 use log::info;
 
 use crate::connection::establish_sqlite_connection;
+use crate::schema::email_alert_settings;
 use crate::schema::pis;
 
 #[derive(
@@ -138,6 +141,82 @@ impl Pi {
             .set(changeset)
             .execute(&mut connection)?;
         info!("printnanny_edge_db::cloud::Pi with id={} updated", &result);
+        Ok(())
+    }
+}
+
+#[derive(
+    Queryable, Identifiable, Insertable, Clone, Debug, PartialEq, Default, Serialize, Deserialize,
+)]
+#[diesel(table_name = email_alert_settings)]
+pub struct EmailAlertSettings {
+    pub id: i32,
+    pub created_dt: DateTime<Utc>,
+    pub updated_dt: DateTime<Utc>,
+    pub progress_percent: i32,
+    pub print_quality_enabled: bool,
+    pub print_started_enabled: bool,
+    pub print_done_enabled: bool,
+    pub print_progress_enabled: bool,
+    pub print_paused_enabled: bool,
+    pub print_cancelled_enabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, AsChangeset)]
+#[diesel(table_name =  email_alert_settings)]
+pub struct UpdateEmailAlertSettings<'a> {
+    pub updated_dt: Option<&'a DateTime<Utc>>,
+    pub progress_percent: Option<&'a i32>,
+    pub print_quality_enabled: Option<&'a bool>,
+    pub print_started_enabled: Option<&'a bool>,
+    pub print_done_enabled: Option<&'a bool>,
+    pub print_progress_enabled: Option<&'a bool>,
+    pub print_paused_enabled: Option<&'a bool>,
+    pub print_cancelled_enabled: Option<&'a bool>,
+}
+
+impl EmailAlertSettings {
+    pub fn get(connection_str: &str) -> Result<EmailAlertSettings, diesel::result::Error> {
+        use crate::schema::email_alert_settings::dsl::*;
+
+        let connection = &mut establish_sqlite_connection(connection_str);
+        let result: EmailAlertSettings = email_alert_settings
+            .order_by(id)
+            .first::<EmailAlertSettings>(connection)?;
+        info!(
+            "printnanny_edge_db::cloud::EmailAlertSettings row found {:#?}",
+            &result
+        );
+        Ok(result)
+    }
+    pub fn insert(
+        connection_str: &str,
+        row: EmailAlertSettings,
+    ) -> Result<(), diesel::result::Error> {
+        let mut connection = establish_sqlite_connection(connection_str);
+        let row = diesel::insert_into(email_alert_settings::dsl::email_alert_settings)
+            .values(row)
+            .execute(&mut connection)?;
+        info!(
+            "printnanny_edge_db::cloud::EmailAlertSettings row inserted {}",
+            &row
+        );
+        Ok(())
+    }
+    pub fn update(
+        connection_str: &str,
+        row_id: i32,
+        changeset: UpdateEmailAlertSettings,
+    ) -> Result<(), diesel::result::Error> {
+        let mut connection = establish_sqlite_connection(connection_str);
+        let result =
+            diesel::update(email_alert_settings::table.filter(email_alert_settings::id.eq(row_id)))
+                .set(changeset)
+                .execute(&mut connection)?;
+        info!(
+            "printnanny_edge_db::cloud::EmailAlertSettings with id={} updated",
+            &result
+        );
         Ok(())
     }
 }
