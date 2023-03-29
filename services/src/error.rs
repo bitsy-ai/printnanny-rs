@@ -4,10 +4,12 @@ use thiserror::Error;
 use printnanny_edge_db::diesel;
 
 use printnanny_api_client::apis::accounts_api;
+use printnanny_api_client::apis::alerts_api;
 use printnanny_api_client::apis::crash_reports_api;
 use printnanny_api_client::apis::devices_api;
 use printnanny_api_client::apis::octoprint_api;
 use printnanny_api_client::apis::videos_api;
+
 use printnanny_api_client::apis::Error as ApiError;
 
 use printnanny_settings::figment;
@@ -132,6 +134,9 @@ pub enum ServiceError {
 
     #[error(transparent)]
     UserRetrieveError(#[from] ApiError<accounts_api::AccountsUserRetrieveError>),
+
+    #[error(transparent)]
+    EmailAlertSettingsRetrieveError(#[from] ApiError<alerts_api::EmailAlertSettingsRetrieveError>),
 
     #[error(transparent)]
     Accounts2faAuthTokenCreateError(

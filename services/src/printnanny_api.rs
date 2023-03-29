@@ -364,6 +364,7 @@ impl ApiService {
                     &self.sqlite_connection,
                     &email_alert_settings,
                 )?;
+                Ok(())
             }
             Err(e) => match e {
                 // if edge Pi model isn't found, initialize
@@ -371,12 +372,13 @@ impl ApiService {
                     printnanny_edge_db::cloud::EmailAlertSettings::insert(
                         &self.sqlite_connection,
                         (&email_alert_settings).into(),
-                    );
+                    )?;
+                    Ok(())
                 }
                 // re-raise all other errors
                 _ => Err(ServiceError::SqliteDBError(e)),
             },
-        };
+        }?;
         info!(
             "Success! Synchronized EmailAlertSettings id={}",
             email_alert_settings.id
