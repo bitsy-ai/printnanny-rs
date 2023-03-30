@@ -84,7 +84,7 @@ impl NatsApp {
     }
     pub fn insert(connection_str: &str, row: NatsApp) -> Result<(), diesel::result::Error> {
         let mut connection = establish_sqlite_connection(connection_str);
-        info!(
+        debug!(
             "printnanny_edge_db::nats_app::NatsApp attempting to insert row: {:#?}",
             &row
         );
@@ -100,7 +100,7 @@ impl NatsApp {
         row: UpdateNatsApp,
     ) -> Result<(), diesel::result::Error> {
         let mut connection = establish_sqlite_connection(connection_str);
-        info!(
+        debug!(
             "printnanny_edge_db::nats_app::NatsApp attempting to update row with id={} : {:#?}",
             &row_id, &row
         );
