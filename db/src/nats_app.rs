@@ -1,7 +1,7 @@
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use log::info;
+use log::{debug, info};
 
 use crate::connection::establish_sqlite_connection;
 use crate::schema::nats_apps;
