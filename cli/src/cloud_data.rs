@@ -23,7 +23,7 @@ impl CloudDataCommand {
                 let service = ApiService::from(&settings);
                 let pi = service.pi_retrieve(None).await?;
                 let v = serde_json::to_vec_pretty(&pi)?;
-                io::stdout().write_all(&v)?;
+                io::stdout().write_all(&v).unwrap();
             }
             _ => panic!("Expected get|sync|show subcommand"),
         };

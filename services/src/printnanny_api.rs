@@ -12,6 +12,8 @@ use serde;
 use serde_json;
 use tokio::fs;
 
+use tokio::io::AsyncWriteExt;
+
 // settings modules
 use printnanny_settings::error::PrintNannySettingsError;
 use printnanny_settings::printnanny::{PrintNannyApiConfig, PrintNannySettings};
@@ -34,7 +36,7 @@ use printnanny_gst_pipelines::factory::PrintNannyPipelineFactory;
 
 use crate::cpuinfo::RpiCpuInfo;
 use crate::crash_report::write_crash_report_zip;
-use crate::error::{ServiceError, VideoRecordingError};
+use crate::error::{IoError, ServiceError, VideoRecordingError};
 use crate::file::open;
 use crate::metadata;
 use crate::os_release::OsRelease;
@@ -95,8 +97,8 @@ impl ApiService {
         let pi_id = printnanny_edge_db::cloud::Pi::get_id(&self.sqlite_connection)?;
 
         let request = models::PrintJobAlertRequest {
-            event_type: models::EventTypeEnum::PrintProgress,
-            event_source: models::EventSourceEnum::Octoprint,
+            event_type,
+            event_source,
             payload,
             pi: pi_id,
         };
@@ -110,17 +112,28 @@ impl ApiService {
 
         let snapshot = SnapshotClient::default();
         let jpeg_data = snapshot.get_latest_snapshot().await?;
-        let mut file = TempFile::new().await?;
-        file.write_all(&jpeg_data).await?;
+        let mut file = TempFile::new()
+            .await
+            .map_err(|e| IoError::TempFileError { msg: e.to_string() })?;
+        file.write_all(&jpeg_data)
+            .await
+            .map_err(|e| IoError::WriteIOError {
+                path: file.file_path().display().to_string(),
+                error: e.into(),
+            })?;
         let fpath = file.file_path();
         info!(
             "Saved snapshot to temporary path, pending upload {}",
             fpath.display()
         );
 
-        let result =
-            videos_api::pis_camera_snapshots_create(&self.reqwest_config(), pi_id, fpath, pi_id)
-                .await?;
+        let result = videos_api::pis_camera_snapshots_create(
+            &self.reqwest_config(),
+            pi_id,
+            fpath.clone(),
+            pi_id,
+        )
+        .await?;
         Ok(result)
     }
 
@@ -187,7 +200,8 @@ impl ApiService {
             .prefix("crash-report")
             .suffix(".zip")
             .rand_bytes(6)
-            .tempfile()?;
+            .tempfile()
+            .map_err(|e| IoError::TempFileError { msg: e.to_string() })?;
         let (file, filename) = &file.keep()?;
 
         write_crash_report_zip(file, crash_report_paths).await?;
@@ -220,7 +234,12 @@ impl ApiService {
         )
         .await?;
         warn!("Finished uploading {}, removing file", filename.display());
-        fs::remove_file(filename).await?;
+        fs::remove_file(filename)
+            .await
+            .map_err(|e| IoError::WriteIOError {
+                path: filename.display().to_string(),
+                error: e,
+            })?;
         Ok(result)
     }
 
@@ -234,7 +253,8 @@ impl ApiService {
             .prefix("crash-report")
             .suffix(".zip")
             .rand_bytes(6)
-            .tempfile()?;
+            .tempfile()
+            .map_err(|e| IoError::TempFileError { msg: e.to_string() })?;
         let (file, filename) = &file.keep()?;
 
         write_crash_report_zip(file, crash_report_paths).await?;

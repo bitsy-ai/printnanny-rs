@@ -6,11 +6,9 @@ use clap::{Arg, Command};
 use printnanny_services::video_recording_sync::upload_video_recording_part;
 use std::fs;
 
-use chrono::Utc;
 use env_logger::Builder;
 use git_version::git_version;
 use log::{error, info, LevelFilter};
-use tokio::io::AsyncReadExt;
 
 use printnanny_gst_pipelines::factory::{PrintNannyPipelineFactory, H264_RECORDING_PIPELINE};
 use printnanny_gst_pipelines::gst_client;

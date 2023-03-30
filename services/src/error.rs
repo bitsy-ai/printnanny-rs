@@ -81,6 +81,9 @@ pub enum PrintNannyCamSettingsError {
 
 #[derive(Error, Debug)]
 pub enum IoError {
+    #[error("Error creating temporary file: {msg}")]
+    TempFileError { msg: String },
+
     #[error("Failed to write {path} - {error}")]
     WriteIOError { path: String, error: std::io::Error },
     #[error("Failed to read {path} - {error}")]
@@ -175,7 +178,7 @@ pub enum ServiceError {
     SysInfoError(#[from] sys_info::Error),
 
     #[error(transparent)]
-    IoError(#[from] std::io::Error),
+    IoError(#[from] IoError),
     #[error(transparent)]
     FigmentError(#[from] figment::error::Error),
     #[error(transparent)]
