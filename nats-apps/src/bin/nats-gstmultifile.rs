@@ -10,7 +10,6 @@ use chrono::Utc;
 use env_logger::Builder;
 use git_version::git_version;
 use log::{error, info, LevelFilter};
-use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
 use printnanny_gst_pipelines::factory::{PrintNannyPipelineFactory, H264_RECORDING_PIPELINE};

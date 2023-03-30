@@ -1,16 +1,19 @@
 use std::fmt::Debug;
 
 use anyhow::{anyhow, Result};
+use async_tempfile::TempFile;
 use async_trait::async_trait;
 use bytes::Bytes;
 use log::info;
 use printnanny_api_client::models;
+use printnanny_snapshot::client::SnapshotClient;
 use serde::{Deserialize, Serialize};
 
 use printnanny_nats_client::event::NatsEventHandler;
-use printnanny_octoprint_models::{self, JobProgress};
+use printnanny_octoprint_models;
 use printnanny_services::printnanny_api::ApiService;
 use printnanny_settings::printnanny::PrintNannySettings;
+use tokio::io::AsyncWriteExt;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "subject_pattern")]
@@ -84,18 +87,26 @@ impl NatsEvent {
             && completion % email_alert_settings.progress_percent as f64 == 0_f64
         {
             let api = ApiService::new(settings.cloud, sqlite_connection);
-            let latest_snapshot_file = settings.paths.latest_snapshot_file();
+
+            let snapshot = SnapshotClient::default();
+            let jpeg_data = snapshot.get_latest_snapshot().await?;
+
+            let mut file = TempFile::new().await?;
+
+            file.write_all(&jpeg_data).await?;
+
+            let fpath = file.file_path();
 
             info!(
-                "handle_octoprint_job_progress attaching snapshot to alert: {:?}",
-                latest_snapshot_file
+                "handle_octoprint_job_progress attaching snapshot to alert: {}",
+                fpath.display()
             );
 
             let alert = api
                 .print_job_alert_create(
                     models::EventTypeEnum::PrintProgress,
                     models::EventSourceEnum::Octoprint,
-                    latest_snapshot_file,
+                    Some(fpath.clone()),
                 )
                 .await?;
             info!("Success! Created PrintJobAlert id={}", alert.id);

@@ -26,6 +26,7 @@ anyhow = "1"
 async-nats = "0.26"
 async-process = "1.4.0"
 async-trait = "0.1.58"
+async-tempfile = "0.2"                      # Automatically deleted async I/O temporary files.
 bytes = "1.2"
 chrono = { version = "0.4", features = ["clock", "serde"] }
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
@@ -44,6 +45,8 @@ printnanny-octoprint-models = "0.1.9"
 printnanny-nats-client = {path = "../nats-client", version = "^0.33.1"}
 printnanny-settings = { path = "../settings", version = "^0.7"}
 printnanny-services = {path = "../services", version = "^0.33.1"}
+printnanny-snapshot = {path = "../snapshot", version = "^0.1.1"}
+
 reqwest = { version = "0.11", features = ["gzip", "stream", "json"]}
 serde = { version = "1", features = ["derive"] }
 serde_bytes = "0.11"

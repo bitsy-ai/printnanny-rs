@@ -219,27 +219,27 @@ impl EmailAlertSettings {
         let row = match &obj.event_types {
             Some(event_types) => {
                 let print_quality_enabled_v = (event_types)
-                    .into_iter()
+                    .iter()
                     .any(|v| v == &models::EventTypesEnum::PrintQuality);
 
                 let print_started_enabled_v = (event_types)
-                    .into_iter()
+                    .iter()
                     .any(|v| v == &models::EventTypesEnum::PrintStarted);
 
                 let print_done_enabled_v = (event_types)
-                    .into_iter()
+                    .iter()
                     .any(|v| v == &models::EventTypesEnum::PrintDone);
 
                 let print_progress_enabled_v = (event_types)
-                    .into_iter()
+                    .iter()
                     .any(|v| v == &models::EventTypesEnum::PrintProgress);
 
                 let print_paused_enabled_v = (event_types)
-                    .into_iter()
+                    .iter()
                     .any(|v| v == &models::EventTypesEnum::PrintPaused);
 
                 let print_cancelled_enabled_v = (event_types)
-                    .into_iter()
+                    .iter()
                     .any(|v| v == &models::EventTypesEnum::PrintCancelled);
 
                 UpdateEmailAlertSettings {
@@ -297,7 +297,7 @@ impl From<&models::EmailAlertSettings> for EmailAlertSettings {
                     .any(|v| v == &models::EventTypesEnum::PrintStarted);
 
                 let print_done_enabled_v = (event_types)
-                    .into_iter()
+                    .iter()
                     .any(|v| v == &models::EventTypesEnum::PrintDone);
 
                 let print_progress_enabled_v = (event_types)
