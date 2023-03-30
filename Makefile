@@ -2,13 +2,14 @@
 .PHONY: install-fake-services uninstall-fake-services
 VERSION ?= latest
 TMPDIR ?= .tmp
-DEV_MACHINE ?= pn-v0-5
+DEV_MACHINE ?= dev-rpi4
 DEV_USER ?= pi
 
 PRINTNANNY_ADMIN_GROUP ?= printnanny-admin
 USER ?= $(shell whoami)
 
 PRINTNANNY_WEBAPP_WORKSPACE ?= $(HOME)/projects/octoprint-nanny-webapp
+
 
 $(TMPDIR):
 	mkdir -p $(TMPDIR)
@@ -58,8 +59,10 @@ devconfig: $(TMPDIR)/printnanny-$(DEV_MACHINE).zip
 
 
 dev-build:
-	cross build --bin=printnanny-cli --target=aarch64-unknown-linux-gnu
-	rsync --progress -e "ssh -o StrictHostKeyChecking=no" target/aarch64-unknown-linux-gnu/debug/printnanny-cli $(DEV_USER)@$(DEV_MACHINE).local:~/printnanny-cli
+	cross build --bin=nats-edge-worker --target=aarch64-unknown-linux-gnu
+	rsync --progress -e "ssh -o StrictHostKeyChecking=no" target/aarch64-unknown-linux-gnu/debug/nats-edge-worker $(DEV_USER)@$(DEV_MACHINE).local:~/nats-edge-worker
+	ssh -o StrictHostKeyChecking=no $(DEV_USER)@$(DEV_MACHINE) "sudo systemctl stop printnanny-edge-nats && sudo cp nats-edge-worker /usr/bin/nats-edge-worker && sudo systemctl restart printnanny-edge-nats"
+	ssh -o StrictHostKeyChecking=no $(DEV_USER)@$(DEV_MACHINE) "sudo systemctl stop printnanny-edge-nats"
 
 	# rsync --progress -e "ssh -o StrictHostKeyChecking=no" target/aarch64-unknown-linux-gnu/debug/printnanny-cli $(DEV_USER)@$(DEV_MACHINE).local:~/printnanny-cli
 	# rsync --progress -e "ssh -o StrictHostKeyChecking=no" target/aarch64-unknown-linux-gnu/debug/printnanny-dash $(DEV_USER)@$(DEV_MACHINE).local:~/printnanny-dash

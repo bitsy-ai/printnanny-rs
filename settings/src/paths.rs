@@ -56,7 +56,7 @@ impl PrintNannyPaths {
         match std::fs::read_dir(&self.snapshot_dir) {
             Ok(dir_entry) => match dir_entry.last() {
                 Some(Ok(last)) => Some(last.path()),
-                Some(Err(e)) => None,
+                Some(Err(_e)) => None,
                 None => None,
             },
             Err(_) => {

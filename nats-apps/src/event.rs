@@ -86,6 +86,11 @@ impl NatsEvent {
             let api = ApiService::new(settings.cloud, sqlite_connection);
             let latest_snapshot_file = settings.paths.latest_snapshot_file();
 
+            info!(
+                "handle_octoprint_job_progress attaching snapshot to alert: {:?}",
+                latest_snapshot_file
+            );
+
             let alert = api
                 .print_job_alert_create(
                     models::EventTypeEnum::PrintProgress,

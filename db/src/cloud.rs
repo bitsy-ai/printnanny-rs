@@ -2,7 +2,7 @@ use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use chrono::{DateTime, Utc};
-use log::info;
+use log::{debug, info};
 
 use printnanny_api_client::models;
 
@@ -184,7 +184,7 @@ impl EmailAlertSettings {
         let result = email_alert_settings
             .order_by(id)
             .first::<EmailAlertSettings>(connection)?;
-        info!(
+        debug!(
             "printnanny_edge_db::cloud::EmailAlertSettings row found {:#?}",
             &result
         );
@@ -198,7 +198,7 @@ impl EmailAlertSettings {
         let row = diesel::insert_into(email_alert_settings::dsl::email_alert_settings)
             .values(row)
             .execute(&mut connection)?;
-        info!(
+        debug!(
             "printnanny_edge_db::cloud::EmailAlertSettings row inserted {}",
             &row
         );
