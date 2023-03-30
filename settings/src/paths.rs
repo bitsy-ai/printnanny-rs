@@ -52,20 +52,6 @@ impl Default for PrintNannyPaths {
 }
 
 impl PrintNannyPaths {
-    pub fn latest_snapshot_file(self) -> Option<PathBuf> {
-        match std::fs::read_dir(&self.snapshot_dir) {
-            Ok(dir_entry) => match dir_entry.last() {
-                Some(Ok(last)) => Some(last.path()),
-                Some(Err(e)) => None,
-                None => None,
-            },
-            Err(_) => {
-                warn!("PrintNannyPaths.latest_snapshot_file called, but snapshot dir is empty");
-                None
-            }
-        }
-    }
-
     pub fn cloud(&self) -> PathBuf {
         self.data().join("PrintNannyCloudData.json")
     }
@@ -120,7 +106,7 @@ impl PrintNannyPaths {
         self.creds().join("license.zip")
     }
 
-    fn try_init(&self, dir: &Path) -> Result<(), io::Error> {
+    fn try_init(&self, dir: &Path) -> Result<(), PrintNannySettingsError> {
         match dir.exists() {
             true => {
                 info!("Skipping mkdir, already exists: {}", dir.display());
@@ -128,12 +114,15 @@ impl PrintNannyPaths {
             }
             false => {
                 info!("Creating directory: {}", dir.display());
-                std::fs::create_dir_all(dir)
+                std::fs::create_dir_all(dir).map_err(|e| PrintNannySettingsError::WriteIOError {
+                    path: dir.to_path_buf(),
+                    error: e,
+                })
             }
         }
     }
 
-    pub fn try_init_all(&self) -> Result<(), io::Error> {
+    pub fn try_init_all(&self) -> Result<(), PrintNannySettingsError> {
         let dirs = vec![self.creds(), self.data(), self.recovery(), self.video()];
 
         for dir in dirs {

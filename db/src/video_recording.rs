@@ -188,6 +188,7 @@ impl VideoRecording {
         } else {
             info!("No unfinished VideoRecordings found");
         }
+
         Ok(())
     }
 

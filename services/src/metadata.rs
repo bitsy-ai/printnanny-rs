@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use sysinfo::{DiskExt, System, SystemExt};
 
 use super::cpuinfo::RpiCpuInfo;
-use super::error::ServiceError;
+use super::error::{IoError, ServiceError};
 use super::os_release::OsRelease;
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -51,7 +51,11 @@ pub struct SystemInfo {
 }
 
 pub fn system_info() -> Result<SystemInfo, ServiceError> {
-    let machine_id: String = read_to_string("/etc/machine-id")?;
+    let machine_id: String =
+        read_to_string("/etc/machine-id").map_err(|e| IoError::ReadIOError {
+            path: "etc/machine-id".to_string(),
+            error: e,
+        })?;
 
     let mut sys = System::new_all();
     sys.refresh_all();
@@ -69,7 +73,10 @@ pub fn system_info() -> Result<SystemInfo, ServiceError> {
     let meminfo = procfs::Meminfo::new()?;
     let ram = meminfo.mem_total.try_into().unwrap();
 
-    let os_release = OsRelease::new_from("/etc/os-release")?;
+    let os_release = OsRelease::new_from("/etc/os-release").map_err(|e| IoError::ReadIOError {
+        path: "/etc/os-release".to_string(),
+        error: e,
+    })?;
 
     let mut bootfs_used: i64 = 0;
     let mut bootfs_size: i64 = 0;

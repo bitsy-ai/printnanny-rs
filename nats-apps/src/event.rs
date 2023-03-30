@@ -6,11 +6,13 @@ use bytes::Bytes;
 use log::info;
 use printnanny_api_client::models;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use printnanny_nats_client::event::NatsEventHandler;
-use printnanny_octoprint_models::{self, JobProgress};
+use printnanny_octoprint_models::{self, Job, JobProgress};
 use printnanny_services::printnanny_api::ApiService;
 use printnanny_settings::printnanny::PrintNannySettings;
+use tokio::io::AsyncWriteExt;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "subject_pattern")]
@@ -69,7 +71,9 @@ impl NatsEvent {
     ) -> Result<()> {
         info!("handle_octoprint_job_progress event={:?}", event);
         let settings = PrintNannySettings::new().await?;
+
         let sqlite_connection = settings.paths.db().display().to_string();
+
         let email_alert_settings =
             printnanny_edge_db::cloud::EmailAlertSettings::get(&sqlite_connection)?;
 
@@ -80,17 +84,56 @@ impl NatsEvent {
             .completion
             .expect("JobProgress.progress.completion expected to be some value, but got None");
 
+        let api = ApiService::new(settings.cloud, sqlite_connection);
+        api.camera_snapshot_create().await?;
+
         if email_alert_settings.print_progress_enabled
             && completion % email_alert_settings.progress_percent as f64 == 0_f64
         {
-            let api = ApiService::new(settings.cloud, sqlite_connection);
-            let latest_snapshot_file = settings.paths.latest_snapshot_file();
+            let mut payload: HashMap<String, serde_json::Value> = std::collections::HashMap::new();
+
+            match &event.job {
+                Some(v) => {
+                    payload.insert("job".to_string(), serde_json::to_value::<Job>(*v.clone())?);
+                }
+                None => (),
+            };
+
+            match &event.storage {
+                Some(v) => {
+                    payload.insert(
+                        "job".to_string(),
+                        serde_json::to_value::<String>(v.to_string())?,
+                    );
+                }
+                None => (),
+            };
+
+            match &event.path {
+                Some(v) => {
+                    payload.insert(
+                        "path".to_string(),
+                        serde_json::to_value::<String>(v.to_string())?,
+                    );
+                }
+                None => (),
+            };
+
+            match &event.progress {
+                Some(v) => {
+                    payload.insert(
+                        "progress".to_string(),
+                        serde_json::to_value::<JobProgress>(*v.clone())?,
+                    );
+                }
+                None => (),
+            };
 
             let alert = api
                 .print_job_alert_create(
                     models::EventTypeEnum::PrintProgress,
                     models::EventSourceEnum::Octoprint,
-                    latest_snapshot_file,
+                    Some(payload),
                 )
                 .await?;
             info!("Success! Created PrintJobAlert id={}", alert.id);

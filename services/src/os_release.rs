@@ -21,6 +21,8 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR
 
+use crate::error::IoError;
+
 use super::file::open;
 use std::collections::BTreeMap;
 use std::io::{self, prelude::*, BufReader};
@@ -78,8 +80,11 @@ pub struct OsRelease {
 
 impl OsRelease {
     /// Attempt to parse the contents of `/etc/os-release`.
-    pub fn new() -> io::Result<OsRelease> {
-        let file = open("/etc/os-release")?;
+    pub fn new() -> Result<OsRelease, IoError> {
+        let file = open("/etc/os-release").map_err(|e| IoError::ReadIOError {
+            path: "/etc/os-release".to_string(),
+            error: e,
+        })?;
         let reader = BufReader::new(file);
         Ok(OsRelease::from_iter(reader.lines().flatten()))
     }

@@ -230,10 +230,11 @@ impl PrintNannyPipelineFactory {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
 
-        let max_buffers = 3;
+        let max_buffers = 30;
 
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false \
-            ! v4l2jpegenc ! multifilesink location={filesink_location} max-files=120",
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false max-buffers={max_buffers} leaky-type=2 \
+            ! videorate ! video/x-raw,framerate=1/1 \
+            ! v4l2jpegenc ! multifilesink location={filesink_location} max-files={max_buffers}",
             // width=camera.width,
             // height=camera.height,
             // format=camera.format,

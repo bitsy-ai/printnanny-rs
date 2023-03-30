@@ -1,7 +1,7 @@
 use printnanny_edge_db::connection::run_migrations;
 use printnanny_settings::printnanny::PrintNannySettings;
 
-use crate::error::ServiceError;
+use crate::error::{IoError, ServiceError};
 
 // one-time PrintNanyn OS setup tasks
 pub async fn printnanny_os_init() -> Result<(), ServiceError> {
