@@ -3563,9 +3563,9 @@ checksum = "c6fa0831dd7cc608c38a5e323422a0077678fa5744aa2be4ad91c4ece8eec8d5"
 
 [[package]]
 name = "printnanny-api-client"
-version = "0.131.8"
+version = "0.132.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c348a340d42a7b662b657da4b08e7f5997a09ea00a2f244731e3a46262bb43b"
+checksum = "2ede25e158a30c3d31db804589987ce435d330f6bbdd9f1d91dfcdb7a813c0f0"
 dependencies = [
  "bytes",
  "clap",
@@ -3691,7 +3691,6 @@ dependencies = [
  "anyhow",
  "async-nats",
  "async-process",
- "async-tempfile",
  "async-trait",
  "bytes",
  "chrono",
@@ -3711,7 +3710,6 @@ dependencies = [
  "printnanny-octoprint-models",
  "printnanny-services",
  "printnanny-settings",
- "printnanny-snapshot",
  "reqwest",
  "serde 1.0.152",
  "serde-reflection",
@@ -3789,6 +3787,7 @@ dependencies = [
  "assert_cmd",
  "async-process",
  "async-stream",
+ "async-tempfile",
  "async-trait",
  "chrono",
  "config",
@@ -3812,6 +3811,7 @@ dependencies = [
  "printnanny-gst-pipelines",
  "printnanny-nats-client",
  "printnanny-settings",
+ "printnanny-snapshot",
  "procfs",
  "rand 0.8.5",
  "reqwest",

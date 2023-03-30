@@ -6,6 +6,7 @@ use std::future::Future;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
+use async_tempfile::TempFile;
 use chrono::Utc;
 use serde;
 use serde_json;
@@ -15,6 +16,8 @@ use tokio::fs;
 use printnanny_settings::error::PrintNannySettingsError;
 use printnanny_settings::printnanny::{PrintNannyApiConfig, PrintNannySettings};
 use printnanny_settings::sys_info;
+
+use printnanny_snapshot::client::SnapshotClient;
 
 use printnanny_api_client::apis::accounts_api;
 use printnanny_api_client::apis::alerts_api;
@@ -87,17 +90,37 @@ impl ApiService {
         &self,
         event_type: models::EventTypeEnum,
         event_source: models::EventSourceEnum,
-        image: Option<PathBuf>,
+        payload: Option<HashMap<String, serde_json::Value>>,
     ) -> Result<models::PrintJobAlert, ServiceError> {
         let pi_id = printnanny_edge_db::cloud::Pi::get_id(&self.sqlite_connection)?;
-        let result = alerts_api::alerts_print_job_create(
-            &self.reqwest_config(),
-            event_type,
-            event_source,
-            pi_id,
-            image,
-        )
-        .await?;
+
+        let request = models::PrintJobAlertRequest {
+            event_type: models::EventTypeEnum::PrintProgress,
+            event_source: models::EventSourceEnum::Octoprint,
+            payload,
+            pi: pi_id,
+        };
+
+        let result = alerts_api::alerts_print_job_create(&self.reqwest_config(), request).await?;
+        Ok(result)
+    }
+
+    pub async fn camera_snapshot_create(&self) -> Result<models::CameraSnapshot, ServiceError> {
+        let pi_id = printnanny_edge_db::cloud::Pi::get_id(&self.sqlite_connection)?;
+
+        let snapshot = SnapshotClient::default();
+        let jpeg_data = snapshot.get_latest_snapshot().await?;
+        let mut file = TempFile::new().await?;
+        file.write_all(&jpeg_data).await?;
+        let fpath = file.file_path();
+        info!(
+            "Saved snapshot to temporary path, pending upload {}",
+            fpath.display()
+        );
+
+        let result =
+            videos_api::pis_camera_snapshots_create(&self.reqwest_config(), pi_id, fpath, pi_id)
+                .await?;
         Ok(result)
     }
 

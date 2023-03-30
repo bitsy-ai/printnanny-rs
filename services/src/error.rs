@@ -112,6 +112,9 @@ pub enum ServiceError {
     ),
 
     #[error(transparent)]
+    PisCameraSnapshotsCreateError(#[from] ApiError<videos_api::PisCameraSnapshotsCreateError>),
+
+    #[error(transparent)]
     PisRetrieveError(#[from] ApiError<devices_api::PisRetrieveError>),
 
     #[error(transparent)]

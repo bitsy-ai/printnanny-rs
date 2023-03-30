@@ -6,7 +6,7 @@ use crate::error::VideoRecordingSyncError;
 use crate::printnanny_api::ApiService;
 
 use printnanny_edge_db::video_recording;
-use printnanny_settings::printnanny::{PrintNannyApiConfig, PrintNannySettings};
+use printnanny_settings::printnanny::PrintNannySettings;
 
 pub async fn upload_video_recording_part(
     row: video_recording::VideoRecordingPart,

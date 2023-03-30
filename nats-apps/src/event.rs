@@ -1,12 +1,11 @@
 use std::fmt::Debug;
 
 use anyhow::{anyhow, Result};
-use async_tempfile::TempFile;
+`use std::collections::HashMap;
 use async_trait::async_trait;
 use bytes::Bytes;
 use log::info;
 use printnanny_api_client::models;
-use printnanny_snapshot::client::SnapshotClient;
 use serde::{Deserialize, Serialize};
 
 use printnanny_nats_client::event::NatsEventHandler;
@@ -72,7 +71,9 @@ impl NatsEvent {
     ) -> Result<()> {
         info!("handle_octoprint_job_progress event={:?}", event);
         let settings = PrintNannySettings::new().await?;
+        
         let sqlite_connection = settings.paths.db().display().to_string();
+
         let email_alert_settings =
             printnanny_edge_db::cloud::EmailAlertSettings::get(&sqlite_connection)?;
 
@@ -87,28 +88,16 @@ impl NatsEvent {
             && completion % email_alert_settings.progress_percent as f64 == 0_f64
         {
             let api = ApiService::new(settings.cloud, sqlite_connection);
+            api.camera_snapshot_create().await?;
 
-            let snapshot = SnapshotClient::default();
-            let jpeg_data = snapshot.get_latest_snapshot().await?;
+            let mut payload: HashMap<String, Option<serde_json::Value>> = std::collections::HashMap::new();
 
-            let mut file = TempFile::new().await?;
+            payload.insert("job".to_string(), event.job.map(|v| serde_json::to_value(*v).unwrap()));
+            payload.insert("storage".to_string(), event.storage.map(|v| serde_json::to_value(*v).unwrap()));
+            payload.insert("path".to_string(), event.path.map(|v| serde_json::to_value(*v).unwrap()));
+            payload.insert("progress".to_string(), event.progress.path.map(|v| serde_json::to_value(*v).unwrap()));
 
-            file.write_all(&jpeg_data).await?;
-
-            let fpath = file.file_path();
-
-            info!(
-                "handle_octoprint_job_progress attaching snapshot to alert: {}",
-                fpath.display()
-            );
-
-            let alert = api
-                .print_job_alert_create(
-                    models::EventTypeEnum::PrintProgress,
-                    models::EventSourceEnum::Octoprint,
-                    Some(fpath.clone()),
-                )
-                .await?;
+            let alert = api.print_job_alert_create(models::EventTypeEnum::PrintProgress, models::EventSourceEnum::Octoprint, payload).await?;
             info!("Success! Created PrintJobAlert id={}", alert.id);
         }
 
