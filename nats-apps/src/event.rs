@@ -88,6 +88,7 @@ impl NatsEvent {
         api.camera_snapshot_create().await?;
 
         if email_alert_settings.print_progress_enabled
+            && completion != 0_f64
             && completion % email_alert_settings.progress_percent as f64 == 0_f64
         {
             let mut payload: HashMap<String, serde_json::Value> = std::collections::HashMap::new();
