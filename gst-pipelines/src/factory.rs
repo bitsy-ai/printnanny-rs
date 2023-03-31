@@ -225,21 +225,30 @@ impl PrintNannyPipelineFactory {
         pipeline_name: &str,
         listen_to: &str,
         filesink_location: &str,
-        _camera: &CameraSettings,
+        camera: &CameraSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
 
         let max_buffers = 30;
-
-        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true max-buffers={max_buffers} leaky-type=2 \
+        let caps = match camera.device_name.contains("imx219") {
+            true => format!(
+                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive,colorimetry=bt709",
+                width = camera.width,
+                height = camera.height,
+                framerate_n = camera.framerate_n,
+                framerate_d = camera.framerate_d
+            ),
+            false => format!(
+                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive",
+                width = camera.width,
+                height = camera.height,
+                framerate_n = camera.framerate_n,
+                framerate_d = camera.framerate_d
+            ),
+        };
+        let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false max-buffers={max_buffers} leaky-type=2 caps={caps} \
             ! v4l2jpegenc ! multifilesink location={filesink_location} max-files={max_buffers}",
-            // width=camera.width,
-            // height=camera.height,
-            // format=camera.format,
-            // framerate_n=camera.framerate_n,
-            // framerate_d=camera.framerate_d,
-            // colorimetry=camera.colorimetry
         );
         self.make_pipeline(pipeline_name, &description).await
     }
