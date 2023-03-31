@@ -508,24 +508,8 @@ impl PrintNannyPipelineFactory {
     }
 
     pub async fn sync_optional_pipelines(&self, settings: VideoStreamSettings) -> Result<()> {
-        let snapshot_settings = *settings.snapshot;
         let camera = *settings.camera;
         let hls_settings = *settings.hls;
-
-        let snapshot_pipeline = self
-            .make_jpeg_snapshot_pipeline(
-                SNAPSHOT_PIPELINE,
-                CAMERA_PIPELINE,
-                &snapshot_settings.path,
-                &camera,
-            )
-            .await?;
-        if snapshot_settings.enabled {
-            snapshot_pipeline.pause().await?;
-            snapshot_pipeline.play().await?;
-        } else {
-            snapshot_pipeline.stop().await?;
-        }
 
         let hls_pipeline = self
             .make_hls_pipeline(
@@ -645,6 +629,15 @@ impl PrintNannyPipelineFactory {
             )
             .await?;
 
+        let snapshot_pipeline = self
+            .make_jpeg_snapshot_pipeline(
+                SNAPSHOT_PIPELINE,
+                CAMERA_PIPELINE,
+                &snapshot_settings.path,
+                &camera,
+            )
+            .await?;
+
         let mut pipelines = vec![
             camera_pipeline,
             h264_pipeline,
@@ -652,6 +645,7 @@ impl PrintNannyPipelineFactory {
             inference_pipeline,
             bb_pipeline,
             df_pipeline,
+            snapshot_pipeline,
         ];
 
         if hls_settings.enabled {
@@ -666,18 +660,6 @@ impl PrintNannyPipelineFactory {
                 )
                 .await?;
             pipelines.push(hls_pipeline);
-        }
-
-        if snapshot_settings.enabled {
-            let snapshot_pipeline = self
-                .make_jpeg_snapshot_pipeline(
-                    SNAPSHOT_PIPELINE,
-                    CAMERA_PIPELINE,
-                    &snapshot_settings.path,
-                    &camera,
-                )
-                .await?;
-            pipelines.push(snapshot_pipeline);
         }
 
         for pipeline in pipelines.iter() {
