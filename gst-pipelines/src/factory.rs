@@ -5,12 +5,11 @@ use clap::ArgMatches;
 use gst_client::reqwest;
 use gst_client::GstClient;
 use log::{debug, error, info, warn};
-use printnanny_settings::printnanny_os_models::hls_settings;
 use tokio::time::{sleep, Duration};
 
 use printnanny_settings::cam::VideoStreamSettings;
 use printnanny_settings::printnanny::PrintNannySettings;
-use printnanny_settings::printnanny_os_models::{CameraSettings, DetectionSettings};
+use printnanny_settings::printnanny_os_models::CameraSettings;
 
 pub const CAMERA_PIPELINE: &str = "camera";
 pub const H264_ENCODING_PIPELINE: &str = "h264_encode";
@@ -188,7 +187,7 @@ impl PrintNannyPipelineFactory {
             ! capsfilter caps={caps} \
             ! v4l2convert \
             ! interpipesink name={interpipesink} sync=true async=false",
-            camera_name = (*settings.camera).device_name,
+            camera_name = settings.camera.device_name,
         );
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -202,7 +201,7 @@ impl PrintNannyPipelineFactory {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
 
-        let filesink_location = (*settings.snapshot).path.as_str();
+        let filesink_location = settings.snapshot.path.as_str();
 
         let max_buffers = 30;
         let caps = settings.gst_camera_caps();
