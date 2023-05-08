@@ -102,7 +102,7 @@ async fn run_splitmuxsink_fragment_publisher(
     let client = factory.gst_client();
     let pipeline = client.pipeline(pipeline_name);
     let bus = pipeline.bus();
-    let subject: String = NatsEvent::replace_subject_pattern(SUBJECT_PATTERN, hostname, "{pi_id}");
+    let _subject: String = NatsEvent::replace_subject_pattern(SUBJECT_PATTERN, hostname, "{pi_id}");
 
     // filter bus messages
     info!("Setting gstd filter pipeline={pipeline_name} filter=element");

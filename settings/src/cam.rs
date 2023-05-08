@@ -118,6 +118,7 @@ impl Default for CameraVideoSource {
 }
 
 impl CameraVideoSource {
+
     pub fn default_caps() -> printnanny_os_models::GstreamerCaps {
         printnanny_os_models::GstreamerCaps {
             colorimetry: DEFAULT_COLORIMETRY.into(),
@@ -482,6 +483,60 @@ impl Default for VideoStreamSettings {
 }
 
 impl VideoStreamSettings {
+    pub fn gst_tensor_decoder_caps(&self) -> String {
+        // Raspberry Pi Camera module v2 sensor - imx219
+        // Raspberry Pi Camera module v3 sensor - imx708
+        // Raspberry Pi HQ Camera Module - imx477
+        if self.camera.device_name.contains("imx219") {
+            format!(
+                "video/x-raw,width={width},height={height},format=YUY2,interlace-mode=progressive,colorimetry=bt709",
+                width = self.camera.width,
+                height = self.camera.height,
+            )
+        }
+        else {
+            format!(
+                "video/x-raw,width={width},height={height},format=YUY2,interlace-mode=progressive",
+                width = self.camera.width,
+                height = self.camera.height,
+            )
+        }
+    }
+    pub fn gst_camera_caps(&self) -> String {
+        // imx219 sensor shows blue-tinted video feed when caps format/colorimetry are automatically negotiated
+        // to reproduce this, run the following commands:
+
+        // Normal colors:
+        // GST_DEBUG=GST_CAPS:4 gst-launch-1.0 -vvv libcamerasrc ! 'video/x-raw,width=1280,height=720,format=YUY2' ! v4l2convert ! v4l2h264enc extra-controls="controls,repeat_sequence_header=1" ! h264parse ! 'video/x-h264,level=(string)4' ! rtph264pay ! udpsink host=localhost port=20001
+
+        // Blue colors:
+        // GST_DEBUG=GST_CAPS:4 gst-launch-1.0 -vvv libcamerasrc ! 'video/x-raw,width=1280,height=720' ! v4l2convert ! v4l2h264enc extra-controls="controls,repeat_sequence_header=1" ! h264parse ! 'video/x-h264,level=(string)4' ! rtph264pay ! udpsink host=localhost port=20001
+
+        // So we manually specify the YUY2 format
+        // NOTE this appears to be an interaction with the v4l2h264enc element, which forces upstream caps to YUY2
+
+        // Raspberry Pi Camera module v2 sensor - imx219
+        // Raspberry Pi Camera module v3 sensor - imx708
+        // Raspberry Pi HQ Camera Module - imx477
+        if self.camera.device_name.contains("imx219") || self.camera.device_name.contains("imx708") || self.camera.device_name.contains("imx477") {
+            format!(
+                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive,colorimetry=bt709",
+                width = self.camera.width,
+                height = self.camera.height,
+                framerate_n = self.camera.framerate_n,
+                framerate_d = self.camera.framerate_d
+            )
+        } else {
+            format!(
+                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive",
+                width = self.camera.width,
+                height = self.camera.height,
+                framerate_n = self.camera.framerate_n,
+                framerate_d = self.camera.framerate_d
+            )
+        }
+    }
+
     pub async fn hotplug(mut self) -> Result<Self, PrintNannySettingsError> {
         // list available devices
         let camera_sources = CameraVideoSource::from_libcamera_list().await?;
