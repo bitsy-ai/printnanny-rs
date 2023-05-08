@@ -3,7 +3,6 @@ use figment::providers::Env;
 use log::{info, warn};
 use serde;
 use serde::{Deserialize, Serialize};
-use std::io;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};

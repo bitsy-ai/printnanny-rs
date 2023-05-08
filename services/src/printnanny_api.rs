@@ -119,7 +119,7 @@ impl ApiService {
             .await
             .map_err(|e| IoError::WriteIOError {
                 path: file.file_path().display().to_string(),
-                error: e.into(),
+                error: e,
             })?;
         let fpath = file.file_path();
         info!(

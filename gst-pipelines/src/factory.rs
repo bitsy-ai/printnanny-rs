@@ -5,6 +5,7 @@ use clap::ArgMatches;
 use gst_client::reqwest;
 use gst_client::GstClient;
 use log::{debug, error, info, warn};
+use printnanny_settings::printnanny_os_models::hls_settings;
 use tokio::time::{sleep, Duration};
 
 use printnanny_settings::cam::VideoStreamSettings;
@@ -177,45 +178,17 @@ impl PrintNannyPipelineFactory {
     async fn make_camera_pipeline(
         &self,
         pipeline_name: &str,
-        camera: &CameraSettings,
+        settings: &VideoStreamSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
-
-        // imx219 sensor shows blue-tinted video feed when caps format/colorimetry are automatically negotiated
-        // to reproduce this, run the following commands:
-
-        // Normal colors:
-        // GST_DEBUG=GST_CAPS:4 gst-launch-1.0 -vvv libcamerasrc ! 'video/x-raw,width=1280,height=720,format=YUY2' ! v4l2convert ! v4l2h264enc extra-controls="controls,repeat_sequence_header=1" ! h264parse ! 'video/x-h264,level=(string)4' ! rtph264pay ! udpsink host=localhost port=20001
-
-        // Blue colors:
-        // GST_DEBUG=GST_CAPS:4 gst-launch-1.0 -vvv libcamerasrc ! 'video/x-raw,width=1280,height=720' ! v4l2convert ! v4l2h264enc extra-controls="controls,repeat_sequence_header=1" ! h264parse ! 'video/x-h264,level=(string)4' ! rtph264pay ! udpsink host=localhost port=20001
-
-        // So we manually specify the YUY2 format
-        // NOTE this appears to be an interaction with the v4l2h264enc element, which forces upstream caps to YUY2
-
-        let caps = match camera.device_name.contains("imx219") {
-            true => format!(
-                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive,colorimetry=bt709",
-                width = camera.width,
-                height = camera.height,
-                framerate_n = camera.framerate_n,
-                framerate_d = camera.framerate_d
-            ),
-            false => format!(
-                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive",
-                width = camera.width,
-                height = camera.height,
-                framerate_n = camera.framerate_n,
-                framerate_d = camera.framerate_d
-            ),
-        };
+        let caps = settings.gst_camera_caps();
 
         let description = format!(
             "libcamerasrc camera-name={camera_name} \
             ! capsfilter caps={caps} \
             ! v4l2convert \
             ! interpipesink name={interpipesink} sync=true async=false",
-            camera_name = camera.device_name,
+            camera_name = (*settings.camera).device_name,
         );
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -224,29 +197,15 @@ impl PrintNannyPipelineFactory {
         &self,
         pipeline_name: &str,
         listen_to: &str,
-        filesink_location: &str,
-        camera: &CameraSettings,
+        settings: &VideoStreamSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let listen_to = Self::to_interpipesink_name(listen_to);
 
+        let filesink_location = (*settings.snapshot).path.as_str();
+
         let max_buffers = 30;
-        let caps = match camera.device_name.contains("imx219") {
-            true => format!(
-                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive,colorimetry=bt709",
-                width = camera.width,
-                height = camera.height,
-                framerate_n = camera.framerate_n,
-                framerate_d = camera.framerate_d
-            ),
-            false => format!(
-                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive",
-                width = camera.width,
-                height = camera.height,
-                framerate_n = camera.framerate_n,
-                framerate_d = camera.framerate_d
-            ),
-        };
+        let caps = settings.gst_camera_caps();
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false max-buffers={max_buffers} leaky-type=2 caps={caps} \
             ! v4l2jpegenc ! multifilesink location={filesink_location} max-files={max_buffers}",
         );
@@ -257,39 +216,18 @@ impl PrintNannyPipelineFactory {
         &self,
         pipeline_name: &str,
         listen_to: &str,
-        camera: &CameraSettings,
+        settings: &VideoStreamSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
 
-        let caps = match camera.device_name.contains("imx219") {
-            true => format!(
-                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive,colorimetry=bt709",
-                width = camera.width,
-                height = camera.height,
-                framerate_n = camera.framerate_n,
-                framerate_d = camera.framerate_d
-            ),
-            false => format!(
-                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive",
-                width = camera.width,
-                height = camera.height,
-                framerate_n = camera.framerate_n,
-                framerate_d = camera.framerate_d
-            ),
-        };
+        let caps: String = settings.gst_camera_caps();
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true caps={caps} \
             ! v4l2h264enc extra-controls=controls,repeat_sequence_header=1 \
             ! h264parse name={pipeline_name}_h264parse \
             ! capssetter caps=video/x-h264,level=(string)4,profile=(string)high \
             ! interpipesink name={interpipesink} sync=false async=false forward-events=true forward-eos=true",
-            // width=camera.width,
-            // height=camera.height,
-            // format=camera.format,
-            // framerate_n=camera.framerate_n,
-            // framerate_d=camera.framerate_d,
-            // colorimetry=camera.colorimetry
         );
         self.make_pipeline(pipeline_name, &description).await
     }
@@ -298,10 +236,12 @@ impl PrintNannyPipelineFactory {
         &self,
         pipeline_name: &str,
         listen_to: &str,
-        port: i32,
+        settings: &VideoStreamSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
+
+        let port = settings.rtp.video_udp_port;
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
             ! rtph264pay config-interval=1 aggregate-mode=zero-latency pt=96 \
@@ -314,10 +254,7 @@ impl PrintNannyPipelineFactory {
         &self,
         pipeline_name: &str,
         listen_to: &str,
-        hls_segments_location: &str,
-        hls_playlist_location: &str,
-        hls_playlist_root: &str,
-        framerate_n: &i32,
+        settings: &VideoStreamSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
@@ -332,7 +269,11 @@ impl PrintNannyPipelineFactory {
         //    (3): time             - GST_FORMAT_TIME
         //    (4): buffers          - GST_FORMAT_BUFFERS
         //    (5): percent          - GST_FORMAT_PERCENT
-
+        let hls_settings = &*settings.hls;
+        let hls_segments_location = hls_settings.segments.as_str();
+        let hls_playlist_location = hls_settings.playlist.as_str();
+        let hls_playlist_root = hls_settings.playlist_root.as_str();
+        let framerate_n = settings.camera.framerate_n;
         let target_duration = (60 / framerate_n) + 1; // v4l2-ctl --list-ctrls-menu -d 11 -> h264_i_frame_period default sends a key unit every 60 frames
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=true format=3 \
@@ -344,33 +285,19 @@ impl PrintNannyPipelineFactory {
         &self,
         pipeline_name: &str,
         listen_to: &str,
-        tensor_width: i32,
-        tensor_height: i32,
-        tflite_model_file: &str,
-        camera: &CameraSettings,
+        settings: &VideoStreamSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
         let interpipesink = Self::to_interpipesink_name(pipeline_name);
 
         let tensor_format = "RGB"; // model expects pixel data to be in RGB format
+        let caps: String = settings.gst_camera_caps();
 
-        let caps = match camera.device_name.contains("imx219") {
-            true => format!(
-                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive,colorimetry=bt709",
-                width = camera.width,
-                height = camera.height,
-                framerate_n = camera.framerate_n,
-                framerate_d = camera.framerate_d
-            ),
-            false => format!(
-                "video/x-raw,width={width},height={height},framerate={framerate_n}/{framerate_d},format=YUY2,interlace-mode=progressive",
-                width = camera.width,
-                height = camera.height,
-                framerate_n = camera.framerate_n,
-                framerate_d = camera.framerate_d
-            ),
-        };
+        let detection_settings = &*settings.detection;
+        let tensor_width = detection_settings.tensor_width;
+        let tensor_height = detection_settings.tensor_height;
+        let tflite_model_file = detection_settings.model_file.as_str();
 
         let max_buffers = 3;
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false max-buffers={max_buffers} leaky-type=2 caps={caps} \
@@ -380,10 +307,6 @@ impl PrintNannyPipelineFactory {
             ! capsfilter caps=other/tensors,format=static \
             ! tensor_filter framework=tensorflow2-lite model={tflite_model_file} \
             ! interpipesink name={interpipesink} sync=false async=false",
-            // width=camera.width,
-            // height=camera.height,
-            // format=camera.format,
-            // colorimetry=camera.colorimetry
         );
 
         self.make_pipeline(pipeline_name, &description).await
@@ -393,12 +316,13 @@ impl PrintNannyPipelineFactory {
         &self,
         pipeline_name: &str,
         listen_to: &str,
-        camera: &CameraSettings,
-        detection: &DetectionSettings,
-        port: i32,
+        settings: &VideoStreamSettings,
     ) -> Result<gst_client::resources::Pipeline> {
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
+
+        let port = settings.rtp.overlay_udp_port;
+        let detection = &(*settings.detection);
 
         // let colorimetry = "bt709";
 
@@ -412,18 +336,8 @@ impl PrintNannyPipelineFactory {
         //    (3): time             - GST_FORMAT_TIME
         //    (4): buffers          - GST_FORMAT_BUFFERS
         //    (5): percent          - GST_FORMAT_PERCENT
-        let caps = match camera.device_name.contains("imx219") {
-            true => format!(
-                "video/x-raw,width={width},height={height},format=YUY2,interlace-mode=progressive,colorimetry=bt709",
-                width = camera.width,
-                height = camera.height,
-            ),
-            false => format!(
-                "video/x-raw,width={width},height={height},format=YUY2,interlace-mode=progressive",
-                width = camera.width,
-                height = camera.height,
-            ),
-        };
+        let caps: String = settings.gst_tensor_decoder_caps();
+        let camera = &*settings.camera;
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=true accept-eos-event=false is-live=true allow-renegotiation=true \
             ! tensor_decoder name=bb_tensor_decoder mode=bounding_boxes option1=mobilenet-ssd-postprocess option2={tflite_label_file} option3=0:1:2:3,{nms_threshold} option4={video_width}:{video_height} option5={tensor_width}:{tensor_height} \
@@ -450,13 +364,14 @@ impl PrintNannyPipelineFactory {
         &self,
         pipeline_name: &str,
         listen_to: &str,
-        nms_threshold: i32,
-        nats_server_uri: &str,
+        settings: &VideoStreamSettings,
     ) -> Result<gst_client::resources::Pipeline> {
-        let nms_threshold = nms_threshold as f32 / 100_f32;
-
         let listen_to = Self::to_interpipesink_name(listen_to);
         let interpipesrc = Self::to_interpipesrc_name(pipeline_name);
+        let detection = &(*settings.detection);
+
+        let nms_threshold = detection.nms_threshold as f32 / 100_f32;
+        let nats_server_uri = detection.nats_server_uri.as_str();
 
         let description = format!("interpipesrc name={interpipesrc} listen-to={listen_to} accept-events=false accept-eos-event=false is-live=true allow-renegotiation=false \
             ! tensor_decoder name=df_tensor_decoder mode=custom-code option1=printnanny_bb_dataframe_decoder \
@@ -516,19 +431,10 @@ impl PrintNannyPipelineFactory {
     }
 
     pub async fn sync_optional_pipelines(&self, settings: VideoStreamSettings) -> Result<()> {
-        let camera = *settings.camera;
-        let hls_settings = *settings.hls;
-
         let hls_pipeline = self
-            .make_hls_pipeline(
-                HLS_PIPELINE,
-                H264_ENCODING_PIPELINE,
-                &hls_settings.segments,
-                &hls_settings.playlist,
-                &hls_settings.playlist_root,
-                &camera.framerate_n,
-            )
+            .make_hls_pipeline(HLS_PIPELINE, H264_ENCODING_PIPELINE, &settings)
             .await?;
+        let hls_settings = &*(settings).hls;
         if hls_settings.enabled {
             hls_pipeline.pause().await?;
             hls_pipeline.play().await?;
@@ -586,64 +492,34 @@ impl PrintNannyPipelineFactory {
             settings.save().await;
         }
 
-        let snapshot_settings = *settings.video_stream.snapshot;
-        let camera = *settings.video_stream.camera;
-        let hls_settings = *settings.video_stream.hls;
-        let rtp_settings = *settings.video_stream.rtp;
+        let video_settings = settings.video_stream;
 
-        let detection_settings = *settings.video_stream.detection;
-
-        let camera_pipeline = self.make_camera_pipeline(CAMERA_PIPELINE, &camera).await?;
+        let camera_pipeline = self
+            .make_camera_pipeline(CAMERA_PIPELINE, &video_settings)
+            .await?;
 
         let h264_pipeline = self
-            .make_h264_encode_pipeline(H264_ENCODING_PIPELINE, CAMERA_PIPELINE, &camera)
+            .make_h264_encode_pipeline(H264_ENCODING_PIPELINE, CAMERA_PIPELINE, &video_settings)
             .await?;
 
         let rtp_pipeline = self
-            .make_rtp_pipeline(
-                RTP_PIPELINE,
-                H264_ENCODING_PIPELINE,
-                rtp_settings.video_udp_port,
-            )
+            .make_rtp_pipeline(RTP_PIPELINE, H264_ENCODING_PIPELINE, &video_settings)
             .await?;
 
         let inference_pipeline = self
-            .make_inference_pipeline(
-                INFERENCE_PIPELINE,
-                CAMERA_PIPELINE,
-                detection_settings.tensor_width,
-                detection_settings.tensor_height,
-                &detection_settings.model_file,
-                &camera,
-            )
+            .make_inference_pipeline(INFERENCE_PIPELINE, CAMERA_PIPELINE, &video_settings)
             .await?;
 
         let bb_pipeline = self
-            .make_bounding_box_pipeline(
-                BB_PIPELINE,
-                INFERENCE_PIPELINE,
-                &camera,
-                &detection_settings,
-                rtp_settings.overlay_udp_port,
-            )
+            .make_bounding_box_pipeline(BB_PIPELINE, INFERENCE_PIPELINE, &video_settings)
             .await?;
 
         let df_pipeline = self
-            .make_df_pipeline(
-                DF_WINDOW_PIPELINE,
-                INFERENCE_PIPELINE,
-                detection_settings.nms_threshold,
-                &detection_settings.nats_server_uri,
-            )
+            .make_df_pipeline(DF_WINDOW_PIPELINE, INFERENCE_PIPELINE, &video_settings)
             .await?;
 
         let snapshot_pipeline = self
-            .make_jpeg_snapshot_pipeline(
-                SNAPSHOT_PIPELINE,
-                CAMERA_PIPELINE,
-                &snapshot_settings.path,
-                &camera,
-            )
+            .make_jpeg_snapshot_pipeline(SNAPSHOT_PIPELINE, CAMERA_PIPELINE, &video_settings)
             .await?;
 
         let mut pipelines = vec![
@@ -656,16 +532,11 @@ impl PrintNannyPipelineFactory {
             snapshot_pipeline,
         ];
 
+        let hls_settings = &*(video_settings).hls;
+
         if hls_settings.enabled {
             let hls_pipeline = self
-                .make_hls_pipeline(
-                    HLS_PIPELINE,
-                    H264_ENCODING_PIPELINE,
-                    &hls_settings.segments,
-                    &hls_settings.playlist,
-                    &hls_settings.playlist_root,
-                    &camera.framerate_n,
-                )
+                .make_hls_pipeline(HLS_PIPELINE, H264_ENCODING_PIPELINE, &video_settings)
                 .await?;
             pipelines.push(hls_pipeline);
         }
