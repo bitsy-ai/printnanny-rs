@@ -192,13 +192,10 @@ impl DataframeAgg {
                     .gt(settings.filter_threshold)
                     .and(col("rt").gt(col("rt").max() - lit(max_duration.nanoseconds()))),
             )
-            .sort(
-                "rt",
-                SortOptions {
-                    descending: false,
-                    nulls_last: false,
-                    multithreaded: true,
-                },
+            .sort_by_exprs(
+                vec![col("rt"), col("detection_classes")],
+                vec![false, false],
+                false,
             )
             .collect()
             .expect("Failed to collect dataframes");
@@ -221,7 +218,7 @@ impl DataframeAgg {
 
         let mut windowed_df = localdf
             .lazy()
-            .groupby_dynamic(col("detection_classes"), [], group_options)
+            .groupby_dynamic(vec![col("detection_classes")], group_options)
             .agg([
                 col("rt").min().alias("rt__min"),
                 col("rt").max().alias("rt__max"),

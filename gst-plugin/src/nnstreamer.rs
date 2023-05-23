@@ -15,7 +15,7 @@ use libc::{c_char, c_float, c_int, c_void, size_t};
 
 use crate::ipc;
 
-const NNS_TENSOR_RANK_LIMIT: usize = 4;
+const NNS_TENSOR_RANK_LIMIT: usize = 8;
 
 static CAT: Lazy<gst::DebugCategory> = Lazy::new(|| {
     gst::DebugCategory::new(
@@ -68,7 +68,7 @@ pub struct GstTensorMemory {
 pub struct GstTensorInfo {
     pub name: *const c_char,
     pub tensor_type: TensorType,
-    pub tensor_dim: TensorDimension, // NNstreamer framework supports up to 4th rank
+    pub tensor_dim: TensorDimension, // NNstreamer framework supports up to 8th rank
 }
 
 #[repr(C)]
@@ -88,7 +88,8 @@ pub struct GstTensorsSettings {
 }
 
 // based on: https://github.com/nnstreamer/nnstreamer/blob/f2c3bcd87f34ac2ad52ca0a17f6515c54e6f2d66/tests/nnstreamer_decoder/unittest_decoder.cc#L28
-extern "C" fn printnanny_bb_dataframe_decoder(
+#[no_mangle]
+pub extern "C" fn printnanny_bb_dataframe_decoder(
     input: *const GstTensorMemory,
     config: *const GstTensorsSettings,
     _data: libc::c_void,
@@ -127,14 +128,22 @@ extern "C" fn printnanny_bb_dataframe_decoder(
         );
             return GST_FLOW_ERROR;
         }
-        if df_config.info.info[0].tensor_dim[1] != df_config.info.info[1].tensor_dim[0]
-            || df_config.info.info[0].tensor_dim[1] != df_config.info.info[2].tensor_dim[0]
-        {
+
+        if df_config.info.info[0].tensor_dim[1] != df_config.info.info[1].tensor_dim[0] {
             gst::error!(
-            CAT,
-            "printnanny_bb_dataframe_decoder expected tensor 1/2 to have shape N:1:1:1, but received shapes {:?}",
-            df_config.info.info
-        );
+                CAT,
+                "printnanny_bb_dataframe_decoder expected tensor 1 to have shape N:1:1:1, but received shapes {:?}",
+                df_config.info
+            );
+            return GST_FLOW_ERROR;
+        }
+
+        if df_config.info.info[0].tensor_dim[1] != df_config.info.info[2].tensor_dim[0] {
+            gst::error!(
+                CAT,
+                "printnanny_bb_dataframe_decoder expected tensor 2 to have shape N:1:1:1, but received shapes {:?}",
+                df_config.info
+            );
             return GST_FLOW_ERROR;
         }
 
@@ -261,6 +270,10 @@ pub fn register_nnstreamer_callbacks() {
             name.as_ptr(),
             printnanny_bb_dataframe_decoder,
             std::ptr::null_mut(),
+        );
+        gst::log!(
+            CAT,
+            "Registered custom nnstreamer decoder: printnanny_bb_dataframe_decoder"
         );
     }
 }

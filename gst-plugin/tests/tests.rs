@@ -231,6 +231,7 @@ fn test_dataframe_agg() {
 
         let (_rows, columns) = df.shape();
         println!("Pulled dataframe from buffer {:?}", df);
+
         assert_eq!(columns, expected_columns);
 
         // window should not exceed max duration
@@ -249,6 +250,7 @@ fn test_dataframe_agg() {
         assert!(max_duration_ns >= ts_dif);
         num_buffers += 1;
     }
+    assert!(num_buffers == expected_buffers);
 }
 
 // requires websocket-tcp-server bin to be running, ignore in CI but keep as development helper
