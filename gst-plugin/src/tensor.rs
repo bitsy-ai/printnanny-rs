@@ -1,6 +1,6 @@
 use std::num::ParseIntError;
 
-use arrow::datatypes;
+use polars::export::arrow::datatypes;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

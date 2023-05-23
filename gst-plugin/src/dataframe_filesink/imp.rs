@@ -141,7 +141,7 @@ impl ObjectImpl for DataframeFileSink {
                     .get::<u64>()
                     .expect("type checked upstream");
                 self.multifilesink
-                    .set_property("max-file-duration", &settings.max_file_duration );            
+                    .set_property("max-file-duration", settings.max_file_duration );            
             }
             "max-file-size" => {
                 settings.max_file_size = value
@@ -149,7 +149,7 @@ impl ObjectImpl for DataframeFileSink {
                     .expect("type checked upstream");
                 self
                     .multifilesink
-                    .set_property("max-file-size", &settings.max_file_size);            
+                    .set_property("max-file-size", settings.max_file_size);            
             }
             "max-files" => {
                 settings.max_files = value
@@ -157,7 +157,7 @@ impl ObjectImpl for DataframeFileSink {
                     .expect("type checked upstream");
                 self
                     .multifilesink
-                    .set_property("max-files", &settings.max_files);            
+                    .set_property("max-files", settings.max_files);            
             }
             "post-messages" => {
                 settings.post_file_messages = value
@@ -165,7 +165,7 @@ impl ObjectImpl for DataframeFileSink {
                     .expect("type checked upstream");
                 self
                     .multifilesink
-                    .set_property("post-messages", &settings.post_file_messages);            
+                    .set_property("post-messages", settings.post_file_messages);            
             }
             _ => unimplemented!("Property is not implemented {:?}", value),
         };
@@ -186,7 +186,7 @@ impl ObjectImpl for DataframeFileSink {
     fn constructed(&self) {
         self.parent_constructed();
 
-        let obj = self.instance();
+        let obj = self.obj();
         obj.add(&self.multifilesink).unwrap();
         // only one ghostpad is needed here, since a sink element has no srcpad
         self.sinkpad

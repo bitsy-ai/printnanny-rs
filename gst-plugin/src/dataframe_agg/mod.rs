@@ -20,6 +20,12 @@ pub enum DataframeOutputType {
     Json = 1,
 }
 
+impl Default for DataframeOutputType {
+    fn default() -> Self {
+        Self::ArrowStreamingIpc
+    }
+}
+
 // The public Rust wrapper type for our element
 glib::wrapper! {
     pub struct DataframeAgg(ObjectSubclass<imp::DataframeAgg>) @extends gst::Bin, gst::Element, gst::Object;

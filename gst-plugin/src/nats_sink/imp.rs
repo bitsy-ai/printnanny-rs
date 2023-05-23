@@ -142,7 +142,7 @@ impl BaseSinkImpl for NatsSink {
             unreachable!("NatsSink already started");
         }
 
-        let element = self.instance();
+        let element = self.obj();
 
         let settings = self.settings.lock().unwrap();
 
@@ -172,7 +172,7 @@ impl BaseSinkImpl for NatsSink {
     fn stop(&self) -> Result<(), gst::ErrorMessage> {
         let mut state = self.state.lock().unwrap();
 
-        let element = self.instance();
+        let element = self.obj();
 
         let nc = match *state {
             State::Started { ref mut nc } => nc,
@@ -207,7 +207,7 @@ impl BaseSinkImpl for NatsSink {
         let mut state = self.state.lock().unwrap();
         let settings = self.settings.lock().unwrap();
 
-        let element = self.instance();
+        let element = self.obj();
 
         let nc = match *state {
             State::Started { ref mut nc } => nc,

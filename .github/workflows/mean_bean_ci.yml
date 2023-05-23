@@ -101,7 +101,7 @@ jobs:
             libglib2.0-dev \
             nnstreamer \
             nnstreamer-dev \
-            nnstreamer-tensorflow2-lite \
+            nnstreamer-tensorflow2-lite
 
           make install-fake-services
           make install-group
@@ -120,12 +120,15 @@ jobs:
           sudo apt-get remove libunwind-14-dev
           sudo apt-get -y update
           sudo apt-get install -y pkg-config libssl-dev \
+            systemd policykit-1 \
             gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
             gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
             gstreamer1.0-libav libgstrtspserver-1.0-dev libges-1.0-dev \
             gstreamer1.0-tools gstreamer1.0-x \
             libglib2.0-dev \
-            libsqlite3-0
+            nnstreamer \
+            nnstreamer-dev \
+            nnstreamer-tensorflow2-lite
       - uses: actions/checkout@v2
       - run: |
           tools/ci/set_rust_version.bash ${{ matrix.channel }} ${{ matrix.target }}

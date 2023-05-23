@@ -202,11 +202,8 @@ fn test_dataframe_agg() {
         ! videoconvert \
         ! tensor_converter \
         ! capsfilter caps=other/tensors,num_tensors=1,format=static \
-        ! queue leaky=2 \
         ! tensor_filter framework=tensorflow2-lite model={model_file} output=4:{num_detections}:1:1,{num_detections}:1:1:1,{num_detections}:1:1:1,1:1:1:1 outputname=detection_boxes,detection_classes,detection_scores,num_detections outputtype=float32,float32,float32,float32 \
-        ! queue \
         ! tensor_decoder mode=custom-code option1=printnanny_bb_dataframe_decoder \
-        ! queue \
         ! dataframe_agg filter-threshold=0.0001 window-interval=100ms window-period=100ms max-size-duration={max_duration}",
         expected_buffers = expected_buffers,
         num_detections = num_detections,
@@ -215,6 +212,7 @@ fn test_dataframe_agg() {
         model_file = model_path.display(),
         max_duration = max_duration
     );
+    println!("{}", &pipeline_str);
     let mut h = gst_check::Harness::new_parse(&pipeline_str);
     let bus = gst::Bus::new();
     let element = h.element().unwrap();
@@ -232,6 +230,7 @@ fn test_dataframe_agg() {
 
         let (_rows, columns) = df.shape();
         println!("Pulled dataframe from buffer {:?}", df);
+
         assert_eq!(columns, expected_columns);
 
         // window should not exceed max duration
@@ -250,6 +249,7 @@ fn test_dataframe_agg() {
         assert!(max_duration_ns >= ts_dif);
         num_buffers += 1;
     }
+    assert!(num_buffers == expected_buffers);
 }
 
 // requires websocket-tcp-server bin to be running, ignore in CI but keep as development helper
