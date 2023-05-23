@@ -221,7 +221,7 @@ impl DataframeAgg {
 
         let mut windowed_df = localdf
             .lazy()
-            .groupby_dynamic([col("detection_classes")], group_options)
+            .groupby_dynamic(col("detection_classes"), [], group_options)
             .agg([
                 col("rt").min().alias("rt__min"),
                 col("rt").max().alias("rt__max"),

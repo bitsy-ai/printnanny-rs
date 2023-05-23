@@ -14,7 +14,6 @@ repository = "https://github.com/bitsy-ai/printnanny-gst-plugin-rs/"
 anyhow = "1"                                   # Flexible concrete Error type built on std::error::Error
 nats = "0.23"
 ndarray = "0.15"               # An n-dimensional array for general elements and for numerics. Lightweight array views and slic…
-arrow2 = "0.17.0"                  # Unofficial implementation of Apache Arrow spec in safe Rust
 bytes = { version = "1.2", features = ["std"] }                            # Types and traits for working with bytes
 byte-slice-cast = "1.2"    # Safely cast bytes slices from/to slices of built-in fundamental numeric types
 clap = { version = "3", features = ["derive", "cargo", "env", "wrap_help"] }
@@ -30,7 +29,7 @@ gst-video = { package = "gstreamer-video", features = ["v1_20"],version = "0.20"
 printnanny-settings = { package="printnanny-settings", version = "^0.7", path="../settings" }
 once_cell = "1.0"
 thiserror = "1.0"               # derive(Error)
-polars = { version = "0.28", features = [
+polars = { version = "0.29", features = [
     "algo",
     "cum_agg", 
     "cumulative_eval", 
