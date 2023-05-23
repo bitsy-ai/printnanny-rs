@@ -186,7 +186,7 @@ impl ObjectImpl for DataframeFileSink {
     fn constructed(&self) {
         self.parent_constructed();
 
-        let obj = self.instance();
+        let obj = self.obj();
         obj.add(&self.multifilesink).unwrap();
         // only one ghostpad is needed here, since a sink element has no srcpad
         self.sinkpad

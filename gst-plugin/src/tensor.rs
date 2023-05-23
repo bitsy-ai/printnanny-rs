@@ -1,6 +1,6 @@
 use std::num::ParseIntError;
 
-use arrow::datatypes;
+use arrow2::datatypes;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

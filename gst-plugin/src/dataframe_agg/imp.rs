@@ -161,11 +161,11 @@ impl DataframeAgg {
     ) -> Result<gst::FlowSuccess, gst::FlowError> {
         gst::log!(CAT, obj: pad, "Handling buffer {:?}", buffer);
 
-        let ts = match self.instance().current_clock_time() {
+        let ts = match self.obj().current_clock_time() {
             Some(clock) => clock.nseconds(),
             None => 0,
         } as i64;
-        let rt = match self.instance().current_running_time() {
+        let rt = match self.obj().current_running_time() {
             Some(clock) => clock.nseconds(),
             None => 0,
         } as i64;
@@ -174,7 +174,6 @@ impl DataframeAgg {
         let settings = self.settings.lock().unwrap();
 
         let cursor = buffer.into_cursor_readable();
-
         let reader = IpcStreamReader::new(cursor);
         let df = reader
             .finish()
@@ -198,18 +197,20 @@ impl DataframeAgg {
                 SortOptions {
                     descending: false,
                     nulls_last: false,
+                    multithreaded: true,
                 },
             )
             .collect()
             .expect("Failed to collect dataframes");
         let group_options = DynamicGroupOptions {
-            index_column: "rt".to_string(),
+            index_column: "rt".into(),
             every: Duration::parse(&settings.window_interval),
             period: Duration::parse(&settings.window_period),
             offset: Duration::parse(&settings.window_offset),
             closed_window: ClosedWindow::Right,
             truncate: false,
             include_boundaries: true,
+            start_by: StartBy::WindowBound,
         };
 
         let localdf = state.dataframe.clone();
@@ -379,7 +380,7 @@ impl ObjectSubclass for DataframeAgg {
 impl ObjectImpl for DataframeAgg {
     fn constructed(&self) {
         self.parent_constructed();
-        let obj = self.instance();
+        let obj = self.obj();
 
         obj.add_pad(&self.sinkpad).unwrap();
         obj.add_pad(&self.srcpad).unwrap();
@@ -432,7 +433,7 @@ impl ObjectImpl for DataframeAgg {
                     .blurb("Delta degrees of freedom modifier, used in standard deviation and variance calculations")
                     .default_value(DEFAULT_DDOF as u32)
                     .build(),
-                glib::ParamSpecEnum::builder::<DataframeOutputType>("output-type", DEFAULT_OUTPUT_TYPE)
+                glib::ParamSpecEnum::builder::<DataframeOutputType>("output-type")
                     .nick("Output Format Type")
                     .blurb("Format of output buffer")
                     .build(),
@@ -550,7 +551,7 @@ impl ElementImpl for DataframeAgg {
         &self,
         transition: gst::StateChange,
     ) -> Result<gst::StateChangeSuccess, gst::StateChangeError> {
-        let element = self.instance();
+        let element = self.obj();
         gst::trace!(CAT, obj: element, "Changing state {:?}", transition);
 
         // Call the parent class' implementation of ::change_state()
