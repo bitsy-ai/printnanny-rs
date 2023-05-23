@@ -87,9 +87,12 @@ pub struct GstTensorsSettings {
     pub rate_d: c_int,        //  framerate is in fraction, which is numerator/denominator
 }
 
+/// # Safety
+///
+/// This function should only be called with rank-4 tensor with shape 4:N:1:1,N:1:1:1,N:1:1:1,1:1:1:1 where N is the number of detections returned
 // based on: https://github.com/nnstreamer/nnstreamer/blob/f2c3bcd87f34ac2ad52ca0a17f6515c54e6f2d66/tests/nnstreamer_decoder/unittest_decoder.cc#L28
 #[no_mangle]
-pub extern "C" fn printnanny_bb_dataframe_decoder(
+pub unsafe extern "C" fn printnanny_bb_dataframe_decoder(
     input: *const GstTensorMemory,
     config: *const GstTensorsSettings,
     _data: libc::c_void,
@@ -253,7 +256,7 @@ pub extern "C" fn printnanny_bb_dataframe_decoder(
 extern "C" {
     fn nnstreamer_decoder_custom_register(
         name: *const c_char,
-        tensor_decoder_custom: extern "C" fn(
+        tensor_decoder_custom: unsafe extern "C" fn(
             input: *const GstTensorMemory,
             config: *const GstTensorsSettings,
             data: libc::c_void,
