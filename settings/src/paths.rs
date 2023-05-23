@@ -257,6 +257,7 @@ impl PrintNannyPaths {
             PathBuf::from("/proc/cpuinfo"),
             PathBuf::from("/proc/meminfo"),
             PathBuf::from("/var/log/cloud-init.log"),
+            PathBuf::from("/var/log/kern.log"),
             PathBuf::from("/var/log/klipper/"),
             PathBuf::from("/var/log/moonraker/"),
             PathBuf::from("/var/log/nginx/access.log"),
