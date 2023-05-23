@@ -68,7 +68,6 @@ fn test_nats_sink() {
     pipeline.set_state(gst::State::Null).unwrap();
 }
 
-#[ignore]
 #[test]
 fn test_nnstreamer_callback() {
     init();
