@@ -617,6 +617,11 @@ impl NatsRequest {
         let ts = SystemTime::now();
         let commit_msg = format!("Updated PrintNannySettings.camera @ {ts:?}");
         settings.save_and_commit(&content, Some(commit_msg)).await?;
+        // stop gstreamer pipelines
+        let factory: PrintNannyPipelineFactory = PrintNannyPipelineFactory::default();
+        factory.stop_pipelines().await?;
+        factory.start_pipelines().await?;
+        // start gstreamer pipelines
         Ok(NatsReply::CameraSettingsFileApplyReply(
             settings.video_stream.into(),
         ))
