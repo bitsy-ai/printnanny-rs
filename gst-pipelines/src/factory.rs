@@ -491,6 +491,8 @@ impl PrintNannyPipelineFactory {
             settings.save().await;
         }
 
+        self.stop_pipelines().await?;
+
         let video_settings = settings.video_stream;
 
         let camera_pipeline = self
@@ -554,6 +556,7 @@ impl PrintNannyPipelineFactory {
     }
 
     pub async fn stop_pipelines(&self) -> Result<()> {
+        warn!("Stopping gstreamer pipelines");
         let client = GstClient::build(&self.uri).expect("Failed to build GstClient");
         let res = client.pipelines().await?;
 
@@ -562,9 +565,9 @@ impl PrintNannyPipelineFactory {
                 if let Some(nodes) = props.nodes {
                     for node in nodes {
                         let pipeline = client.pipeline(&node.name);
-                        info!("Stopping pipeline: {}", &node.name);
+                        warn!("Stopping pipeline: {}", &node.name);
                         pipeline.stop().await?;
-                        info!("Deleting pipeline: {}", &node.name);
+                        warn!("Deleting pipeline: {}", &node.name);
                         pipeline.delete().await?;
                     }
                 }
