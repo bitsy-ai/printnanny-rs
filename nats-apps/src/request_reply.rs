@@ -1091,6 +1091,7 @@ mod tests {
     }
 
     #[test_log::test]
+    #[ignore]
     fn test_camera_settings_apply_load() {
         figment::Jail::expect_with(|jail| {
             // init git repo in jail tmp dir

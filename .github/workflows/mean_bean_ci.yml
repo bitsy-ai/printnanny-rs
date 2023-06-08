@@ -139,6 +139,7 @@ jobs:
         # by default. You can try disabling to see if they work for
         # your project.
       - run: |
+          export GST_PLUGIN_PATH="/target/${{ matrifx.target }}/debug"
           tools/ci/test.bash $(which cross) ${{ matrix.target }}
         env:
           RUST_LOG: debug
