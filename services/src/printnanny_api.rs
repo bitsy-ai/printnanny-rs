@@ -203,8 +203,9 @@ impl ApiService {
             .tempfile()
             .map_err(|e| IoError::TempFileError { msg: e.to_string() })?;
         let (file, filename) = &file.keep()?;
+        let settings = PrintNannySettings::new().await?;
 
-        write_crash_report_zip(file, crash_report_paths).await?;
+        write_crash_report_zip(file, &settings).await?;
         warn!("Wrote crash report logs to {}", filename.display());
 
         let serial = match RpiCpuInfo::new() {
@@ -256,8 +257,9 @@ impl ApiService {
             .tempfile()
             .map_err(|e| IoError::TempFileError { msg: e.to_string() })?;
         let (file, filename) = &file.keep()?;
+        let settings = PrintNannySettings::new().await?;
 
-        write_crash_report_zip(file, crash_report_paths).await?;
+        write_crash_report_zip(file, &settings).await?;
         warn!("Wrote crash report logs to {}", filename.display());
 
         let serial = match RpiCpuInfo::new() {

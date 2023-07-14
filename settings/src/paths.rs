@@ -3,11 +3,14 @@ use figment::providers::Env;
 use log::{info, warn};
 use serde;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::fs;
 use zip::ZipArchive;
+
+use crate::printnanny::PrintNannySettings;
 
 use super::error::PrintNannySettingsError;
 
@@ -66,6 +69,21 @@ impl PrintNannyPaths {
             "PRINTNANNY_SETTINGS",
             DEFAULT_PRINTNANNY_SETTINGS_FILE,
         ))
+    }
+
+    pub fn venvs(&self, settings: &PrintNannySettings) -> HashMap<String, PathBuf> {
+        let mut result = HashMap::new();
+
+        let octoprint_venv = settings.to_octoprint_settings().venv;
+        result.insert("octoprint.requirements.txt".to_string(), octoprint_venv);
+
+        let klipper_venv = settings.to_klipper_settings().venv;
+        result.insert("klipper.requirements.txt".to_string(), klipper_venv);
+
+        let moonraker_venv = settings.to_moonraker_settings().venv;
+        result.insert("moonraker.requiremens.txt".to_string(), moonraker_venv);
+
+        result
     }
 
     pub fn db(&self) -> PathBuf {
