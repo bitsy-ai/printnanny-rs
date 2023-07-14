@@ -5,11 +5,18 @@ use std::path::PathBuf;
 
 use log::{debug, error, warn};
 
+use printnanny_settings::printnanny::PrintNannySettings;
 use tokio::fs;
 use tokio::process::Command;
 
 use printnanny_settings::error::PrintNannySettingsError;
 use zip::write::FileOptions;
+
+async fn pip_freeze(venv: &PathBuf) -> io::Result<Vec<u8>> {
+    let pip = venv.join("bin/pip");
+    let output = Command::new(pip).args(["freeze", "--all"]).output().await?;
+    Ok(output.stdout)
+}
 
 async fn netstat_routes() -> io::Result<Vec<u8>> {
     let output = Command::new("netstat").args(["--route"]).output().await?;
@@ -92,10 +99,12 @@ fn write_to_zipfile(
 
 pub async fn write_crash_report_zip(
     file: &File,
-    crash_report_paths: Vec<PathBuf>,
+    settings: &PrintNannySettings,
 ) -> Result<(), PrintNannySettingsError> {
     let mut zip = zip::ZipWriter::new(file);
     let options = FileOptions::default().unix_permissions(0o755);
+
+    let crash_report_paths = settings.paths.crash_report_paths();
 
     for path in crash_report_paths {
         // handle path does not exist
@@ -181,6 +190,12 @@ pub async fn write_crash_report_zip(
                 }
             };
         }
+    }
+
+    // run `pip freeze` in all virtual environments
+    for (filename, venv) in settings.paths.venvs(settings).iter() {
+        let content = pip_freeze(venv).await?;
+        write_to_zipfile(filename, &content, &mut zip, options);
     }
 
     // write disk usage to zip
